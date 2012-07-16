@@ -1,0 +1,9 @@
+[submodule "deps/libMU"]
+	path = deps/libMU
+	url = git://github.com/runner-mei/libMU.git
+[submodule "deps/libssh2"]
+	path = deps/libssh2
+	url = git://git.libssh2.org/libssh2.git
+[submodule "deps/openssl"]
+	path = deps/openssl
+	url = http://github.com/luvit/openssl.git

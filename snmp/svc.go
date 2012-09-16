@@ -1,0 +1,393 @@
+package snmp
+
+import (
+	"errors"
+	"fmt"
+	"reflect"
+	"sync"
+	"sync/atomic"
+	"time"
+)
+
+type PanicError struct {
+	message string
+	any     interface{}
+}
+
+func NewPanicError(s string, any interface{}) error {
+	return &PanicError{message: fmt.Sprintf("%s%v", s, any), any: any}
+}
+
+func (err *PanicError) Error() string {
+	return err.message
+}
+
+const (
+	MESSAGE_RET_PANIC = 0
+	MESSAGE_RET_OK    = 1
+
+	MESSAGE_TYPE_SYSTEM = 0
+	MESSAGE_TYPE_USER   = 0
+
+	MESSAGE_EXIT = 0
+)
+
+type Startable interface {
+	Start() error
+	Stop()
+}
+
+type InvokedContext interface {
+	Reply(results ...interface{})
+}
+
+type responseMessage struct {
+	responseType int
+	panicResult  interface{}
+	results      []interface{}
+}
+
+type requestMessage struct {
+	messageType int
+	function    *reflect.Value
+	args        []reflect.Value
+}
+
+type message struct {
+	ch       chan *message
+	request  requestMessage
+	response responseMessage
+
+	isAsyncReply bool
+}
+
+func (msg *message) Reply(results ...interface{}) {
+	msg.response.responseType = MESSAGE_RET_OK
+	msg.response.results = results
+
+	if nil != msg.ch {
+		msg.ch <- msg
+	}
+	msg.isAsyncReply = true
+}
+
+// //////////////////////////////////////////////////////////////////////////////////////////
+// //var maxMessageCache = flag.Int("maxMessageCache", 1000, "set max size of response_message cache")
+// var freeMessageList = make(chan *response_message, 1000)
+//
+// func getCachedMessage() (msg *response_message) {
+//	select {
+//	case msg = <-freeMessageList:
+//	default:
+//		msg = new(response_message)
+//	}
+//	return
+// }
+//
+// func putCachedMessage(msg *response_message) {
+//	select {
+//	case freeMessageList <- msg:
+//	default:
+//	}
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//var maxChannelCache = flag.Int("maxChannelCache", 1000, "set max size of channel cache")
+var freeChannelList = make(chan *message, 1000)
+
+func getCachedChannel() (msg *message) {
+	select {
+	case msg = <-freeChannelList:
+	default:
+		msg = &message{ch: make(chan *message)}
+	}
+	msg.isAsyncReply = false
+	return
+}
+
+func putCachedChannel(msg *message) {
+	msg.request.args = nil
+	msg.request.function = nil
+	msg.response.results = nil
+	msg.response.panicResult = nil
+	msg.isAsyncReply = false
+	select {
+	case freeChannelList <- msg:
+	default:
+	}
+}
+
+const (
+	status_inactive = 0
+	status_active   = 1
+)
+
+type Svc struct {
+	initialized                sync.Once
+	status                     int32
+	ch                         chan *message
+	timeout                    time.Duration
+	onStart, onStop, onTimeout func()
+}
+
+func (svc *Svc) FuncOf(target interface{}, name string) *reflect.Value {
+	v := reflect.ValueOf(target)
+	f := v.MethodByName(name)
+	if 0 == f.Kind() {
+		panic(errors.New(fmt.Sprintf("%s hasn`t method %s", v.String(), name)))
+	}
+	return &f
+}
+
+func (svc *Svc) Start() (err error) {
+	svc.initialized.Do(func() {
+		svc.status = status_inactive
+		svc.ch = make(chan *message)
+	})
+	if !atomic.CompareAndSwapInt32(&svc.status, status_inactive, status_active) {
+		return
+	}
+
+	if nil != svc.onStart {
+		svc.onStart()
+	}
+
+	go serve(svc)
+	return
+}
+
+func (svc *Svc) Stop() {
+	if !atomic.CompareAndSwapInt32(&svc.status, status_active, status_inactive) {
+		return
+	}
+
+	msg := new(message)
+	msg.ch = nil
+	msg.request.messageType = MESSAGE_TYPE_SYSTEM
+	svc.ch <- msg
+}
+
+func function2Value(function interface{}) (fvp *reflect.Value) {
+	var ok bool
+	var fv reflect.Value
+
+	fvp, ok = function.(*reflect.Value)
+	if ok {
+		goto end
+	}
+
+	fv, ok = function.(reflect.Value)
+	if !ok {
+		fv = reflect.ValueOf(function)
+	}
+
+	fvp = &fv
+
+end:
+	if reflect.Func != fvp.Kind() {
+		panic(errors.New(fmt.Sprintf("paramter 'function' isn't a function. real type is %v", fvp.Kind())))
+	}
+	return
+}
+
+func (svc *Svc) send(function interface{}, args ...interface{}) {
+	if !svc.IsAlive() {
+		panic(errors.New("svc is stopped."))
+		return
+	}
+
+	msg := new(message)
+
+	msg.request.messageType = MESSAGE_TYPE_USER
+	msg.request.function = function2Value(function)
+	msg.request.args = make([]reflect.Value, len(args))
+	for i, v := range args {
+		msg.request.args[i] = reflect.ValueOf(v)
+	}
+
+	svc.ch <- msg
+	return
+}
+
+func panicArgumentsError(in, n int) {
+	if in < n {
+		panic("call: Call with too few input arguments")
+	}
+	panic("call: Call with too many input arguments")
+}
+
+func (svc *Svc) call(timeout time.Duration, function interface{}, args ...interface{}) (results []interface{}) {
+	if !svc.IsAlive() {
+		panic(errors.New("svc is stopped."))
+		return
+	}
+
+	msg := getCachedChannel()
+	var success bool = false
+
+	defer func() {
+		if success {
+			putCachedChannel(msg)
+		} else {
+			if nil != msg.ch {
+				close(msg.ch)
+			}
+		}
+	}()
+
+	msg.request.messageType = MESSAGE_TYPE_USER
+	msg.request.function = function2Value(function)
+
+	var argsLen int = len(args)
+	funcType := msg.request.function.Type()
+	if inLen := funcType.NumIn(); inLen != argsLen {
+
+		if inLen != (argsLen + 1) {
+			panicArgumentsError(inLen, argsLen)
+		}
+
+		msgType := reflect.TypeOf(msg)
+		if !msgType.AssignableTo(funcType.In(0)) {
+			panicArgumentsError(inLen, argsLen)
+		}
+
+		msg.request.args = make([]reflect.Value, argsLen+1)
+		msg.request.args[0] = reflect.ValueOf(msg)
+		msg.isAsyncReply = true
+
+		for i, v := range args {
+			msg.request.args[i+1] = reflect.ValueOf(v)
+		}
+	} else {
+		msg.request.args = make([]reflect.Value, argsLen)
+		msg.isAsyncReply = false
+
+		for i, v := range args {
+			msg.request.args[i] = reflect.ValueOf(v)
+		}
+	}
+
+	svc.ch <- msg
+	select {
+	case resp := <-msg.ch:
+		switch resp.response.responseType {
+		case MESSAGE_RET_PANIC:
+			success = true
+			panic(resp.response.panicResult)
+		case MESSAGE_RET_OK:
+			success = true
+			results = resp.response.results
+		default:
+			panic(errors.New(fmt.Sprintf("unknown response type:", resp.response.responseType)))
+		}
+	case <-time.After(timeout):
+		panic(errors.New("time out"))
+	}
+	return
+}
+
+func serve(svc *Svc) {
+
+	exited := false
+
+	defer func() {
+		atomic.CompareAndSwapInt32(&svc.status, status_active, status_inactive)
+		handleExit(svc)
+		if !exited {
+			if err := recover(); nil != err {
+				fmt.Printf("%v\r\n", err)
+			} else {
+				fmt.Println("svc failed!")
+			}
+		}
+	}()
+
+	if 0 == svc.timeout {
+		svc.timeout = 10 * time.Second
+	}
+
+	for {
+		select {
+		case msg, ok := <-svc.ch:
+			if !ok {
+				goto exit
+			}
+			if msg.request.messageType == MESSAGE_TYPE_SYSTEM {
+				if nil == msg.request.function {
+					goto exit
+				}
+			}
+			svc.safelyCall(msg)
+		case <-time.After(svc.timeout):
+			handleTick(svc)
+		}
+	}
+exit:
+	exited = true
+	fmt.Println("channel is closed or recv an exit message!")
+}
+
+func handleExit(svc *Svc) {
+
+	defer func() {
+		if err := recover(); nil != err {
+			fmt.Printf("on exit - %v", err)
+		}
+	}()
+
+	if nil != svc.onStop {
+		svc.onStop()
+	}
+}
+
+func handleTick(svc *Svc) {
+
+	defer func() {
+		if err := recover(); nil != err {
+			fmt.Printf("on exit - %v", err)
+		}
+	}()
+
+	if nil != svc.onTimeout {
+		svc.onTimeout()
+	}
+}
+
+func (svc *Svc) IsAlive() bool {
+	return status_active == atomic.LoadInt32(&svc.status)
+}
+
+func (svc *Svc) safelyCall(msg *message) {
+	if nil == msg {
+		return
+	}
+
+	defer func() {
+		if err := recover(); nil != err {
+			fmt.Printf("%v", err)
+		}
+	}()
+
+	ret := svc.callMessage(msg)
+	if nil != msg.ch && !msg.isAsyncReply {
+		msg.ch <- ret
+	}
+}
+
+func (svc *Svc) callMessage(msg *message) (reply *message) {
+	reply = msg
+	reply.response.responseType = MESSAGE_RET_OK
+	defer func() {
+		if err := recover(); nil != err {
+			reply.response.responseType = MESSAGE_RET_PANIC
+			reply.response.panicResult = err
+		}
+	}()
+
+	results := msg.request.function.Call(msg.request.args)
+	reply.response.results = make([]interface{}, len(results))
+	for i, v := range results {
+		reply.response.results[i] = v.Interface()
+	}
+	return
+}

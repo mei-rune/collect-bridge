@@ -113,6 +113,14 @@ func AppendBindings(vbs *VariableBindings, s string) {
 	vbs.AppendWith(SnmpOid(oid), value)
 }
 
+func checkOid(target *SnmpOid, i int, t *testing.T) {
+	oid := make([]uint32, len(oid1))
+	copy(oid, oid1)
+	oid[5] = uint32(i + 1)
+	if target.String() != NewOid(oid).String() {
+		t.Errorf("decode v1 pdu faile - oid[%d] not equal, excepted is %s, value is %s", i, NewOid(oid).GetString(), target.GetString())
+	}
+}
 func uint32ToString(ints []uint32) string {
 	oid := SnmpOid(ints)
 	return oid.String()
@@ -128,6 +136,26 @@ func fillPdu(vbs *VariableBindings) {
 	AppendBindings(vbs, "[gauge]1235683")
 	AppendBindings(vbs, "[timeticks]1235683")
 	AppendBindings(vbs, "[counter64]12352121212122683")
+}
+
+func checkVB(vbs *VariableBindings, i int, excepted string, t *testing.T) {
+	oid := vbs.Get(i).Oid
+	checkOid(&oid, i, t)
+	if vbs.Get(i).Value.String() != excepted {
+		t.Errorf("decode v1 pdu faile - value[%d] error, excepted is '%s', value is %s", i, excepted, vbs.Get(i).Value.String())
+	}
+}
+
+func checkPdu(vbs *VariableBindings, t *testing.T) {
+	checkVB(vbs, 0, "[null]", t)
+	checkVB(vbs, 1, "[int32]12", t)
+	checkVB(vbs, 2, "[octets]1234567890", t)
+	checkVB(vbs, 3, uint32ToString(oid2), t)
+	checkVB(vbs, 4, "[ip]1.2.3.4", t)
+	checkVB(vbs, 5, "[counter32]2235683", t)
+	checkVB(vbs, 6, "[gauge]1235683", t)
+	checkVB(vbs, 7, "[timeticks]1235683", t)
+	checkVB(vbs, 8, "[counter64]12352121212122683", t)
 }
 
 func TestEncodePDU(t *testing.T) {
@@ -155,6 +183,53 @@ func TestEncodePDU(t *testing.T) {
 	if snmpv2c_txt != hex.EncodeToString(bytes) {
 		t.Log(hex.EncodeToString(bytes))
 		t.Errorf("encode v2 pdu faile.")
+	}
+
+}
+
+func TestDecodePDU(t *testing.T) {
+	bytes, e := hex.DecodeString(snmpv1_txt)
+	if nil != e {
+		t.Errorf("decode hex failed - %s", e.Error())
+		return
+	}
+	pdu, e := DecodePDU(bytes)
+	if nil != e {
+		t.Errorf("decode v1 pdu faile - %s", e.Error())
+	} else {
+		if SNMP_V1 != pdu.GetVersion() {
+			t.Errorf("decode v1 pdu faile - version error, excepted is v1, actual value is %d", pdu.GetVersion())
+		} else {
+			if "123987" != pdu.(*V2CPDU).community {
+				t.Errorf("decode v1 pdu faile - community error, excepted is '123987', actual value is %s", pdu.(*V2CPDU).community)
+			}
+			if 234 != pdu.(*V2CPDU).requestId {
+				t.Errorf("decode v1 pdu faile - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
+			}
+		}
+		checkPdu(pdu.GetVariableBindings(), t)
+	}
+
+	bytes, e = hex.DecodeString(snmpv2c_txt)
+	if nil != e {
+		t.Errorf("decode hex failed - %s", e.Error())
+		return
+	}
+	pdu, e = DecodePDU(bytes)
+	if nil != e {
+		t.Errorf("decode v1 pdu faile - %s", e.Error())
+	} else {
+		if SNMP_V2C != pdu.GetVersion() {
+			t.Errorf("decode v2 pdu faile - version error, excepted is v2C, actual value is %d", pdu.GetVersion())
+		} else {
+			if "123987" != pdu.(*V2CPDU).community {
+				t.Errorf("decode v1 pdu faile - community error, excepted is '123987', actual value is %s", pdu.(*V2CPDU).community)
+			}
+			if 234 != pdu.(*V2CPDU).requestId {
+				t.Errorf("decode v1 pdu faile - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
+			}
+		}
+		checkPdu(pdu.GetVariableBindings(), t)
 	}
 
 }

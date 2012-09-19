@@ -1197,15 +1197,13 @@ void snmp_pdu_dump(const snmp_pdu_t *pdu)
             dump_hex(" context_engine", pdu->context_engine, pdu->context_engine_len);
 
             snmp_printf(" user.secname: %s\n", pdu->user.sec_name);
-            dump_hex(" user.auth_key", pdu->user.auth_key, pdu->user.auth_key_len);
-            dump_hex(" user.priv_key", pdu->user.priv_key, pdu->user.priv_key_len);
+            dump_hex(" user.auth_key", pdu->user.auth_key, pdu->user.auth_len);
+            dump_hex(" user.priv_key", pdu->user.priv_key, pdu->user.priv_len);
 
-            snmp_printf(" engine boots=%d, time=%d, max_msg_size=%d", pdu->engine.engine_boots,
+            snmp_printf(" engine boots=%d, time=%d, max_msg_size=%d, ", pdu->engine.engine_boots,
                   pdu->engine.engine_time, pdu->engine.max_msg_size);
-            dump_hex(" engine.engine_id: ", pdu->engine.engine_id, pdu->engine.engine_len);
+            dump_hex("engine.engine_id: ", pdu->engine.engine_id, pdu->engine.engine_len);
 
-            dump_hex(" user.auth_key", pdu->user.auth_key, pdu->user.auth_key_len);
-            dump_hex(" user.priv_key", pdu->user.priv_key, pdu->user.priv_key_len);
         }
         dump_notrap(pdu);
         break;

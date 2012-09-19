@@ -56,7 +56,7 @@ func NewSnmpValue(s string) (SnmpValue, error) {
 
 	switch ss[0] {
 	case "null", "Null", "NULL", "nil", "Nil":
-		return newSnmpNil(), nil
+		return NewSnmpNil(), nil
 	case "int", "int32", "Int", "Int32", "INT", "INT32":
 		// error pattern: return newSnmpInt32FromString(ss[1])
 		// see http://www.golang.org/doc/go_faq.html#nil_error
@@ -86,7 +86,7 @@ var (
 	snmpNil = new(SnmpNil)
 )
 
-func newSnmpNil() SnmpValue {
+func NewSnmpNil() SnmpValue {
 	return snmpNil
 }
 
@@ -175,6 +175,11 @@ func (oid *SnmpOid) GetString() string {
 	return result.String()
 }
 
+func NewOid(subs []uint32) *SnmpOid {
+	ret := SnmpOid(subs)
+	return &ret
+}
+
 func ParseOidFromString(s string) (SnmpOid, error) {
 	result := make([]uint32, 0, 20)
 	for i, v := range strings.Split(s, ".") {
@@ -240,6 +245,11 @@ func (v *SnmpInt32) GetString() string {
 	return strconv.FormatInt(int64(*v), 10)
 }
 
+func NewSnmpInt32(v int32) *SnmpInt32 {
+	ret := SnmpInt32(v)
+	return &ret
+}
+
 func newSnmpInt32FromString(s string) (SnmpValue, error) {
 	i, ok := strconv.ParseInt(s, 10, 0)
 	if nil != ok {
@@ -285,6 +295,11 @@ func (v *SnmpUint32) GetUint64() uint64 {
 
 func (v *SnmpUint32) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
+}
+
+func NewSnmpUint32(v uint32) *SnmpUint32 {
+	ret := SnmpUint32(v)
+	return &ret
 }
 
 func newSnmpUint32FromString(s string) (SnmpValue, error) {
@@ -334,6 +349,11 @@ func (v *SnmpCounter32) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
 }
 
+func NewSnmpCounter32(v uint32) *SnmpCounter32 {
+	ret := SnmpCounter32(v)
+	return &ret
+}
+
 func newSnmpCounter32FromString(s string) (SnmpValue, error) {
 	i, ok := strconv.ParseUint(s, 10, 0)
 	if nil != ok {
@@ -381,6 +401,11 @@ func (v *SnmpCounter64) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
 }
 
+func NewSnmpCounter64(v uint64) *SnmpCounter64 {
+	ret := SnmpCounter64(v)
+	return &ret
+}
+
 func newSnmpCounter64FromString(s string) (SnmpValue, error) {
 	i, ok := strconv.ParseUint(s, 10, 64)
 	if nil != ok {
@@ -426,6 +451,11 @@ func (v *SnmpTimeticks) GetUint64() uint64 {
 
 func (v *SnmpTimeticks) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
+}
+
+func NewSnmpTimeticks(v uint32) *SnmpTimeticks {
+	ret := SnmpTimeticks(v)
+	return &ret
 }
 
 func newSnmpTimeticksFromString(s string) (SnmpValue, error) {
@@ -483,6 +513,11 @@ func (v *SnmpOctetString) GetString() string {
 	return string(*v)
 }
 
+func NewSnmpOctetString(v []byte) *SnmpOctetString {
+	ret := SnmpOctetString(v)
+	return &ret
+}
+
 func newSnmpOctetStringFromString(s string) (SnmpValue, error) {
 	var ret SnmpOctetString = SnmpOctetString([]byte(s))
 	return &ret, nil
@@ -529,6 +564,11 @@ func (v *SnmpAddress) GetUint64() uint64 {
 
 func (v *SnmpAddress) GetString() string {
 	return net.IP(*v).String()
+}
+
+func NewSnmpAddress(v []byte) *SnmpAddress {
+	ret := SnmpAddress(net.IP(v))
+	return &ret
 }
 
 func newSnmpAddressFromString(s string) (SnmpValue, error) {

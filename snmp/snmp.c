@@ -1126,7 +1126,18 @@ static __inline void dump_bindings(const snmp_pdu_t *pdu)
         snmp_printf("\n");
     }
 }
-
+static __inline void dump_hex(const char* s, const u_char* octets, u_int len) {
+    u_int i = 0;
+    if (500 > len) {
+        snmp_printf("%s overflow %lu:", s, len);
+        return;
+    }
+    
+    snmp_printf("%s %lu:", s, len);
+    for (i = 0; i < len; i++)
+       snmp_printf(" %02x", octets[i]);
+    snmp_printf("\n");
+}
 static __inline void dump_notrap(const snmp_pdu_t *pdu)
 {
     snmp_printf(" request_id=%d", pdu->request_id);
@@ -1181,6 +1192,21 @@ void snmp_pdu_dump(const snmp_pdu_t *pdu)
     case SNMP_PDU_TRAP2:
     case SNMP_PDU_REPORT:
         snmp_printf("%s %s '%s'", types[pdu->pdu_type], vers, pdu->community);
+        if (pdu->version == SNMP_V3) {
+            snmp_printf(" context_name: %s\n", pdu->context_name);
+            dump_hex(" context_engine", pdu->context_engine, pdu->context_engine_len);
+
+            snmp_printf(" user.secname: %s\n", pdu->user.sec_name);
+            dump_hex(" user.auth_key", pdu->user.auth_key, pdu->user.auth_key_len);
+            dump_hex(" user.priv_key", pdu->user.priv_key, pdu->user.priv_key_len);
+
+            snmp_printf(" engine boots=%d, time=%d, max_msg_size=%d", pdu->engine.engine_boots,
+                  pdu->engine.engine_time, pdu->engine.max_msg_size);
+            dump_hex(" engine.engine_id: ", pdu->engine.engine_id, pdu->engine.engine_len);
+
+            dump_hex(" user.auth_key", pdu->user.auth_key, pdu->user.auth_key_len);
+            dump_hex(" user.priv_key", pdu->user.priv_key, pdu->user.priv_key_len);
+        }
         dump_notrap(pdu);
         break;
 

@@ -168,6 +168,19 @@ func (pdu *V3PDU) encodePDU() ([]byte, error) {
 
 ///////////////////////// Encode/Decode /////////////////////////////
 func DecodePDU(bytes []byte) (PDU, error) {
+	var buffer C.asn_buf_t
+	var pdu  *C.snmp_pdu_t
+	var recv_len C.int32_t
+
+	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
+	buffer.asn_len = C.size_t(len(bytes))
+
+	ret_code := C.snmp_pdu_decode(&buffer, pdu, &recv_len)
+	if 0 != ret_code {
+		err := errors.New(C.GoString(C.snmp_get_error(ret_code)))
+		return nil, err
+	}
+
 	return nil, errors.New("not implemented")
 }
 
@@ -251,7 +264,7 @@ func snmp_add_binding(internal *C.snmp_pdu_t, vbs *VariableBindings) error {
 		case SNMP_SYNTAX_TIMETICKS:
 			C.snmp_value_put_uint32(&internal.bindings[i].v, C.uint32_t(vb.Value.GetUint32()))
 		case SNMP_SYNTAX_COUNTER64:
-			C.snmp_value_put_uint32(&internal.bindings[i].v, C.uint32_t(vb.Value.GetUint64()))
+			C.snmp_value_put_uint64(&internal.bindings[i].v, C.uint64_t(vb.Value.GetUint64()))
 		}
 	}
 	internal.nbindings = C.u_int(vbs.Len())

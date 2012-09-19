@@ -29,7 +29,8 @@ int32_t snmp_value_get_int32(snmp_values_t* value) {
 
 void snmp_value_put_octets(snmp_values_t* value, void *octets, u_int octets_len) {
   value->octetstring.len = octets_len;
-  memcpy(&value->octetstring.octets, octets, octets_len*sizeof(u_char));
+  value->octetstring.octets = (u_char*)malloc(octets_len*sizeof(u_char));
+  memcpy(value->octetstring.octets, octets, octets_len*sizeof(u_char));
 }
 
 u_int snmp_value_get_octets_len(snmp_values_t* value) {

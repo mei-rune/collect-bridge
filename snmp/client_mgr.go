@@ -14,7 +14,7 @@ func (svc *ClientManager) Init() {
 }
 
 func (mgr *ClientManager) GetClient(host string) (client Client, err error) {
-	values := mgr.call(5*time.Minute, func() (Client, error) { return mgr.createClient(host) })
+	values := mgr.Call(5*time.Minute, func() (Client, error) { return mgr.createClient(host) })
 	if nil != values[0] {
 		client = values[0].(Client)
 	}

@@ -3,6 +3,7 @@ package snmp
 import (
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -14,12 +15,27 @@ type PanicError struct {
 	any     interface{}
 }
 
+func (err *PanicError) Error() string {
+	return err.message
+}
+
 func NewPanicError(s string, any interface{}) error {
 	return &PanicError{message: fmt.Sprintf("%s%v", s, any), any: any}
 }
 
-func (err *PanicError) Error() string {
+type TwinceError struct {
+	message       string
+	first, second error
+}
+
+func (err *TwinceError) Error() string {
 	return err.message
+}
+
+func newTwinceError(first, second error) error {
+	msg := fmt.Sprintf("return two error, first is {%s}, second is {%s}",
+		first.Error(), second.Error())
+	return &TwinceError{message: msg, first: first, second: second}
 }
 
 const (
@@ -65,10 +81,10 @@ func (msg *message) Reply(results ...interface{}) {
 	msg.response.responseType = MESSAGE_RET_OK
 	msg.response.results = results
 
+	fmt.Println(msg.response.results)
 	if nil != msg.ch {
 		msg.ch <- msg
 	}
-	msg.isAsyncReply = true
 }
 
 // //////////////////////////////////////////////////////////////////////////////////////////
@@ -134,7 +150,7 @@ func (svc *Svc) FuncOf(target interface{}, name string) *reflect.Value {
 	v := reflect.ValueOf(target)
 	f := v.MethodByName(name)
 	if 0 == f.Kind() {
-		panic(errors.New(fmt.Sprintf("%s hasn`t method %s", v.String(), name)))
+		panic(fmt.Errorf("%s hasn`t method %s", v.String(), name))
 	}
 	return &f
 }
@@ -185,12 +201,12 @@ func function2Value(function interface{}) (fvp *reflect.Value) {
 
 end:
 	if reflect.Func != fvp.Kind() {
-		panic(errors.New(fmt.Sprintf("paramter 'function' isn't a function. real type is %v", fvp.Kind())))
+		panic(fmt.Errorf("paramter 'function' isn't a function. real type is %v", fvp.Kind()))
 	}
 	return
 }
 
-func (svc *Svc) send(function interface{}, args ...interface{}) {
+func (svc *Svc) Send(function interface{}, args ...interface{}) {
 	if !svc.IsAlive() {
 		panic(errors.New("svc is stopped."))
 		return
@@ -211,12 +227,37 @@ func (svc *Svc) send(function interface{}, args ...interface{}) {
 
 func panicArgumentsError(in, n int) {
 	if in < n {
-		panic("call: Call with too few input arguments")
+		panic(errors.New("call: Call with too few input arguments"))
 	}
-	panic("call: Call with too many input arguments")
+	panic(errors.New("call: Call with too many input arguments"))
 }
 
-func (svc *Svc) call(timeout time.Duration, function interface{}, args ...interface{}) (results []interface{}) {
+func (svc *Svc) SafelyCall(timeout time.Duration, function interface{}, args ...interface{}) (results []interface{}) {
+
+	defer func() {
+		if recoverErr := recover(); nil != recoverErr {
+			err := NewPanicError("SafelyCall failed: ", recoverErr)
+			switch {
+			case nil == results || 0 == len(results):
+				results = []interface{}{err}
+			case nil != results[len(results)].(error):
+				results[len(results)-1] = newTwinceError(results[len(results)-1].(error), err)
+			default:
+				results = append(results, err)
+			}
+		}
+	}()
+
+	results = svc.innerCall(timeout, function, args)
+	fmt.Println(results)
+	return
+}
+
+func (svc *Svc) Call(timeout time.Duration, function interface{}, args ...interface{}) []interface{} {
+	return svc.innerCall(timeout, function, args)
+}
+
+func (svc *Svc) innerCall(timeout time.Duration, function interface{}, args []interface{}) (results []interface{}) {
 	if !svc.IsAlive() {
 		panic(errors.New("svc is stopped."))
 		return
@@ -277,8 +318,10 @@ func (svc *Svc) call(timeout time.Duration, function interface{}, args ...interf
 		case MESSAGE_RET_OK:
 			success = true
 			results = resp.response.results
+			fmt.Println(resp.response.results)
+			fmt.Println(msg.response.results)
 		default:
-			panic(errors.New(fmt.Sprintf("unknown response type:", resp.response.responseType)))
+			panic(fmt.Errorf("unknown response type:", resp.response.responseType))
 		}
 	case <-time.After(timeout):
 		panic(errors.New("time out"))
@@ -295,9 +338,9 @@ func serve(svc *Svc) {
 		handleExit(svc)
 		if !exited {
 			if err := recover(); nil != err {
-				fmt.Printf("%v\r\n", err)
+				log.Printf("%v\r\n", err)
 			} else {
-				fmt.Println("svc failed!")
+				log.Println("svc failed!")
 			}
 		}
 	}()
@@ -324,14 +367,14 @@ func serve(svc *Svc) {
 	}
 exit:
 	exited = true
-	fmt.Println("channel is closed or recv an exit message!")
+	log.Printf("channel is closed or recv an exit message!\r\n")
 }
 
 func handleExit(svc *Svc) {
 
 	defer func() {
 		if err := recover(); nil != err {
-			fmt.Printf("on exit - %v", err)
+			log.Printf("on exit - %v\r\n", err)
 		}
 	}()
 
@@ -344,7 +387,7 @@ func handleTick(svc *Svc) {
 
 	defer func() {
 		if err := recover(); nil != err {
-			fmt.Printf("on exit - %v", err)
+			log.Printf("on exit - %v\r\n", err)
 		}
 	}()
 
@@ -364,7 +407,7 @@ func (svc *Svc) safelyCall(msg *message) {
 
 	defer func() {
 		if err := recover(); nil != err {
-			fmt.Printf("%v", err)
+			log.Printf("%v\r\n", err)
 		}
 	}()
 

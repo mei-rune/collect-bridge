@@ -50,6 +50,10 @@ func (pdu *V2CPDU) GetRequestID() int {
 	return pdu.requestId
 }
 
+func (pdu *V2CPDU) SetRequestID(id int) {
+	pdu.requestId = id
+}
+
 func (pdu *V2CPDU) GetVersion() int {
 	return pdu.version
 }
@@ -146,6 +150,10 @@ func (pdu *V3PDU) Init(params map[string]string) (err error) {
 
 func (pdu *V3PDU) GetRequestID() int {
 	return pdu.requestId
+}
+
+func (pdu *V3PDU) SetRequestID(id int) {
+	pdu.requestId = id
 }
 
 func (pdu *V3PDU) GetVersion() int {

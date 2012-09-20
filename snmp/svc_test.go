@@ -20,7 +20,7 @@ func (svc *MockSvc) Inc(a int) (resp int, err error) {
 		}
 	}()
 
-	vals := svc.call(1*time.Second, svc.FuncOf(svc, "HandleInc"), a)
+	vals := svc.Call(1*time.Second, svc.FuncOf(svc, "HandleInc"), a)
 	resp = vals[0].(int)
 	err = vals[1].(error)
 	return
@@ -40,7 +40,7 @@ func (svc *MockSvc) Add(a, b int) (resp int, err error) {
 		}
 	}()
 
-	vals := svc.call(1*time.Second, svc.FuncOf(svc, "HandleAdd"), a, b)
+	vals := svc.Call(1*time.Second, svc.FuncOf(svc, "HandleAdd"), a, b)
 	resp = vals[0].(int)
 	err = vals[1].(error)
 	return
@@ -59,7 +59,7 @@ func (svc *MockSvc) DivZero(a int) (resp int, err error) {
 		}
 	}()
 
-	vals := svc.call(1*time.Second, svc.FuncOf(svc, "HandleDivZero"), a)
+	vals := svc.Call(1*time.Second, svc.FuncOf(svc, "HandleDivZero"), a)
 	resp = vals[0].(int)
 	err = vals[1].(error)
 	return
@@ -79,7 +79,7 @@ func (svc *MockSvc) throwPanic(a int) (resp int, err error) {
 		}
 	}()
 
-	vals := svc.call(1*time.Second, svc.FuncOf(svc, "HandleThrowPanic"), a)
+	vals := svc.Call(1*time.Second, svc.FuncOf(svc, "HandleThrowPanic"), a)
 	resp = vals[0].(int)
 	err = vals[1].(error)
 	return
@@ -100,7 +100,14 @@ func (svc *MockSvc) AddAsync(a int) (resp int, err error) {
 		}
 	}()
 
-	vals := svc.call(3*time.Second, svc.FuncOf(svc, "HandleAddAsync"), a)
+	vals := svc.Call(3*time.Second, svc.FuncOf(svc, "HandleAddAsync"), a)
+	resp = vals[0].(int)
+	err = vals[1].(error)
+	return
+}
+
+func (svc *MockSvc) AddAsync2(a int) (resp int, err error) {
+	vals := svc.SafelyCall(3*time.Second, svc.FuncOf(svc, "HandleAddAsync"), a)
 	resp = vals[0].(int)
 	err = vals[1].(error)
 	return
@@ -125,7 +132,7 @@ func (svc *MockSvc) SendInt(a int) (resp int, err error) {
 	var waiter sync.WaitGroup
 	waiter.Add(1)
 
-	svc.send(func() {
+	svc.Send(func() {
 		resp = 20 + a
 		waiter.Done()
 	})
@@ -168,6 +175,11 @@ func TestSvc(t *testing.T) {
 	if 15 != r {
 		t.Errorf("add async error! %v", e)
 	}
+
+	// r, e = mock.AddAsync2(6)
+	// if 16 != r {
+	// 	t.Errorf("add async error! %v", e)
+	// }
 
 	r, e = mock.SendInt(5)
 	if 25 != r && nil == e {

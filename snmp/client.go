@@ -111,6 +111,7 @@ func (vbs *VariableBindings) AppendWith(oid SnmpOid, value SnmpValue) error {
 
 type PDU interface {
 	Init(params map[string]string) error
+	SetRequestID(id int)
 	GetRequestID() int
 	GetVersion() int
 	GetType() int

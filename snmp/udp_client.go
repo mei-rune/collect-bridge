@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"time"
 )
@@ -14,10 +15,11 @@ type Request struct {
 }
 
 type UdpClient struct {
-	host     string
-	engine   snmpEngine
-	conn     *net.UDPConn
-	pendings map[int]*Request
+	requestId int
+	host      string
+	engine    snmpEngine
+	conn      *net.UDPConn
+	pendings  map[int]*Request
 	Svc
 }
 
@@ -29,7 +31,7 @@ func NewSnmpClient(host string) (Client, error) {
 
 func (client *UdpClient) CreatePDU(op, version int) (PDU, error) {
 	if op < 0 || SNMP_PDU_REPORT < op {
-		return nil, errors.New(fmt.Sprintf("unsupported pdu type: %d", op))
+		return nil, fmt.Errorf("unsupported pdu type: %d", op)
 	}
 
 	switch version {
@@ -38,22 +40,19 @@ func (client *UdpClient) CreatePDU(op, version int) (PDU, error) {
 	case SNMP_V3:
 		return &V3PDU{op: op, client: client}, nil
 	}
-	return nil, errors.New(fmt.Sprintf("unsupported version: %d", version))
+	return nil, fmt.Errorf("unsupported version: %d", version)
 }
 
 func (client *UdpClient) SendAndRecv(req PDU) (pdu PDU, err error) {
 
-	defer func() {
-		if recoverErr := recover(); nil != recoverErr {
-			err = NewPanicError("send/recv a pdu failed: ", recoverErr)
-		}
-	}()
+	values := client.Call(5*time.Minute, func(ctx InvokedContext) { client.handleSend(ctx, req) })
 
-	values := client.call(5*time.Minute, func(ctx InvokedContext) { client.handleSend(ctx, req) })
-	if nil != values[0] {
+	fmt.Println("in reply %d, %v", len(values), values)
+
+	if 0 < len(values) && nil != values[0] {
 		pdu = values[0].(PDU)
 	}
-	if nil != values[1] {
+	if 1 < len(values) && nil != values[1] {
 		err = values[1].(error)
 	}
 	return
@@ -81,7 +80,7 @@ var maxPDUSize = flag.Int("maxPDUSize", 10240, "set max size of pdu")
 func (client *UdpClient) readUDP(conn *net.UDPConn) {
 	defer func() {
 		if err := recover(); nil != err {
-			fmt.Printf("%v\r\n", err)
+			log.Printf("%v\r\n", err)
 		}
 		conn.Close()
 	}()
@@ -90,12 +89,12 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 		bytes := make([]byte, *maxPDUSize)
 		length, err := conn.Read(bytes)
 		if nil != err {
-			fmt.Printf("%v\r\n", err)
+			log.Printf("%v\r\n", err)
 			break
 		}
 
 		func(buf []byte) {
-			client.send(func() { client.handleRecv(buf) })
+			client.Send(func() { client.handleRecv(buf) })
 		}(bytes[:length])
 	}
 }
@@ -103,16 +102,17 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 func (client *UdpClient) handleRecv(bytes []byte) {
 	pdu, err := DecodePDU(bytes)
 	if nil != err {
-		fmt.Printf("%v\r\n", err)
+		log.Printf("%v\r\n", err)
 		return
 	}
 
 	req, ok := client.pendings[pdu.GetRequestID()]
 	if !ok {
-		fmt.Println("not found request.")
+		log.Printf("not found request whit requestId = %d.\r\n", pdu.GetRequestID())
 		return
 	}
 
+	delete(client.pendings, pdu.GetRequestID())
 	req.ctx.Reply(pdu, nil)
 }
 
@@ -126,6 +126,9 @@ func (client *UdpClient) handleSend(ctx InvokedContext, pdu PDU) {
 			goto failed
 		}
 	}
+
+	client.requestId++
+	pdu.SetRequestID(client.requestId)
 
 	_, ok = client.pendings[pdu.GetRequestID()]
 	if ok {

@@ -290,7 +290,7 @@ func (s *Server) safelyCall(function reflect.Value, args []reflect.Value) (resp 
 					if !ok {
 						break
 					}
-					buffer.WriteString(fmt.Sprintf("    %s:%s\r\n", file, line))
+					buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
 				}
 				msg := buffer.String()
 				resp = make([]reflect.Value, 1)
@@ -309,7 +309,7 @@ func (s *Server) routeHandler(w http.ResponseWriter, req *http.Request) {
 
 	//log the request
 	var logEntry bytes.Buffer
-	fmt.Fprintf(&logEntry, "\033[32;1m%s %s\033[0m", req.Method, requestPath)
+	fmt.Fprintf(&logEntry, "\033[32;1m%s %s\033[0m\n", req.Method, requestPath)
 
 	//ignore errors from ParseForm because it's usually harmless.
 	req.ParseForm()
@@ -317,14 +317,14 @@ func (s *Server) routeHandler(w http.ResponseWriter, req *http.Request) {
 		for k, v := range req.Form {
 			ctx.Params[k] = v[0]
 		}
-		fmt.Fprintf(&logEntry, "\n\033[37;1mForms: %v\033[0m\n", req.Form)
+		fmt.Fprintf(&logEntry, "\033[37;1mForms: %v\033[0m\n", req.Form)
 	}
 
 	if len(req.URL.Query()) > 0 {
 		for k, v := range req.URL.Query() {
 			ctx.Params[k] = v[0]
 		}
-		fmt.Fprintf(&logEntry, "\n\033[37;1mQuerys: %v\033[0m\n", req.URL.Query())
+		fmt.Fprintf(&logEntry, "\033[37;1mQuerys: %v\033[0m\n", req.URL.Query())
 	}
 
 	ctx.Server.Logger.Print(logEntry.String())

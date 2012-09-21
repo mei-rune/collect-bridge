@@ -1,5 +1,9 @@
 package snmp
 
+import (
+	"time"
+)
+
 const (
 	SNMP_Verr = 0
 	SNMP_V1   = 1
@@ -89,9 +93,12 @@ func (vbs *VariableBindings) Append(oid, value string) error {
 		return ok
 	}
 
-	v, ok := NewSnmpValue(value)
-	if nil != ok {
-		return ok
+	var v SnmpValue = NewSnmpNil()
+	if "" == value {
+		v, ok = NewSnmpValue(value)
+		if nil != ok {
+			return ok
+		}
 	}
 
 	if nil == vbs.values {
@@ -132,6 +139,6 @@ type snmpEngine struct {
 
 type Client interface {
 	CreatePDU(op, version int) (PDU, error)
-	SendAndRecv(req PDU) (PDU, error)
+	SendAndRecv(req PDU, timeout time.Duration) (PDU, error)
 	FreePDU(pdus ...PDU)
 }

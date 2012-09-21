@@ -21,6 +21,7 @@ func TestSnmp(t *testing.T) {
 		SVTC{raw: "[octets]abcdefg"},
 		SVTC{raw: "[oid]2.3.4.5.6"},
 		SVTC{raw: "[oid].2.3.4.5.6", to: "[oid]2.3.4.5.6"},
+		SVTC{raw: "[oid]_2_3_4_5_6", to: "[oid]2.3.4.5.6"},
 		SVTC{raw: "[ip]1.2.3.4"},
 		SVTC{raw: "[timeticks]343332"}}
 

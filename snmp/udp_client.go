@@ -24,7 +24,7 @@ type UdpClient struct {
 }
 
 func NewSnmpClient(host string) (Client, error) {
-	cl := &UdpClient{host: host}
+	cl := &UdpClient{host: NormalizeAddress(host)}
 	cl.pendings = make(map[int]*Request)
 	return cl, nil
 }
@@ -43,17 +43,35 @@ func (client *UdpClient) CreatePDU(op, version int) (PDU, error) {
 	return nil, fmt.Errorf("unsupported version: %d", version)
 }
 
-func (client *UdpClient) SendAndRecv(req PDU) (pdu PDU, err error) {
+func handleRemoveRequest(client *UdpClient, id int) {
+	delete(client.pendings, id)
+}
 
-	values := client.Call(5*time.Minute, func(ctx InvokedContext) { client.handleSend(ctx, req) })
+func (client *UdpClient) SendAndRecv(req PDU, timeout time.Duration) (pdu PDU, err error) {
 
-	fmt.Println("in reply %d, %v", len(values), values)
+	defer func() {
+		if 0 != req.GetRequestID() {
+			client.Send(handleRemoveRequest, client, req.GetRequestID())
+		}
+	}()
 
-	if 0 < len(values) && nil != values[0] {
-		pdu = values[0].(PDU)
-	}
-	if 1 < len(values) && nil != values[1] {
-		err = values[1].(error)
+	values := client.SafelyCall(timeout, func(ctx InvokedContext) { client.handleSend(ctx, req) })
+	switch len(values) {
+	case 0:
+		err = fmt.Errorf("return empty.")
+	case 1:
+		if nil != values[0] {
+			err = values[0].(error)
+		}
+	case 2:
+		if nil != values[0] {
+			pdu = values[0].(PDU)
+		}
+		if nil != values[1] {
+			err = values[1].(error)
+		}
+	default:
+		err = fmt.Errorf("num of return value is error.")
 	}
 	return
 }

@@ -81,7 +81,6 @@ func (msg *message) Reply(results ...interface{}) {
 	msg.response.responseType = MESSAGE_RET_OK
 	msg.response.results = results
 
-	fmt.Println(msg.response.results)
 	if nil != msg.ch {
 		msg.ch <- msg
 	}
@@ -249,7 +248,6 @@ func (svc *Svc) SafelyCall(timeout time.Duration, function interface{}, args ...
 	}()
 
 	results = svc.innerCall(timeout, function, args)
-	fmt.Println(results)
 	return
 }
 
@@ -318,8 +316,6 @@ func (svc *Svc) innerCall(timeout time.Duration, function interface{}, args []in
 		case MESSAGE_RET_OK:
 			success = true
 			results = resp.response.results
-			fmt.Println(resp.response.results)
-			fmt.Println(msg.response.results)
 		default:
 			panic(fmt.Errorf("unknown response type:", resp.response.responseType))
 		}
@@ -428,9 +424,11 @@ func (svc *Svc) callMessage(msg *message) (reply *message) {
 	}()
 
 	results := msg.request.function.Call(msg.request.args)
-	reply.response.results = make([]interface{}, len(results))
-	for i, v := range results {
-		reply.response.results[i] = v.Interface()
+	if !msg.isAsyncReply {
+		reply.response.results = make([]interface{}, len(results))
+		for i, v := range results {
+			reply.response.results[i] = v.Interface()
+		}
 	}
 	return
 }

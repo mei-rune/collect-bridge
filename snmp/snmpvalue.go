@@ -46,6 +46,9 @@ const (
 )
 
 func NewSnmpValue(s string) (SnmpValue, error) {
+	if "" == s {
+		return nil, fmt.Errorf("input parameter is empty.")
+	}
 	if s[0] != '[' {
 		return nil, fmt.Errorf(syntexErrorMessage, s)
 	}
@@ -182,7 +185,11 @@ func NewOid(subs []uint32) *SnmpOid {
 
 func ParseOidFromString(s string) (SnmpOid, error) {
 	result := make([]uint32, 0, 20)
-	for i, v := range strings.Split(s, ".") {
+	ss := strings.Split(s, ".")
+	if 2 > len(ss) {
+		ss = strings.Split(s, "_")
+	}
+	for i, v := range ss {
 		if 0 == len(v) {
 			if 0 != i {
 				return nil, fmt.Errorf("oid style error, value is %s", s)

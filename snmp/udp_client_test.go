@@ -4,27 +4,33 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"sync"
 	"testing"
+	"time"
 )
 
-func startServer() (net.PacketConn, net.Addr, error) {
-	in, e := net.ListenPacket("udp", "127.0.0.1:0")
+func startServer(laddr string) (net.PacketConn, net.Addr, *sync.WaitGroup, error) {
+	in, e := net.ListenPacket("udp", laddr)
 	if nil != e {
-		return nil, nil, e
+		return nil, nil, nil, e
 	}
 
-	go serveTestUdp(in)
-	return in, in.LocalAddr(), nil
+	var waiter sync.WaitGroup
+	waiter.Add(1)
+
+	go serveTestUdp(in, &waiter)
+
+	return in, in.LocalAddr(), &waiter, nil
 }
 
 func stopServer(in net.PacketConn) {
 	in.Close()
 }
 
-func serveTestUdp(in net.PacketConn) {
+func serveTestUdp(in net.PacketConn, waiter *sync.WaitGroup) {
 
 	defer func() {
-		fmt.Println("serveTestUdp exited!")
+		waiter.Done()
 	}()
 
 	var bytes [10000]byte
@@ -45,29 +51,91 @@ func serveTestUdp(in net.PacketConn) {
 	}
 }
 
-func TestClient(t *testing.T) {
+type callback func(t *testing.T, cl Client, laddr net.Addr)
 
+func TestReturnPdu(t *testing.T) {
+	testWith(t, "127.0.0.1:0", func(t *testing.T, cl Client, laddr net.Addr) {
+
+		cl.(*UdpClient).requestId = 233
+		pdu, err := cl.CreatePDU(SNMP_PDU_GET, SNMP_V1)
+		if nil != err {
+			t.Errorf("create pdu failed - %s", err.Error())
+			return
+		}
+
+		res, err := cl.SendAndRecv(pdu, 2*time.Second)
+		if nil != err {
+			t.Errorf("sendAndRecv pdu failed - %s", err.Error())
+			return
+		}
+
+		if nil == res {
+			t.Errorf("sendAndRecv pdu failed - res is nil")
+		}
+
+		cl.FreePDU(pdu, res)
+	})
+}
+
+func TestSendFailed(t *testing.T) {
+	testWith(t, "0.0.0.0:0", func(t *testing.T, cl Client, laddr net.Addr) {
+
+		cl.(*UdpClient).requestId = 233
+		pdu, err := cl.CreatePDU(SNMP_PDU_GET, SNMP_V1)
+		if nil != err {
+			t.Errorf("create pdu failed - %s", err.Error())
+			return
+		}
+
+		_, err = cl.SendAndRecv(pdu, 2*time.Second)
+		if nil == err {
+			t.Errorf("excepted throw an error, actual return ok")
+			return
+		}
+		cl.FreePDU(pdu)
+	})
+}
+
+func TestRecvTimeout(t *testing.T) {
+	testWith(t, "127.0.0.1:0", func(t *testing.T, cl Client, laddr net.Addr) {
+		pdu, err := cl.CreatePDU(SNMP_PDU_GET, SNMP_V1)
+		if nil != err {
+			t.Errorf("create pdu failed - %s", err.Error())
+			return
+		}
+
+		_, err = cl.SendAndRecv(pdu, 2*time.Second)
+		if nil == err {
+			t.Errorf("excepted throw an error, actual return ok")
+			return
+		}
+		fmt.Println("----------")
+		fmt.Println(err)
+		cl.FreePDU(pdu)
+	})
+}
+
+func testWith(t *testing.T, laddr string, f callback) {
+	var waiter *sync.WaitGroup
 	var listener net.PacketConn
 	var cl Client
 
 	defer func() {
 		if nil != listener {
-			fmt.Println("stopServer signal!")
 			stopServer(listener)
+			waiter.Wait()
 		}
 		if nil != cl && nil != cl.(Startable) {
-			fmt.Println("stop client signal!")
 			cl.(Startable).Stop()
 		}
 	}()
 
-	listener, addr, err := startServer()
+	listener, addr, waiter, err := startServer(laddr)
 	if nil != err {
 		t.Errorf("start udp server failed - %s", err.Error())
 		return
 	}
 
-	fmt.Println(addr.String())
 	cl, err = NewSnmpClient(addr.String())
 	if nil != err {
 		t.Errorf("create snmp client failed - %s", err.Error())
@@ -77,23 +145,6 @@ func TestClient(t *testing.T) {
 		cl.(Startable).Start()
 	}
 
-	pdu, err := cl.CreatePDU(SNMP_PDU_GET, SNMP_V1)
-	if nil != err {
-		t.Errorf("create pdu failed - %s", err.Error())
-		return
-	}
+	f(t, cl, addr)
 
-	fmt.Println("begin send and recv!")
-	res, err := cl.SendAndRecv(pdu)
-	if nil != err {
-		t.Errorf("sendAndRecv pdu failed - %s", err.Error())
-		return
-	}
-	fmt.Println("end send and recv!")
-
-	if nil == res {
-		t.Errorf("sendAndRecv pdu failed - res is nil")
-	}
-
-	cl.FreePDU(pdu, res)
 }

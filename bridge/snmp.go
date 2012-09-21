@@ -3,11 +3,17 @@ package main
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"snmp"
 	"strings"
+	"time"
 	"web"
+)
+
+var (
+	snmpTimeout = flag.Int("snmp.timeout", 5*60, "maximun duration (second) of send/recv pdu timeout")
 )
 
 type SnmpBridge struct {
@@ -23,6 +29,18 @@ func registerSNMP(svr *web.Server) {
 	svr.Get("/snmp/next/(.*)/(.*)", func(ctx *web.Context, host, oid string) { bridge.Next(ctx, host, oid) })
 	svr.Get("/snmp/bulk/(.*)/(.*)", func(ctx *web.Context, host, oids string) { bridge.Bulk(ctx, host, oids) })
 	svr.Get("/snmp/table/(.*)/(.*)", func(ctx *web.Context, host, oid string) { bridge.Table(ctx, host, oid) })
+}
+
+func getTimeout(params map[string]string) time.Duration {
+	v, ok := params["timeout"]
+	if !ok {
+		return time.Duration(*snmpTimeout) * time.Second
+	}
+	ret, err := snmp.ParseTime(v)
+	if nil != err {
+		panic(err)
+	}
+	return ret
 }
 
 func getVersion(params map[string]string) int {
@@ -63,7 +81,7 @@ func (bridge *SnmpBridge) Get(ctx *web.Context, host, oid string) {
 		return
 	}
 	req.GetVariableBindings().Append(oid, "")
-	resp, ok := client.SendAndRecv(req)
+	resp, ok := client.SendAndRecv(req, getTimeout(ctx.Params))
 	if nil == ok {
 		ctx.WriteString(resp.GetVariableBindings().Get(0).Value.String())
 	} else {
@@ -96,7 +114,7 @@ func (bridge *SnmpBridge) Set(ctx *web.Context, host, oid string) {
 
 	req.GetVariableBindings().Append(oid, string(txt))
 
-	resp, ok := client.SendAndRecv(req)
+	resp, ok := client.SendAndRecv(req, getTimeout(ctx.Params))
 	if nil == ok {
 		ctx.WriteString("ok")
 	} else {
@@ -122,7 +140,7 @@ func (bridge *SnmpBridge) Next(ctx *web.Context, host, oid string) {
 		return
 	}
 	req.GetVariableBindings().Append(oid, "")
-	resp, ok := client.SendAndRecv(req)
+	resp, ok := client.SendAndRecv(req, getTimeout(ctx.Params))
 	if nil == ok {
 		ctx.WriteString(resp.GetVariableBindings().Get(0).Value.String())
 	} else {
@@ -151,7 +169,7 @@ func (bridge *SnmpBridge) Bulk(ctx *web.Context, host, oids string) {
 	for _, oid := range strings.Split(oids, "|") {
 		vbs.Append(oid, "")
 	}
-	resp, ok := client.SendAndRecv(req)
+	resp, ok := client.SendAndRecv(req, getTimeout(ctx.Params))
 	switch {
 	case nil != ok:
 		internalError(ctx, "snmp failed.", ok)

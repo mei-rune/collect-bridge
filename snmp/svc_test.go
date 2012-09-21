@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -85,6 +86,19 @@ func (svc *MockSvc) throwPanic(a int) (resp int, err error) {
 	return
 }
 
+func (svc *MockSvc) throwPanic2(a int) (resp int, err error) {
+
+	vals := svc.SafelyCall(1*time.Second, svc.FuncOf(svc, "HandleThrowPanic"), a)
+
+	if 1 == len(vals) {
+		err = vals[0].(error)
+	} else {
+		resp = vals[0].(int)
+		err = vals[1].(error)
+	}
+	return
+}
+
 func (svc *MockSvc) HandleThrowPanic(a int) (resp int, err error) {
 	err = errors.New("zero")
 	resp = a + 10
@@ -108,15 +122,22 @@ func (svc *MockSvc) AddAsync(a int) (resp int, err error) {
 
 func (svc *MockSvc) AddAsync2(a int) (resp int, err error) {
 	vals := svc.SafelyCall(3*time.Second, svc.FuncOf(svc, "HandleAddAsync"), a)
-	resp = vals[0].(int)
-	err = vals[1].(error)
+
+	if 1 == len(vals) {
+		err = vals[0].(error)
+	} else {
+		resp = vals[0].(int)
+		if nil != err {
+			err = vals[1].(error)
+		}
+	}
 	return
 }
 
 func (svc *MockSvc) HandleAddAsync(ctx InvokedContext, a int) (resp int, err error) {
 	go func() {
 		time.Sleep(2 * time.Second)
-		ctx.Reply(10 + a)
+		ctx.Reply(10+a, nil)
 	}()
 	return
 }
@@ -130,18 +151,23 @@ func (svc *MockSvc) SendInt(a int) (resp int, err error) {
 	}()
 
 	var waiter sync.WaitGroup
+	var isExited int32 = 0
 	waiter.Add(1)
 
 	svc.Send(func() {
 		resp = 20 + a
-		waiter.Done()
+		if atomic.CompareAndSwapInt32(&isExited, 0, 1) {
+			waiter.Done()
+		}
 	})
 
 	timeouted := false
 	go func() {
 		time.Sleep(2 * time.Second)
-		waiter.Done()
-		timeouted = true
+		if atomic.CompareAndSwapInt32(&isExited, 0, 1) {
+			waiter.Done()
+			timeouted = true
+		}
 	}()
 	waiter.Wait()
 	if timeouted {
@@ -170,16 +196,20 @@ func TestSvc(t *testing.T) {
 	if !strings.Contains(e.Error(), "throwPanic") {
 		t.Errorf("throwPanic error! %v", e.Error())
 	}
+	_, e = mock.throwPanic2(4)
+	if !strings.Contains(e.Error(), "throwPanic") {
+		t.Errorf("throwPanic error! %v", e.Error())
+	}
 
 	r, e = mock.AddAsync(5)
 	if 15 != r {
 		t.Errorf("add async error! %v", e)
 	}
 
-	// r, e = mock.AddAsync2(6)
-	// if 16 != r {
-	// 	t.Errorf("add async error! %v", e)
-	// }
+	r, e = mock.AddAsync2(6)
+	if 16 != r {
+		t.Errorf("add async error! %v", e)
+	}
 
 	r, e = mock.SendInt(5)
 	if 25 != r && nil == e {

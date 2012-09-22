@@ -1,19 +1,21 @@
 package snmp
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 )
 
 type HashUSM struct {
-	auth_proto int
-	priv_proto int
+	auth_proto AuthType
+	priv_proto PrivType
 	auth_key   []byte
 	priv_key   []byte
 	name       string
 }
 
-func getAuth(params map[string]string) (int, string, error) {
+func getAuth(params map[string]string) (AuthType, string, error) {
 	auth, ok := params["auth_pass"]
 
 	if !ok {
@@ -35,7 +37,7 @@ func getAuth(params map[string]string) (int, string, error) {
 		"auth protocol must is \"md5\" or \"sha\"")
 }
 
-func getPriv(params map[string]string) (int, string, error) {
+func getPriv(params map[string]string) (PrivType, string, error) {
 	priv, ok := params["priv_pass"]
 
 	if !ok {
@@ -65,27 +67,33 @@ func (usm *HashUSM) Init(params map[string]string) error {
 	}
 	usm.name = name
 
-	proto, value, err := getAuth(params)
+	auth_proto, value, err := getAuth(params)
 	if nil != err {
 		return err
 	}
 
-	usm.auth_proto = proto
+	usm.auth_proto = auth_proto
 	usm.auth_key = []byte(value)
 
-	proto, value, err = getPriv(params)
+	priv_proto, value, err := getPriv(params)
 	if nil != err {
 		return err
 	}
 
-	usm.priv_proto = proto
+	usm.priv_proto = priv_proto
 	usm.priv_key = []byte(value)
 	return nil
 }
 
+func (usm *HashUSM) String() string {
+	return fmt.Sprintf("auth = '[%s]%s' and priv = '[%s]%s'",
+		usm.auth_proto.String(), hex.EncodeToString(usm.auth_key),
+		usm.priv_proto.String(), hex.EncodeToString(usm.priv_key))
+}
+
 type USM struct {
-	auth_proto int
-	priv_proto int
+	auth_proto AuthType
+	priv_proto PrivType
 	auth_key   string
 	priv_key   string
 	name       string
@@ -98,20 +106,28 @@ func (usm *USM) Init(params map[string]string) error {
 	}
 	usm.name = name
 
-	proto, value, err := getAuth(params)
+	auth_proto, value, err := getAuth(params)
 	if nil != err {
 		return err
 	}
 
-	usm.auth_proto = proto
+	usm.auth_proto = auth_proto
 	usm.auth_key = value
 
-	proto, value, err = getPriv(params)
+	priv_proto, value, err := getPriv(params)
 	if nil != err {
 		return err
 	}
 
-	usm.priv_proto = proto
+	usm.priv_proto = priv_proto
 	usm.priv_key = value
 	return nil
+}
+
+func (usm *USM) String() string {
+	return fmt.Sprintf("auth = '[%s]%s' and priv = '[%s]%s'",
+		usm.auth_proto.String(),
+		usm.auth_key,
+		usm.priv_proto.String(),
+		usm.priv_key)
 }

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-type SnmpSyntax int
+type SnmpSyntax uint
 
 const (
 	/* v1 additions */
@@ -38,11 +38,16 @@ type SnmpValue interface {
 	GetUint32() uint32
 	GetUint64() uint64
 	GetString() string
+
+	IsError() bool
+	Error() string
 }
 
 const (
 	syntexErrorMessage = "snmp value format error, excepted format is '[type]value'," +
 		" type is 'null, int32, gauge, counter32, counter64, octet, oid, ip, timeticks', value is a string. - %s"
+
+	notError = "this is not a error. please call IsError() first."
 )
 
 func NewSnmpValue(s string) (SnmpValue, error) {
@@ -129,6 +134,14 @@ func (s *SnmpNil) GetString() string {
 	return ""
 }
 
+func (s *SnmpNil) IsError() bool {
+	return false
+}
+
+func (s *SnmpNil) Error() string {
+	return notError
+}
+
 type SnmpOid []uint32
 
 func (oid *SnmpOid) String() string {
@@ -176,6 +189,14 @@ func (oid *SnmpOid) GetString() string {
 
 	result.Truncate(result.Len() - 1)
 	return result.String()
+}
+
+func (s *SnmpOid) IsError() bool {
+	return false
+}
+
+func (s *SnmpOid) Error() string {
+	return notError
 }
 
 func NewOid(subs []uint32) *SnmpOid {
@@ -252,6 +273,14 @@ func (v *SnmpInt32) GetString() string {
 	return strconv.FormatInt(int64(*v), 10)
 }
 
+func (s *SnmpInt32) IsError() bool {
+	return false
+}
+
+func (s *SnmpInt32) Error() string {
+	return notError
+}
+
 func NewSnmpInt32(v int32) *SnmpInt32 {
 	ret := SnmpInt32(v)
 	return &ret
@@ -302,6 +331,14 @@ func (v *SnmpUint32) GetUint64() uint64 {
 
 func (v *SnmpUint32) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
+}
+
+func (s *SnmpUint32) IsError() bool {
+	return false
+}
+
+func (s *SnmpUint32) Error() string {
+	return notError
 }
 
 func NewSnmpUint32(v uint32) *SnmpUint32 {
@@ -356,6 +393,14 @@ func (v *SnmpCounter32) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
 }
 
+func (s *SnmpCounter32) IsError() bool {
+	return false
+}
+
+func (s *SnmpCounter32) Error() string {
+	return notError
+}
+
 func NewSnmpCounter32(v uint32) *SnmpCounter32 {
 	ret := SnmpCounter32(v)
 	return &ret
@@ -408,6 +453,14 @@ func (v *SnmpCounter64) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
 }
 
+func (s *SnmpCounter64) IsError() bool {
+	return false
+}
+
+func (s *SnmpCounter64) Error() string {
+	return notError
+}
+
 func NewSnmpCounter64(v uint64) *SnmpCounter64 {
 	ret := SnmpCounter64(v)
 	return &ret
@@ -458,6 +511,14 @@ func (v *SnmpTimeticks) GetUint64() uint64 {
 
 func (v *SnmpTimeticks) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
+}
+
+func (s *SnmpTimeticks) IsError() bool {
+	return false
+}
+
+func (s *SnmpTimeticks) Error() string {
+	return notError
 }
 
 func NewSnmpTimeticks(v uint32) *SnmpTimeticks {
@@ -520,6 +581,14 @@ func (v *SnmpOctetString) GetString() string {
 	return string(*v)
 }
 
+func (s *SnmpOctetString) IsError() bool {
+	return false
+}
+
+func (s *SnmpOctetString) Error() string {
+	return notError
+}
+
 func NewSnmpOctetString(v []byte) *SnmpOctetString {
 	ret := SnmpOctetString(v)
 	return &ret
@@ -573,6 +642,14 @@ func (v *SnmpAddress) GetString() string {
 	return net.IP(*v).String()
 }
 
+func (s *SnmpAddress) IsError() bool {
+	return false
+}
+
+func (s *SnmpAddress) Error() string {
+	return notError
+}
+
 func NewSnmpAddress(v []byte) *SnmpAddress {
 	ret := SnmpAddress(net.IP(v))
 	return &ret
@@ -585,4 +662,73 @@ func newSnmpAddressFromString(s string) (SnmpValue, error) {
 	}
 	sa := SnmpAddress(addr)
 	return &sa, nil
+}
+
+type SnmpError struct {
+	value   SnmpSyntax
+	message string
+}
+
+func (v *SnmpError) String() string {
+	return "[error:" + strconv.Itoa(int(v.value)) + "]" + v.message
+}
+
+func (s *SnmpError) IsNil() bool {
+	return false
+}
+
+func (s *SnmpError) GetSyntax() SnmpSyntax {
+	return s.value
+}
+
+func (v *SnmpError) GetUint32s() []uint32 {
+	return nil
+}
+
+func (v *SnmpError) GetBytes() []byte {
+	return nil
+}
+
+func (v *SnmpError) GetInt32() int32 {
+	return 0
+}
+
+func (v *SnmpError) GetUint32() uint32 {
+	return 0
+}
+
+func (v *SnmpError) GetUint64() uint64 {
+	return 0
+}
+
+func (v *SnmpError) GetString() string {
+	return ""
+}
+
+func (s *SnmpError) IsError() bool {
+	return true
+}
+
+func (s *SnmpError) Error() string {
+	return s.message
+}
+
+func errorToMessage(value uint) string {
+	switch SnmpSyntax(value) {
+	case SNMP_SYNTAX_NOSUCHOBJECT:
+		return "nosuchobject"
+	case SNMP_SYNTAX_NOSUCHINSTANCE:
+		return "nosuchinstance"
+	case SNMP_SYNTAX_ENDOFMIBVIEW:
+		return "endofmibview"
+	}
+	return "unknown_snmp_syntax_" + strconv.FormatUint(uint64(value), 10)
+}
+
+func NewSnmpError(value uint) *SnmpError {
+	return &SnmpError{value: SnmpSyntax(value), message: errorToMessage(value)}
+}
+
+func NewSnmpErrorWithMessage(value uint, err string) *SnmpError {
+	return &SnmpError{value: SnmpSyntax(value), message: err}
 }

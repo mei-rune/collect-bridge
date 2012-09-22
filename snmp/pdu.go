@@ -10,6 +10,7 @@ package snmp
 import "C"
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -27,8 +28,8 @@ const (
 )
 
 type V2CPDU struct {
-	version          int
-	op               int
+	version          SnmpVersion
+	op               SnmpType
 	requestId        int
 	target           string
 	community        string
@@ -52,11 +53,11 @@ func (pdu *V2CPDU) SetRequestID(id int) {
 	pdu.requestId = id
 }
 
-func (pdu *V2CPDU) GetVersion() int {
+func (pdu *V2CPDU) GetVersion() SnmpVersion {
 	return pdu.version
 }
 
-func (pdu *V2CPDU) GetType() int {
+func (pdu *V2CPDU) GetType() SnmpType {
 	return pdu.op
 }
 
@@ -66,6 +67,23 @@ func (pdu *V2CPDU) GetTarget() string {
 
 func (pdu *V2CPDU) GetVariableBindings() *VariableBindings {
 	return &pdu.variableBindings
+}
+
+func (pdu *V2CPDU) String() string {
+	var buffer bytes.Buffer
+	buffer.WriteString(pdu.op.String())
+	buffer.WriteString(" variableBindings")
+	buffer.WriteString(pdu.variableBindings.String())
+	buffer.WriteString(" from ")
+	buffer.WriteString(pdu.target)
+	buffer.WriteString(" with community = '")
+	buffer.WriteString(pdu.community)
+	buffer.WriteString("' and requestId='")
+	buffer.WriteString(strconv.Itoa(pdu.GetRequestID()))
+	buffer.WriteString("' and version='")
+	buffer.WriteString(pdu.version.String())
+	buffer.WriteString("'")
+	return buffer.String()
 }
 
 func (pdu *V2CPDU) encodePDU() ([]byte, error) {
@@ -96,14 +114,15 @@ func (pdu *V2CPDU) decodePDU(native *C.snmp_pdu_t) error {
 	pdu.community = C.GoString(&native.community[0])
 
 	pdu.requestId = int(native.request_id)
-	pdu.op = int(native.pdu_type)
-	pdu.version = int(native.version)
+	pdu.op = SnmpType(native.pdu_type)
+	pdu.version = SnmpVersion(native.version)
 
-	return decodeBindings(native, pdu.GetVariableBindings())
+	decodeBindings(native, pdu.GetVariableBindings())
+	return nil
 }
 
 type V3PDU struct {
-	op               int
+	op               SnmpType
 	requestId        int
 	target           string
 	securityModel    SecurityModel
@@ -153,11 +172,11 @@ func (pdu *V3PDU) SetRequestID(id int) {
 	pdu.requestId = id
 }
 
-func (pdu *V3PDU) GetVersion() int {
+func (pdu *V3PDU) GetVersion() SnmpVersion {
 	return SNMP_V3
 }
 
-func (pdu *V3PDU) GetType() int {
+func (pdu *V3PDU) GetType() SnmpType {
 	return pdu.op
 }
 
@@ -167,6 +186,27 @@ func (pdu *V3PDU) GetTarget() string {
 
 func (pdu *V3PDU) GetVariableBindings() *VariableBindings {
 	return &pdu.variableBindings
+}
+
+func (pdu *V3PDU) String() string {
+	var buffer bytes.Buffer
+	buffer.WriteString(pdu.op.String())
+	buffer.WriteString(" variableBindings")
+	buffer.WriteString(pdu.variableBindings.String())
+	buffer.WriteString(" from ")
+	buffer.WriteString(pdu.target)
+	buffer.WriteString(" with ")
+	buffer.WriteString(pdu.securityModel.String())
+	buffer.WriteString(" and contextName='")
+	buffer.WriteString(pdu.contextName)
+	buffer.WriteString("' and contextEngine='")
+	buffer.WriteString(hex.EncodeToString(pdu.contextEngine))
+	buffer.WriteString(" and ")
+	buffer.WriteString(pdu.securityModel.String())
+	buffer.WriteString(" and requestId='")
+	buffer.WriteString(strconv.Itoa(pdu.GetRequestID()))
+	buffer.WriteString("' and version='v3'")
+	return buffer.String()
 }
 
 func (pdu *V3PDU) encodePDU() ([]byte, error) {
@@ -309,7 +349,7 @@ func encodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) error {
 	return nil
 }
 
-func decodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) error {
+func decodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) {
 
 	for i := 0; i < int(internal.nbindings); i++ {
 		oid := *oidRead(&internal.bindings[i].oid)
@@ -341,10 +381,9 @@ func decodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) error {
 		case SNMP_SYNTAX_COUNTER64:
 			vbs.AppendWith(oid, NewSnmpCounter64(uint64(C.snmp_value_get_uint64(&internal.bindings[i].v))))
 		default:
-			return fmt.Errorf("unsupported type - %d", internal.bindings[i].syntax)
+			vbs.AppendWith(oid, NewSnmpError(uint(internal.bindings[i].syntax)))
 		}
 	}
-	return nil
 }
 
 func DecodePDU(bytes []byte) (PDU, error) {
@@ -355,6 +394,7 @@ func DecodePDU(bytes []byte) (PDU, error) {
 	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
 	buffer.asn_len = C.size_t(len(bytes))
 
+	C.snmp_pdu_init(&pdu)
 	ret_code := C.snmp_pdu_decode(&buffer, &pdu, &recv_len)
 	if 0 != ret_code {
 		err := errors.New(C.GoString(C.snmp_get_error(ret_code)))
@@ -362,7 +402,7 @@ func DecodePDU(bytes []byte) (PDU, error) {
 	}
 	defer C.snmp_pdu_free(&pdu)
 
-	if SNMP_V3 == pdu.version {
+	if uint32(SNMP_V3) == pdu.version {
 		var v3 V3PDU
 		return &v3, v3.decodePDU(&pdu)
 	}

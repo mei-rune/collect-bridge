@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+var maxPDUSize = flag.Int("maxPDUSize", 10240, "set max size of pdu")
+var logPdu = flag.Bool("log.pdu", false, "log pdu content?")
+
 type Request struct {
 	pdu PDU
 	ctx InvokedContext
@@ -29,7 +32,7 @@ func NewSnmpClient(host string) (Client, error) {
 	return cl, nil
 }
 
-func (client *UdpClient) CreatePDU(op, version int) (PDU, error) {
+func (client *UdpClient) CreatePDU(op SnmpType, version SnmpVersion) (PDU, error) {
 	if op < 0 || SNMP_PDU_REPORT < op {
 		return nil, fmt.Errorf("unsupported pdu type: %d", op)
 	}
@@ -93,8 +96,6 @@ func (client *UdpClient) createConnect() (err error) {
 	return nil
 }
 
-var maxPDUSize = flag.Int("maxPDUSize", 10240, "set max size of pdu")
-
 func (client *UdpClient) readUDP(conn *net.UDPConn) {
 	defer func() {
 		if err := recover(); nil != err {
@@ -119,7 +120,7 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 
 func (client *UdpClient) handleRecv(bytes []byte) {
 	pdu, err := DecodePDU(bytes)
-	if nil != err {
+	if 0 == pdu.GetRequestID() && nil != err {
 		log.Printf("%v\r\n", err)
 		return
 	}
@@ -130,8 +131,7 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 		return
 	}
 
-	delete(client.pendings, pdu.GetRequestID())
-	req.ctx.Reply(pdu, nil)
+	req.ctx.Reply(pdu, err)
 }
 
 func (client *UdpClient) handleSend(ctx InvokedContext, pdu PDU) {
@@ -160,13 +160,18 @@ func (client *UdpClient) handleSend(ctx InvokedContext, pdu PDU) {
 		goto failed
 	}
 
+	client.pendings[pdu.GetRequestID()] = &Request{pdu: pdu, ctx: ctx}
+
+	if *logPdu {
+		log.Printf("snmp - " + pdu.String())
+	}
+
 	_, err = client.conn.Write(bytes)
 	if nil != err {
 		err = errors.New("send pdu failed - " + err.Error())
 		goto failed
 	}
 
-	client.pendings[pdu.GetRequestID()] = &Request{pdu: pdu, ctx: ctx}
 	return
 failed:
 	ctx.Reply(nil, err)

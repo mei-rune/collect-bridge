@@ -1,39 +1,117 @@
 package snmp
 
 import (
+	"bytes"
 	"time"
 )
 
+type SnmpVersion int
+
 const (
-	SNMP_Verr = 0
-	SNMP_V1   = 1
-	SNMP_V2C  = 2
-	SNMP_V3   = 3
+	SNMP_Verr SnmpVersion = 0
+	SNMP_V1   SnmpVersion = 1
+	SNMP_V2C  SnmpVersion = 2
+	SNMP_V3   SnmpVersion = 3
 )
 
+//func (t SnmpVersion) String() string {
+//	return t.String()
+//}
+func (t *SnmpVersion) String() string {
+	switch *t {
+	case SNMP_V1:
+		return "v1"
+	case SNMP_V2C:
+		return "v2c"
+	case SNMP_V3:
+		return "v3"
+	}
+	return "unknown_pdu_version"
+}
+
+type AuthType int
+
 const (
-	SNMP_AUTH_NOAUTH   = 0
-	SNMP_AUTH_HMAC_MD5 = 1
-	SNMP_AUTH_HMAC_SHA = 2
+	SNMP_AUTH_NOAUTH   AuthType = 0
+	SNMP_AUTH_HMAC_MD5 AuthType = 1
+	SNMP_AUTH_HMAC_SHA AuthType = 2
 )
 
+//func (t *AuthType) String() string {
+//	return t.String()
+//}
+
+func (t *AuthType) String() string {
+	switch *t {
+	case SNMP_AUTH_NOAUTH:
+		return "noauth"
+	case SNMP_AUTH_HMAC_MD5:
+		return "md5"
+	case SNMP_AUTH_HMAC_SHA:
+		return "sha"
+	}
+	return "unknown_auth_type"
+}
+
+type PrivType int
+
 const (
-	SNMP_PRIV_NOPRIV = 0
-	SNMP_PRIV_DES    = 1
-	SNMP_PRIV_AES    = 2
+	SNMP_PRIV_NOPRIV PrivType = 0
+	SNMP_PRIV_DES    PrivType = 1
+	SNMP_PRIV_AES    PrivType = 2
 )
 
-const (
-	SNMP_PDU_GET      = 0
-	SNMP_PDU_GETNEXT  = 1
-	SNMP_PDU_RESPONSE = 2
-	SNMP_PDU_SET      = 3
-	SNMP_PDU_TRAP     = 4 /* v1 */
-	SNMP_PDU_GETBULK  = 5 /* v2 */
-	SNMP_PDU_INFORM   = 6 /* v2 */
-	SNMP_PDU_TRAP2    = 7 /* v2 */
-	SNMP_PDU_REPORT   = 8 /* v2 */
+func (t *PrivType) String() string {
+	switch *t {
+	case SNMP_PRIV_NOPRIV:
+		return "nopriv"
+	case SNMP_PRIV_DES:
+		return "des"
+	case SNMP_PRIV_AES:
+		return "aes"
+	}
+	return "unknown_priv_type"
+}
 
+type SnmpType int
+
+const (
+	SNMP_PDU_GET      SnmpType = 0
+	SNMP_PDU_GETNEXT  SnmpType = 1
+	SNMP_PDU_RESPONSE SnmpType = 2
+	SNMP_PDU_SET      SnmpType = 3
+	SNMP_PDU_TRAP     SnmpType = 4 /* v1 */
+	SNMP_PDU_GETBULK  SnmpType = 5 /* v2 */
+	SNMP_PDU_INFORM   SnmpType = 6 /* v2 */
+	SNMP_PDU_TRAP2    SnmpType = 7 /* v2 */
+	SNMP_PDU_REPORT   SnmpType = 8 /* v2 */
+)
+
+func (t *SnmpType) String() string {
+	switch *t {
+	case SNMP_PDU_GET:
+		return "get"
+	case SNMP_PDU_GETNEXT:
+		return "next"
+	case SNMP_PDU_RESPONSE:
+		return "response"
+	case SNMP_PDU_SET:
+		return "set"
+	case SNMP_PDU_TRAP:
+		return "trap"
+	case SNMP_PDU_GETBULK:
+		return "getbulk"
+	case SNMP_PDU_INFORM:
+		return "inform"
+	case SNMP_PDU_TRAP2:
+		return "trap2"
+	case SNMP_PDU_REPORT:
+		return "report"
+	}
+	return "unknown_pdu_type"
+}
+
+const (
 	SNMP_TRAP_COLDSTART              = 0
 	SNMP_TRAP_WARMSTART              = 1
 	SNMP_TRAP_LINKDOWN               = 2
@@ -94,7 +172,7 @@ func (vbs *VariableBindings) Append(oid, value string) error {
 	}
 
 	var v SnmpValue = NewSnmpNil()
-	if "" == value {
+	if "" != value {
 		v, ok = NewSnmpValue(value)
 		if nil != ok {
 			return ok
@@ -116,18 +194,35 @@ func (vbs *VariableBindings) AppendWith(oid SnmpOid, value SnmpValue) error {
 	return nil
 }
 
+func (vbs *VariableBindings) String() string {
+	var buffer bytes.Buffer
+	buffer.WriteString("[")
+	if nil != vbs.values {
+		for _, vb := range vbs.values {
+			buffer.WriteString(vb.Oid.GetString())
+			buffer.WriteString("='")
+			buffer.WriteString(vb.Value.GetString())
+			buffer.WriteString("'")
+		}
+	}
+	buffer.WriteString("]")
+	return buffer.String()
+}
+
 type PDU interface {
 	Init(params map[string]string) error
 	SetRequestID(id int)
 	GetRequestID() int
-	GetVersion() int
-	GetType() int
+	GetVersion() SnmpVersion
+	GetType() SnmpType
 	GetTarget() string
 	GetVariableBindings() *VariableBindings
+	String() string
 }
 
 type SecurityModel interface {
 	Init(params map[string]string) error
+	String() string
 }
 
 type snmpEngine struct {
@@ -138,7 +233,7 @@ type snmpEngine struct {
 }
 
 type Client interface {
-	CreatePDU(op, version int) (PDU, error)
+	CreatePDU(op SnmpType, version SnmpVersion) (PDU, error)
 	SendAndRecv(req PDU, timeout time.Duration) (PDU, error)
 	FreePDU(pdus ...PDU)
 }

@@ -43,7 +43,7 @@ func getTimeout(params map[string]string) time.Duration {
 	return ret
 }
 
-func getVersion(params map[string]string) int {
+func getVersion(params map[string]string) snmp.SnmpVersion {
 	v, ok := params["version"]
 	if !ok {
 		return snmp.SNMP_V2C
@@ -80,9 +80,13 @@ func (bridge *SnmpBridge) Get(ctx *web.Context, host, oid string) {
 		internalError(ctx, "init pdu failed.", err)
 		return
 	}
-	req.GetVariableBindings().Append(oid, "")
+	err = req.GetVariableBindings().Append(oid, "")
+	if nil != err {
+		internalError(ctx, "append vb failed.", err)
+		return
+	}
 	resp, ok := client.SendAndRecv(req, getTimeout(ctx.Params))
-	if nil == ok {
+	if nil == ok && 0 < resp.GetVariableBindings().Len() {
 		ctx.WriteString(resp.GetVariableBindings().Get(0).Value.String())
 	} else {
 		internalError(ctx, "snmp failed.", ok)
@@ -112,7 +116,11 @@ func (bridge *SnmpBridge) Set(ctx *web.Context, host, oid string) {
 		return
 	}
 
-	req.GetVariableBindings().Append(oid, string(txt))
+	err = req.GetVariableBindings().Append(oid, string(txt))
+	if nil != err {
+		internalError(ctx, "append vb failed.", err)
+		return
+	}
 
 	resp, ok := client.SendAndRecv(req, getTimeout(ctx.Params))
 	if nil == ok {
@@ -139,7 +147,12 @@ func (bridge *SnmpBridge) Next(ctx *web.Context, host, oid string) {
 		internalError(ctx, "init pdu failed.", err)
 		return
 	}
-	req.GetVariableBindings().Append(oid, "")
+	err = req.GetVariableBindings().Append(oid, "")
+	if nil != err {
+		internalError(ctx, "append vb failed.", err)
+		return
+	}
+
 	resp, ok := client.SendAndRecv(req, getTimeout(ctx.Params))
 	if nil == ok {
 		ctx.WriteString(resp.GetVariableBindings().Get(0).Value.String())
@@ -167,7 +180,12 @@ func (bridge *SnmpBridge) Bulk(ctx *web.Context, host, oids string) {
 	}
 	vbs := req.GetVariableBindings()
 	for _, oid := range strings.Split(oids, "|") {
-		vbs.Append(oid, "")
+		err = vbs.Append(oid, "")
+		if nil != err {
+			internalError(ctx, "append vb failed.", err)
+			return
+		}
+
 	}
 	resp, ok := client.SendAndRecv(req, getTimeout(ctx.Params))
 	switch {

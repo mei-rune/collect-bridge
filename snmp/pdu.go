@@ -34,8 +34,6 @@ type V2CPDU struct {
 	community        string
 	variableBindings VariableBindings
 	client           Client
-
-	internal C.snmp_pdu_t
 }
 
 func (pdu *V2CPDU) Init(params map[string]string) error {
@@ -71,25 +69,26 @@ func (pdu *V2CPDU) GetVariableBindings() *VariableBindings {
 }
 
 func (pdu *V2CPDU) encodePDU() ([]byte, error) {
-	C.snmp_pdu_init(&pdu.internal)
-	defer C.snmp_pdu_free(&pdu.internal)
+	var internal C.snmp_pdu_t
+	C.snmp_pdu_init(&internal)
+	defer C.snmp_pdu_free(&internal)
 
-	err := strcpy(&pdu.internal.community[0], MAX_COMMUNITY_LEN, pdu.community)
+	err := strcpy(&internal.community[0], MAX_COMMUNITY_LEN, pdu.community)
 	if nil != err {
 		return nil, err
 	}
-	pdu.internal.engine.max_msg_size = 10000
-	pdu.internal.request_id = C.int32_t(pdu.requestId)
-	pdu.internal.pdu_type = C.u_int(pdu.op)
-	pdu.internal.version = uint32(pdu.version)
+	internal.engine.max_msg_size = 10000
+	internal.request_id = C.int32_t(pdu.requestId)
+	internal.pdu_type = C.u_int(pdu.op)
+	internal.version = uint32(pdu.version)
 
-	err = encodeBindings(&pdu.internal, pdu.GetVariableBindings())
+	err = encodeBindings(&internal, pdu.GetVariableBindings())
 
 	if nil != err {
 		return nil, err
 	}
 
-	return encodeNativePdu(&pdu.internal)
+	return encodeNativePdu(&internal)
 }
 
 func (pdu *V2CPDU) decodePDU(native *C.snmp_pdu_t) error {
@@ -113,8 +112,6 @@ type V3PDU struct {
 	maxMsgSize       uint
 	contextName      string
 	contextEngine    []byte
-
-	internal C.snmp_pdu_t
 }
 
 func (pdu *V3PDU) Init(params map[string]string) (err error) {
@@ -173,29 +170,30 @@ func (pdu *V3PDU) GetVariableBindings() *VariableBindings {
 }
 
 func (pdu *V3PDU) encodePDU() ([]byte, error) {
-	C.snmp_pdu_init(&pdu.internal)
-	defer C.snmp_pdu_free(&pdu.internal)
+	var internal C.snmp_pdu_t
+	C.snmp_pdu_init(&internal)
+	defer C.snmp_pdu_free(&internal)
 
-	pdu.internal.request_id = C.int32_t(pdu.requestId)
-	pdu.internal.pdu_type = C.u_int(pdu.op)
-	pdu.internal.version = uint32(SNMP_V3)
+	internal.request_id = C.int32_t(pdu.requestId)
+	internal.pdu_type = C.u_int(pdu.op)
+	internal.version = uint32(SNMP_V3)
 
-	pdu.internal.identifier = C.int32_t(pdu.requestId)
+	internal.identifier = C.int32_t(pdu.requestId)
 	if 0 == pdu.maxMsgSize {
 		pdu.maxMsgSize = 10000
 	}
-	pdu.internal.engine.max_msg_size = C.int32_t(pdu.maxMsgSize)
-	pdu.internal.flags = 0
+	internal.engine.max_msg_size = C.int32_t(pdu.maxMsgSize)
+	internal.flags = 0
 
-	pdu.internal.security_model = SNMP_SECMODEL_USM
+	internal.security_model = SNMP_SECMODEL_USM
 
-	err := encodeBindings(&pdu.internal, pdu.GetVariableBindings())
+	err := encodeBindings(&internal, pdu.GetVariableBindings())
 
 	if nil != err {
 		return nil, err
 	}
 
-	return encodeNativePdu(&pdu.internal)
+	return encodeNativePdu(&internal)
 }
 
 func (pdu *V3PDU) decodePDU(native *C.snmp_pdu_t) error {

@@ -14,7 +14,7 @@ var (
 	snmpTimeout = flag.Int("snmp.timeout", 5*60, "maximun duration (second) of send/recv pdu timeout")
 )
 
-type SnmpBridge struct {
+type SnmpDriver struct {
 	snmp.ClientManager
 }
 
@@ -69,7 +69,7 @@ func internalError(msg string, err error) error {
 	return fmt.Errorf(msg + err.Error())
 }
 
-func (bridge *SnmpBridge) invoke(action snmp.SnmpType, params map[string]string) (interface{}, error) {
+func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string) (interface{}, error) {
 	host, ok := params["host"]
 	if !ok {
 		return nil, errors.New("'host' is required.")
@@ -137,7 +137,7 @@ func (bridge *SnmpBridge) invoke(action snmp.SnmpType, params map[string]string)
 	return results, nil
 }
 
-func (bridge *SnmpBridge) Get(params map[string]string) (interface{}, error) {
+func (bridge *SnmpDriver) Get(params map[string]string) (interface{}, error) {
 	action, err := getAction(params)
 	if nil != err {
 		return nil, internalError("get action failed", err)
@@ -145,18 +145,18 @@ func (bridge *SnmpBridge) Get(params map[string]string) (interface{}, error) {
 	return bridge.invoke(action, params)
 }
 
-func (bridge *SnmpBridge) Put(params map[string]string) (interface{}, error) {
+func (bridge *SnmpDriver) Put(params map[string]string) (interface{}, error) {
 	return bridge.invoke(snmp.SNMP_PDU_SET, params)
 }
 
-func (bridge *SnmpBridge) Create(map[string]string) (bool, error) {
+func (bridge *SnmpDriver) Create(map[string]string) (bool, error) {
 	return false, fmt.Errorf("not implemented")
 }
 
-func (bridge *SnmpBridge) Delete(map[string]string) (bool, error) {
+func (bridge *SnmpDriver) Delete(map[string]string) (bool, error) {
 	return false, fmt.Errorf("not implemented")
 }
 
-func (client *SnmpBridge) Table(ctx *web.Context, host, oids string) {
+func (client *SnmpDriver) Table(ctx *web.Context, host, oids string) {
 	panic(fmt.Sprintf("not implemented"))
 }

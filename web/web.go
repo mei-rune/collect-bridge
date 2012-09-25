@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	rpprof "runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -430,7 +431,9 @@ func (s *Server) Run() {
 	mux := http.NewServeMux()
 	mux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
 	mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-	mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	for _, pf := range rpprof.Profiles() {
+		mux.Handle("/debug/pprof/"+pf.Name(), pprof.Handler(pf.Name()))
+	}
 	mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 	mux.Handle("/", s)
 

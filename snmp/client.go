@@ -235,5 +235,4 @@ type snmpEngine struct {
 type Client interface {
 	CreatePDU(op SnmpType, version SnmpVersion) (PDU, error)
 	SendAndRecv(req PDU, timeout time.Duration) (PDU, error)
-	FreePDU(pdus ...PDU)
 }

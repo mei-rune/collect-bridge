@@ -345,6 +345,11 @@ func serve(svc *Svc) {
 		svc.timeout = 10 * time.Second
 	}
 
+	if nil == svc.ch {
+		log.Println("svc failed!")
+		return
+	}
+
 	for {
 		select {
 		case msg, ok := <-svc.ch:

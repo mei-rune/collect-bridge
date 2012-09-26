@@ -362,7 +362,9 @@ func decodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) {
 		case SNMP_SYNTAX_OCTETSTRING:
 			l := int(C.snmp_value_get_octets_len(&internal.bindings[i].v))
 			bytes := make([]byte, l, l+10)
-			C.snmp_value_get_octets(&internal.bindings[i].v, unsafe.Pointer(&bytes[0]))
+			if 0 != l {
+				C.snmp_value_get_octets(&internal.bindings[i].v, unsafe.Pointer(&bytes[0]))
+			}
 			vbs.AppendWith(oid, NewSnmpOctetString(bytes))
 		case SNMP_SYNTAX_OID:
 			v := oidRead(C.snmp_value_get_oid(&internal.bindings[i].v))

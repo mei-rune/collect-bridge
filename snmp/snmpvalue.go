@@ -25,7 +25,7 @@ const (
 	SNMP_SYNTAX_COUNTER64      SnmpSyntax = 8
 	SNMP_SYNTAX_NOSUCHOBJECT   SnmpSyntax = 9  /* exception */
 	SNMP_SYNTAX_NOSUCHINSTANCE SnmpSyntax = 10 /* exception */
-	SNMP_SYNTAX_ENDOFMIBVIEW   SnmpSyntax = 1  /* exception */
+	SNMP_SYNTAX_ENDOFMIBVIEW   SnmpSyntax = 11  /* exception */
 )
 
 type SnmpValue interface {

@@ -74,7 +74,7 @@ func TestReturnPdu(t *testing.T) {
 			t.Errorf("sendAndRecv pdu failed - res is nil")
 		}
 
-		cl.FreePDU(pdu, res)
+		//cl.FreePDU(pdu, res)
 	})
 }
 
@@ -97,7 +97,7 @@ func TestReturnNoSuchInstancePdu(t *testing.T) {
 			t.Errorf("sendAndRecv pdu failed - res is nil")
 		}
 
-		cl.FreePDU(pdu, res)
+		//cl.FreePDU(pdu, res)
 	})
 }
 
@@ -116,7 +116,7 @@ func TestSendFailed(t *testing.T) {
 			t.Errorf("except throw an error, actual return ok")
 			return
 		}
-		cl.FreePDU(pdu)
+		//cl.FreePDU(pdu)
 	})
 }
 
@@ -138,7 +138,7 @@ func TestRecvTimeout(t *testing.T) {
 			t.Errorf("except throw an timeout error, actual return %s", err.Error())
 			return
 		}
-		cl.FreePDU(pdu)
+		//cl.FreePDU(pdu)
 	})
 }
 

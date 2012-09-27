@@ -2,10 +2,15 @@ package snmp
 
 import (
 	"bytes"
+	//"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
+	// "unicode"
+	// "unicode/utf16"
+	// "unicode/utf8"
 )
 
 type SnmpSyntax uint
@@ -25,7 +30,7 @@ const (
 	SNMP_SYNTAX_COUNTER64      SnmpSyntax = 8
 	SNMP_SYNTAX_NOSUCHOBJECT   SnmpSyntax = 9  /* exception */
 	SNMP_SYNTAX_NOSUCHINSTANCE SnmpSyntax = 10 /* exception */
-	SNMP_SYNTAX_ENDOFMIBVIEW   SnmpSyntax = 11  /* exception */
+	SNMP_SYNTAX_ENDOFMIBVIEW   SnmpSyntax = 11 /* exception */
 )
 
 type SnmpValue interface {
@@ -577,8 +582,98 @@ func (v *SnmpOctetString) GetUint64() uint64 {
 	return r
 }
 
+// func (v *SnmpOctetString) IsAscii() bool {
+// 	isAscii := true
+// 	for _, c := range []byte(*v) {
+// 		if c >= unicode.MaxASCII {
+// 			isAscii = false
+// 			break
+// 		}
+// 	}
+// 	return isAscii
+// }
+
+// func (v *SnmpOctetString) IsAsciiAndPrintable() bool {
+// 	yes := true
+// 	for _, c := range []byte(*v) {
+// 		if c >= unicode.MaxASCII {
+// 			yes = false
+// 			break
+// 		}
+
+// 		if !strconv.IsPrint(rune(c)) {
+// 			yes = false
+// 			break
+// 		}
+// 	}
+// 	return yes
+// }
+
+// func (v *SnmpOctetString) IsUtf8() bool {
+// 	return utf8.Valid([]byte(*v))
+// }
+
+// func (v *SnmpOctetString) IsUtf8AndPrintable() bool {
+// 	bytes := []byte(*v)
+// 	for 0 != len(bytes) {
+// 		c, l := utf8.DecodeRune(bytes)
+// 		if utf8.RuneError == c {
+// 			return false
+// 		}
+
+// 		if !unicode.IsPrint(c) {
+// 			return false
+// 		}
+// 		bytes = bytes[l:]
+// 	}
+// 	return true
+// }
+
+// func (v *SnmpOctetString) IsUtf16AndPrintable() bool {
+// 	bytes := []byte(*v)
+// 	if 0 != len(bytes)%2 {
+// 		return false
+// 	}
+
+// 	for i := 0; i < len(bytes); i += 2 {
+
+// 		if !unicode.IsPrint(rune(uint16(bytes[i : i+2]))) {
+// 			return false
+// 		}
+// 	}
+// 	return true
+// }
+
+// func (v *SnmpOctetString) IsUtf32AndPrintable() bool {
+// 	bytes := []byte(*v)
+// 	if 0 != len(bytes)%4 {
+// 		return false
+// 	}
+
+// 	for i := 0; i < len(bytes); i += 4 {
+// 		if !unicode.IsPrint(rune(uint32(bytes[i : i+4]))) {
+// 			return false
+// 		}
+// 	}
+// 	return true
+// }
+
+func (v *SnmpOctetString) IsPrintable() bool {
+	isPrintable := true
+	for _, c := range []byte(*v) {
+		if !strconv.IsPrint(rune(c)) {
+			isPrintable = false
+			break
+		}
+	}
+	return isPrintable
+}
+
 func (v *SnmpOctetString) GetString() string {
-	return string(*v)
+	//if v.IsPrintable() {
+	//	return string(*v)
+	//}
+	return hex.EncodeToString([]byte(*v))
 }
 
 func (s *SnmpOctetString) IsError() bool {

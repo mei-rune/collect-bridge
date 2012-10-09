@@ -32,7 +32,7 @@ func (err *TwinceError) Error() string {
 	return err.message
 }
 
-func newTwinceError(first, second error) error {
+func NewTwinceError(first, second error) error {
 	msg := fmt.Sprintf("return two error, first is {%s}, second is {%s}",
 		first.Error(), second.Error())
 	return &TwinceError{message: msg, first: first, second: second}
@@ -145,6 +145,12 @@ type Svc struct {
 	onStart, onStop, onTimeout func()
 }
 
+func (svc *Svc) Set(onStart, onStop, onTimeout func()) {
+	svc.onStart = onStart
+	svc.onStop = onStop
+	svc.onTimeout = onTimeout
+}
+
 func (svc *Svc) FuncOf(target interface{}, name string) *reflect.Value {
 	v := reflect.ValueOf(target)
 	f := v.MethodByName(name)
@@ -240,7 +246,7 @@ func (svc *Svc) SafelyCall(timeout time.Duration, function interface{}, args ...
 			case nil == results || 0 == len(results):
 				results = []interface{}{err}
 			case nil != results[len(results)].(error):
-				results[len(results)-1] = newTwinceError(results[len(results)-1].(error), err)
+				results[len(results)-1] = NewTwinceError(results[len(results)-1].(error), err)
 			default:
 				results = append(results, err)
 			}

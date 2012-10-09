@@ -1,6 +1,7 @@
 package snmp
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"strings"
@@ -18,7 +19,7 @@ func TestSnmp(t *testing.T) {
 		SVTC{raw: "[gauge]2345"},
 		SVTC{raw: "[counter32]4521"},
 		SVTC{raw: "[counter64]342244343333333332"},
-		SVTC{raw: "[octets]abcdefg"},
+		SVTC{raw: "[octets]" + hex.EncodeToString([]byte("abcdefg"))},
 		SVTC{raw: "[oid]2.3.4.5.6"},
 		SVTC{raw: "[oid].2.3.4.5.6", to: "[oid]2.3.4.5.6"},
 		SVTC{raw: "[oid]_2_3_4_5_6", to: "[oid]2.3.4.5.6"},

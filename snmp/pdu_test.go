@@ -89,7 +89,6 @@ const snmpv3_sha_txt = "3082015c020103300d02010002022717040105020103044430420420
 //  [8]: 1.2.3.4.5.9.7.8.9.10.11.12.13=COUNTER64 12352121212122683
 const snmpv3_sha_aes_txt = "30820168020103300d02010002022717040107020103044c304a04203031323334353637383930313233343536373839303132333435363738393031020103020204d204076d65696a696e67040ca3f43fa5687d10f27616544c040823480000be1800000482010479ab3546d6732de5704f3aa5fd37f650f027932db936963781dda6ab507bd814a5f3ba65fb68ef394f7028f899487492e76855130d50059042a2f7c59a686849b8d510eabbf1d9fa5f9968535c80a60540bbe1985a2f78810549a2fa8bffedcdf827eb8976f7dbc14266394adaba3569dc1974c0003b4602c9c2909c768d871ab6d9d3ea892cab901990cc547367e0853dd99cb3a871bdc22eefa50f573107edcd9eefbce827cd20fc370589ddd14eebc8be629884bd0af384fee99c1b1eaf3c03e12e5c70ed00dae9caf7eabcca8f22ab10b0d7e6374412db478091c62bf46d0b25a4048e4ecd57b890b1122a385b49eb3aa6306abfda33e19e76bdbe0ef8dea06f0c40"
 
-
 // GET SNMPv2c '' request_id= error_status=0 error_index=0
 const snmpv2c_NOSUCHINSTANCE = "302002010104067075626c6963a2130201010201050201013008300606022b068100"
 
@@ -133,7 +132,7 @@ func uint32ToString(ints []uint32) string {
 func fillPdu(vbs *VariableBindings) {
 	AppendBindings(vbs, "[null]")
 	AppendBindings(vbs, "[int32]12")
-	AppendBindings(vbs, "[octets]1234567890")
+	AppendBindings(vbs, "[octets]"+hex.EncodeToString([]byte("1234567890")))
 	AppendBindings(vbs, uint32ToString(oid2))
 	AppendBindings(vbs, "[ip]1.2.3.4")
 	AppendBindings(vbs, "[counter32]2235683")
@@ -153,7 +152,7 @@ func checkVB(vbs *VariableBindings, i int, excepted string, t *testing.T) {
 func checkPdu(vbs *VariableBindings, t *testing.T) {
 	checkVB(vbs, 0, "[null]", t)
 	checkVB(vbs, 1, "[int32]12", t)
-	checkVB(vbs, 2, "[octets]1234567890", t)
+	checkVB(vbs, 2, "[octets]"+hex.EncodeToString([]byte("1234567890")), t)
 	checkVB(vbs, 3, uint32ToString(oid2), t)
 	checkVB(vbs, 4, "[ip]1.2.3.4", t)
 	checkVB(vbs, 5, "[counter32]2235683", t)
@@ -188,7 +187,59 @@ func TestEncodePDU(t *testing.T) {
 		t.Log(hex.EncodeToString(bytes))
 		t.Errorf("encode v2 pdu faile.")
 	}
+}
 
+func TestEncodeV3PDU(t *testing.T) {
+	testEncodeV3PDU(t, map[string]string{"community": "123987",
+		"identifier":     "0",
+		"context_name":   "testcontextname",
+		"context_engine": "74657374636f6e74657874656e67696e65",
+		"engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
+		"engine_boots":   "3",
+		"engine_time":    "1234",
+		"max_msg_size":   "10007",
+		"secname":        "meijing",
+		"secmodel":       "usm"}, snmpv3_noauth_txt, "test noauth - ")
+
+	testEncodeV3PDU(t, map[string]string{"community": "123987",
+		"identifier":     "0",
+		"context_name":   "testcontextname",
+		"context_engine": "74657374636f6e74657874656e67696e65",
+		"engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
+		"engine_boots":   "3",
+		"engine_time":    "1234",
+		"max_msg_size":   "10007",
+		"secname":        "meijing",
+		"secmodel":       "usm",
+		"auth_pass":      "md5-aa"}, snmpv3_md5_txt, "test auth=md5 - ")
+
+	testEncodeV3PDU(t, map[string]string{"community": "123987",
+		"identifier":     "0",
+		"context_name":   "testcontextname",
+		"context_engine": "74657374636f6e74657874656e67696e65",
+		"engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
+		"engine_boots":   "3",
+		"engine_time":    "1234",
+		"max_msg_size":   "10007",
+		"secname":        "meijing",
+		"secmodel":       "usm",
+		"auth_pass":      "md5-aa",
+		"priv_pass":      "des-aa"}, snmpv3_md5_des_txt, "test auth=md5 and priv=des - ")
+}
+
+func testEncodeV3PDU(t *testing.T, args map[string]string, txt, msg string) {
+	pduv3 := &V3PDU{requestId: 234}
+	pduv3.Init(args)
+	fillPdu(pduv3.GetVariableBindings())
+	bytes, e := pduv3.encodePDU()
+	if nil != e {
+		t.Errorf("%sencode v3 pdu faile - %s", msg, e.Error())
+	}
+
+	if txt != hex.EncodeToString(bytes) {
+		t.Log(hex.EncodeToString(bytes))
+		t.Errorf("%sencode v3 pdu faile.", msg)
+	}
 }
 
 func TestDecodePDU(t *testing.T) {
@@ -221,19 +272,104 @@ func TestDecodePDU(t *testing.T) {
 	}
 	pdu, e = DecodePDU(bytes)
 	if nil != e {
-		t.Errorf("decode v1 pdu faile - %s", e.Error())
+		t.Errorf("decode v2 pdu faile - %s", e.Error())
 	} else {
 		if SNMP_V2C != pdu.GetVersion() {
 			t.Errorf("decode v2 pdu faile - version error, excepted is v2C, actual value is %d", pdu.GetVersion())
 		} else {
 			if "123987" != pdu.(*V2CPDU).community {
-				t.Errorf("decode v1 pdu faile - community error, excepted is '123987', actual value is %s", pdu.(*V2CPDU).community)
+				t.Errorf("decode v2 pdu faile - community error, excepted is '123987', actual value is %s", pdu.(*V2CPDU).community)
 			}
 			if 234 != pdu.(*V2CPDU).requestId {
-				t.Errorf("decode v1 pdu faile - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
+				t.Errorf("decode v2 pdu faile - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
 			}
 		}
 		checkPdu(pdu.GetVariableBindings(), t)
 	}
 
+}
+
+func TestDecodeV3PDU(t *testing.T) {
+	testDecodeV3PDU(t, snmpv3_noauth_txt, SNMP_AUTH_NOAUTH, "", SNMP_PRIV_NOPRIV, "")
+	testDecodeV3PDU(t, snmpv3_md5_txt, SNMP_AUTH_HMAC_MD5, "aa", SNMP_PRIV_NOPRIV, "")
+	testDecodeV3PDU(t, snmpv3_md5_des_txt, SNMP_AUTH_HMAC_MD5, "aa", SNMP_PRIV_DES, "aa")
+	testDecodeV3PDU(t, snmpv3_sha_txt, SNMP_AUTH_HMAC_SHA, "aa", SNMP_PRIV_NOPRIV, "")
+	testDecodeV3PDU(t, snmpv3_sha_aes_txt, SNMP_AUTH_HMAC_SHA, "aa", SNMP_PRIV_DES, "aa")
+}
+
+func testDecodeV3PDU(t *testing.T, txt string, auth AuthType, auth_s string, priv PrivType, priv_s string) {
+	bytes, e := hex.DecodeString(txt)
+	if nil != e {
+		t.Errorf("decode hex failed - %s", e.Error())
+		return
+	}
+	pdu, e := DecodePDU(bytes)
+	if nil != e {
+		t.Errorf("decode v3 pdu faile - %s", e.Error())
+	} else {
+		if SNMP_V3 != pdu.GetVersion() {
+			t.Errorf("decode v3 pdu faile - version error, excepted is v2C, actual value is %d", pdu.GetVersion())
+		} else {
+
+			if 234 != pdu.(*V3PDU).requestId {
+				t.Errorf("decode v3 pdu faile - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
+			}
+
+			if nil == pdu.(*V3PDU).engine {
+				t.Errorf("decode v3 pdu faile - engine is null")
+			}
+
+			if "testcontextname" != pdu.(*V3PDU).contextName {
+				t.Errorf("decode v3 pdu faile - contextEngine error, excepted is 'testcontextname', actual value is %s",
+					pdu.(*V3PDU).contextName)
+			}
+
+			if "74657374636f6e74657874656e67696e65" != hex.EncodeToString(pdu.(*V3PDU).contextEngine) {
+				t.Errorf("decode v3 pdu faile - contextEngine error, excepted is '74657374636f6e74657874656e67696e65', actual value is %s",
+					hex.EncodeToString(pdu.(*V3PDU).contextEngine))
+			}
+
+			if "3031323334353637383930313233343536373839303132333435363738393031" != hex.EncodeToString(pdu.(*V3PDU).engine.engine_id) {
+				t.Errorf("decode v3 pdu faile - engine_boots error, excepted is '2', actual value is %d", pdu.(*V3PDU).engine.engine_boots)
+			}
+			if 3 != pdu.(*V3PDU).engine.engine_boots {
+				t.Errorf("decode v3 pdu faile - engine_boots error, excepted is '2', actual value is %d", pdu.(*V3PDU).engine.engine_boots)
+			}
+			if 1234 != pdu.(*V3PDU).engine.engine_time {
+				t.Errorf("decode v3 pdu faile - engine_time error, excepted is '2', actual value is %d", pdu.(*V3PDU).engine.engine_time)
+			}
+
+			if nil == pdu.(*V3PDU).securityModel {
+				t.Errorf("decode v3 pdu faile - securityModel is null")
+			}
+			if "meijing" != pdu.(*V3PDU).securityModel.(*HashUSM).name {
+				t.Errorf("decode v3 pdu faile - sec_name error, excepted is 'meijing', actual value is %s", pdu.(*V3PDU).securityModel.(*HashUSM).name)
+			}
+			// if auth != pdu.(*V3PDU).securityModel.(*HashUSM).auth_proto {
+			//	t.Errorf("decode v3 pdu faile - auth_proto error, excepted is '%s', actual value is %s",
+			//		auth.String(), pdu.(*V3PDU).securityModel.(*HashUSM).auth_proto.String())
+			// }
+
+			// if SNMP_AUTH_NOAUTH != auth {
+			//	if auth_s != hex.EncodeToString(pdu.(*V3PDU).securityModel.(*HashUSM).auth_key) {
+			//		t.Errorf("decode v3 pdu faile - auth_key error, excepted is '%s', actual value is %s",
+			//			auth_s, hex.EncodeToString(pdu.(*V3PDU).securityModel.(*HashUSM).auth_key))
+			//	}
+			// }
+
+			// if priv != pdu.(*V3PDU).securityModel.(*HashUSM).priv_proto {
+			//	t.Errorf("decode v3 pdu faile - priv_proto error, excepted is '%d', actual value is %s",
+			//		priv.String(), pdu.(*V3PDU).securityModel.(*HashUSM).priv_proto.String())
+			// }
+
+			// if SNMP_PRIV_NOPRIV != priv {
+
+			//	if priv_s != hex.EncodeToString(pdu.(*V3PDU).securityModel.(*HashUSM).priv_key) {
+			//		t.Errorf("decode v3 pdu faile - priv_key error, excepted is '%d', actual value is %s",
+			//			priv_s, hex.EncodeToString(pdu.(*V3PDU).securityModel.(*HashUSM).priv_key))
+			//	}
+			// }
+		}
+		checkPdu(pdu.GetVariableBindings(), t)
+	}
 }

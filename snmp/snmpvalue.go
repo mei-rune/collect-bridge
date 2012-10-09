@@ -690,7 +690,11 @@ func NewSnmpOctetString(v []byte) *SnmpOctetString {
 }
 
 func newSnmpOctetStringFromString(s string) (SnmpValue, error) {
-	var ret SnmpOctetString = SnmpOctetString([]byte(s))
+	bytes, err := hex.DecodeString(s)
+	if nil != err {
+		return nil, err
+	}
+	var ret SnmpOctetString = SnmpOctetString(bytes)
 	return &ret, nil
 }
 

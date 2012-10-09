@@ -1,6 +1,7 @@
 package snmp
 
 // #include "bsnmp/config.h"
+// #include <stdlib.h>
 // #include "bsnmp/asn1.h"
 // #include "bsnmp/snmp.h"
 // #include "bsnmp/gobindings.h"

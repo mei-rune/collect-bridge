@@ -1,8 +1,8 @@
 package main
 
-// #cgo CFLAGS: -I ./include
+// #cgo windows CFLAGS: -I ./include
 // #cgo LDFLAGS: -llua52
-// #cgo LDFLAGS: -lm -L ./lib
+// #cgo windows LDFLAGS: -lm -L ./lib
 // #include <stdlib.h>
 // #include "lua.h"
 // #include "lualib.h"

@@ -179,13 +179,28 @@ func (svc *Svc) Start() (err error) {
 
 func (svc *Svc) Stop() {
 	if !atomic.CompareAndSwapInt32(&svc.status, status_active, status_inactive) {
+		log.Printf("It is alway exited\r\n")
 		return
 	}
 
-	msg := new(message)
-	msg.ch = nil
+	msg := getCachedChannel()
+	var success bool = false
+	defer func() {
+		if success {
+			putCachedChannel(msg)
+		}
+	}()
+
 	msg.request.messageType = MESSAGE_TYPE_SYSTEM
+	msg.request.function = nil
 	svc.ch <- msg
+	select {
+	case <-msg.ch:
+		success = true
+	case <-time.After(5 * time.Minute):
+		panic(errors.New("time out"))
+	}
+	return
 }
 
 func function2Value(function interface{}) (fvp *reflect.Value) {
@@ -337,6 +352,9 @@ func serve(svc *Svc) {
 
 	defer func() {
 		atomic.CompareAndSwapInt32(&svc.status, status_active, status_inactive)
+
+		log.Printf("ex!\r\n")
+
 		handleExit(svc)
 		if !exited {
 			if err := recover(); nil != err {
@@ -364,6 +382,9 @@ func serve(svc *Svc) {
 			}
 			if msg.request.messageType == MESSAGE_TYPE_SYSTEM {
 				if nil == msg.request.function {
+					if nil != msg.ch {
+						msg.ch <- msg
+					}
 					goto exit
 				}
 			}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -43,7 +44,10 @@ return coroutine.create(loop)
 func TestSpawn(t *testing.T) {
 	drv := NewLuaDriver(s1)
 	drv.Start()
+	fmt.Println("---------")
 	drv.Stop()
+
+	fmt.Println("---------2")
 }
 
 func doFunc(b bool, t *testing.T) {

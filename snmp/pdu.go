@@ -6,7 +6,7 @@ package snmp
 // #include "bsnmp/gobindings.h"
 //  
 // #cgo CFLAGS: -O0 -g3
-// #cgo LDFLAGS: -lws2_32
+// #cgo windows LDFLAGS: -lws2_32
 import "C"
 
 import (

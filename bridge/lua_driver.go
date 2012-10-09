@@ -1,7 +1,7 @@
 package main
 
 // #cgo CFLAGS: -I ./include
-// #cgo windows LDFLAGS: -llua52
+// #cgo LDFLAGS: -llua52
 // #cgo LDFLAGS: -lm -L ./lib
 // #include <stdlib.h>
 // #include "lua.h"
@@ -114,6 +114,11 @@ func (driver *LuaDriver) atStart() {
 	if 0 != int(ret) {
 		panic(getError(ls, ret, "launch main fiber failed").Error())
 	}
+
+	if C.LUA_TTHREAD != C.lua_type(ls, -1) {
+		panic("launch loop fiber failed, return value by yeild is not lua_Status type")
+	}
+
 	loop := C.lua_tothread(ls, -1)
 	if nil == loop {
 		panic(getError(ls, ret, "launch loop fiber failed").Error())
@@ -122,9 +127,13 @@ func (driver *LuaDriver) atStart() {
 	driver.loop = loop
 	driver.ls = ls
 	ls = nil
+
+	fmt.Println("-------------started")
 }
 
 func (driver *LuaDriver) atStop() {
+	fmt.Println("--------------exiting")
+
 	pushString(driver.loop, "__exit__")
 	if nil == driver.loop || nil == driver.ls {
 		panic("stop failed.")
@@ -166,10 +175,15 @@ func (driver *LuaDriver) newContinuous(action string, params map[string]string) 
 		}
 	}
 
+	if C.LUA_TTHREAD != C.lua_type(driver.loop, -1) {
+		return &Continuous{status: LUA_EXECUTE_FAILED,
+			err: errors.New("main fiber return value by yeild is not lua_Status type")}
+	}
+
 	new_th := C.lua_tothread(driver.loop, -1)
 	if nil == new_th {
 		return &Continuous{status: LUA_EXECUTE_FAILED,
-			err: errors.New("main fiber return value by yeild is not lua_Status type")}
+			err: errors.New("main fiber return value by yeild is nil")}
 	}
 
 	ct := &Continuous{status: LUA_EXECUTE_FAILED, ls: new_th}

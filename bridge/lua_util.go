@@ -93,6 +93,16 @@ func getError(ls *C.lua_State, ret C.int, msg string) error {
 	return fmt.Errorf("%s, error message: %s", msg, s)
 }
 
+func pushError(ls *C.lua_State, e error) {
+	cs := C.CString(e.Error())
+	defer C.free(unsafe.Pointer(cs))
+
+	C.lua_pushstring(ls, cs)
+}
+func pushAny(ls *C.lua_State, any interface{}) {
+	C.lua_pushnil(ls)
+}
+
 func pushString(ls *C.lua_State, s string) {
 	cs := C.CString(s)
 	defer C.free(unsafe.Pointer(cs))

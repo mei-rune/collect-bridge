@@ -18,7 +18,7 @@ function loop ()
   print("lua enter looping")
   local action, params = receive()  -- get new value
   while "__exit__" ~= action do
-    print("lua vm receive - '%s' and '%s' \n", action, params)
+    print("lua vm receive - '"..action.."'\n")
     co = execute_task(action, params)
     action, params = send(co)
   end

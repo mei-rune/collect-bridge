@@ -12,7 +12,6 @@ import "C"
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"snmp"
@@ -72,6 +71,7 @@ const (
 
 type LuaDriver struct {
 	snmp.Svc
+	init_path   string
 	ls          *C.lua_State
 	init_script string
 	waitG       sync.WaitGroup
@@ -95,11 +95,12 @@ type Continuous struct {
 // }
 func NewLuaDriver(init_script string) *LuaDriver {
 	driver := &LuaDriver{init_script: init_script}
+	driver.Name = "lua_driver"
 	driver.Set(func() { driver.atStart() }, func() { driver.atStop() }, nil)
 	return driver
 }
 
-func lua_init(ls *C.lua_State, default_script string) C.int {
+func (driver *LuaDriver) lua_init(ls *C.lua_State) C.int {
 	var cs *C.char
 	defer func() {
 		if nil != cs {
@@ -108,15 +109,15 @@ func lua_init(ls *C.lua_State, default_script string) C.int {
 	}()
 	wd, err := os.Getwd()
 	if nil == err {
-		pa := path.Join(wd, "lua_init.lua")
+		pa := path.Join(wd, driver.init_path)
 		if fileExists(pa) {
 			cs = C.CString(pa)
 			return C.luaL_loadfilex(ls, cs, nil)
 		}
-		log.Printf("LuaDriver: '%s' is not exist.", pa)
+		driver.Logger.Printf("LuaDriver: '%s' is not exist.", pa)
 	}
 
-	cs = C.CString(default_script)
+	cs = C.CString(driver.init_script)
 	return C.luaL_loadstring(ls, cs)
 }
 
@@ -124,20 +125,26 @@ func (driver *LuaDriver) atStart() {
 	ls := C.luaL_newstate()
 	defer func() {
 		if nil != ls {
+
+			fmt.Printf("start close %v\n", unsafe.Pointer(ls))
 			C.lua_close(ls)
 		}
 	}()
 	C.luaL_openlibs(ls)
 
+	if "" == driver.init_path {
+		driver.init_path = "lua_init.lua"
+	}
+
 	if "" == driver.init_script {
 		driver.init_script = lua_init_script
 	}
-	ret := lua_init(ls, driver.init_script)
+	ret := driver.lua_init(ls)
 
 	if LUA_ERRFILE == ret {
-		panic("'lua_init.lua' read fail")
+		panic("'" + driver.init_path + "' read fail")
 	} else if 0 != ret {
-		panic(getError(ls, ret, "load 'lua_init.lua' failed").Error())
+		panic(getError(ls, ret, "load '"+driver.init_path+"' failed").Error())
 	}
 
 	ret = C.lua_resume(ls, nil, 0)
@@ -147,33 +154,36 @@ func (driver *LuaDriver) atStart() {
 
 	driver.ls = ls
 	ls = nil
-	
-	log.Println("lua_driver> driver is started!")
+
+	driver.Logger.Println("driver is started!")
 }
 
 func (driver *LuaDriver) atStop() {
 	if nil == driver.ls {
-    return
-	}
-	
-	ret := C.lua_status (driver.ls)
-	if C.LUA_YIELD != ret {
-		panic(getError(driver.ls, ret, "launch main fiber failed").Error())
-	}
-	
-	pushString(driver.ls, "__exit__")
-	ret = C.lua_resume(driver.ls, nil, 1)
-	if 0 != ret {
-			panic(getError(driver.ls, ret, "stop main fiber failed").Error())
+		return
 	}
 
-	log.Println("lua_driver> wait for all fibers to exit!")
+	driver.Logger.Printf("closing %v\n", unsafe.Pointer(driver.ls))
+	ret := C.lua_status(driver.ls)
+	if C.LUA_YIELD != ret {
+		panic(getError(driver.ls, ret, "stop main fiber failed").Error())
+	}
+
+	pushString(driver.ls, "__exit__")
+	driver.Logger.Printf("resume %v\n", unsafe.Pointer(driver.ls))
+	ret = C.lua_resume(driver.ls, nil, 1)
+	if 0 != ret {
+		panic(getError(driver.ls, ret, "stop main fiber failed").Error())
+	}
+
+	driver.Logger.Println("wait for all fibers to exit!")
 	driver.waitG.Wait()
-	log.Println("lua_driver> all fibers is exited!")
-	
+	driver.Logger.Println("all fibers is exited!")
+
+	driver.Logger.Printf("close %v\n", unsafe.Pointer(driver.ls))
 	C.lua_close(driver.ls)
 	driver.ls = nil
-	log.Println("lua_driver> driver is exited!")
+	driver.Logger.Println("driver is exited!")
 }
 
 func (driver *LuaDriver) executeTask(drv, action string, params map[string]string) (ret interface{}, err error) {
@@ -208,7 +218,8 @@ func (driver *LuaDriver) newContinuous(action string, params map[string]string) 
 	}
 
 	ct := &Continuous{status: LUA_EXECUTE_FAILED, ls: new_th}
-	ct = driver.executeContinuous(ct)
+	ret = C.lua_resume(new_th, driver.ls, 0)
+	ct = driver.executeContinuous(ret, ct)
 
 	if LUA_EXECUTE_CONTINUE == ct.status {
 		driver.waitG.Add(1)
@@ -216,8 +227,16 @@ func (driver *LuaDriver) newContinuous(action string, params map[string]string) 
 	return ct
 }
 
-func (driver *LuaDriver) executeContinuous(ct *Continuous) *Continuous {
-	switch ret := C.lua_status(ct.ls); ret {
+func (driver *LuaDriver) againContinue(ct *Continuous) *Continuous {
+	pushAny(ct.ls, ct.any)
+	pushError(ct.ls, ct.err)
+
+	ret := C.lua_resume(ct.ls, driver.ls, 2)
+	return driver.executeContinuous(ret, ct)
+}
+
+func (driver *LuaDriver) executeContinuous(ret C.int, ct *Continuous) *Continuous {
+	switch ret {
 	case C.LUA_YIELD:
 		ct.status = LUA_EXECUTE_CONTINUE
 		ct.drv = toString(ct.ls, -3)
@@ -227,10 +246,12 @@ func (driver *LuaDriver) executeContinuous(ct *Continuous) *Continuous {
 		ct.status = LUA_EXECUTE_END
 		ct.any = toAny(ct.ls, -2)
 		ct.err = toError(ct.ls, -1)
+		driver.Logger.Printf("continue success and close %v\n", unsafe.Pointer(ct.ls))
 		C.lua_close(ct.ls)
 	default:
 		ct.status = LUA_EXECUTE_FAILED
 		ct.err = getError(ct.ls, ret, "script execute failed - ")
+		driver.Logger.Printf("continue failed and close %v\n", unsafe.Pointer(ct.ls))
 		C.lua_close(ct.ls)
 	}
 	return ct
@@ -275,10 +296,12 @@ func (driver *LuaDriver) invoke(action string, params map[string]string) (interf
 		}()
 
 		for {
+			ct.any, ct.err = driver.executeTask(ct.drv, ct.action, ct.params)
+
 			seconds := (time.Now().Second() - old.Second())
 			t -= (time.Duration(seconds) * time.Second)
 			values := driver.SafelyCall(t, func() *Continuous {
-				return driver.executeContinuous(ct)
+				return driver.againContinue(ct)
 			})
 
 			ct, err = toContinuous(values)

@@ -348,13 +348,12 @@ func (svc *Svc) innerCall(timeout time.Duration, function interface{}, args []in
 
 func serve(svc *Svc) {
 
+	var exit_ch chan *message = nil
+	var exit_msg *message = nil
 	exited := false
 
 	defer func() {
 		atomic.CompareAndSwapInt32(&svc.status, status_active, status_inactive)
-
-		log.Printf("ex!\r\n")
-
 		handleExit(svc)
 		if !exited {
 			if err := recover(); nil != err {
@@ -362,6 +361,9 @@ func serve(svc *Svc) {
 			} else {
 				log.Println("svc failed!")
 			}
+		}
+		if nil != exit_ch {
+            exit_ch <- exit_msg
 		}
 	}()
 
@@ -383,7 +385,8 @@ func serve(svc *Svc) {
 			if msg.request.messageType == MESSAGE_TYPE_SYSTEM {
 				if nil == msg.request.function {
 					if nil != msg.ch {
-						msg.ch <- msg
+					    exit_msg = msg
+					    exit_ch = msg.ch
 					}
 					goto exit
 				}

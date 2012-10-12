@@ -1,10 +1,11 @@
-function receive (prod)
-    local status, action, params = coroutine.resume(prod)
+function receive ()
+    local action, params = coroutine.yield()
     return action, params
 end
 
-function send (x)
-    coroutine.yield(x)
+function send (co, ...)
+    local action, params = coroutine.yield(co, ...)
+    return action, params
 end
 
 function execute_task (action, task)
@@ -14,17 +15,15 @@ function execute_task (action, task)
 end
 
 function loop ()
-  while true do
-    local action, params = receive(p)  -- get new value
-      print("lua vm exited\n")
-    if "__exit__" == action then
-      break
-    end
+  print("lua enter looping")
+  local action, params = receive()  -- get new value
+  while "__exit__" ~= action do
+    print("lua vm receive - '%s' and '%s' \n", action, params)
     co = execute_task(action, params)
-    send(co)
+    action, params = send(co)
   end
-  print("lua vm exited\n")
+  print("lua exit looping")
 end
 
-print("welcome to lua vm\n")
-return coroutine.create(loop)
+print("welcome to lua vm")
+loop ()

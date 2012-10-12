@@ -22,7 +22,37 @@ import (
 )
 
 const (
-	lua_init_script string = ``
+	lua_init_script string = `
+function receive ()
+    local action, params = coroutine.yield()
+    return action, params
+end
+
+function send (co, ...)
+    local action, params = coroutine.yield(co, ...)
+    return action, params
+end
+
+function execute_task (action, task)
+  return coroutine.create(function()
+    return "test ok"
+    end)
+end
+
+function loop ()
+  print("lua enter looping")
+  local action, params = receive()  -- get new value
+  while "__exit__" ~= action do
+    print("lua vm receive - '%s' and '%s' \n", action, params)
+    co = execute_task(action, params)
+    action, params = send(co)
+  end
+  print("lua exit looping")
+end
+
+print("welcome to lua vm")
+loop ()
+`
 
 	LUA_YIELD     int = C.LUA_YIELD
 	LUA_ERRRUN        = C.LUA_ERRRUN
@@ -43,7 +73,6 @@ const (
 type LuaDriver struct {
 	snmp.Svc
 	ls          *C.lua_State
-	loop        *C.lua_State
 	init_script string
 	waitG       sync.WaitGroup
 }
@@ -112,48 +141,39 @@ func (driver *LuaDriver) atStart() {
 	}
 
 	ret = C.lua_resume(ls, nil, 0)
-	if 0 != int(ret) {
+	if C.LUA_YIELD != ret {
 		panic(getError(ls, ret, "launch main fiber failed").Error())
 	}
 
-	if C.LUA_TTHREAD != C.lua_type(ls, -1) {
-		panic("launch loop fiber failed, return value by yeild is not lua_Status type")
-	}
-
-	loop := C.lua_tothread(ls, -1)
-	if nil == loop {
-		panic(getError(ls, ret, "launch loop fiber failed").Error())
-	}
-
-	driver.loop = loop
 	driver.ls = ls
 	ls = nil
-
-	fmt.Println("-------------started")
+	
+	log.Println("lua_driver> driver is started!")
 }
 
 func (driver *LuaDriver) atStop() {
-	fmt.Println("--------------exiting")
-
-	pushString(driver.loop, "__exit__")
-	if nil == driver.loop || nil == driver.ls {
-		panic("stop failed.")
+	if nil == driver.ls {
+    return
 	}
-	ret := C.lua_resume(driver.loop, driver.ls, 1)
+	
+	ret := C.lua_status (driver.ls)
+	if C.LUA_YIELD != ret {
+		panic(getError(driver.ls, ret, "launch main fiber failed").Error())
+	}
+	
+	pushString(driver.ls, "__exit__")
+	ret = C.lua_resume(driver.ls, nil, 1)
 	if 0 != ret {
-		if 0 == LUA_YIELD {
-			panic("'lua_init.lua' is PAUSE.")
-		} else {
-			panic(getError(driver.loop, ret, "stop main fiber failed").Error())
-		}
+			panic(getError(driver.ls, ret, "stop main fiber failed").Error())
 	}
 
+	log.Println("lua_driver> wait for all fibers to exit!")
 	driver.waitG.Wait()
-	C.lua_close(driver.loop)
+	log.Println("lua_driver> all fibers is exited!")
+	
 	C.lua_close(driver.ls)
-
-	driver.loop = nil
 	driver.ls = nil
+	log.Println("lua_driver> driver is exited!")
 }
 
 func (driver *LuaDriver) executeTask(drv, action string, params map[string]string) (ret interface{}, err error) {
@@ -162,26 +182,26 @@ func (driver *LuaDriver) executeTask(drv, action string, params map[string]strin
 }
 
 func (driver *LuaDriver) newContinuous(action string, params map[string]string) *Continuous {
-	pushString(driver.loop, action)
-	pushTable(driver.loop, params)
+	pushString(driver.ls, action)
+	pushTable(driver.ls, params)
 
-	ret := C.lua_resume(driver.loop, driver.ls, 2)
-	if LUA_YIELD != int(ret) {
+	ret := C.lua_resume(driver.ls, nil, 2)
+	if C.LUA_YIELD != ret {
 		if 0 == ret {
 			return &Continuous{status: LUA_EXECUTE_FAILED,
 				err: errors.New("'lua_init.lua' is directly exited.")}
 		} else {
 			return &Continuous{status: LUA_EXECUTE_FAILED,
-				err: getError(driver.loop, ret, "switch to main fiber failed")}
+				err: getError(driver.ls, ret, "switch to main fiber failed")}
 		}
 	}
 
-	if C.LUA_TTHREAD != C.lua_type(driver.loop, -1) {
+	if C.LUA_TTHREAD != C.lua_type(driver.ls, -1) {
 		return &Continuous{status: LUA_EXECUTE_FAILED,
 			err: errors.New("main fiber return value by yeild is not lua_Status type")}
 	}
 
-	new_th := C.lua_tothread(driver.loop, -1)
+	new_th := C.lua_tothread(driver.ls, -1)
 	if nil == new_th {
 		return &Continuous{status: LUA_EXECUTE_FAILED,
 			err: errors.New("main fiber return value by yeild is nil")}

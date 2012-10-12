@@ -232,6 +232,15 @@ type snmpEngine struct {
 	max_msg_size uint
 }
 
+func (engine *snmpEngine) CopyFrom(src *snmpEngine) {
+	//engine.engine_id = make([]byte, len(src.engine_id))
+	//copy(engine.engine_id, src.engine_id)
+	engine.engine_id = src.engine_id
+	engine.engine_boots = src.engine_boots
+	engine.engine_time = src.engine_time
+	engine.max_msg_size = src.max_msg_size
+}
+
 type Client interface {
 	CreatePDU(op SnmpType, version SnmpVersion) (PDU, error)
 	SendAndRecv(req PDU, timeout time.Duration) (PDU, error)

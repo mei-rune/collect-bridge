@@ -1,18 +1,33 @@
 package snmp
 
+// #include "bsnmp/config.h"
+// #include "bsnmp/asn1.h"
+// #include "bsnmp/snmp.h"
+import "C"
+
 import (
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
+	"unsafe"
 )
+
+type securityModelWithCopy interface {
+	SecurityModel
+	Write(*C.snmp_user_t) error
+	Read(*C.snmp_user_t) error
+}
 
 type HashUSM struct {
 	auth_proto AuthType
 	priv_proto PrivType
 	auth_key   []byte
 	priv_key   []byte
-	name       string
+
+	auth_key_with_engine_id []byte
+	priv_key_with_engine_id []byte
+	name                    string
 }
 
 func getAuth(params map[string]string) (AuthType, string, error) {
@@ -60,6 +75,58 @@ func getPriv(params map[string]string) (PrivType, string, error) {
 		"priv protocol must is \"des\" or \"aes\"")
 }
 
+func (usm *HashUSM) Write(user *C.snmp_user_t) error {
+	//  typedef struct snmp_user {
+	//	enum snmp_authentication	auth_proto;
+	//	enum snmp_privacy       		priv_proto;
+	//	uint8_t                 				auth_key[SNMP_AUTH_KEY_SIZ];
+	//	size_t              auth_len;
+	//	uint8_t				priv_key[SNMP_PRIV_KEY_SIZ];
+	//	size_t              priv_len;
+	//	char				sec_name[SNMP_ADM_STR32_SIZ];
+	// } snmp_user_t;
+
+	user.auth_proto = uint32(usm.auth_proto)
+	user.priv_proto = uint32(usm.priv_proto)
+
+	err := strcpy(&user.sec_name[0], SNMP_ADM_STR32_LEN, usm.name)
+	if nil != err {
+		return fmt.Errorf("sec_name too long")
+	}
+
+	err = memcpy(&user.auth_key[0], SNMP_AUTH_KEY_LEN, usm.auth_key)
+	if nil != err {
+		return fmt.Errorf("auth_key too long")
+	}
+	user.auth_len = C.size_t(len(usm.auth_key))
+
+	err = memcpy(&user.priv_key[0], SNMP_AUTH_KEY_LEN, usm.priv_key)
+	if nil != err {
+		return fmt.Errorf("priv_key too long")
+	}
+	user.priv_len = C.size_t(len(usm.priv_key))
+	return nil
+}
+
+func (usm *HashUSM) Read(user *C.snmp_user_t) error {
+	//  typedef struct snmp_user {
+	//	enum snmp_authentication	auth_proto;
+	//	enum snmp_privacy       		priv_proto;
+	//	uint8_t                 				auth_key[SNMP_AUTH_KEY_SIZ];
+	//	size_t              auth_len;
+	//	uint8_t				priv_key[SNMP_PRIV_KEY_SIZ];
+	//	size_t              priv_len;
+	//	char				sec_name[SNMP_ADM_STR32_SIZ];
+	// } snmp_user_t;
+
+	usm.auth_proto = AuthType(user.auth_proto)
+	usm.priv_proto = PrivType(user.priv_proto)
+	usm.name = readGoString(&user.sec_name[0], SNMP_ADM_STR32_LEN)
+	usm.auth_key = readGoBytes(&user.auth_key[0], C.uint32_t(user.auth_len))
+	usm.priv_key = readGoBytes(&user.priv_key[0], C.uint32_t(user.priv_len))
+	return nil
+}
+
 func (usm *HashUSM) Init(params map[string]string) error {
 	name, ok := params["secname"]
 	if !ok {
@@ -97,6 +164,50 @@ type USM struct {
 	auth_key   string
 	priv_key   string
 	name       string
+}
+
+func (usm *USM) Write(user *C.snmp_user_t) error {
+	//  typedef struct snmp_user {
+	//	enum snmp_authentication	auth_proto;
+	//	enum snmp_privacy       		priv_proto;
+	//	uint8_t                 				auth_key[SNMP_AUTH_KEY_SIZ];
+	//	size_t              auth_len;
+	//	uint8_t				priv_key[SNMP_PRIV_KEY_SIZ];
+	//	size_t              priv_len;
+	//	char				sec_name[SNMP_ADM_STR32_SIZ];
+	// } snmp_user_t;
+
+	user.auth_proto = uint32(usm.auth_proto)
+	user.priv_proto = uint32(usm.priv_proto)
+
+	err := strcpy(&user.sec_name[0], SNMP_ADM_STR32_LEN, usm.name)
+	if nil != err {
+		return fmt.Errorf("sec_name too long")
+	}
+
+	s := C.CString(usm.auth_key)
+	defer func() {
+		if nil != s {
+			C.free(unsafe.Pointer(s))
+		}
+	}()
+	ret_code := C.snmp_set_auth_passphrase(user, s, C.size_t(len(usm.auth_key)))
+	if 0 != ret_code {
+		return errors.New("set auth key failed - " + C.GoString(C.snmp_get_error(ret_code)))
+	}
+	C.free(unsafe.Pointer(s))
+	s = nil
+
+	s = C.CString(usm.priv_key)
+	ret_code = C.snmp_set_priv_passphrase(user, s, C.size_t(len(usm.priv_key)))
+	if 0 != ret_code {
+		return errors.New("set priv key failed - " + C.GoString(C.snmp_get_error(ret_code)))
+	}
+	return nil
+}
+
+func (usm *USM) Read(user *C.snmp_user_t) error {
+	return errors.New("not implemented")
 }
 
 func (usm *USM) Init(params map[string]string) error {

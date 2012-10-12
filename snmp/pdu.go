@@ -125,13 +125,15 @@ func (pdu *V2CPDU) decodePDU(native *C.snmp_pdu_t) error {
 type V3PDU struct {
 	op               SnmpType
 	requestId        int
+	identifier       int
 	target           string
-	securityModel    SecurityModel
+	securityModel    securityModelWithCopy
 	variableBindings VariableBindings
 	client           Client
 	maxMsgSize       uint
 	contextName      string
 	contextEngine    []byte
+	engine           *snmpEngine
 }
 
 func (pdu *V3PDU) Init(params map[string]string) (err error) {
@@ -149,6 +151,35 @@ func (pdu *V3PDU) Init(params map[string]string) (err error) {
 			pdu.contextEngine, err = hex.DecodeString(s)
 			if nil != err {
 				return fmt.Errorf("'context_engine' decode failed, %s", err.Error())
+			}
+		}
+	}
+
+	pdu.identifier = -1
+	if s, ok := params["identifier"]; ok {
+		pdu.identifier, err = strconv.Atoi(s)
+		if nil != err {
+			return fmt.Errorf("'identifier' decode failed, %s", err.Error())
+		}
+	}
+
+	if s, ok := params["engine_id"]; ok {
+		pdu.engine = new(snmpEngine)
+		pdu.engine.engine_id, err = hex.DecodeString(s)
+		if nil != err {
+			return fmt.Errorf("'engine_id' decode failed, %s", err.Error())
+		}
+
+		if s, ok = params["engine_boots"]; ok {
+			pdu.engine.engine_boots, err = strconv.Atoi(s)
+			if nil != err {
+				return fmt.Errorf("'engine_boots' decode failed, %s", err.Error())
+			}
+		}
+		if s, ok = params["engine_time"]; ok {
+			pdu.engine.engine_time, err = strconv.Atoi(s)
+			if nil != err {
+				return fmt.Errorf("'engine_time' decode failed, %s", err.Error())
 			}
 		}
 	}
@@ -206,6 +237,8 @@ func (pdu *V3PDU) String() string {
 	buffer.WriteString(pdu.securityModel.String())
 	buffer.WriteString(" and requestId='")
 	buffer.WriteString(strconv.Itoa(pdu.GetRequestID()))
+	buffer.WriteString(". and identifier='")
+	buffer.WriteString(strconv.Itoa(pdu.identifier))
 	buffer.WriteString("' and version='v3'")
 	return buffer.String()
 }
@@ -219,40 +252,84 @@ func (pdu *V3PDU) encodePDU() ([]byte, error) {
 	internal.pdu_type = C.u_int(pdu.op)
 	internal.version = uint32(SNMP_V3)
 
-	internal.identifier = C.int32_t(pdu.requestId)
+	if pdu.identifier < 0 {
+		internal.identifier = C.int32_t(pdu.requestId)
+	} else {
+		internal.identifier = C.int32_t(pdu.identifier)
+	}
+	internal.flags = 0
+
+	err := memcpy(&internal.context_engine[0], SNMP_ENGINE_ID_LEN, pdu.contextEngine)
+	if nil != err {
+		return nil, err
+	}
+	internal.context_engine_len = C.uint32_t(len(pdu.contextEngine))
+
+	err = strcpy(&internal.context_name[0], SNMP_CONTEXT_NAME_LEN, pdu.contextName)
+	if nil != err {
+		return nil, err
+	}
+
+	if nil != pdu.engine {
+		err = memcpy(&internal.engine.engine_id[0], SNMP_ENGINE_ID_LEN, pdu.engine.engine_id)
+		if nil != err {
+			return nil, err
+		}
+		internal.engine.engine_len = C.uint32_t(len(pdu.engine.engine_id))
+		internal.engine.engine_boots = C.int32_t(pdu.engine.engine_boots)
+		internal.engine.engine_time = C.int32_t(pdu.engine.engine_time)
+	}
+
 	if 0 == pdu.maxMsgSize {
 		pdu.maxMsgSize = 10000
 	}
 	internal.engine.max_msg_size = C.int32_t(pdu.maxMsgSize)
-	internal.flags = 0
 
 	internal.security_model = SNMP_SECMODEL_USM
-
-	err := encodeBindings(&internal, pdu.GetVariableBindings())
+	err = pdu.securityModel.Write(&internal.user)
 
 	if nil != err {
 		return nil, err
 	}
 
+	err = encodeBindings(&internal, pdu.GetVariableBindings())
+
+	if nil != err {
+		return nil, err
+	}
+
+	//C.snmp_pdu_dump(&internal)
 	return encodeNativePdu(&internal)
 }
 
 func (pdu *V3PDU) decodePDU(native *C.snmp_pdu_t) error {
-	//return decodeBindings(native, pdu.GetVariableBindings())
-	return errors.New("v3pdu.decodePdu() not implemented")
+
+	//C.snmp_pdu_dump(native)
+	pdu.requestId = int(native.request_id)
+	pdu.identifier = int(native.identifier)
+	pdu.op = SnmpType(native.pdu_type)
+
+	pdu.contextEngine = readGoBytes(&native.context_engine[0], native.context_engine_len)
+	pdu.contextName = readGoString(&native.context_name[0], SNMP_CONTEXT_NAME_LEN)
+
+	pdu.engine = new(snmpEngine)
+	pdu.engine.engine_id = readGoBytes(&native.engine.engine_id[0], native.engine.engine_len)
+	pdu.engine.engine_boots = int(native.engine.engine_boots)
+	pdu.engine.engine_time = int(native.engine.engine_time)
+	pdu.maxMsgSize = uint(native.engine.max_msg_size)
+
+	pdu.securityModel = new(HashUSM)
+	err := pdu.securityModel.Read(&native.user)
+
+	if nil != err {
+		return err
+	}
+
+	decodeBindings(native, pdu.GetVariableBindings())
+	return nil
 }
 
 ///////////////////////// Encode/Decode /////////////////////////////
-
-func strcpy(dst *C.char, capacity int, src string) error {
-	if capacity < len(src) {
-		return errors.New("string too long.")
-	}
-	s := C.CString(src)
-	C.strcpy(dst, s)
-	C.free(unsafe.Pointer(s))
-	return nil
-}
 
 const (
 	ASN_MAXOIDLEN     = 128

@@ -1,13 +1,16 @@
 package main
 
 import (
+	"code.google.com/p/mahonia"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"unicode"
 	//"unicode/utf16"
@@ -20,11 +23,15 @@ type VB struct {
 }
 
 var (
-	proxy       = flag.String("proxy", "127.0.0.1:7070", "the address of proxy server, default: 127.0.0.1:7070")
-	target      = flag.String("target", "127.0.0.1,161", "the address of snmp agent, default: 127.0.0.1,161")
-	community   = flag.String("community", "public", "the community of snmp agent, default: public")
-	started_oid = flag.String("oid", "1.3.6", "the start oid, default: 1.3.6")
-	help        = flag.Bool("h", false, "print help")
+	proxy        = flag.String("proxy", "127.0.0.1:7070", "the address of proxy server, default: 127.0.0.1:7070")
+	target       = flag.String("target", "127.0.0.1,161", "the address of snmp agent, default: 127.0.0.1,161")
+	community    = flag.String("community", "public", "the community of snmp agent, default: public")
+	started_oid  = flag.String("oid", "1.3.6", "the start oid, default: 1.3.6")
+	from_charset = flag.String("charset", "GB18030", "the charset of octet string, default: GB18030")
+	help         = flag.Bool("h", false, "print help")
+
+	decoder mahonia.Decoder
+	out     io.Writer
 )
 
 func IsAsciiAndPrintable(bytes []byte) bool {
@@ -96,6 +103,35 @@ func printValue(value string) {
 		return
 	}
 
+	if nil != decoder {
+		fmt.Println(value)
+
+		for 0 != len(bytes) {
+			c, length, status := decoder(bytes)
+			switch status {
+			case mahonia.SUCCESS:
+				if unicode.IsPrint(c) {
+					out.Write(bytes[0:length])
+				} else {
+					for i := 0; i < length; i++ {
+						out.Write([]byte{'.'})
+					}
+				}
+				bytes = bytes[length:]
+			case mahonia.INVALID_CHAR:
+				out.Write([]byte{'.'})
+				bytes = bytes[1:]
+			case mahonia.NO_ROOM:
+				out.Write([]byte{'.'})
+				bytes = bytes[0:0]
+			case mahonia.STATE_ONLY:
+				bytes = bytes[length:]
+			}
+		}
+		out.Write([]byte{'\n'})
+		return
+	}
+
 	if IsUtf8AndPrintable(bytes) {
 		fmt.Println(string(bytes))
 		return
@@ -129,12 +165,20 @@ func printValue(value string) {
 	fmt.Println()
 
 }
+
 func main() {
+
+	out = os.Stdout
 	flag.Parse()
 	if *help {
 		flag.PrintDefaults()
 		return
 	}
+
+	if "guess" != *from_charset {
+		decoder = mahonia.NewDecoder(*from_charset)
+	}
+
 	oid := *started_oid
 	for {
 		url := fmt.Sprintf("http://%s/snmp/next/%s/%s?community=%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *community)

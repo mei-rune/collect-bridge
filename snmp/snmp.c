@@ -1128,7 +1128,7 @@ static __inline void dump_bindings(const snmp_pdu_t *pdu)
 }
 static __inline void dump_hex(const char* s, const u_char* octets, u_int len) {
     u_int i = 0;
-    if (500 > len) {
+    if (500 < len) {
         snmp_printf("%s overflow %lu:", s, len);
         return;
     }
@@ -1193,11 +1193,15 @@ void snmp_pdu_dump(const snmp_pdu_t *pdu)
     case SNMP_PDU_REPORT:
         snmp_printf("%s %s '%s'", types[pdu->pdu_type], vers, pdu->community);
         if (pdu->version == SNMP_V3) {
+            snmp_printf(" identifier: %d\n", pdu->identifier);
             snmp_printf(" context_name: %s\n", pdu->context_name);
             dump_hex(" context_engine", pdu->context_engine, pdu->context_engine_len);
 
             snmp_printf(" user.secname: %s\n", pdu->user.sec_name);
+
+            snmp_printf(" user.auth_proto: %d\n", pdu->user.auth_proto);
             dump_hex(" user.auth_key", pdu->user.auth_key, pdu->user.auth_len);
+            snmp_printf(" user.priv_proto: %d\n", pdu->user.priv_proto);
             dump_hex(" user.priv_key", pdu->user.priv_key, pdu->user.priv_len);
 
             snmp_printf(" engine boots=%d, time=%d, max_msg_size=%d, ", pdu->engine.engine_boots,

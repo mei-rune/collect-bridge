@@ -140,19 +140,19 @@ const (
 )
 
 type Svc struct {
-	Name                       string
-	Logger                     *log.Logger
-	initialized                sync.Once
-	status                     int32
-	ch                         chan *message
-	timeout                    time.Duration
-	onStart, onStop, onTimeout func()
+	Name                    string
+	Logger                  *log.Logger
+	initialized             sync.Once
+	status                  int32
+	ch                      chan *message
+	timeout                 time.Duration
+	onStart, onStop, onIdle func()
 }
 
-func (svc *Svc) Set(onStart, onStop, onTimeout func()) {
+func (svc *Svc) Set(onStart, onStop, onIdle func()) {
 	svc.onStart = onStart
 	svc.onStop = onStop
-	svc.onTimeout = onTimeout
+	svc.onIdle = onIdle
 }
 
 func (svc *Svc) FuncOf(target interface{}, name string) *reflect.Value {
@@ -195,7 +195,7 @@ func (svc *Svc) Start() (err error) {
 
 func (svc *Svc) Stop() {
 	if !atomic.CompareAndSwapInt32(&svc.status, status_active, status_inactive) {
-		svc.Logger.Printf("It is alway exited\r\n")
+		svc.Logger.Printf("It is already exited\r\n")
 		return
 	}
 
@@ -366,7 +366,6 @@ func serve(svc *Svc) {
 
 	var exit_ch chan *message = nil
 	var exit_msg *message = nil
-	exited := false
 	isStarted := false
 
 	defer func() {
@@ -374,12 +373,8 @@ func serve(svc *Svc) {
 		if isStarted {
 			handleExit(svc)
 		}
-		if !exited {
-			if err := recover(); nil != err {
-				svc.Logger.Printf("%v\r\n", err)
-			} else {
-				svc.Logger.Println("svc failed!")
-			}
+		if err := recover(); nil != err {
+			svc.Logger.Printf("%v\r\n", err)
 		}
 		if nil != exit_ch {
 			exit_ch <- exit_msg
@@ -391,7 +386,7 @@ func serve(svc *Svc) {
 	}
 
 	if nil == svc.ch {
-		svc.Logger.Println("svc failed!")
+		svc.Logger.Println("start svc failed, ch is nil!")
 		return
 	}
 
@@ -430,7 +425,6 @@ func serve(svc *Svc) {
 		}
 	}
 exit:
-	exited = true
 	svc.Logger.Printf("channel is closed or recv an exit message!\r\n")
 }
 
@@ -465,12 +459,12 @@ func handleTick(svc *Svc) {
 
 	defer func() {
 		if err := recover(); nil != err {
-			svc.Logger.Printf("on timeout - %v\r\n", err)
+			svc.Logger.Printf("on idle - %v\r\n", err)
 		}
 	}()
 
-	if nil != svc.onTimeout {
-		svc.onTimeout()
+	if nil != svc.onIdle {
+		svc.onIdle()
 	}
 }
 

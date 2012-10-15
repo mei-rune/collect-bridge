@@ -1,9 +1,10 @@
 package main
 
-// #cgo windows CFLAGS: -I ./include
-// #cgo windows LDFLAGS: -llua52
-// #cgo windows LDFLAGS: -lm -L ./lib
-// #cgo linux LDFLAGS: -llua
+// #cgo LDFLAGS: -lm
+// #cgo windows CFLAGS: -DLUA_COMPAT_ALL -DLUA_COMPAT_ALL -I ./include
+// #cgo windows LDFLAGS: -L ./lib -llua52
+// #cgo linux CFLAGS: -DLUA_USE_LINUX -DLUA_COMPAT_ALL
+// #cgo linux LDFLAGS: -ldl
 // #include <stdlib.h>
 // #include "lua.h"
 // #include "lualib.h"
@@ -125,8 +126,6 @@ func (driver *LuaDriver) atStart() {
 	ls := C.luaL_newstate()
 	defer func() {
 		if nil != ls {
-
-			fmt.Printf("start close %v\n", unsafe.Pointer(ls))
 			C.lua_close(ls)
 		}
 	}()
@@ -154,7 +153,6 @@ func (driver *LuaDriver) atStart() {
 
 	driver.ls = ls
 	ls = nil
-
 	driver.Logger.Println("driver is started!")
 }
 
@@ -163,14 +161,12 @@ func (driver *LuaDriver) atStop() {
 		return
 	}
 
-	driver.Logger.Printf("closing %v\n", unsafe.Pointer(driver.ls))
 	ret := C.lua_status(driver.ls)
 	if C.LUA_YIELD != ret {
 		panic(getError(driver.ls, ret, "stop main fiber failed").Error())
 	}
 
 	pushString(driver.ls, "__exit__")
-	driver.Logger.Printf("resume %v\n", unsafe.Pointer(driver.ls))
 	ret = C.lua_resume(driver.ls, nil, 1)
 	if 0 != ret {
 		panic(getError(driver.ls, ret, "stop main fiber failed").Error())
@@ -180,7 +176,6 @@ func (driver *LuaDriver) atStop() {
 	driver.waitG.Wait()
 	driver.Logger.Println("all fibers is exited!")
 
-	driver.Logger.Printf("close %v\n", unsafe.Pointer(driver.ls))
 	C.lua_close(driver.ls)
 	driver.ls = nil
 	driver.Logger.Println("driver is exited!")
@@ -193,7 +188,7 @@ func (driver *LuaDriver) executeTask(drv, action string, params map[string]strin
 
 func (driver *LuaDriver) newContinuous(action string, params map[string]string) *Continuous {
 	pushString(driver.ls, action)
-	pushTable(driver.ls, params)
+	pushParams(driver.ls, params)
 
 	ret := C.lua_resume(driver.ls, nil, 2)
 	if C.LUA_YIELD != ret {
@@ -246,13 +241,13 @@ func (driver *LuaDriver) executeContinuous(ret C.int, ct *Continuous) *Continuou
 		ct.status = LUA_EXECUTE_END
 		ct.any = toAny(ct.ls, -2)
 		ct.err = toError(ct.ls, -1)
-		driver.Logger.Printf("continue success and close %v\n", unsafe.Pointer(ct.ls))
-		C.lua_close(ct.ls)
+		// There is no explicit function to close or to destroy a thread. Threads are
+		// subject to garbage collection, like any Lua object. 
 	default:
 		ct.status = LUA_EXECUTE_FAILED
 		ct.err = getError(ct.ls, ret, "script execute failed - ")
-		driver.Logger.Printf("continue failed and close %v\n", unsafe.Pointer(ct.ls))
-		C.lua_close(ct.ls)
+		// There is no explicit function to close or to destroy a thread. Threads are
+		// subject to garbage collection, like any Lua object. 
 	}
 	return ct
 }

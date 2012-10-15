@@ -9,8 +9,12 @@ function send (co, ...)
 end
 
 function execute_task (action, task)
+  --if nil == task then
+  --  print("params = nil")
+  --end
+
   return coroutine.create(function()
-    return "test ok"
+    return "test ok", nil
     end)
 end
 
@@ -18,7 +22,8 @@ function loop ()
   print("lua enter looping")
   local action, params = receive()  -- get new value
   while "__exit__" ~= action do
-    print("lua vm receive - '"..action.."'\n")
+    print("lua vm receive - '"..action.."'")
+
     co = execute_task(action, params)
     action, params = send(co)
   end

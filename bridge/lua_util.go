@@ -8,6 +8,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"unsafe"
 )
@@ -23,6 +24,33 @@ func fileExists(dir string) bool {
 	}
 	return !info.IsDir()
 }
+
+func pushAnyTest(drv *LuaDriver, any interface{}) interface{} {
+	pushString(drv.ls, "test")
+	pushAny(drv.ls, any)
+	ret := C.lua_resume(drv.ls, nil, 2)
+	if C.LUA_YIELD != ret {
+		err := getError(drv.ls, ret, "test push any failed")
+		log.Panicf(err.Error())
+	}
+	return toAny(drv.ls, 2)
+}
+
+// unsigned int* go_check_any(lua_State* L, int index)
+// {
+// 	unsigned int* fid = (unsigned int*)luaL_checkudata(L,index,"Go.Any");
+// 	luaL_argcheck(L, NULL != fid, index, "'Go.Any' expected");
+// 	return fid;
+// }
+
+// //wrapper for callgofunction
+// int go_to_number(lua_State* L)
+// {
+// 	unsigned int *fid = go_check_any(L,1);
+
+// 	lua_remove(L,1);
+// 	return golua_callgofunction(*gi,*fid);
+// }
 
 func declareAny(L *C.lua_State) {
 	// /* create the GoLua.GoFunction metatable */
@@ -54,22 +82,28 @@ func toAny(ls *C.lua_State, index C.int) interface{} {
 		}
 		return false
 	case C.LUA_TLIGHTUSERDATA:
-		panic("not implemented")
+		log.Panicf("not implemented")
 	case C.LUA_TNUMBER:
-		v := C.lua_tonumberx(ls, index, nil)
-		return float64(v)
+		if iv := C.lua_tointegerx(ls, index, nil); 0 != int64(iv) {
+			return int64(iv)
+		} else if uv := C.lua_tounsignedx(ls, index, nil); 0 != int64(uv) {
+			return int64(uv)
+		} else {
+			nu := C.lua_tonumberx(ls, index, nil)
+			return float64(nu)
+		}
 	case C.LUA_TSTRING:
 		return toString(ls, index)
 	case C.LUA_TTABLE:
 		return toTable(ls, index)
 	case C.LUA_TFUNCTION:
-		panic("convert function is not implemented")
+		log.Panicf("convert function is not implemented")
 	case C.LUA_TUSERDATA:
-		panic("convert userdata is not implemented")
+		log.Panicf("convert userdata is not implemented")
 	case C.LUA_TTHREAD:
-		panic("convert thread is not implemented")
+		log.Panicf("convert thread is not implemented")
 	default:
-		panic("not implemented")
+		log.Panicf("not implemented")
 	}
 	return nil
 }
@@ -97,7 +131,7 @@ func toTable(ls *C.lua_State, index C.int) interface{} {
 	C.lua_settop(ls, -2) // C.lua_pop(ls, 1) /* removes 'key' */
 	if 0 != len(res1) {
 		if 0 != len(res2) {
-			panic("[array and map] is unsupported type")
+			log.Panicf("data is mixed with array and map, it is unsupported type.")
 		}
 		return res1
 	}
@@ -169,22 +203,90 @@ func pushError(ls *C.lua_State, e error) {
 	C.lua_pushstring(ls, cs)
 }
 func pushAny(ls *C.lua_State, any interface{}) {
-	if nil == any {
+	switch v := any.(type) {
+	case nil:
+		C.lua_pushnil(ls)
+	case bool:
+		if v {
+			C.lua_pushboolean(ls, 1)
+		} else {
+			C.lua_pushboolean(ls, 0)
+		}
+	case uint:
+		C.lua_pushunsigned(ls, C.lua_Unsigned(v))
+	case uint8:
+		C.lua_pushunsigned(ls, C.lua_Unsigned(v))
+	case uint16:
+		C.lua_pushunsigned(ls, C.lua_Unsigned(v))
+	case uint32:
+		C.lua_pushunsigned(ls, C.lua_Unsigned(v))
+	case uint64:
+		C.lua_pushnumber(ls, C.lua_Number(v))
+	case int:
+		C.lua_pushinteger(ls, C.lua_Integer(v))
+	case int8:
+		C.lua_pushinteger(ls, C.lua_Integer(v))
+	case int16:
+		C.lua_pushinteger(ls, C.lua_Integer(v))
+	case int32:
+		C.lua_pushinteger(ls, C.lua_Integer(v))
+	case int64:
+		C.lua_pushnumber(ls, C.lua_Number(v))
+	case float32:
+		C.lua_pushnumber(ls, C.lua_Number(v))
+	case float64:
+		C.lua_pushnumber(ls, C.lua_Number(v))
+	case string:
+		pushString(ls, v)
+	case []interface{}:
+		pushArray(ls, v)
+	case map[string]interface{}:
+		pushMap(ls, v)
+	default:
+		log.Panicf("unsupported type - %v", any)
+	}
+}
+
+func pushMap(ls *C.lua_State, params map[string]interface{}) {
+	if nil == params {
 		C.lua_pushnil(ls)
 		return
 	}
-	C.lua_pushnil(ls)
+	var cs *C.char
+
+	defer func() {
+		if nil != cs {
+			C.free(unsafe.Pointer(cs))
+		}
+	}()
+
+	C.lua_createtable(ls, 0, 0)
+	for k, v := range params {
+		cs := C.CString(k)
+		pushAny(ls, v)
+		C.lua_setfield(ls, -2, cs)
+
+		C.free(unsafe.Pointer(cs))
+		cs = nil
+	}
+}
+
+func pushArray(ls *C.lua_State, params []interface{}) {
+	if nil == params {
+		C.lua_pushnil(ls)
+		return
+	}
+
+	C.lua_createtable(ls, 0, 0)
+	for k, v := range params {
+		pushAny(ls, v)
+		C.lua_rawseti(ls, -2, C.int(k))
+	}
 }
 
 func pushString(ls *C.lua_State, s string) {
-	if "" == s {
-		C.lua_pushnil(ls)
-		return
-	}
-
 	cs := C.CString(s)
 	defer C.free(unsafe.Pointer(cs))
-
 	C.lua_pushstring(ls, cs)
 }
 
@@ -193,12 +295,21 @@ func pushParams(ls *C.lua_State, params map[string]string) {
 		C.lua_pushnil(ls)
 		return
 	}
+	var cs *C.char
+
+	defer func() {
+		if nil != cs {
+			C.free(unsafe.Pointer(cs))
+		}
+	}()
+
 	C.lua_createtable(ls, 0, 0)
 	for k, v := range params {
-		cs := C.CString(k)
-		defer C.free(unsafe.Pointer(cs))
-
+		cs = C.CString(k)
 		pushString(ls, v)
 		C.lua_setfield(ls, -2, cs)
+
+		C.free(unsafe.Pointer(cs))
+		cs = nil
 	}
 }

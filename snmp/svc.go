@@ -173,9 +173,10 @@ func (svc *Svc) Start() (err error) {
 		}
 
 		if nil == svc.Logger {
-			svc.Logger = log.New(os.Stdout, svc.Name+" - ", log.LstdFlags)
+			svc.Logger = log.New(os.Stdout, svc.Name+" - ", log.LstdFlags|log.Lshortfile)
 		} else if "" == svc.Logger.Prefix() {
 			svc.Logger.SetPrefix(svc.Name + " - ")
+			svc.Logger.SetFlags(svc.Logger.Flags() | log.Lshortfile)
 		}
 	})
 	if !atomic.CompareAndSwapInt32(&svc.status, status_inactive, status_active) {

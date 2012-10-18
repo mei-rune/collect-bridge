@@ -122,6 +122,67 @@ func (driver *LuaDriver) lua_init(ls *C.lua_State) C.int {
 	return C.luaL_loadstring(ls, cs)
 }
 
+func (driver *LuaDriver) executeTask(schema, action string, params map[string]string) (ret interface{}, err error) {
+	drv, ok := Connect(schema)
+	if !ok {
+		err = fmt.Errorf("driver '%s' is not exists.", schema)
+		return
+	}
+
+	switch action {
+	case "get":
+		ret, err = drv.Get(params)
+	case "put":
+		ret, err = drv.Put(params)
+	case "create":
+		ret, err = drv.Create(params)
+	case "delete":
+		ret, err = drv.Delete(params)
+	default:
+		err = fmt.Errorf("unsupport action '%s'", action)
+	}
+	return
+}
+
+func (driver *LuaDriver) eval(ls, from *C.lua_State, argc C.int) (ret C.int) {
+
+	for {
+		ret = C.lua_resume(ls, from, argc)
+		if C.LUA_YIELD != ret {
+			break
+		}
+		if 0 == C.lua_gettop(ls) {
+			return
+		}
+
+		if 0 == C.lua_isstring(ls, 1) {
+			return
+		}
+
+		var res interface{} = nil
+		var err error = nil
+
+		action := toString(ls, 1)
+		switch action {
+		case "log":
+			if nil != driver.Logger {
+				driver.Logger.Println(toString(ls, 3))
+			}
+		case "get", "put", "delete", "create":
+			schema := toString(ls, 2)
+			params := toParams(ls, 3)
+			res, err = driver.executeTask(schema, action, params)
+		default:
+			err = fmt.Errorf("unsupport action '%s'", action)
+		}
+
+		pushAny(ls, res)
+		pushError(ls, err)
+		argc = 2
+	}
+	return
+}
+
 func (driver *LuaDriver) atStart() {
 	ls := C.luaL_newstate()
 	defer func() {
@@ -141,14 +202,14 @@ func (driver *LuaDriver) atStart() {
 	ret := driver.lua_init(ls)
 
 	if LUA_ERRFILE == ret {
-		panic("'" + driver.init_path + "' read fail")
+		driver.Logger.Panicf("'" + driver.init_path + "' read fail")
 	} else if 0 != ret {
-		panic(getError(ls, ret, "load '"+driver.init_path+"' failed").Error())
+		driver.Logger.Panicf(getError(ls, ret, "load '"+driver.init_path+"' failed").Error())
 	}
 
-	ret = C.lua_resume(ls, nil, 0)
+	ret = driver.eval(ls, nil, 0)
 	if C.LUA_YIELD != ret {
-		panic(getError(ls, ret, "launch main fiber failed").Error())
+		driver.Logger.Panicf(getError(ls, ret, "launch main fiber failed").Error())
 	}
 
 	driver.ls = ls
@@ -163,13 +224,13 @@ func (driver *LuaDriver) atStop() {
 
 	ret := C.lua_status(driver.ls)
 	if C.LUA_YIELD != ret {
-		panic(getError(driver.ls, ret, "stop main fiber failed").Error())
+		driver.Logger.Panicf(getError(driver.ls, ret, "stop main fiber failed").Error())
 	}
 
 	pushString(driver.ls, "__exit__")
-	ret = C.lua_resume(driver.ls, nil, 1)
+	ret = driver.eval(driver.ls, nil, 1)
 	if 0 != ret {
-		panic(getError(driver.ls, ret, "stop main fiber failed").Error())
+		driver.Logger.Panicf(getError(driver.ls, ret, "stop main fiber failed").Error())
 	}
 
 	driver.Logger.Println("wait for all fibers to exit!")
@@ -181,16 +242,11 @@ func (driver *LuaDriver) atStop() {
 	driver.Logger.Println("driver is exited!")
 }
 
-func (driver *LuaDriver) executeTask(drv, action string, params map[string]string) (ret interface{}, err error) {
-	err = errors.New("not implemented")
-	return
-}
-
 func (driver *LuaDriver) newContinuous(action string, params map[string]string) *Continuous {
 	pushString(driver.ls, action)
 	pushParams(driver.ls, params)
 
-	ret := C.lua_resume(driver.ls, nil, 2)
+	ret := driver.eval(driver.ls, nil, 2)
 	if C.LUA_YIELD != ret {
 		if 0 == ret {
 			return &Continuous{status: LUA_EXECUTE_FAILED,
@@ -203,7 +259,7 @@ func (driver *LuaDriver) newContinuous(action string, params map[string]string) 
 
 	if C.LUA_TTHREAD != C.lua_type(driver.ls, -1) {
 		return &Continuous{status: LUA_EXECUTE_FAILED,
-			err: errors.New("main fiber return value by yeild is not lua_Status type")}
+			err: errors.New("main fiber return value by yeild is not 'lua_State' type")}
 	}
 
 	new_th := C.lua_tothread(driver.ls, -1)
@@ -234,8 +290,8 @@ func (driver *LuaDriver) executeContinuous(ret C.int, ct *Continuous) *Continuou
 	switch ret {
 	case C.LUA_YIELD:
 		ct.status = LUA_EXECUTE_CONTINUE
-		ct.drv = toString(ct.ls, -3)
-		ct.action = toString(ct.ls, -2)
+		ct.action = toString(ct.ls, -3)
+		ct.drv = toString(ct.ls, -2)
 		ct.params = toParams(ct.ls, -1)
 	case 0:
 		ct.status = LUA_EXECUTE_END

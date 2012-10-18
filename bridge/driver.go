@@ -62,6 +62,16 @@ func asBool(value interface{}) (bool, error) {
 	return false, errors.New("type assertion to bool failed")
 }
 
+func asInt(value interface{}) (int, error) {
+	a, err := asInt32(value)
+	return int(a), err
+}
+
+func asUint(value interface{}) (uint, error) {
+	a, err := asUint32(value)
+	return uint(a), err
+}
+
 // Int type asserts to `float64` then converts to `int`
 func asInt64(value interface{}) (int64, error) {
 	switch v := value.(type) {

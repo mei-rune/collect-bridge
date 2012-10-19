@@ -108,32 +108,70 @@ func toAny(ls *C.lua_State, index C.int) interface{} {
 	return nil
 }
 
+func convertMapToArray(m map[int]interface{}) []interface{} {
+	fmt.Println(m)
+
+	res := make([]interface{}, 0, len(m)+16)
+	for k, v := range m {
+		if len(res) > k {
+			res[k] = v
+		} else if len(res) == k {
+			res = append(res, v)
+		} else {
+			if k > 50000 {
+				log.Panicf("ooooooooooooooo! array is too big!")
+			}
+
+			for i := len(res); i < k; i++ {
+				res = append(res, nil)
+			}
+			res = append(res, v)
+		}
+	}
+	return res
+}
 func toTable(ls *C.lua_State, index C.int) interface{} {
 
-	if LUA_TTABLE == C.lua_type(ls, index) {
+	if LUA_TTABLE != C.lua_type(ls, index) {
 		return nil
 	}
+
 	res1 := make(map[int]interface{})
 	res2 := make(map[string]interface{})
 
+	if 0 > index {
+		index = C.lua_gettop(ls) + index + C.int(1)
+	}
+	fmt.Printf("push nil at %d\n", int(index))
+
 	C.lua_pushnil(ls) /* first key */
 	for 0 != C.lua_next(ls, index) {
+		fmt.Printf("%s - %s\n",
+			C.GoString(C.lua_typename(ls, C.lua_type(ls, -2))),
+			C.GoString(C.lua_typename(ls, C.lua_type(ls, -1))))
 		/* 'key' is at index -2 and 'value' at index -1 */
-		if 0 == C.lua_isnumber(ls, -2) {
-			res1[int(C.lua_tointegerx(ls, -2, nil))] = toAny(ls, -1)
-		} else {
+		if 0 != C.lua_isnumber(ls, -2) {
+			idx := int(C.lua_tointegerx(ls, -2, nil))
+			if 0 == idx {
+				log.Panicln("read index from stack fail.")
+			}
+
+			res1[idx-1] = toAny(ls, -1)
+		} else if 0 != C.lua_isstring(ls, -2) {
 			res2[toString(ls, -2)] = toAny(ls, -1)
+		} else {
+			log.Panicln("key must is a string or number.")
 		}
 		/* removes 'value'; keeps 'key' for next iteration */
 		C.lua_settop(ls, -2) // C.lua_pop(ls, 1)
 	}
 
-	C.lua_settop(ls, -2) // C.lua_pop(ls, 1) /* removes 'key' */
 	if 0 != len(res1) {
 		if 0 != len(res2) {
 			log.Panicf("data is mixed with array and map, it is unsupported type.")
 		}
-		return res1
+
+		return convertMapToArray(res1)
 	}
 
 	if 0 == len(res2) {
@@ -280,7 +318,7 @@ func pushArray(ls *C.lua_State, params []interface{}) {
 	C.lua_createtable(ls, 0, 0)
 	for k, v := range params {
 		pushAny(ls, v)
-		C.lua_rawseti(ls, -2, C.int(k))
+		C.lua_rawseti(ls, -2, C.int(k+1))
 	}
 }
 

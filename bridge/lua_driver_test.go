@@ -30,6 +30,47 @@ func checkReturn(t *testing.T, excepted, old, actual interface{}, err error, msg
 	}
 }
 
+func checkArray(t *testing.T, old interface{}) {
+	var res interface{}
+	var err error
+
+	array, err := asArray(old)
+	if nil != err {
+		t.Errorf("test array - "+err.Error()+" - %v", old)
+	} else {
+		res, err = asInt(array[0])
+		checkReturn(t, int(1), array[0], res, err, "test int in array - ")
+
+		res, err = asUint(array[1])
+		checkReturn(t, uint(2), array[1], res, err, "test uint in array - ")
+
+		res, err = asString(array[2])
+		checkReturn(t, "s1", array[2], res, err, "test string in array - ")
+	}
+}
+
+func checkMap(t *testing.T, old interface{}) {
+
+	var res interface{}
+	var err error
+
+	assoc, err := asMap(old)
+	if nil != err {
+		t.Errorf("test map - "+err.Error()+" - %v", old)
+	} else {
+		fmt.Print(assoc)
+
+		res, err = asInt(assoc["a1"])
+		checkReturn(t, int(1), assoc["a1"], res, err, "test int in map - ")
+
+		res, err = asUint(assoc["a2"])
+		checkReturn(t, uint(2), assoc["a2"], res, err, "test uint in map - ")
+
+		res, err = asString(assoc["a3"])
+		checkReturn(t, "s3", assoc["a3"], res, err, "test string in array - ")
+	}
+}
+
 func TestPushAny(t *testing.T) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
@@ -95,6 +136,32 @@ func TestPushAny(t *testing.T) {
 	old = pushAnyTest(drv, "aa")
 	res, err = asString(old)
 	checkReturn(t, "aa", old, res, err, "test string - ")
+
+	old = pushAnyTest(drv, []interface{}{int8(1), uint8(2), "s1"})
+	checkArray(t, old)
+
+	old = pushAnyTest(drv, map[string]interface{}{"a1": 1, "a2": uint(2), "a3": "s3"})
+	checkMap(t, old)
+
+	old = pushAnyTest(drv, []interface{}{int8(1), uint8(2), "s1", map[string]interface{}{"a1": 1, "a2": uint(2), "a3": "s3"}})
+	checkArray(t, old)
+
+	array, err := asArray(old)
+	if nil == err {
+		t.Log("test map in array")
+		checkMap(t, array[3])
+		t.Log("test map in array is ok")
+	}
+
+	old = pushAnyTest(drv, map[string]interface{}{"a1": 1, "a2": uint(2), "a3": "s3", "a4": []interface{}{int8(1), uint8(2), "s1"}})
+	checkMap(t, old)
+
+	assoc, err := asMap(old)
+	if nil == err {
+		t.Log("test array in map")
+		checkArray(t, assoc["a4"])
+		t.Log("test array in map is ok")
+	}
 
 	drv.Stop()
 }

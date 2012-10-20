@@ -1,22 +1,24 @@
 
-DEBUG = 9000
-INFO = 6000
-WARN = 4000
-ERROR = 2000
-FATAL = 1000
-SYSTEM = 0
+local mj = {}
 
-function receive ()
+mj.DEBUG = 9000
+mj.INFO = 6000
+mj.WARN = 4000
+mj.ERROR = 2000
+mj.FATAL = 1000
+mj.SYSTEM = 0
+
+function mj:receive ()
     local action, params = coroutine.yield()
     return action, params
 end
 
-function send_and_recv ( ...)
+function mj:send_and_recv ( ...)
     local action, params = coroutine.yield( ...)
     return action, params
 end
 
-function log(level, msg)
+function mj:log(level, msg)
   if "number" ~= type(level) then
     return nil, "'params' is not a table."
   end
@@ -24,29 +26,16 @@ function log(level, msg)
   coroutine.yield("log", level, msg)
 end
 
-function execute(schema, action, params)
+function mj:execute(schema, action, params)
   if "table" ~= type(params) then
     return nil, "'params' is not a table."
   end
   return coroutine.yield(action, schema, params)
 end
 
-modules = {}
 
-function init_modules(path, modules)
-  package.path = package.path + ";" + path
-
-  for k, v in pairs(modules) do
-    if "string" == type(k) then
-      modules[k] = require (v)
-    else
-      modules[v] = require (v)
-    end
-  end
-end
-
-function execute_module(module_name, action, params)
-  module = modules[module_name]
+function mj:execute_module(module_name, action, params)
+  module = require(module_name)
   if nil == module then
     return nil, "module '"..module_name.."' is not exists."
   end
@@ -54,21 +43,22 @@ function execute_module(module_name, action, params)
   if nil == func then
     return nil, "method '"..action.."' is not implemented in module '"..module_name.."'."
   end
-  return func(params)
+  return func(module, params)
 end
 
-function execute_script(action, script)
-  if 'string' ~= script then
+function mj:execute_script(action, script, params)
+  if 'string' ~= type(script) then
     return nil, "'script' is not a string."
   end
-  local env = {["action"] = action }
+  local env = {["mj"] = self,
+   ["action"] = action,
+   ['params'] = params}
   setmetatable(env, _ENV)
-  local _ENV = env
-  func = assert(loadstring())
+  func = assert(load(script, nil, 'bt', env))
   return func()
 end
 
-function execute_task (action, params)
+function mj:execute_task(action, params)
   --if nil == task then
   --  print("params = nil")
   --end
@@ -78,31 +68,32 @@ function execute_task (action, params)
         return nil, "'params' is nil."
       end
       if "table" ~= type(params) then
-        return nil, "'params' is not a table"
+        return nil, "'params' is not a table, actual is '"..type(params).."'." 
       end
       schema = params["schema"]
       if nil == schema then
         return nil, "'schema' is nil"
       elseif "script" == schema then
-        return execute_script(action, params["script"])
+        return self:execute_script(action, params["script"], params)
       else
-        return execute_module(schema, action, params)
+        return self:execute_module(schema, action, params)
       end
     end)
 end
 
 
-function loop()
-  log(SYSTEM, "lua enter looping")
-  local action, params = receive()  -- get new value
+function mj:loop()
+  self:log(SYSTEM, "lua enter looping")
+  local action, params = mj:receive()  -- get new value
   while "__exit__" ~= action do
-    log(SYSTEM, "lua vm receive - '"..action.."'")
+    self:log(SYSTEM, "lua vm receive - '"..action.."'")
 
-    co = execute_task(action, params)
-    action, params = send_and_recv(co)
+    co = self:execute_task(action, params)
+    action, params = self:send_and_recv(co)
   end
-  log(SYSTEM, "lua exit looping")
+  self:log(SYSTEM, "lua exit looping")
 end
 
-log(SYSTEM, "welcome to lua vm")
-loop ()
+package.preload["mj"] = mj
+mj:log(SYSTEM, "welcome to lua vm")
+mj:loop ()

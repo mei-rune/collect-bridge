@@ -5,7 +5,6 @@ import (
 	"log"
 	"strings"
 	"testing"
-	"unsafe"
 )
 
 const (
@@ -20,6 +19,29 @@ func TestSpawn(t *testing.T) {
 	drv := NewLuaDriver("")
 	drv.Start()
 	drv.Stop()
+}
+func assertExceptedEqualActual(t *testing.T, excepted, actual interface{}, msg string) {
+	if excepted != actual {
+		t.Errorf(msg+" %v !=  %v", excepted, actual)
+	}
+}
+
+func assertNil(t *testing.T, value interface{}, msg string) {
+	if nil != value {
+		t.Errorf(msg)
+	}
+}
+
+func assertFalse(t *testing.T, cond bool, msg string) {
+	if cond {
+		t.Errorf(msg)
+	}
+}
+
+func assertTrue(t *testing.T, cond bool, msg string) {
+	if !cond {
+		t.Errorf(msg)
+	}
 }
 
 func checkReturn(t *testing.T, excepted, old, actual interface{}, err error, msg string) {
@@ -69,6 +91,41 @@ func checkMap(t *testing.T, old interface{}) {
 		res, err = asString(assoc["a3"])
 		checkReturn(t, "s3", assoc["a3"], res, err, "test string in array - ")
 	}
+}
+
+func TestParams(t *testing.T) {
+
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver("")
+	drv.Name = "TestParams"
+	drv.init_path = "lua_init_test_pushAny.lua"
+	drv.Start()
+
+	pushString(drv.ls, "test")
+	pushParams(drv.ls, map[string]string{"a": "sa", "b": "sb"})
+	ResumeLuaFiber(drv, 2)
+	params := toParams(drv.ls, 2)
+
+	assertExceptedEqualActual(t, "sa", params["a"], "test params - ")
+	assertExceptedEqualActual(t, "sb", params["b"], "test params - ")
+
+	pushString(drv.ls, "test")
+	pushParams(drv.ls, map[string]string{})
+	ResumeLuaFiber(drv, 2)
+	params = toParams(drv.ls, 2)
+
+	assertExceptedEqualActual(t, int(0), len(params), "test params - ")
+
+	pushString(drv.ls, "test")
+	pushParams(drv.ls, nil)
+	ResumeLuaFiber(drv, 2)
+	params = toParams(drv.ls, 2)
+
+	// A nil map is equivalent to an empty map except that no elements may be added. 
+	assertExceptedEqualActual(t, int(0), len(params), "test params - ")
+
+	drv.Stop()
 }
 
 func TestPushAny(t *testing.T) {
@@ -174,7 +231,6 @@ func TestInvoke(t *testing.T) {
 	drv.init_path = "lua_init_test.lua"
 	drv.Start()
 
-	fmt.Printf("aaaaaaaaaa %v\n", unsafe.Pointer(drv.ls))
 	v, e := drv.Get(nil)
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
@@ -183,8 +239,91 @@ func TestInvoke(t *testing.T) {
 	} else {
 		t.Log("execute get ok")
 	}
-	fmt.Printf("aaaaaaaaaa %v\n", unsafe.Pointer(drv.ls))
 	drv.Stop()
+}
+
+func TestInvokeScript(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver("")
+	drv.Name = "TestInvokeScript"
+	drv.Start()
+
+	params := map[string]string{"schema": "script", "script": "return action..' ok', nil"}
+	v, e := drv.Get(params)
+	if nil != e {
+		t.Errorf("execute get failed, " + e.Error())
+	} else if s, _ := asString(v); "get ok" != s {
+		t.Errorf("execute get faile, excepted value is 'ok', actual is %v", v)
+	} else {
+		t.Log("execute get ok")
+	}
+	drv.Stop()
+}
+
+func TestInvokeScriptFailed(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver("")
+	drv.Name = "TestInvokeScriptFailed"
+	drv.Start()
+
+	params := map[string]string{"schema": "script", "script": "aa"}
+	_, e := drv.Get(params)
+	if nil == e {
+		t.Errorf("execute get failed, except return error, actual return ok")
+	} else if !strings.Contains(e.Error(), "syntax error near <eof>") {
+		t.Errorf("execute get failed, except error contains 'syntax error near <eof>', actual return - " + e.Error())
+	}
+	drv.Stop()
+	Unregister("test")
+}
+
+type TestDriver struct {
+	get, put       string
+	create, delete bool
+}
+
+func (bridge *TestDriver) Get(params map[string]string) (interface{}, error) {
+	return bridge.get, nil
+}
+
+func (bridge *TestDriver) Put(params map[string]string) (interface{}, error) {
+	return bridge.put, nil
+}
+
+func (bridge *TestDriver) Create(map[string]string) (bool, error) {
+	return bridge.create, nil
+}
+
+func (bridge *TestDriver) Delete(map[string]string) (bool, error) {
+	return bridge.delete, nil
+}
+
+func TestInvokeAndCallback(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver("")
+	drv.Name = "TestInvokeAndCallback"
+	drv.Start()
+
+	td := &TestDriver{get: "get12", put: "put12", create: true, delete: true}
+	Register("test", td)
+
+	defer func() {
+		drv.Stop()
+		Unregister("test")
+	}()
+
+	params := map[string]string{"schema": "script", "script": "mj:log(mj.DEBUG, 'log a test log.')\nreturn mj:execute('test', action, params)"}
+	v, e := drv.Get(params)
+	if nil != e {
+		t.Errorf("execute get failed, " + e.Error())
+	} else if s, _ := asString(v); "get12" != s {
+		t.Errorf("execute get faile, excepted value is 'ok', actual is %v", v)
+	} else {
+		t.Log("execute get ok")
+	}
 }
 
 func TestSpawnWithInitScript(t *testing.T) {

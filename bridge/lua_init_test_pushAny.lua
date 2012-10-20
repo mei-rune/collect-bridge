@@ -27,11 +27,11 @@ function loop()
   log(SYSTEM, "lua enter looping")
   local action, params = receive()  -- get new value
   while "__exit__" ~= action do
-    if nil == params then
-      print("lua vm receive - '"..action.."' - nil" )
-    else
-      print("lua vm receive - '"..action.."' -", params)
-    end
+    -- if nil == params then
+    --   print("lua vm receive - '"..action.."' - nil" )
+    -- else
+    --   print("lua vm receive - '"..action.."' -", params)
+    -- end
     action, params = send_and_recv(action, params)
   end
   log(SYSTEM, "lua exit looping")

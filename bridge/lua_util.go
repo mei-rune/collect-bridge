@@ -25,6 +25,14 @@ func fileExists(dir string) bool {
 	return !info.IsDir()
 }
 
+func ResumeLuaFiber(drv *LuaDriver, argc int) {
+	ret := C.lua_resume(drv.ls, nil, C.int(argc))
+	if C.LUA_YIELD != ret {
+		err := getError(drv.ls, ret, "test push params failed")
+		log.Panicf(err.Error())
+	}
+}
+
 func pushAnyTest(drv *LuaDriver, any interface{}) interface{} {
 	pushString(drv.ls, "test")
 	pushAny(drv.ls, any)
@@ -52,22 +60,22 @@ func pushAnyTest(drv *LuaDriver, any interface{}) interface{} {
 // 	return golua_callgofunction(*gi,*fid);
 // }
 
-func declareAny(L *C.lua_State) {
-	// /* create the GoLua.GoFunction metatable */
-	// C.luaL_newmetatable(L, "Go.Any")
-	// //pushkey
-	// C.lua_pushliteral(L, "__call")
-	// //push value
-	// C.lua_pushcfunction(L, &callback_function)
-	// //t[__call] = &callback_function
-	// C.lua_settable(L, -3)
-	// //push key
-	// C.lua_pushliteral(L, "__gc")
-	// //pushvalue
-	// C.lua_pushcfunction(L, &gchook_wrapper)
-	// C.lua_settable(L, -3)
-	// C.lua_pop(L, 1)
-}
+// func declareAny(L *C.lua_State) {
+// /* create the GoLua.GoFunction metatable */
+// C.luaL_newmetatable(L, "Go.Any")
+// //pushkey
+// C.lua_pushliteral(L, "__call")
+// //push value
+// C.lua_pushcfunction(L, &callback_function)
+// //t[__call] = &callback_function
+// C.lua_settable(L, -3)
+// //push key
+// C.lua_pushliteral(L, "__gc")
+// //pushvalue
+// C.lua_pushcfunction(L, &gchook_wrapper)
+// C.lua_settable(L, -3)
+// C.lua_pop(L, 1)
+//}
 
 func toAny(ls *C.lua_State, index C.int) interface{} {
 	t := C.lua_type(ls, index)
@@ -142,13 +150,13 @@ func toTable(ls *C.lua_State, index C.int) interface{} {
 	if 0 > index {
 		index = C.lua_gettop(ls) + index + C.int(1)
 	}
-	fmt.Printf("push nil at %d\n", int(index))
+	//fmt.Printf("push nil at %d\n", int(index))
 
 	C.lua_pushnil(ls) /* first key */
 	for 0 != C.lua_next(ls, index) {
-		fmt.Printf("%s - %s\n",
-			C.GoString(C.lua_typename(ls, C.lua_type(ls, -2))),
-			C.GoString(C.lua_typename(ls, C.lua_type(ls, -1))))
+		//fmt.Printf("%s - %s\n",
+		//	C.GoString(C.lua_typename(ls, C.lua_type(ls, -2))),
+		//	C.GoString(C.lua_typename(ls, C.lua_type(ls, -1))))
 		/* 'key' is at index -2 and 'value' at index -1 */
 		if 0 != C.lua_isnumber(ls, -2) {
 			idx := int(C.lua_tointegerx(ls, -2, nil))
@@ -183,21 +191,28 @@ func toTable(ls *C.lua_State, index C.int) interface{} {
 
 func toParams(ls *C.lua_State, index C.int) map[string]string {
 
-	if LUA_TTABLE == C.lua_type(ls, index) {
+	if LUA_TTABLE != C.lua_type(ls, index) {
 		return nil
 	}
+
 	res := make(map[string]string)
+
+	if 0 > index {
+		index = C.lua_gettop(ls) + index + C.int(1)
+	}
 
 	C.lua_pushnil(ls) /* first key */
 	for 0 != C.lua_next(ls, index) {
+		if 0 == C.lua_isstring(ls, -2) {
+			log.Panicln("key must is a string.")
+		}
+
 		/* 'key' is at index -2 and 'value' at index -1 */
-		res[toString(ls, -2)] = toString(ls, -2)
+		res[toString(ls, -2)] = toString(ls, -1)
 
 		/* removes 'value'; keeps 'key' for next iteration */
 		C.lua_settop(ls, -2) // C.lua_pop(ls, 1)
 	}
-
-	C.lua_settop(ls, -2) // C.lua_pop(ls, 1) /* removes 'key' */
 	return res
 }
 

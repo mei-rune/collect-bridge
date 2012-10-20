@@ -17,6 +17,9 @@ func Register(name string, driver Driver) {
 	}
 	drivers[name] = driver
 }
+func Unregister(name string) {
+	delete(drivers, name)
+}
 
 func Connect(name string) (Driver, bool) {
 	driver, ok := drivers[name]

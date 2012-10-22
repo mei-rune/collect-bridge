@@ -8,17 +8,17 @@ mj.ERROR = 2000
 mj.FATAL = 1000
 mj.SYSTEM = 0
 
-function mj:receive ()
+function mj.receive ()
     local action, params = coroutine.yield()
     return action, params
 end
 
-function mj:send_and_recv ( ...)
+function mj.send_and_recv ( ...)
     local action, params = coroutine.yield( ...)
     return action, params
 end
 
-function mj:log(level, msg)
+function mj.log(level, msg)
   if "number" ~= type(level) then
     return nil, "'params' is not a table."
   end
@@ -26,15 +26,14 @@ function mj:log(level, msg)
   coroutine.yield("log", level, msg)
 end
 
-function mj:execute(schema, action, params)
+function mj.execute(schema, action, params)
   if "table" ~= type(params) then
     return nil, "'params' is not a table."
   end
   return coroutine.yield(action, schema, params)
 end
 
-
-function mj:execute_module(module_name, action, params)
+function mj.execute_module(module_name, action, params)
   module = require(module_name)
   if nil == module then
     return nil, "module '"..module_name.."' is not exists."
@@ -43,14 +42,15 @@ function mj:execute_module(module_name, action, params)
   if nil == func then
     return nil, "method '"..action.."' is not implemented in module '"..module_name.."'."
   end
-  return func(module, params)
+
+  return func(params)
 end
 
-function mj:execute_script(action, script, params)
+function mj.execute_script(action, script, params)
   if 'string' ~= type(script) then
     return nil, "'script' is not a string."
   end
-  local env = {["mj"] = self,
+  local env = {["mj"] = mj,
    ["action"] = action,
    ['params'] = params}
   setmetatable(env, _ENV)
@@ -58,7 +58,7 @@ function mj:execute_script(action, script, params)
   return func()
 end
 
-function mj:execute_task(action, params)
+function mj.execute_task(action, params)
   --if nil == task then
   --  print("params = nil")
   --end
@@ -74,26 +74,56 @@ function mj:execute_task(action, params)
       if nil == schema then
         return nil, "'schema' is nil"
       elseif "script" == schema then
-        return self:execute_script(action, params["script"], params)
+        return mj.execute_script(action, params["script"], params)
       else
-        return self:execute_module(schema, action, params)
+        return mj.execute_module(schema, action, params)
       end
     end)
 end
 
 
-function mj:loop()
-  self:log(SYSTEM, "lua enter looping")
-  local action, params = mj:receive()  -- get new value
-  while "__exit__" ~= action do
-    self:log(SYSTEM, "lua vm receive - '"..action.."'")
+function mj.loop()
 
-    co = self:execute_task(action, params)
-    action, params = self:send_and_recv(co)
+  mj.os = __mj_os or "unknown"  -- 386, amd64, or arm.
+  mj.arch = __mj_arch or "unknown" -- darwin, freebsd, linux or windows
+  mj.execute_directory = __mj_execute_directory or "."
+  mj.work_directory = __mj_work_directory or "."
+
+  local ext = ".so"
+  if mj.os == "windows" then
+    ext = ".dll"
   end
-  self:log(SYSTEM, "lua exit looping")
+
+  if nil ~= __mj_execute_directory then
+    package.path = package.path .. ";" .. mj.execute_directory .. "\\modules\\?.lua" ..
+       ";" .. mj.execute_directory .. "\\modules\\?\\init.lua"
+
+    package.cpath = package.cpath .. ";" .. mj.execute_directory .. "\\modules\\?" .. ext ..
+        ";" .. mj.execute_directory .. "\\modules\\?\\loadall" .. ext
+  end
+
+  if nil ~= __mj_work_directory then
+    package.path = package.path .. ";" .. mj.work_directory .. "\\modules\\?.lua" ..
+       ";" .. mj.work_directory .. "\\modules\\?\\init.lua"
+
+    package.cpath = package.cpath .. ";" .. mj.work_directory .. "\\modules\\?" .. ext ..
+        ";" .. mj.work_directory .. "\\modules\\?\\loadall" .. ext
+  end
+
+
+  mj.log(SYSTEM, "lua enter looping")
+  local action, params = mj.receive()  -- get new value
+  while "__exit__" ~= action do
+    mj.log(SYSTEM, "lua vm receive - '"..action.."'")
+
+    co = mj.execute_task(action, params)
+    action, params = mj.send_and_recv(co)
+  end
+  mj.log(SYSTEM, "lua exit looping")
 end
 
+_G["mj"] = mj
+package.loaded["mj"] = mj
 package.preload["mj"] = mj
-mj:log(SYSTEM, "welcome to lua vm")
-mj:loop ()
+mj.log(SYSTEM, "welcome to lua vm")
+mj.loop ()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -280,8 +281,9 @@ func TestInvokeScriptFailed(t *testing.T) {
 }
 
 type TestDriver struct {
-	get, put       string
-	create, delete bool
+	get, put               string
+	create, delete         bool
+	create_msg, delete_msg string
 }
 
 func (bridge *TestDriver) Get(params map[string]string) (interface{}, error) {
@@ -293,11 +295,11 @@ func (bridge *TestDriver) Put(params map[string]string) (interface{}, error) {
 }
 
 func (bridge *TestDriver) Create(map[string]string) (bool, error) {
-	return bridge.create, nil
+	return bridge.create, errors.New(bridge.create_msg)
 }
 
 func (bridge *TestDriver) Delete(map[string]string) (bool, error) {
-	return bridge.delete, nil
+	return bridge.delete, errors.New(bridge.delete_msg)
 }
 
 func TestInvokeAndCallback(t *testing.T) {
@@ -308,14 +310,14 @@ func TestInvokeAndCallback(t *testing.T) {
 	drv.Start()
 
 	td := &TestDriver{get: "get12", put: "put12", create: true, delete: true}
-	Register("test", td)
+	Register("test_dumy", td)
 
 	defer func() {
 		drv.Stop()
-		Unregister("test")
+		Unregister("test_dumy")
 	}()
 
-	params := map[string]string{"schema": "script", "script": "mj:log(mj.DEBUG, 'log a test log.')\nreturn mj:execute('test', action, params)"}
+	params := map[string]string{"schema": "script", "script": "mj.log(mj.DEBUG, 'log a test log.')\nreturn mj.execute('test_dumy', action, params)"}
 	v, e := drv.Get(params)
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
@@ -324,6 +326,76 @@ func TestInvokeAndCallback(t *testing.T) {
 	} else {
 		t.Log("execute get ok")
 	}
+}
+
+func checkResult(t *testing.T, drv *LuaDriver, excepted string, actual interface{}, e error) {
+	if nil != e {
+		t.Errorf("execute failed, " + e.Error())
+	} else if s, _ := asString(actual); excepted != s {
+		t.Errorf("execute failed, excepted value is '%s', actual is %v", excepted, s)
+	} else {
+		t.Log("execute ok")
+	}
+}
+
+func checkErrorResult(t *testing.T, drv *LuaDriver, excepted bool, actual interface{}, msg string, e error) {
+	if nil == e {
+		t.Errorf("execute failed, err is nil")
+	} else if s, _ := asBool(actual); excepted != s {
+		t.Errorf("execute failed, excepted value is '%v', actual is %v", excepted, s)
+	} else if !strings.Contains(e.Error(), msg) {
+		t.Errorf("execute failed, excepted value contains '%v', actual is %v", msg, e.Error())
+	} else {
+		t.Log("execute ok")
+	}
+}
+
+func TestInvokeModule(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver("")
+	drv.Name = "TestInvokeModule"
+	drv.Start()
+	defer func() {
+		drv.Stop()
+	}()
+	params := map[string]string{"schema": "test_invoke_module"}
+	v, e := drv.Get(params)
+	checkResult(t, drv, "get test ok test1whj23", v, e)
+	v, e = drv.Put(params)
+	checkResult(t, drv, "put test ok test1whj23", v, e)
+	v, e = drv.Create(params)
+	checkErrorResult(t, drv, false, v, "create test ok test1whj23", e)
+	v, e = drv.Delete(params)
+	checkErrorResult(t, drv, false, v, "delete test ok test1whj23", e)
+}
+
+func TestInvokeModuleAndCallback(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver("")
+	drv.Name = "TestInvokeModuleAndCallback"
+	drv.Start()
+
+	td := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
+		create: false, delete: false, create_msg: "create test cb ok test1whj23",
+		delete_msg: "delete test cb ok test1whj23"}
+	Register("test_dumy_TestInvokeModuleAndCallback", td)
+
+	defer func() {
+		drv.Stop()
+		Unregister("test_dumy_TestInvokeModuleAndCallback")
+	}()
+
+	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}
+	v, e := drv.Get(params)
+	checkResult(t, drv, "get test cb ok test1whj23", v, e)
+	v, e = drv.Put(params)
+	checkResult(t, drv, "put test cb ok test1whj23", v, e)
+	v, e = drv.Create(params)
+	checkErrorResult(t, drv, false, v, "create test cb ok test1whj23", e)
+	v, e = drv.Delete(params)
+	checkErrorResult(t, drv, false, v, "delete test cb ok test1whj23", e)
 }
 
 func TestSpawnWithInitScript(t *testing.T) {

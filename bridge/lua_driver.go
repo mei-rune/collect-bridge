@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"runtime"
 	"snmp"
 	"sync"
 	"time"
@@ -84,9 +85,10 @@ type Continuous struct {
 	drv    string
 	action string
 
-	params map[string]string
-	any    interface{}
-	err    error
+	params   map[string]string
+	any      interface{}
+	err      error
+	intValue int
 }
 
 // func (svc *Svc) Set(onStart, onStop, onTimeout func()) {
@@ -108,8 +110,38 @@ func (driver *LuaDriver) lua_init(ls *C.lua_State) C.int {
 			C.free(unsafe.Pointer(cs))
 		}
 	}()
+
+	pushString(ls, runtime.GOARCH)
+
+	cs = C.CString("__mj_arch")
+	C.lua_setglobal(ls, cs)
+	C.free(unsafe.Pointer(cs))
+	cs = nil
+
+	cs = C.CString("__mj_os")
+	pushString(ls, runtime.GOOS)
+	C.lua_setglobal(ls, cs)
+	C.free(unsafe.Pointer(cs))
+	cs = nil
+
+	if len(os.Args) > 0 {
+		pa := path.Base(os.Args[0])
+		if fileExists(pa) {
+			pushString(ls, pa)
+			cs = C.CString("__mj_execute_directory")
+			C.lua_setglobal(ls, cs)
+			C.free(unsafe.Pointer(cs))
+			cs = nil
+		}
+	}
 	wd, err := os.Getwd()
 	if nil == err {
+		pushString(ls, wd)
+		cs = C.CString("__mj_work_directory")
+		C.lua_setglobal(ls, cs)
+		C.free(unsafe.Pointer(cs))
+		cs = nil
+
 		pa := path.Join(wd, driver.init_path)
 		if fileExists(pa) {
 			cs = C.CString(pa)
@@ -291,8 +323,13 @@ func (driver *LuaDriver) executeContinuous(ret C.int, ct *Continuous) *Continuou
 	case C.LUA_YIELD:
 		ct.status = LUA_EXECUTE_CONTINUE
 		ct.action = toString(ct.ls, -3)
-		ct.drv = toString(ct.ls, -2)
-		ct.params = toParams(ct.ls, -1)
+		if "log" == ct.action {
+			ct.intValue = toInteger(ct.ls, -2)
+			ct.err = toError(ct.ls, -1)
+		} else {
+			ct.drv = toString(ct.ls, -2)
+			ct.params = toParams(ct.ls, -1)
+		}
 	case 0:
 		ct.status = LUA_EXECUTE_END
 		ct.any = toAny(ct.ls, -2)
@@ -347,7 +384,15 @@ func (driver *LuaDriver) invoke(action string, params map[string]string) (interf
 		}()
 
 		for {
-			ct.any, ct.err = driver.executeTask(ct.drv, ct.action, ct.params)
+			if "log" == ct.action {
+				if nil != driver.Logger {
+					driver.Logger.Println(ct.err.Error())
+				}
+				ct.any = nil
+				ct.err = nil
+			} else {
+				ct.any, ct.err = driver.executeTask(ct.drv, ct.action, ct.params)
+			}
 
 			seconds := (time.Now().Second() - old.Second())
 			t -= (time.Duration(seconds) * time.Second)
@@ -364,7 +409,6 @@ func (driver *LuaDriver) invoke(action string, params map[string]string) (interf
 			}
 		}
 	}
-
 	if LUA_EXECUTE_END == ct.status {
 		return ct.any, ct.err
 	}

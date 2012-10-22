@@ -117,8 +117,6 @@ func toAny(ls *C.lua_State, index C.int) interface{} {
 }
 
 func convertMapToArray(m map[int]interface{}) []interface{} {
-	fmt.Println(m)
-
 	res := make([]interface{}, 0, len(m)+16)
 	for k, v := range m {
 		if len(res) > k {
@@ -214,6 +212,11 @@ func toParams(ls *C.lua_State, index C.int) map[string]string {
 		C.lua_settop(ls, -2) // C.lua_pop(ls, 1)
 	}
 	return res
+}
+
+func toInteger(ls *C.lua_State, index C.int) int {
+	iv := C.lua_tointegerx(ls, index, nil)
+	return int(iv)
 }
 
 func toString(ls *C.lua_State, index C.int) string {

@@ -117,6 +117,8 @@ static const struct {
     { "Authorization error", SNMP_CODE_ERR_AUTH_ERR },
     { "Not writable", SNMP_CODE_ERR_NOT_WRITEABLE },
     { "Inconsistent name", SNMP_CODE_ERR_INCONS_NAME },
+    { "go function error", SNMP_CODE_ERR_GOFUNCTION },
+
 
     { NULL, 0 }
 };
@@ -125,6 +127,14 @@ const char* snmp_get_error(enum snmp_code code) {
 	assert(code == error_strings[code].code);
 	return error_strings[code].str;
 }
+const char* snmp_pdu_get_error(snmp_pdu_t *pdu, enum snmp_code code) {
+    if (SNMP_CODE_ERR_GOFUNCTION == code) {
+        return pdu->error_message;
+    }
+    assert(code == error_strings[code].code);
+    return error_strings[code].str;
+}
+
 /*
 * Get the next variable binding from the list.
 * ASN errors on the sequence or the OID are always fatal.
@@ -903,7 +913,6 @@ enum snmp_code snmp_fix_encoding(asn_buf_t *b, snmp_pdu_t *pdu)
 {
     size_t moved = 0;
     enum snmp_code code;
-
     if (asn_commit_header(b, pdu->vars_ptr, NULL) != ASN_ERR_OK ||
         asn_commit_header(b, pdu->pdu_ptr, NULL) != ASN_ERR_OK)
         return (SNMP_CODE_FAILED);
@@ -1196,6 +1205,9 @@ void snmp_pdu_dump(const snmp_pdu_t *pdu)
             snmp_printf(" identifier: %d\n", pdu->identifier);
             snmp_printf(" context_name: %s\n", pdu->context_name);
             dump_hex(" context_engine", pdu->context_engine, pdu->context_engine_len);
+            
+            dump_hex(" msg_digest", pdu->msg_digest, SNMP_USM_AUTH_SIZE);
+            dump_hex(" msg_salt", pdu->msg_salt, SNMP_USM_PRIV_SIZE);
 
             snmp_printf(" user.secname: %s\n", pdu->user.sec_name);
 

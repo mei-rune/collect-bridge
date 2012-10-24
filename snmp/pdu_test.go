@@ -211,7 +211,7 @@ func TestEncodeV3PDU(t *testing.T) {
 		"max_msg_size":   "10007",
 		"secname":        "meijing",
 		"secmodel":       "usm",
-		"auth_pass":      "md5-aa"}, snmpv3_md5_txt, "test auth=md5 - ")
+		"auth_pass":      "md5-mfk1234"}, snmpv3_md5_txt, "test auth=md5 - ")
 
 	testEncodeV3PDU(t, map[string]string{"community": "123987",
 		"identifier":     "0",
@@ -223,22 +223,27 @@ func TestEncodeV3PDU(t *testing.T) {
 		"max_msg_size":   "10007",
 		"secname":        "meijing",
 		"secmodel":       "usm",
-		"auth_pass":      "md5-aa",
-		"priv_pass":      "des-aa"}, snmpv3_md5_des_txt, "test auth=md5 and priv=des - ")
+		"auth_pass":      "md5-mfk1234",
+		"priv_pass":      "des-mj1234"}, snmpv3_md5_des_txt, "test auth=md5 and priv=des - ")
 }
 
 func testEncodeV3PDU(t *testing.T, args map[string]string, txt, msg string) {
 	pduv3 := &V3PDU{requestId: 234}
 	pduv3.Init(args)
+	if !pduv3.securityModel.IsLocalize() {
+		usm := pduv3.securityModel.(*USM)
+		usm.localization_auth_key = usm.auth_key
+		usm.localization_priv_key = usm.priv_key
+	}
 	fillPdu(pduv3.GetVariableBindings())
 	bytes, e := pduv3.encodePDU()
 	if nil != e {
-		t.Errorf("%sencode v3 pdu faile - %s", msg, e.Error())
+		t.Errorf("%sencode v3 pdu failed - %s", msg, e.Error())
 	}
 
 	if txt != hex.EncodeToString(bytes) {
 		t.Log(hex.EncodeToString(bytes))
-		t.Errorf("%sencode v3 pdu faile.", msg)
+		t.Errorf("%sencode v3 pdu failed.", msg)
 	}
 }
 
@@ -250,16 +255,16 @@ func TestDecodePDU(t *testing.T) {
 	}
 	pdu, e := DecodePDU(bytes)
 	if nil != e {
-		t.Errorf("decode v1 pdu faile - %s", e.Error())
+		t.Errorf("decode v1 pdu failed - %s", e.Error())
 	} else {
 		if SNMP_V1 != pdu.GetVersion() {
-			t.Errorf("decode v1 pdu faile - version error, excepted is v1, actual value is %d", pdu.GetVersion())
+			t.Errorf("decode v1 pdu failed - version error, excepted is v1, actual value is %d", pdu.GetVersion())
 		} else {
 			if "123987" != pdu.(*V2CPDU).community {
-				t.Errorf("decode v1 pdu faile - community error, excepted is '123987', actual value is %s", pdu.(*V2CPDU).community)
+				t.Errorf("decode v1 pdu failed - community error, excepted is '123987', actual value is %s", pdu.(*V2CPDU).community)
 			}
 			if 234 != pdu.(*V2CPDU).requestId {
-				t.Errorf("decode v1 pdu faile - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
+				t.Errorf("decode v1 pdu failed - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
 			}
 		}
 		checkPdu(pdu.GetVariableBindings(), t)
@@ -272,16 +277,16 @@ func TestDecodePDU(t *testing.T) {
 	}
 	pdu, e = DecodePDU(bytes)
 	if nil != e {
-		t.Errorf("decode v2 pdu faile - %s", e.Error())
+		t.Errorf("decode v2 pdu failed - %s", e.Error())
 	} else {
 		if SNMP_V2C != pdu.GetVersion() {
-			t.Errorf("decode v2 pdu faile - version error, excepted is v2C, actual value is %d", pdu.GetVersion())
+			t.Errorf("decode v2 pdu failed - version error, excepted is v2C, actual value is %d", pdu.GetVersion())
 		} else {
 			if "123987" != pdu.(*V2CPDU).community {
-				t.Errorf("decode v2 pdu faile - community error, excepted is '123987', actual value is %s", pdu.(*V2CPDU).community)
+				t.Errorf("decode v2 pdu failed - community error, excepted is '123987', actual value is %s", pdu.(*V2CPDU).community)
 			}
 			if 234 != pdu.(*V2CPDU).requestId {
-				t.Errorf("decode v2 pdu faile - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
+				t.Errorf("decode v2 pdu failed - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
 			}
 		}
 		checkPdu(pdu.GetVariableBindings(), t)
@@ -305,45 +310,45 @@ func testDecodeV3PDU(t *testing.T, txt string, auth AuthType, auth_s string, pri
 	}
 	pdu, e := DecodePDU(bytes)
 	if nil != e {
-		t.Errorf("decode v3 pdu faile - %s", e.Error())
+		t.Errorf("decode v3 pdu failed - %s", e.Error())
 	} else {
 		if SNMP_V3 != pdu.GetVersion() {
-			t.Errorf("decode v3 pdu faile - version error, excepted is v2C, actual value is %d", pdu.GetVersion())
+			t.Errorf("decode v3 pdu failed - version error, excepted is v2C, actual value is %d", pdu.GetVersion())
 		} else {
 
 			if 234 != pdu.(*V3PDU).requestId {
-				t.Errorf("decode v3 pdu faile - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
+				t.Errorf("decode v3 pdu failed - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
 			}
 
 			if nil == pdu.(*V3PDU).engine {
-				t.Errorf("decode v3 pdu faile - engine is null")
+				t.Errorf("decode v3 pdu failed - engine is null")
 			}
 
 			if "testcontextname" != pdu.(*V3PDU).contextName {
-				t.Errorf("decode v3 pdu faile - contextEngine error, excepted is 'testcontextname', actual value is %s",
+				t.Errorf("decode v3 pdu failed - contextEngine error, excepted is 'testcontextname', actual value is %s",
 					pdu.(*V3PDU).contextName)
 			}
 
 			if "74657374636f6e74657874656e67696e65" != hex.EncodeToString(pdu.(*V3PDU).contextEngine) {
-				t.Errorf("decode v3 pdu faile - contextEngine error, excepted is '74657374636f6e74657874656e67696e65', actual value is %s",
+				t.Errorf("decode v3 pdu failed - contextEngine error, excepted is '74657374636f6e74657874656e67696e65', actual value is %s",
 					hex.EncodeToString(pdu.(*V3PDU).contextEngine))
 			}
 
 			if "3031323334353637383930313233343536373839303132333435363738393031" != hex.EncodeToString(pdu.(*V3PDU).engine.engine_id) {
-				t.Errorf("decode v3 pdu faile - engine_boots error, excepted is '2', actual value is %d", pdu.(*V3PDU).engine.engine_boots)
+				t.Errorf("decode v3 pdu failed - engine_boots error, excepted is '2', actual value is %d", pdu.(*V3PDU).engine.engine_boots)
 			}
 			if 3 != pdu.(*V3PDU).engine.engine_boots {
-				t.Errorf("decode v3 pdu faile - engine_boots error, excepted is '2', actual value is %d", pdu.(*V3PDU).engine.engine_boots)
+				t.Errorf("decode v3 pdu failed - engine_boots error, excepted is '2', actual value is %d", pdu.(*V3PDU).engine.engine_boots)
 			}
 			if 1234 != pdu.(*V3PDU).engine.engine_time {
-				t.Errorf("decode v3 pdu faile - engine_time error, excepted is '2', actual value is %d", pdu.(*V3PDU).engine.engine_time)
+				t.Errorf("decode v3 pdu failed - engine_time error, excepted is '2', actual value is %d", pdu.(*V3PDU).engine.engine_time)
 			}
 
 			if nil == pdu.(*V3PDU).securityModel {
-				t.Errorf("decode v3 pdu faile - securityModel is null")
+				t.Errorf("decode v3 pdu failed - securityModel is null")
 			}
-			if "meijing" != pdu.(*V3PDU).securityModel.(*HashUSM).name {
-				t.Errorf("decode v3 pdu faile - sec_name error, excepted is 'meijing', actual value is %s", pdu.(*V3PDU).securityModel.(*HashUSM).name)
+			if "meijing" != pdu.(*V3PDU).securityModel.(*USM).name {
+				t.Errorf("decode v3 pdu failed - sec_name error, excepted is 'meijing', actual value is %s", pdu.(*V3PDU).securityModel.(*USM).name)
 			}
 			// if auth != pdu.(*V3PDU).securityModel.(*HashUSM).auth_proto {
 			//	t.Errorf("decode v3 pdu faile - auth_proto error, excepted is '%s', actual value is %s",

@@ -6,6 +6,8 @@ generated
 out/
 *.swp
 *.exe
+*.dll
+*.a
 
 snmpget
 

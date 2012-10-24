@@ -194,6 +194,8 @@ typedef struct snmp_pdu {
 	u_char			*pdu_ptr;
 	u_char			*vars_ptr;
 
+	char        error_message[1024];
+
     
 	u_int			nbindings;
 	snmp_value_t	bindings[SNMP_MAX_BINDINGS];
@@ -277,7 +279,10 @@ enum snmp_code {
 	SNMP_CODE_ERR_UNDO_FAILED,
 	SNMP_CODE_ERR_AUTH_ERR,
 	SNMP_CODE_ERR_NOT_WRITEABLE,
-	SNMP_CODE_ERR_INCONS_NAME
+	SNMP_CODE_ERR_INCONS_NAME, 
+
+
+	SNMP_CODE_ERR_GOFUNCTION
 };
 
 
@@ -321,6 +326,7 @@ enum snmp_code snmp_calc_keychange(snmp_user_t *, uint8_t *);
 extern void (*snmp_error)(const char *, ...);
 extern void (*snmp_printf)(const char *, ...);
 const char* snmp_get_error(enum snmp_code code);
+const char* snmp_pdu_get_error(snmp_pdu_t *pdu, enum snmp_code code);
 
 
 /* check wheater the answer is valid or not */

@@ -221,8 +221,9 @@ type PDU interface {
 }
 
 type SecurityModel interface {
-	Init(params map[string]string) error
 	String() string
+	IsLocalize() bool
+	Localize(key []byte) error
 }
 
 type snmpEngine struct {

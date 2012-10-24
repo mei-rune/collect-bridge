@@ -6,7 +6,7 @@ package snmp
 // #include "bsnmp/gobindings.h"
 //  
 // #cgo CFLAGS: -O0 -g3
-// #cgo LDFLAGS: -lws2_32
+// #cgo windows LDFLAGS: -lws2_32
 import "C"
 
 import (
@@ -182,16 +182,8 @@ func (pdu *V3PDU) Init(params map[string]string) (err error) {
 			}
 		}
 	}
-	switch params["secmodel"] {
-	case "usm", "Usm", "USM":
-		pdu.securityModel = new(USM)
-		err = pdu.securityModel.Init(params)
-	case "hashusm", "HashUsm", "HASHUSM":
-		pdu.securityModel = new(HashUSM)
-		err = pdu.securityModel.Init(params)
-	default:
-		err = errors.New(fmt.Sprintf("unsupported security module: %s", params["secmodel"]))
-	}
+
+	pdu.securityModel, err = NewSecurityModel(params)
 	return
 }
 
@@ -317,7 +309,7 @@ func (pdu *V3PDU) decodePDU(native *C.snmp_pdu_t) error {
 	pdu.engine.engine_time = int(native.engine.engine_time)
 	pdu.maxMsgSize = uint(native.engine.max_msg_size)
 
-	pdu.securityModel = new(HashUSM)
+	pdu.securityModel = new(USM)
 	err := pdu.securityModel.Read(&native.user)
 
 	if nil != err {
@@ -356,15 +348,45 @@ func oidRead(src *C.asn_oid_t) *SnmpOid {
 	return NewOid(subs)
 }
 
+// void snmp_pdu_init_secparams(snmp_pdu_t *pdu)
+// {
+//     int32_t rval;
+
+//     if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH)
+//         pdu->flags |= SNMP_MSG_AUTH_FLAG;
+
+//     switch (pdu->user.priv_proto) {
+//     case SNMP_PRIV_DES:
+//         memcpy(pdu->msg_salt, &pdu->engine.engine_boots,
+//             sizeof(pdu->engine.engine_boots));
+//         rval = random();
+//         memcpy(pdu->msg_salt + sizeof(pdu->engine.engine_boots), &rval,
+//             sizeof(int32_t));
+//         pdu->flags |= SNMP_MSG_PRIV_FLAG;
+//         break;
+//     case SNMP_PRIV_AES:
+//         rval = random();
+//         memcpy(pdu->msg_salt, &rval, sizeof(int32_t));
+//         rval = random();
+//         memcpy(pdu->msg_salt + sizeof(int32_t), &rval, sizeof(int32_t));
+//         pdu->flags |= SNMP_MSG_PRIV_FLAG;
+//         break;
+//     default:
+//         break;
+//     }
+// }
+
 func encodeNativePdu(pdu *C.snmp_pdu_t) ([]byte, error) {
 	bytes := make([]byte, int(pdu.engine.max_msg_size))
 	var buffer C.asn_buf_t
 	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
 	buffer.asn_len = C.size_t(len(bytes))
 
+	C.snmp_pdu_dump(pdu)
+	C.snmp_pdu_init_secparams(pdu)
 	ret_code := C.snmp_pdu_encode(pdu, &buffer)
 	if 0 != ret_code {
-		err := errors.New(C.GoString(C.snmp_get_error(ret_code)))
+		err := errors.New(C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
 		return nil, err
 	}
 	length := C.get_buffer_length(&buffer, (*C.u_char)(unsafe.Pointer(&bytes[0])))
@@ -476,7 +498,7 @@ func DecodePDU(bytes []byte) (PDU, error) {
 	C.snmp_pdu_init(&pdu)
 	ret_code := C.snmp_pdu_decode(&buffer, &pdu, &recv_len)
 	if 0 != ret_code {
-		err := errors.New(C.GoString(C.snmp_get_error(ret_code)))
+		err := errors.New(C.GoString(C.snmp_pdu_get_error(&pdu, ret_code)))
 		return nil, err
 	}
 	defer C.snmp_pdu_free(&pdu)

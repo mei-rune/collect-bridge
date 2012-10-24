@@ -110,6 +110,9 @@ func (client *UdpClient) discoverEngine(fn func(PDU, error)) {
 }
 
 func (client *UdpClient) sendV3PDU(ctx InvokedContext, pdu *V3PDU) {
+	if !pdu.securityModel.IsLocalize() {
+		pdu.securityModel.Localize(pdu.engine.engine_id)
+	}
 	client.sendPdu(pdu, ctx, nil)
 }
 

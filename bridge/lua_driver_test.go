@@ -8,16 +8,10 @@ import (
 	"testing"
 )
 
-const (
-	s1 = `
-  function receive ()
-	`
-)
-
 func TestSpawn(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver("")
+	drv := NewLuaDriver()
 	drv.Start()
 	drv.Stop()
 }
@@ -98,9 +92,9 @@ func TestParams(t *testing.T) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver("")
+	drv := NewLuaDriver()
 	drv.Name = "TestParams"
-	drv.init_path = "lua_init_test_pushAny.lua"
+	drv.init_path = "test/lua_init_test_pushAny.lua"
 	drv.Start()
 
 	pushString(drv.ls, "test")
@@ -133,9 +127,9 @@ func TestPushAny(t *testing.T) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver("")
+	drv := NewLuaDriver()
 	drv.Name = "TestPushAny"
-	drv.init_path = "lua_init_test_pushAny.lua"
+	drv.init_path = "test/lua_init_test_pushAny.lua"
 	drv.Start()
 
 	var old, res interface{}
@@ -227,9 +221,9 @@ func TestPushAny(t *testing.T) {
 func TestInvoke(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver("")
+	drv := NewLuaDriver()
 	drv.Name = "test_invoke"
-	drv.init_path = "lua_init_test.lua"
+	drv.init_path = "test/lua_init_test.lua"
 	drv.Start()
 
 	v, e := drv.Get(nil)
@@ -246,7 +240,7 @@ func TestInvoke(t *testing.T) {
 func TestInvokeScript(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver("")
+	drv := NewLuaDriver()
 	drv.Name = "TestInvokeScript"
 	drv.Start()
 
@@ -265,7 +259,7 @@ func TestInvokeScript(t *testing.T) {
 func TestInvokeScriptFailed(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver("")
+	drv := NewLuaDriver()
 	drv.Name = "TestInvokeScriptFailed"
 	drv.Start()
 
@@ -305,7 +299,7 @@ func (bridge *TestDriver) Delete(map[string]string) (bool, error) {
 func TestInvokeAndCallback(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver("")
+	drv := NewLuaDriver()
 	drv.Name = "TestInvokeAndCallback"
 	drv.Start()
 
@@ -353,7 +347,7 @@ func checkErrorResult(t *testing.T, drv *LuaDriver, excepted bool, actual interf
 func TestInvokeModule(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver("")
+	drv := NewLuaDriver()
 	drv.Name = "TestInvokeModule"
 	drv.Start()
 	defer func() {
@@ -373,7 +367,7 @@ func TestInvokeModule(t *testing.T) {
 func TestInvokeModuleAndCallback(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver("")
+	drv := NewLuaDriver()
 	drv.Name = "TestInvokeModuleAndCallback"
 	drv.Start()
 
@@ -398,16 +392,16 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	checkErrorResult(t, drv, false, v, "delete test cb ok test1whj23", e)
 }
 
-func TestSpawnWithInitScript(t *testing.T) {
+func TestInitScriptWithErrorSyntex(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(s1)
-	drv.init_path = "aa"
+	drv := NewLuaDriver()
+	drv.init_path = "test/lua_error_script.lua"
 	err := drv.Start()
 	if nil == err {
 		t.Errorf("test start lua failed, except return a error, actual return success")
-	} else if !strings.Contains(err.Error(), "(to close 'function' at line 2)") {
-		t.Errorf("test start lua failed, excepted value contains '(to close 'function' at line 2)', actual value is " + err.Error())
+	} else if !strings.Contains(err.Error(), ": 'end' expected near <eof>") {
+		t.Errorf("test start lua failed, excepted value contains ': 'end' expected near <eof>', actual value is " + err.Error())
 	}
 }
 

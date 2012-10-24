@@ -24,35 +24,134 @@ import (
 
 const (
 	lua_init_script string = `
-function receive ()
+local mj = {}
+
+mj.DEBUG = 9000
+mj.INFO = 6000
+mj.WARN = 4000
+mj.ERROR = 2000
+mj.FATAL = 1000
+mj.SYSTEM = 0
+
+function mj.receive ()
     local action, params = coroutine.yield()
     return action, params
 end
 
-function send (co, ...)
-    local action, params = coroutine.yield(co, ...)
+function mj.send_and_recv ( ...)
+    local action, params = coroutine.yield( ...)
     return action, params
 end
 
-function execute_task (action, task)
+function mj.log(level, msg)
+  if "number" ~= type(level) then
+    return nil, "'params' is not a table."
+  end
+
+  coroutine.yield("log", level, msg)
+end
+
+function mj.execute(schema, action, params)
+  if "table" ~= type(params) then
+    return nil, "'params' is not a table."
+  end
+  return coroutine.yield(action, schema, params)
+end
+
+function mj.execute_module(module_name, action, params)
+  module = require(module_name)
+  if nil == module then
+    return nil, "module '"..module_name.."' is not exists."
+  end
+  func = module[action]
+  if nil == func then
+    return nil, "method '"..action.."' is not implemented in module '"..module_name.."'."
+  end
+
+  return func(params)
+end
+
+function mj.execute_script(action, script, params)
+  if 'string' ~= type(script) then
+    return nil, "'script' is not a string."
+  end
+  local env = {["mj"] = mj,
+   ["action"] = action,
+   ['params'] = params}
+  setmetatable(env, _ENV)
+  func = assert(load(script, nil, 'bt', env))
+  return func()
+end
+
+function mj.execute_task(action, params)
+  --if nil == task then
+  --  print("params = nil")
+  --end
+
   return coroutine.create(function()
-    return "test ok"
+      if nil == params then
+        return nil, "'params' is nil."
+      end
+      if "table" ~= type(params) then
+        return nil, "'params' is not a table, actual is '"..type(params).."'." 
+      end
+      schema = params["schema"]
+      if nil == schema then
+        return nil, "'schema' is nil"
+      elseif "script" == schema then
+        return mj.execute_script(action, params["script"], params)
+      else
+        return mj.execute_module(schema, action, params)
+      end
     end)
 end
 
-function loop ()
-  print("lua enter looping")
-  local action, params = receive()  -- get new value
-  while "__exit__" ~= action do
-    print("lua vm receive - '%s' and '%s' \n", action, params)
-    co = execute_task(action, params)
-    action, params = send(co)
+
+function mj.loop()
+
+  mj.os = __mj_os or "unknown"  -- 386, amd64, or arm.
+  mj.arch = __mj_arch or "unknown" -- darwin, freebsd, linux or windows
+  mj.execute_directory = __mj_execute_directory or "."
+  mj.work_directory = __mj_work_directory or "."
+
+  local ext = ".so"
+  if mj.os == "windows" then
+    ext = ".dll"
   end
-  print("lua exit looping")
+
+  if nil ~= __mj_execute_directory then
+    package.path = package.path .. ";" .. mj.execute_directory .. "\\modules\\?.lua" ..
+       ";" .. mj.execute_directory .. "\\modules\\?\\init.lua"
+
+    package.cpath = package.cpath .. ";" .. mj.execute_directory .. "\\modules\\?" .. ext ..
+        ";" .. mj.execute_directory .. "\\modules\\?\\loadall" .. ext
+  end
+
+  if nil ~= __mj_work_directory then
+    package.path = package.path .. ";" .. mj.work_directory .. "\\modules\\?.lua" ..
+       ";" .. mj.work_directory .. "\\modules\\?\\init.lua"
+
+    package.cpath = package.cpath .. ";" .. mj.work_directory .. "\\modules\\?" .. ext ..
+        ";" .. mj.work_directory .. "\\modules\\?\\loadall" .. ext
+  end
+
+
+  mj.log(SYSTEM, "lua enter looping")
+  local action, params = mj.receive()  -- get new value
+  while "__exit__" ~= action do
+    mj.log(SYSTEM, "lua vm receive - '"..action.."'")
+
+    co = mj.execute_task(action, params)
+    action, params = mj.send_and_recv(co)
+  end
+  mj.log(SYSTEM, "lua exit looping")
 end
 
-print("welcome to lua vm")
-loop ()
+_G["mj"] = mj
+package.loaded["mj"] = mj
+package.preload["mj"] = mj
+mj.log(SYSTEM, "welcome to lua vm")
+mj.loop ()
 `
 
 	LUA_YIELD     int = C.LUA_YIELD
@@ -73,10 +172,9 @@ const (
 
 type LuaDriver struct {
 	snmp.Svc
-	init_path   string
-	ls          *C.lua_State
-	init_script string
-	waitG       sync.WaitGroup
+	init_path string
+	ls        *C.lua_State
+	waitG     sync.WaitGroup
 }
 
 type Continuous struct {
@@ -96,8 +194,8 @@ type Continuous struct {
 // 	svc.onStop = onStop
 // 	svc.onTimeout = onTimeout
 // }
-func NewLuaDriver(init_script string) *LuaDriver {
-	driver := &LuaDriver{init_script: init_script}
+func NewLuaDriver() *LuaDriver {
+	driver := &LuaDriver{}
 	driver.Name = "lua_driver"
 	driver.Set(func() { driver.atStart() }, func() { driver.atStop() }, nil)
 	return driver
@@ -150,7 +248,10 @@ func (driver *LuaDriver) lua_init(ls *C.lua_State) C.int {
 		driver.Logger.Printf("LuaDriver: '%s' is not exist.", pa)
 	}
 
-	cs = C.CString(driver.init_script)
+	if nil != cs {
+		C.free(unsafe.Pointer(cs))
+	}
+	cs = C.CString(lua_init_script)
 	return C.luaL_loadstring(ls, cs)
 }
 
@@ -225,12 +326,9 @@ func (driver *LuaDriver) atStart() {
 	C.luaL_openlibs(ls)
 
 	if "" == driver.init_path {
-		driver.init_path = "lua_init.lua"
+		driver.init_path = "core.lua"
 	}
 
-	if "" == driver.init_script {
-		driver.init_script = lua_init_script
-	}
 	ret := driver.lua_init(ls)
 
 	if LUA_ERRFILE == ret {
@@ -282,7 +380,7 @@ func (driver *LuaDriver) newContinuous(action string, params map[string]string) 
 	if C.LUA_YIELD != ret {
 		if 0 == ret {
 			return &Continuous{status: LUA_EXECUTE_FAILED,
-				err: errors.New("'lua_init.lua' is directly exited.")}
+				err: errors.New("'core.lua' is directly exited.")}
 		} else {
 			return &Continuous{status: LUA_EXECUTE_FAILED,
 				err: getError(driver.ls, ret, "switch to main fiber failed")}

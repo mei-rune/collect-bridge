@@ -351,41 +351,34 @@ func oidRead(src *C.asn_oid_t) *SnmpOid {
 	return NewOid(subs)
 }
 
-// void snmp_pdu_init_secparams(snmp_pdu_t *pdu)
-// {
-//     int32_t rval;
+var is_test bool = false
+var debug_salt []byte = make([]byte, 8)
 
-//     if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH)
-//         pdu->flags |= SNMP_MSG_AUTH_FLAG;
+func debug_init_secparams(pdu *C.snmp_pdu_t) {
+	if pdu.user.auth_proto != C.SNMP_AUTH_NOAUTH {
+		pdu.flags |= C.SNMP_MSG_AUTH_FLAG
+	}
 
-//     switch (pdu->user.priv_proto) {
-//     case SNMP_PRIV_DES:
-//         memcpy(pdu->msg_salt, &pdu->engine.engine_boots,
-//             sizeof(pdu->engine.engine_boots));
-//         rval = random();
-//         memcpy(pdu->msg_salt + sizeof(pdu->engine.engine_boots), &rval,
-//             sizeof(int32_t));
-//         pdu->flags |= SNMP_MSG_PRIV_FLAG;
-//         break;
-//     case SNMP_PRIV_AES:
-//         rval = random();
-//         memcpy(pdu->msg_salt, &rval, sizeof(int32_t));
-//         rval = random();
-//         memcpy(pdu->msg_salt + sizeof(int32_t), &rval, sizeof(int32_t));
-//         pdu->flags |= SNMP_MSG_PRIV_FLAG;
-//         break;
-//     default:
-//         break;
-//     }
-// }
+	switch pdu.user.priv_proto {
+	case C.SNMP_PRIV_DES:
+		memcpy(&pdu.msg_salt[0], 8, debug_salt)
+		pdu.flags |= C.SNMP_MSG_PRIV_FLAG
+	case C.SNMP_PRIV_AES:
+		memcpy(&pdu.msg_salt[0], 8, debug_salt)
+		pdu.flags |= C.SNMP_MSG_PRIV_FLAG
+	}
+}
 
 func encodeNativePdu(pdu *C.snmp_pdu_t) ([]byte, error) {
 	bytes := make([]byte, int(pdu.engine.max_msg_size))
 	var buffer C.asn_buf_t
 	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
 	buffer.asn_len = C.size_t(len(bytes))
-
-	C.snmp_pdu_init_secparams(pdu)
+	if is_test {
+		debug_init_secparams(pdu)
+	} else {
+		C.snmp_pdu_init_secparams(pdu)
+	}
 	//C.snmp_pdu_dump(pdu)
 	ret_code := C.snmp_pdu_encode(pdu, &buffer)
 	if 0 != ret_code {

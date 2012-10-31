@@ -360,8 +360,18 @@ func TestDecodeV3PDU(t *testing.T) {
 	des, _ := hex.DecodeString("e71b799c9cb2eab59b71e6e1d23b6b64")
 	aes, _ := hex.DecodeString("ddab124da80010de687447b013d8ce96642b38cd")
 	testDecodeV3PDU(t, snmpv3_noauth_txt, SNMP_AUTH_NOAUTH, "mfk1234", SNMP_PRIV_NOPRIV, nil, "test no priv - ")
+	//  msg_salt 8: 03 00 00 00 29 00 00 00
+
+	//is_test = true
+	debug_salt[0] = 3
+	debug_salt[4] = 2*16 + 9
+
 	testDecodeV3PDU(t, snmpv3_md5_txt, SNMP_AUTH_HMAC_MD5, "mfk1234", SNMP_PRIV_NOPRIV, nil, "test auth=md5 - ")
 	testDecodeV3PDU(t, snmpv3_md5_des_txt, SNMP_AUTH_HMAC_MD5, "mfk1234", SNMP_PRIV_DES, des, "test auth=md5 and priv=des - ")
+
+	//is_test = true
+	debug_salt[0] = 3
+	debug_salt[4] = 2*16 + 9
 	testDecodeV3PDU(t, snmpv3_sha_txt, SNMP_AUTH_HMAC_SHA, "mfk1234", SNMP_PRIV_NOPRIV, nil, "test auth=sha - ")
 	testDecodeV3PDU(t, snmpv3_sha_aes_txt, SNMP_AUTH_HMAC_SHA, "mfk1234", SNMP_PRIV_AES, aes, "test auth=sha and priv=aes - ")
 }

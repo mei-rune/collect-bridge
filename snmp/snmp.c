@@ -358,6 +358,7 @@ static enum asn_err parse_secparams(asn_buf_t *b, snmp_pdu_t *pdu)
     tb.asn_ptr = buf;
     tb.asn_len = 256;
 
+
     if (asn_get_octetstring(b, buf, &tb.asn_len) != ASN_ERR_OK) {
         snmp_error("cannot parse usm header");
         return (ASN_ERR_FAILED);
@@ -504,7 +505,6 @@ enum snmp_code snmp_pdu_decode(asn_buf_t *b, snmp_pdu_t *pdu, int32_t *ip)
         if ((code = snmp_pdu_decode_secmode(b, pdu)) != SNMP_CODE_OK)
             return (code);
     }
-
     code = snmp_pdu_decode_scoped(b, pdu, ip);
 
     switch (code) {
@@ -591,11 +591,15 @@ enum snmp_code snmp_pdu_decode_header(asn_buf_t *b, snmp_pdu_t *pdu)
             return (SNMP_CODE_FAILED);
         }
 
-        if (pdu->security_model != SNMP_SECMODEL_USM)
+        if (pdu->security_model != SNMP_SECMODEL_USM) {
+            snmp_error("unsupported security model type - %d", pdu->security_model);
             return (SNMP_CODE_FAILED);
+        }
 
-        if (parse_secparams(b, pdu) != ASN_ERR_OK)
+        if (parse_secparams(b, pdu) != ASN_ERR_OK) {
+            snmp_error("parse security params type");
             return (SNMP_CODE_FAILED);
+        }
     } else {
         octs_len = SNMP_COMMUNITY_MAXLEN;
         if (asn_get_octetstring(b, (u_char *)pdu->community,
@@ -699,13 +703,12 @@ enum snmp_code snmp_pdu_decode_secmode(asn_buf_t *b, snmp_pdu_t *pdu)
     u_char type;
     enum snmp_code code;
     uint8_t	digest[SNMP_USM_AUTH_SIZE];
-
     if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH &&
         (pdu->flags & SNMP_MSG_AUTH_FLAG) == 0)
         return (SNMP_CODE_BADSECLEVEL);
 
     if ((code = snmp_pdu_calc_digest(pdu, digest)) != SNMP_CODE_OK)
-        return (SNMP_CODE_FAILED);
+        return (code);
 
     if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH &&
         memcmp(digest, pdu->msg_digest, sizeof(pdu->msg_digest)) != 0)
@@ -723,7 +726,7 @@ enum snmp_code snmp_pdu_decode_secmode(asn_buf_t *b, snmp_pdu_t *pdu)
         return (SNMP_CODE_BADSECLEVEL);
 
     if ((code = snmp_pdu_decrypt(pdu)) != SNMP_CODE_OK)
-        return (SNMP_CODE_FAILED);
+        return (code);
 
     return (code);
 }
@@ -928,8 +931,8 @@ enum snmp_code snmp_fix_encoding(asn_buf_t *b, snmp_pdu_t *pdu)
         if (pdu->security_model != SNMP_SECMODEL_USM)
             return (SNMP_CODE_FAILED);
 
-        if (snmp_pdu_encrypt(pdu) != SNMP_CODE_OK)
-            return (SNMP_CODE_FAILED);
+        if ((code = snmp_pdu_encrypt(pdu)) != SNMP_CODE_OK)
+            return code;
 
         if (pdu->user.priv_proto != SNMP_PRIV_NOPRIV &&
             asn_commit_header(b, pdu->encrypted_ptr, NULL) != ASN_ERR_OK)
@@ -945,7 +948,7 @@ enum snmp_code snmp_fix_encoding(asn_buf_t *b, snmp_pdu_t *pdu)
     if (pdu->version == SNMP_V3) {
         if ((code = snmp_pdu_calc_digest(pdu, pdu->msg_digest)) !=
             SNMP_CODE_OK)
-            return (SNMP_CODE_FAILED);
+            return code;
 
         if ((pdu->flags & SNMP_MSG_AUTH_FLAG) != 0)
             memcpy(pdu->digest_ptr, pdu->msg_digest,

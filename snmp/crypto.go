@@ -14,6 +14,8 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"encoding/binary"
+	//"encoding/hex"
+	//"encoding/hex"
 	"errors"
 	"fmt"
 	"unsafe"
@@ -82,6 +84,10 @@ func SC_DES_Crypt(is_encrypt int, salt *C.uint8_t, salt_len C.uint32_t,
 	msg_salt := readGoBytes(salt, salt_len)
 	priv_key := readGoBytes(key, key_len)
 	scoped := readGoBytes(scoped_ptr, scoped_len)
+
+	// bytes := make([]byte, len(scoped))
+	// copy(bytes, scoped)
+
 	var err error
 	if is_encrypt == 0 {
 		err = sc_des_crypt(false, msg_salt, priv_key, scoped)
@@ -91,6 +97,13 @@ func SC_DES_Crypt(is_encrypt int, salt *C.uint8_t, salt_len C.uint32_t,
 
 	if nil == err {
 		memcpy(scoped_ptr, int(scoped_len), scoped)
+
+		// if 0 == is_encrypt {
+		//	fmt.Println("priv_key=" + hex.EncodeToString(priv_key))
+		//	fmt.Println("data=" + hex.EncodeToString(bytes))
+		//	fmt.Println("encryptoed=" + hex.EncodeToString(scoped))
+		// }
+
 		return C.SNMP_CODE_OK
 	}
 	strcpy(err_msg, err_len, err.Error())
@@ -143,6 +156,10 @@ func SC_AES_Crypt(is_encrypt int, engine_boots, engine_time int,
 	msg_salt := readGoBytes(salt, salt_len)
 	priv_key := readGoBytes(key, key_len)
 	scoped := readGoBytes(scoped_ptr, scoped_len)
+
+	//bytes := make([]byte, len(scoped))
+	//copy(bytes, scoped)
+
 	var err error
 	if is_encrypt == 0 {
 		err = sc_aes_crypt(false, engine_boots, engine_time, msg_salt, priv_key, scoped)
@@ -151,6 +168,12 @@ func SC_AES_Crypt(is_encrypt int, engine_boots, engine_time int,
 	}
 
 	if nil == err {
+		// if 0 == is_encrypt {
+		//	fmt.Println("priv_key=" + hex.EncodeToString(priv_key))
+		//	fmt.Println("data=" + hex.EncodeToString(bytes))
+		//	fmt.Println("encryptoed=" + hex.EncodeToString(scoped))
+		// }
+
 		memcpy(scoped_ptr, int(scoped_len), scoped)
 		return C.SNMP_CODE_OK
 	}
@@ -168,7 +191,8 @@ func sc_aes_decrypt(engine_boots, engine_time int, msg_salt, key, data []byte) e
 
 //export SCGenerateDigest
 func SCGenerateDigest(hash_type int, key *C.uint8_t, key_len C.uint32_t,
-	scoped_ptr *C.uint8_t, scoped_len C.uint32_t, err_msg *C.char, err_len int) C.enum_snmp_code {
+	scoped_ptr *C.uint8_t, scoped_len C.uint32_t,
+	out_ptr *C.uint8_t, out_len C.uint32_t, err_msg *C.char, err_len int) C.enum_snmp_code {
 
 	priv_key := readGoBytes(key, key_len)
 	scoped := readGoBytes(scoped_ptr, scoped_len)
@@ -185,7 +209,10 @@ func SCGenerateDigest(hash_type int, key *C.uint8_t, key_len C.uint32_t,
 	}
 
 	if nil == err {
-		memcpy(scoped_ptr, int(scoped_len), bytes)
+		memcpy(out_ptr, int(out_len), bytes)
+		// fmt.Println("digest_key=" + hex.EncodeToString(priv_key))
+		// fmt.Println("digest_data=" + hex.EncodeToString(scoped))
+		// fmt.Println("digest=" + hex.EncodeToString(bytes))
 		return C.SNMP_CODE_OK
 	}
 	strcpy(err_msg, err_len, err.Error())

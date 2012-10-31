@@ -23,12 +23,16 @@ type VB struct {
 }
 
 var (
-	proxy        = flag.String("proxy", "127.0.0.1:7070", "the address of proxy server, default: 127.0.0.1:7070")
-	target       = flag.String("target", "127.0.0.1,161", "the address of snmp agent, default: 127.0.0.1,161")
-	community    = flag.String("community", "public", "the community of snmp agent, default: public")
-	started_oid  = flag.String("oid", "1.3.6", "the start oid, default: 1.3.6")
-	from_charset = flag.String("charset", "GB18030", "the charset of octet string, default: GB18030")
-	help         = flag.Bool("h", false, "print help")
+	proxy           = flag.String("proxy", "127.0.0.1:7070", "the address of proxy server, default: 127.0.0.1:7070")
+	target          = flag.String("target", "127.0.0.1,161", "the address of snmp agent, default: 127.0.0.1,161")
+	community       = flag.String("community", "public", "the community of snmp agent, default: public")
+	version         = flag.String("version", "2c", "the version of snmp protocal, default: 2c")
+	secret_name     = flag.String("name", "", "the name, default: \"\"")
+	auth_passphrase = flag.String("auth", "", "the auth passphrase, default: \"\"")
+	priv_passphrase = flag.String("priv", "", "the priv passphrase, default: \"\"")
+	started_oid     = flag.String("oid", "1.3.6", "the start oid, default: 1.3.6")
+	from_charset    = flag.String("charset", "GB18030", "the charset of octet string, default: GB18030")
+	help            = flag.Bool("h", false, "print help")
 
 	decoder mahonia.Decoder
 	out     io.Writer
@@ -181,7 +185,23 @@ func main() {
 
 	oid := *started_oid
 	for {
-		url := fmt.Sprintf("http://%s/snmp/next/%s/%s?community=%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *community)
+		var url string
+		switch *version {
+		case "2", "2c", "v2", "v2c", "1", "v1":
+			url = fmt.Sprintf("http://%s/snmp/next/%s/%s?community=%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *community)
+		case "3", "v3":
+			url = fmt.Sprintf("http://%s/snmp/next/%s/%s?version=3&secmodel=usm&secname=%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *secret_name)
+			if "" != *auth_passphrase {
+				url = url + "&auth_pass=" + *auth_passphrase
+				if "" != *priv_passphrase {
+					url = url + "&priv_pass=" + *priv_passphrase
+				}
+			}
+		default:
+			fmt.Println("version is error.")
+			break
+		}
+
 		fmt.Println("Get " + url)
 		resp, err := http.Get(url)
 		if nil != err {

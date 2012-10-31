@@ -39,10 +39,11 @@ type V2CPDU struct {
 
 func (pdu *V2CPDU) Init(params map[string]string) error {
 	community, ok := params["community"]
-	if ok {
+	if ok && "" != community {
 		pdu.community = community
+		return nil
 	}
-	return nil
+	return errors.New("community is empty.")
 }
 
 func (pdu *V2CPDU) GetRequestID() int {
@@ -193,6 +194,7 @@ func (pdu *V3PDU) GetRequestID() int {
 
 func (pdu *V3PDU) SetRequestID(id int) {
 	pdu.requestId = id
+	pdu.identifier = id
 }
 
 func (pdu *V3PDU) GetVersion() SnmpVersion {
@@ -382,8 +384,8 @@ func encodeNativePdu(pdu *C.snmp_pdu_t) ([]byte, error) {
 	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
 	buffer.asn_len = C.size_t(len(bytes))
 
-	C.snmp_pdu_dump(pdu)
 	C.snmp_pdu_init_secparams(pdu)
+	//C.snmp_pdu_dump(pdu)
 	ret_code := C.snmp_pdu_encode(pdu, &buffer)
 	if 0 != ret_code {
 		err := errors.New(C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
@@ -487,21 +489,85 @@ func decodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) {
 	}
 }
 
-func DecodePDU(bytes []byte) (PDU, error) {
+func DecodePDUHeader(buffer *C.asn_buf_t, pdu *C.snmp_pdu_t) error {
+	C.snmp_pdu_init(pdu)
+
+	ret_code := C.snmp_pdu_decode_header(buffer, pdu)
+	if 0 != ret_code {
+		return errors.New("decode pdu header failed -" + C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
+	}
+	return nil
+}
+
+func FillUser(pdu *C.snmp_pdu_t,
+	auth_proto AuthType, auth_key []byte,
+	priv_proto PrivType, priv_key []byte) error {
+
+	pdu.user.auth_proto = uint32(auth_proto)
+	err := memcpy(&pdu.user.auth_key[0], C.SNMP_AUTH_KEY_SIZ, auth_key)
+	if nil != err {
+		return errors.New("set auth_key failed - " + err.Error())
+	}
+	pdu.user.auth_len = C.size_t(len(auth_key))
+
+	pdu.user.priv_proto = uint32(priv_proto)
+	err = memcpy(&pdu.user.priv_key[0], C.SNMP_PRIV_KEY_SIZ, priv_key)
+	if nil != err {
+		return errors.New("set priv_key failed - " + err.Error())
+	}
+	pdu.user.priv_len = C.size_t(len(priv_key))
+
+	return nil
+}
+
+func DecodePDUBody(buffer *C.asn_buf_t, pdu *C.snmp_pdu_t) error {
+	var recv_len C.int32_t
+	var ret_code uint32
+
+	if C.SNMP_V3 == pdu.version {
+		if C.SNMP_SECMODEL_USM != pdu.security_model {
+			return fmt.Errorf("unsupport security model - %d", int(pdu.security_model))
+		}
+
+		if ret_code = C.snmp_pdu_decode_secmode(buffer, pdu); C.SNMP_CODE_OK != ret_code {
+			return errors.New(C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
+		}
+	}
+
+	if ret_code = C.snmp_pdu_decode_scoped(buffer, pdu, &recv_len); C.SNMP_CODE_OK != ret_code {
+		switch ret_code {
+		case C.SNMP_CODE_BADENC:
+			if C.SNMP_Verr == pdu.version {
+				return fmt.Errorf("unsupport security model - %d", int(pdu.security_model))
+			}
+		}
+
+		return errors.New(C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
+	}
+	return nil
+}
+
+func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, error) {
 	var buffer C.asn_buf_t
 	var pdu C.snmp_pdu_t
-	var recv_len C.int32_t
 
 	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
 	buffer.asn_len = C.size_t(len(bytes))
 
-	C.snmp_pdu_init(&pdu)
-	ret_code := C.snmp_pdu_decode(&buffer, &pdu, &recv_len)
-	if 0 != ret_code {
-		err := errors.New(C.GoString(C.snmp_pdu_get_error(&pdu, ret_code)))
+	err := DecodePDUHeader(&buffer, &pdu)
+	if nil != err {
 		return nil, err
 	}
 	defer C.snmp_pdu_free(&pdu)
+
+	err = FillUser(&pdu, SNMP_AUTH_NOAUTH, nil, priv_type, priv_key)
+	if nil != err {
+		return nil, err
+	}
+	err = DecodePDUBody(&buffer, &pdu)
+	if nil != err {
+		return nil, err
+	}
 
 	if uint32(SNMP_V3) == pdu.version {
 		var v3 V3PDU
@@ -510,6 +576,37 @@ func DecodePDU(bytes []byte) (PDU, error) {
 	var v2 V2CPDU
 	return &v2, v2.decodePDU(&pdu)
 }
+
+// func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, error) {
+//	var buffer C.asn_buf_t
+//	var pdu C.snmp_pdu_t
+//	var recv_len C.int32_t
+
+//	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
+//	buffer.asn_len = C.size_t(len(bytes))
+
+//	C.snmp_pdu_init(&pdu)
+//	pdu.user.priv_proto = uint32(priv_type)
+//	err := memcpy(&pdu.user.priv_key[0], C.SNMP_PRIV_KEY_SIZ, priv_key)
+//	if nil != err {
+//		return nil, errors.New("set priv_key failed - " + err.Error())
+//	}
+//	pdu.user.priv_len = C.size_t(len(priv_key))
+
+//	ret_code := C.snmp_pdu_decode(&buffer, &pdu, &recv_len)
+//	if 0 != ret_code {
+//		err = errors.New(C.GoString(C.snmp_pdu_get_error(&pdu, ret_code)))
+//		return nil, err
+//	}
+//	defer C.snmp_pdu_free(&pdu)
+
+//	if uint32(SNMP_V3) == pdu.version {
+//		var v3 V3PDU
+//		return &v3, v3.decodePDU(&pdu)
+//	}
+//	var v2 V2CPDU
+//	return &v2, v2.decodePDU(&pdu)
+// }
 
 func EncodePDU(pdu PDU) ([]byte, error) {
 	if pdu.GetVersion() != SNMP_V3 {

@@ -1,5 +1,10 @@
 package snmp
 
+// #include "bsnmp/config.h"
+// #include "bsnmp/asn1.h"
+// #include "bsnmp/snmp.h"
+// #include "bsnmp/gobindings.h"
+import "C"
 import (
 	"errors"
 	"flag"
@@ -7,6 +12,7 @@ import (
 	"log"
 	"net"
 	"time"
+	"unsafe"
 )
 
 var maxPDUSize = flag.Int("maxPDUSize", 10240, "set max size of pdu")
@@ -100,11 +106,6 @@ func (client *UdpClient) createConnect() (err error) {
 func (client *UdpClient) discoverEngine(fn func(PDU, error)) {
 	usm := &USM{auth_proto: SNMP_AUTH_NOAUTH, priv_proto: SNMP_PRIV_NOPRIV}
 	pdu := &V3PDU{op: SNMP_PDU_GET, target: client.host, securityModel: usm}
-	defer func() {
-		if 0 != pdu.GetRequestID() {
-			delete(client.pendings, pdu.GetRequestID())
-		}
-	}()
 
 	client.sendPdu(pdu, nil, fn)
 }
@@ -118,7 +119,7 @@ func (client *UdpClient) sendV3PDU(ctx InvokedContext, pdu *V3PDU) {
 
 func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 
-	if nil != pdu.engine.engine_id && 0 != len(pdu.engine.engine_id) {
+	if nil != pdu.engine && nil != pdu.engine.engine_id && 0 != len(pdu.engine.engine_id) {
 		client.sendV3PDU(ctx, pdu)
 		return
 	}
@@ -130,6 +131,7 @@ func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 	}
 
 	client.discoverEngine(func(resp PDU, err error) {
+
 		if nil != err {
 			ctx.Reply(nil, errors.New("discover engine failed - "+err.Error()))
 			return
@@ -139,6 +141,7 @@ func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 			ctx.Reply(nil, errors.New("discover engine failed - oooooooooooo! it is not v3pdu"))
 			return
 		}
+
 		client.engine.CopyFrom(v3.engine)
 		client.sendV3PDU(ctx, pdu)
 	})
@@ -167,22 +170,80 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 }
 
 func (client *UdpClient) handleRecv(bytes []byte) {
-	pdu, err := DecodePDU(bytes)
-	if 0 == pdu.GetRequestID() && nil != err {
+
+	var buffer C.asn_buf_t
+	var pdu C.snmp_pdu_t
+	var result PDU
+	var req *Request
+	var ok bool
+
+	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
+	buffer.asn_len = C.size_t(len(bytes))
+
+	err := DecodePDUHeader(&buffer, &pdu)
+	if nil != err {
 		log.Printf("%v\r\n", err)
 		return
 	}
+	defer C.snmp_pdu_free(&pdu)
 
-	req, ok := client.pendings[pdu.GetRequestID()]
-	if !ok {
-		log.Printf("not found request whit requestId = %d.\r\n", pdu.GetRequestID())
-		return
+	if uint32(SNMP_V3) == pdu.version {
+
+    C.snmp_pdu_dump(&pdu)
+		req, ok = client.pendings[int(pdu.identifier)]
+		if !ok {
+			log.Printf("not found request with requestId = %d.\r\n", int(pdu.identifier))
+			return
+		}
+
+		v3old, ok := req.pdu.(*V3PDU)
+		if !ok {
+			err = errors.New("receive pdu is a v3 pdu.")
+			goto complete
+		}
+		usm, ok := v3old.securityModel.(*USM)
+		if !ok {
+			err = errors.New("receive pdu is not usm.")
+			goto complete
+		}
+		err = FillUser(&pdu, usm.auth_proto, usm.localization_auth_key,
+			usm.priv_proto, usm.localization_priv_key)
+		if nil != err {
+			log.Printf("%v\r\n", err)
+			goto complete
+		}
+
+		err = DecodePDUBody(&buffer, &pdu)
+		if nil != err {
+			log.Printf("%v\r\n", err)
+			goto complete
+		}
+		var v3 V3PDU
+		err = v3.decodePDU(&pdu)
+		result = &v3
+	} else {
+		err = DecodePDUBody(&buffer, &pdu)
+		if nil != err {
+			log.Printf("%v\r\n", err)
+			return
+		}
+
+		req, ok = client.pendings[int(pdu.request_id)]
+		if !ok {
+			log.Printf("not found request with requestId = %d.\r\n", int(pdu.identifier))
+			return
+		}
+
+		var v2 V2CPDU
+		err = v2.decodePDU(&pdu)
+		result = &v2
 	}
 
+complete:
 	if nil != req.ctx {
-		req.ctx.Reply(pdu, err)
+		req.ctx.Reply(result, err)
 	} else {
-		req.callback(pdu, err)
+		req.callback(result, err)
 	}
 }
 

@@ -176,6 +176,14 @@ func (svc *MockSvc) SendInt(a int) (resp int, err error) {
 	return
 }
 
+func TestSvcStartFailed(t *testing.T) {
+	var mock MockSvc
+	mock.Set(func() { panic("this is error") }, nil, nil)
+	if nil == mock.Start() {
+		t.Errorf("start svc failed, expect return a error, actual is success.")
+	}
+}
+
 func TestSvc(t *testing.T) {
 	var mock MockSvc
 	mock.Start()

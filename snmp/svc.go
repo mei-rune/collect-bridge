@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"reflect"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,7 +34,7 @@ func (err *TwinceError) Error() string {
 	return err.message
 }
 
-func newTwinceError(first, second error) error {
+func NewTwinceError(first, second error) error {
 	msg := fmt.Sprintf("return two error, first is {%s}, second is {%s}",
 		first.Error(), second.Error())
 	return &TwinceError{message: msg, first: first, second: second}
@@ -138,11 +140,19 @@ const (
 )
 
 type Svc struct {
-	initialized                sync.Once
-	status                     int32
-	ch                         chan *message
-	timeout                    time.Duration
-	onStart, onStop, onTimeout func()
+	Name                    string
+	Logger                  *log.Logger
+	initialized             sync.Once
+	status                  int32
+	ch                      chan *message
+	timeout                 time.Duration
+	onStart, onStop, onIdle func()
+}
+
+func (svc *Svc) Set(onStart, onStop, onIdle func()) {
+	svc.onStart = onStart
+	svc.onStop = onStop
+	svc.onIdle = onIdle
 }
 
 func (svc *Svc) FuncOf(target interface{}, name string) *reflect.Value {
@@ -158,28 +168,56 @@ func (svc *Svc) Start() (err error) {
 	svc.initialized.Do(func() {
 		svc.status = status_inactive
 		svc.ch = make(chan *message)
+		if "" == svc.Name {
+			svc.Name = "SVC-" + strconv.Itoa(time.Now().Second())
+		}
+
+		if nil == svc.Logger {
+			svc.Logger = log.New(os.Stdout, svc.Name+" - ", log.LstdFlags|log.Lshortfile)
+		} else if "" == svc.Logger.Prefix() {
+			svc.Logger.SetPrefix(svc.Name + " - ")
+			svc.Logger.SetFlags(svc.Logger.Flags() | log.Lshortfile)
+		}
 	})
 	if !atomic.CompareAndSwapInt32(&svc.status, status_inactive, status_active) {
 		return
 	}
 
-	if nil != svc.onStart {
-		svc.onStart()
+	go serve(svc)
+
+	msg := <-svc.ch
+	if MESSAGE_RET_PANIC == msg.response.responseType {
+		err = msg.response.panicResult.(error)
+		return
 	}
 
-	go serve(svc)
 	return
 }
 
 func (svc *Svc) Stop() {
 	if !atomic.CompareAndSwapInt32(&svc.status, status_active, status_inactive) {
+		svc.Logger.Printf("It is already exited\r\n")
 		return
 	}
 
-	msg := new(message)
-	msg.ch = nil
+	msg := getCachedChannel()
+	var success bool = false
+	defer func() {
+		if success {
+			putCachedChannel(msg)
+		}
+	}()
+
 	msg.request.messageType = MESSAGE_TYPE_SYSTEM
+	msg.request.function = nil
 	svc.ch <- msg
+	select {
+	case <-msg.ch:
+		success = true
+	case <-time.After(5 * time.Minute):
+		panic(errors.New("time out"))
+	}
+	return
 }
 
 func function2Value(function interface{}) (fvp *reflect.Value) {
@@ -240,7 +278,7 @@ func (svc *Svc) SafelyCall(timeout time.Duration, function interface{}, args ...
 			case nil == results || 0 == len(results):
 				results = []interface{}{err}
 			case nil != results[len(results)].(error):
-				results[len(results)-1] = newTwinceError(results[len(results)-1].(error), err)
+				results[len(results)-1] = NewTwinceError(results[len(results)-1].(error), err)
 			default:
 				results = append(results, err)
 			}
@@ -327,17 +365,20 @@ func (svc *Svc) innerCall(timeout time.Duration, function interface{}, args []in
 
 func serve(svc *Svc) {
 
-	exited := false
+	var exit_ch chan *message = nil
+	var exit_msg *message = nil
+	isStarted := false
 
 	defer func() {
 		atomic.CompareAndSwapInt32(&svc.status, status_active, status_inactive)
-		handleExit(svc)
-		if !exited {
-			if err := recover(); nil != err {
-				log.Printf("%v\r\n", err)
-			} else {
-				log.Println("svc failed!")
-			}
+		if isStarted {
+			handleExit(svc)
+		}
+		if err := recover(); nil != err {
+			svc.Logger.Printf("%v\r\n", err)
+		}
+		if nil != exit_ch {
+			exit_ch <- exit_msg
 		}
 	}()
 
@@ -346,9 +387,23 @@ func serve(svc *Svc) {
 	}
 
 	if nil == svc.ch {
-		log.Println("svc failed!")
+		svc.Logger.Println("start svc failed, ch is nil!")
 		return
 	}
+
+	start_resp_msg := &message{}
+
+	se := handleStart(svc)
+	if nil != se {
+		start_resp_msg.response.responseType = MESSAGE_RET_PANIC
+		start_resp_msg.response.panicResult = se
+		exit_msg = start_resp_msg
+		exit_ch = svc.ch
+		return
+	}
+	start_resp_msg.response.responseType = MESSAGE_RET_OK
+	svc.ch <- start_resp_msg
+	isStarted = true
 
 	for {
 		select {
@@ -358,6 +413,10 @@ func serve(svc *Svc) {
 			}
 			if msg.request.messageType == MESSAGE_TYPE_SYSTEM {
 				if nil == msg.request.function {
+					if nil != msg.ch {
+						exit_msg = msg
+						exit_ch = msg.ch
+					}
 					goto exit
 				}
 			}
@@ -367,15 +426,28 @@ func serve(svc *Svc) {
 		}
 	}
 exit:
-	exited = true
-	log.Printf("channel is closed or recv an exit message!\r\n")
+	svc.Logger.Printf("channel is closed or recv an exit message!\r\n")
+}
+
+func handleStart(svc *Svc) (err error) {
+
+	defer func() {
+		if e := recover(); nil != e {
+			err = NewPanicError("call onStart failed - ", e)
+		}
+	}()
+
+	if nil != svc.onStart {
+		svc.onStart()
+	}
+	return
 }
 
 func handleExit(svc *Svc) {
 
 	defer func() {
 		if err := recover(); nil != err {
-			log.Printf("on exit - %v\r\n", err)
+			svc.Logger.Printf("on exit - %v\r\n", err)
 		}
 	}()
 
@@ -388,12 +460,12 @@ func handleTick(svc *Svc) {
 
 	defer func() {
 		if err := recover(); nil != err {
-			log.Printf("on exit - %v\r\n", err)
+			svc.Logger.Printf("on idle - %v\r\n", err)
 		}
 	}()
 
-	if nil != svc.onTimeout {
-		svc.onTimeout()
+	if nil != svc.onIdle {
+		svc.onIdle()
 	}
 }
 
@@ -408,7 +480,7 @@ func (svc *Svc) safelyCall(msg *message) {
 
 	defer func() {
 		if err := recover(); nil != err {
-			log.Printf("%v\r\n", err)
+			svc.Logger.Printf("%v\r\n", err)
 		}
 	}()
 

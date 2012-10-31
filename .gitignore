@@ -7,6 +7,8 @@ out/
 *.swp
 *.exe
 *.dll
+*.so
+*.lib
 *.a
 
 snmpget

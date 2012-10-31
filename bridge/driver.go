@@ -17,6 +17,9 @@ func Register(name string, driver Driver) {
 	}
 	drivers[name] = driver
 }
+func Unregister(name string) {
+	delete(drivers, name)
+}
 
 func Connect(name string) (Driver, bool) {
 	driver, ok := drivers[name]
@@ -60,6 +63,16 @@ func asBool(value interface{}) (bool, error) {
 		}
 	}
 	return false, errors.New("type assertion to bool failed")
+}
+
+func asInt(value interface{}) (int, error) {
+	a, err := asInt32(value)
+	return int(a), err
+}
+
+func asUint(value interface{}) (uint, error) {
+	a, err := asUint32(value)
+	return uint(a), err
 }
 
 // Int type asserts to `float64` then converts to `int`

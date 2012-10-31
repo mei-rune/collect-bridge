@@ -137,7 +137,6 @@ func (usm *USM) InitString(params map[string]string) error {
 	usm.auth_proto = auth_proto
 	usm.auth_passphrase = value
 	if 0 != int(hash) {
-		fmt.Println(value)
 		usm.auth_key, err = generate_keys(hash, value)
 		if nil != err {
 			return errors.New("generate auth key failed - " + err.Error())
@@ -166,6 +165,10 @@ func (usm *USM) IsLocalize() bool {
 	return nil != usm.localization_auth_key
 }
 func (usm *USM) Localize(key []byte) (err error) {
+	if 0 == int(usm.hash) {
+		return nil
+	}
+
 	usm.localization_auth_key, err = generate_localization_keys(usm.hash, usm.auth_key, key)
 	if nil != err {
 		return err

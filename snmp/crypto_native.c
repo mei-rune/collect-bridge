@@ -66,6 +66,7 @@ enum snmp_code snmp_pdu_calc_digest(const snmp_pdu_t *pdu, uint8_t *digest) {
 
   return SCGenerateDigest((GoInt)pdu->user.auth_proto, 
 	  (uint8_t *)pdu->user.auth_key, (uint32_t)pdu->user.auth_len, 
+	  (uint8_t *)pdu->outer_ptr, (uint32_t)pdu->outer_len,
 	  (uint8_t *)digest, (uint32_t)SNMP_USM_AUTH_SIZE,
 		(char *)pdu->error_message, (GoInt)1023);
 }
@@ -96,7 +97,7 @@ enum snmp_code snmp_pdu_crypt(int is_encrypt, const snmp_pdu_t *pdu) {
 			return SC_AES_Crypt((GoInt)is_encrypt, 
 				 (GoInt)pdu->engine.engine_boots, (GoInt)pdu->engine.engine_time,
 				 (uint8_t*)pdu->msg_salt, (uint32_t)8,
-				 (uint8_t*)pdu->user.priv_key, pdu->user.priv_len, 
+				 (uint8_t*)pdu->user.priv_key, (uint32_t)16,
 				 (uint8_t*)pdu->scoped_ptr, (uint32_t)pdu->scoped_len,
 				 (char *)pdu->error_message, (GoInt)1023);
 	}

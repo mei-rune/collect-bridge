@@ -7,6 +7,11 @@ import (
 )
 
 // ----------------md5 keys-----------------
+
+// pass=mfk1234, engine=01234567890123456789012345678901234567890123456789
+const md5_s_keys string = "81f88e44916dd2b22e2593fc8157969f"
+const md5_s_local_keys string = "7d3d689307ccf5dc76933bdf86578151"
+
 // pass=mfk12345678, engine=test1234567890
 const md5_keys string = "1b9b43d3068c326e2720d891d17f5f33"
 const md5_local_keys string = "74ebdba5135ec59610f8130c9036b105"
@@ -16,8 +21,19 @@ const md5_local_keys string = "74ebdba5135ec59610f8130c9036b105"
 const sha1_keys string = "46d6c5db15af91e470e81c771582b895e4d0d2c4"
 const sha1_local_keys string = "5c5efda5d88c6b76e0ea9fce63afb327ff2c14cc"
 
-func TestGenerate_keys(t *testing.T) {
-	bytes, _ := generate_keys(crypto.MD5, "mfk12345678")
+func TestGenerateKeys(t *testing.T) {
+	bytes, _ := generate_keys(crypto.MD5, "mfk1234")
+	if hex.EncodeToString(bytes) != md5_s_keys {
+		t.Log(hex.EncodeToString(bytes))
+		t.Error("generate s md5 keys failed.")
+	} else {
+		bytes, _ = generate_localization_keys(crypto.MD5, bytes, []byte("01234567890123456789012345678901"))
+		if hex.EncodeToString(bytes) != md5_s_local_keys {
+			t.Error("generate s md5 local keys failed.")
+		}
+	}
+
+	bytes, _ = generate_keys(crypto.MD5, "mfk12345678")
 	if hex.EncodeToString(bytes) != md5_keys {
 		t.Log(hex.EncodeToString(bytes))
 		t.Error("generate md5 keys failed.")

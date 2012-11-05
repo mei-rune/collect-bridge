@@ -1,10 +1,9 @@
 package main
 
-// #cgo LDFLAGS: -lm
 // #cgo windows CFLAGS: -DLUA_COMPAT_ALL -DLUA_COMPAT_ALL -I ./include
-// #cgo windows LDFLAGS: -L ./lib -llua52
+// #cgo windows LDFLAGS: -L ./lib -llua52 -lm
 // #cgo linux CFLAGS: -DLUA_USE_LINUX -DLUA_COMPAT_ALL
-// #cgo linux LDFLAGS: -ldl
+// #cgo linux LDFLAGS: -llua52 -ldl  -lm
 // #include <stdlib.h>
 // #include "lua.h"
 // #include "lualib.h"

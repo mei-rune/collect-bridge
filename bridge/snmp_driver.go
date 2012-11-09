@@ -66,7 +66,7 @@ func getAction(params map[string]string) (snmp.SnmpType, error) {
 }
 
 func internalError(msg string, err error) error {
-	return fmt.Errorf(msg + err.Error())
+	return fmt.Errorf(msg + "-" + err.Error())
 }
 
 func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string) (interface{}, error) {

@@ -214,6 +214,12 @@ func main() {
 			fmt.Println("read body failed - " + err.Error())
 			break
 		}
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Println(string(bytes))
+			break
+		}
+
 		var vbs map[string]string
 		err = json.Unmarshal(bytes, &vbs)
 		if nil != err {

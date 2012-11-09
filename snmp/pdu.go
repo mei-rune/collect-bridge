@@ -354,6 +354,14 @@ func oidRead(src *C.asn_oid_t) *SnmpOid {
 var is_test bool = false
 var debug_salt []byte = make([]byte, 8)
 
+func debug_test_enable() {
+	is_test = true
+}
+
+func debug_test_disable() {
+	is_test = false
+}
+
 func debug_init_secparams(pdu *C.snmp_pdu_t) {
 	if pdu.user.auth_proto != C.SNMP_AUTH_NOAUTH {
 		pdu.flags |= C.SNMP_MSG_AUTH_FLAG

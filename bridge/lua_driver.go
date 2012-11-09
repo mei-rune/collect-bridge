@@ -3,7 +3,7 @@ package main
 // #cgo windows CFLAGS: -DLUA_COMPAT_ALL -DLUA_COMPAT_ALL -I ./include
 // #cgo windows LDFLAGS: -L ./lib -llua52 -lm
 // #cgo linux CFLAGS: -DLUA_USE_LINUX -DLUA_COMPAT_ALL
-// #cgo linux LDFLAGS: -llua52 -ldl  -lm
+// #cgo linux LDFLAGS: -L. -llua52 -ldl  -lm
 // #include <stdlib.h>
 // #include "lua.h"
 // #include "lualib.h"
@@ -114,24 +114,26 @@ function mj.loop()
   mj.work_directory = __mj_work_directory or "."
 
   local ext = ".so"
+  local sep = "/"
   if mj.os == "windows" then
     ext = ".dll"
+    sep = "\\"
   end
 
   if nil ~= __mj_execute_directory then
-    package.path = package.path .. ";" .. mj.execute_directory .. "\\modules\\?.lua" ..
-       ";" .. mj.execute_directory .. "\\modules\\?\\init.lua"
+    package.path = package.path .. ";" .. mj.execute_directory .. sep .. "modules"..sep.."?.lua" ..
+       ";" .. mj.execute_directory .. sep .. "modules" .. sep .. "?" .. sep .. "init.lua"
 
-    package.cpath = package.cpath .. ";" .. mj.execute_directory .. "\\modules\\?" .. ext ..
-        ";" .. mj.execute_directory .. "\\modules\\?\\loadall" .. ext
+    package.cpath = package.cpath .. ";" .. mj.execute_directory .. sep .."modules" .. sep .. "?" .. ext ..
+        ";" .. mj.execute_directory .. sep .. "modules" .. sep .. "?" .. sep .. "loadall" .. ext
   end
 
   if nil ~= __mj_work_directory then
-    package.path = package.path .. ";" .. mj.work_directory .. "\\modules\\?.lua" ..
-       ";" .. mj.work_directory .. "\\modules\\?\\init.lua"
+    package.path = package.path .. ";" .. mj.work_directory .. sep .. "modules" .. sep .. "?.lua" ..
+       ";" .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. sep .. "init.lua"
 
-    package.cpath = package.cpath .. ";" .. mj.work_directory .. "\\modules\\?" .. ext ..
-        ";" .. mj.work_directory .. "\\modules\\?\\loadall" .. ext
+    package.cpath = package.cpath .. ";" .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. ext ..
+        ";" .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. sep .. "loadall" .. ext
   end
 
 

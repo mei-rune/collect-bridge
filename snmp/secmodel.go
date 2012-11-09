@@ -165,6 +165,7 @@ func (usm *USM) IsLocalize() bool {
 	return nil != usm.localization_auth_key
 }
 func (usm *USM) Localize(key []byte) (err error) {
+
 	if 0 == int(usm.hash) {
 		return nil
 	}
@@ -228,9 +229,9 @@ func (usm *USM) String() string {
 	if "" != usm.auth_passphrase {
 		return fmt.Sprintf("auth = '[%s]%s' and priv = '[%s]%s'",
 			usm.auth_proto.String(),
-			usm.auth_key,
+			usm.auth_passphrase,
 			usm.priv_proto.String(),
-			usm.priv_key)
+			usm.priv_passphrase)
 	}
 
 	return fmt.Sprintf("auth = '[%s]%s' and priv = '[%s]%s'",

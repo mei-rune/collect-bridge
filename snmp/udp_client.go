@@ -16,7 +16,7 @@ import (
 )
 
 var maxPDUSize = flag.Int("maxPDUSize", 10240, "set max size of pdu")
-var logPdu = flag.Bool("log.pdu", false, "log pdu content?")
+var logPdu = flag.Bool("log.pdu", true, "log pdu content?")
 
 type Request struct {
 	pdu      PDU
@@ -106,14 +106,18 @@ func (client *UdpClient) createConnect() (err error) {
 func (client *UdpClient) discoverEngine(fn func(PDU, error)) {
 	usm := &USM{auth_proto: SNMP_AUTH_NOAUTH, priv_proto: SNMP_PRIV_NOPRIV}
 	pdu := &V3PDU{op: SNMP_PDU_GET, target: client.host, securityModel: usm}
-
 	client.sendPdu(pdu, nil, fn)
 }
 
 func (client *UdpClient) sendV3PDU(ctx InvokedContext, pdu *V3PDU) {
 	if !pdu.securityModel.IsLocalize() {
+		if nil == pdu.engine {
+			ctx.Reply(nil, errors.New("nil == pdu.engine"))
+			return
+		}
 		pdu.securityModel.Localize(pdu.engine.engine_id)
 	}
+
 	client.sendPdu(pdu, ctx, nil)
 }
 
@@ -125,7 +129,12 @@ func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 	}
 
 	if nil != client.engine.engine_id && 0 != len(client.engine.engine_id) {
-		pdu.engine.CopyFrom(&client.engine)
+
+		if nil == pdu.engine {
+			pdu.engine = &client.engine
+		} else {
+			pdu.engine.CopyFrom(&client.engine)
+		}
 		client.sendV3PDU(ctx, pdu)
 		return
 	}
@@ -143,6 +152,11 @@ func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 		}
 
 		client.engine.CopyFrom(v3.engine)
+		if nil == pdu.engine {
+			pdu.engine = &client.engine
+		} else {
+			pdu.engine.engine_id = client.engine.engine_id
+		}
 		client.sendV3PDU(ctx, pdu)
 	})
 }
@@ -189,7 +203,7 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 
 	if uint32(SNMP_V3) == pdu.version {
 
-    C.snmp_pdu_dump(&pdu)
+		C.snmp_pdu_dump(&pdu)
 		req, ok = client.pendings[int(pdu.identifier)]
 		if !ok {
 			log.Printf("not found request with requestId = %d.\r\n", int(pdu.identifier))
@@ -230,7 +244,7 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 
 		req, ok = client.pendings[int(pdu.request_id)]
 		if !ok {
-			log.Printf("not found request with requestId = %d.\r\n", int(pdu.identifier))
+			log.Printf("not found request with requestId = %d.\r\n", int(pdu.request_id))
 			return
 		}
 

@@ -55,7 +55,7 @@ func serveTestUdp(in net.PacketConn, pdu_txt string, waiter *sync.WaitGroup) {
 type callback func(t *testing.T, cl Client, laddr net.Addr)
 
 func TestReturnPdu(t *testing.T) {
-	testWith(t, "127.0.0.1:0", snmpv1_txt, func(t *testing.T, cl Client, laddr net.Addr) {
+	testWith(t, "127.0.0.1:0", "127.0.0.1:0", snmpv1_txt, func(t *testing.T, cl Client, laddr net.Addr) {
 
 		cl.(*UdpClient).requestId = 233
 		pdu, err := cl.CreatePDU(SNMP_PDU_GET, SNMP_V1)
@@ -79,7 +79,7 @@ func TestReturnPdu(t *testing.T) {
 }
 
 func TestReturnNoSuchInstancePdu(t *testing.T) {
-	testWith(t, "127.0.0.1:0", snmpv2c_NOSUCHINSTANCE, func(t *testing.T, cl Client, laddr net.Addr) {
+	testWith(t, "127.0.0.1:0", "127.0.0.1:0", snmpv2c_NOSUCHINSTANCE, func(t *testing.T, cl Client, laddr net.Addr) {
 
 		pdu, err := cl.CreatePDU(SNMP_PDU_GET, SNMP_V1)
 		if nil != err {
@@ -102,7 +102,7 @@ func TestReturnNoSuchInstancePdu(t *testing.T) {
 }
 
 func TestSendFailed(t *testing.T) {
-	testWith(t, "0.0.0.0:0", snmpv1_txt, func(t *testing.T, cl Client, laddr net.Addr) {
+	testWith(t, "0.0.0.0:0", "33.0.0.0:0", snmpv1_txt, func(t *testing.T, cl Client, laddr net.Addr) {
 
 		cl.(*UdpClient).requestId = 233
 		pdu, err := cl.CreatePDU(SNMP_PDU_GET, SNMP_V1)
@@ -121,7 +121,7 @@ func TestSendFailed(t *testing.T) {
 }
 
 func TestRecvTimeout(t *testing.T) {
-	testWith(t, "127.0.0.1:0", snmpv1_txt, func(t *testing.T, cl Client, laddr net.Addr) {
+	testWith(t, "127.0.0.1:0", "127.0.0.1:0", snmpv1_txt, func(t *testing.T, cl Client, laddr net.Addr) {
 		pdu, err := cl.CreatePDU(SNMP_PDU_GET, SNMP_V1)
 		if nil != err {
 			t.Errorf("create pdu failed - %s", err.Error())
@@ -142,7 +142,7 @@ func TestRecvTimeout(t *testing.T) {
 	})
 }
 
-func testWith(t *testing.T, laddr, pdu_txt string, f callback) {
+func testWith(t *testing.T, laddr, caddr, pdu_txt string, f callback) {
 	var waiter *sync.WaitGroup
 	var listener net.PacketConn
 	var cl Client
@@ -163,7 +163,7 @@ func testWith(t *testing.T, laddr, pdu_txt string, f callback) {
 		return
 	}
 
-	cl, err = NewSnmpClient(addr.String())
+	cl, err = NewSnmpClient(caddr.String())
 	if nil != err {
 		t.Errorf("create snmp client failed - %s", err.Error())
 		return

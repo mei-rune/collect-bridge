@@ -237,6 +237,11 @@ func TestEncodeV3PDU(t *testing.T) {
 		"secname":        "meijing",
 		"secmodel":       "usm"}, snmpv3_noauth_txt, "test noauth - ")
 
+	//  msg_salt 8: 03 00 00 00 29 00 00 00
+	debug_test_enable()
+	debug_salt[0] = 3
+	debug_salt[4] = 2*16 + 9
+
 	testEncodeV3PDU(t, map[string]string{"community": "123987",
 		"identifier":     "0",
 		"context_name":   "testcontextname",
@@ -262,6 +267,10 @@ func TestEncodeV3PDU(t *testing.T) {
 		"auth_pass":      "md5-mfk1234",
 		"priv_pass":      "des-mj1234"}, snmpv3_md5_des_txt, "test auth=md5 and priv=des - ")
 
+	debug_test_enable()
+	bs, _ := hex.DecodeString("23480000be180000")
+	copy(debug_salt, bs)
+
 	testEncodeV3PDU(t, map[string]string{"community": "123987",
 		"identifier":     "0",
 		"context_name":   "testcontextname",
@@ -286,6 +295,8 @@ func TestEncodeV3PDU(t *testing.T) {
 		"secmodel":       "usm",
 		"auth_pass":      "sha-mfk1234",
 		"priv_pass":      "aes-mj1234"}, snmpv3_sha_aes_txt, "test auth=sha and priv=aes - ")
+
+	debug_test_disable()
 }
 
 func testEncodeV3PDU(t *testing.T, args map[string]string, txt, msg string) {
@@ -360,20 +371,13 @@ func TestDecodeV3PDU(t *testing.T) {
 	des, _ := hex.DecodeString("e71b799c9cb2eab59b71e6e1d23b6b64")
 	aes, _ := hex.DecodeString("ddab124da80010de687447b013d8ce96642b38cd")
 	testDecodeV3PDU(t, snmpv3_noauth_txt, SNMP_AUTH_NOAUTH, "mfk1234", SNMP_PRIV_NOPRIV, nil, "test no priv - ")
-	//  msg_salt 8: 03 00 00 00 29 00 00 00
-
-	//is_test = true
-	debug_salt[0] = 3
-	debug_salt[4] = 2*16 + 9
 
 	testDecodeV3PDU(t, snmpv3_md5_txt, SNMP_AUTH_HMAC_MD5, "mfk1234", SNMP_PRIV_NOPRIV, nil, "test auth=md5 - ")
 	testDecodeV3PDU(t, snmpv3_md5_des_txt, SNMP_AUTH_HMAC_MD5, "mfk1234", SNMP_PRIV_DES, des, "test auth=md5 and priv=des - ")
 
-	//is_test = true
-	debug_salt[0] = 3
-	debug_salt[4] = 2*16 + 9
 	testDecodeV3PDU(t, snmpv3_sha_txt, SNMP_AUTH_HMAC_SHA, "mfk1234", SNMP_PRIV_NOPRIV, nil, "test auth=sha - ")
 	testDecodeV3PDU(t, snmpv3_sha_aes_txt, SNMP_AUTH_HMAC_SHA, "mfk1234", SNMP_PRIV_AES, aes, "test auth=sha and priv=aes - ")
+
 }
 
 func testDecodeV3PDU(t *testing.T, txt string, auth AuthType, auth_s string, priv PrivType, priv_s []byte, msg string) {

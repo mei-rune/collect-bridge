@@ -177,6 +177,7 @@ static enum asn_err get_var_binding(asn_buf_t *b, snmp_value_t *binding)
         err = asn_get_integer_raw(b, len, &binding->v.integer);
         break;
 
+    case ASN_CLASS_APPLICATION|ASN_APP_OPAQUE:
     case ASN_TYPE_OCTETSTRING:
         binding->syntax = SNMP_SYNTAX_OCTETSTRING;
         binding->v.octetstring.octets = malloc(len);
@@ -219,6 +220,7 @@ static enum asn_err get_var_binding(asn_buf_t *b, snmp_value_t *binding)
         err = asn_get_uint32_raw(b, len, &binding->v.uint32);
         break;
 
+    case ASN_CLASS_APPLICATION|ASN_APP_U64:
     case ASN_CLASS_APPLICATION|ASN_APP_COUNTER64:
         binding->syntax = SNMP_SYNTAX_COUNTER64;
         err = asn_get_counter64_raw(b, len, &binding->v.counter64);
@@ -950,6 +952,11 @@ enum snmp_code snmp_fix_encoding(asn_buf_t *b, snmp_pdu_t *pdu)
             SNMP_CODE_OK)
             return code;
 
+        dump_hex("digest_key=", pdu->user.auth_key, pdu->user.auth_len);
+        dump_hex("digest_data=", pdu->outer_ptr, pdu->outer_len);
+
+        dump_hex("digest=", pdu->msg_digest,
+                   sizeof(pdu->msg_digest));
         if ((pdu->flags & SNMP_MSG_AUTH_FLAG) != 0)
             memcpy(pdu->digest_ptr, pdu->msg_digest,
             sizeof(pdu->msg_digest));

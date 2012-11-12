@@ -71,6 +71,19 @@ void (*snmp_printf)(const char *, ...) = snmp_printf_func;
 
 
 
+static __inline void dump_hex(const char* s, const u_char* octets, u_int len) {
+    u_int i = 0;
+    if (500 < len) {
+        snmp_printf("%s overflow %lu:", s, len);
+        return;
+    }
+    
+    snmp_printf("%s %lu:", s, len);
+    for (i = 0; i < len; i++)
+       snmp_printf(" %02x", octets[i]);
+    snmp_printf("\n");
+}
+
 /*
 * An array of error strings corresponding to error definitions from libbsnmp.
 */
@@ -709,12 +722,19 @@ enum snmp_code snmp_pdu_decode_secmode(asn_buf_t *b, snmp_pdu_t *pdu)
         (pdu->flags & SNMP_MSG_AUTH_FLAG) == 0)
         return (SNMP_CODE_BADSECLEVEL);
 
+    if(0 != pdu->digest_ptr)
+        memset(pdu->digest_ptr, 0, sizeof(pdu->msg_digest));
+
     if ((code = snmp_pdu_calc_digest(pdu, digest)) != SNMP_CODE_OK)
         return (code);
 
     if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH &&
-        memcmp(digest, pdu->msg_digest, sizeof(pdu->msg_digest)) != 0)
+        memcmp(digest, pdu->msg_digest, sizeof(pdu->msg_digest)) != 0) {
+        //snmp_pdu_dump(pdu);
+        //dump_hex("calc digest=", digest, sizeof(digest));
+        //dump_hex("recv digest=", pdu->msg_digest, sizeof(pdu->msg_digest));
         return (SNMP_CODE_BADDIGEST);
+    }
 
     if (pdu->user.priv_proto != SNMP_PRIV_NOPRIV && (asn_get_header(b, &type,
         &pdu->scoped_len) != ASN_ERR_OK || type != ASN_TYPE_OCTETSTRING)) {
@@ -952,11 +972,11 @@ enum snmp_code snmp_fix_encoding(asn_buf_t *b, snmp_pdu_t *pdu)
             SNMP_CODE_OK)
             return code;
 
-        dump_hex("digest_key=", pdu->user.auth_key, pdu->user.auth_len);
-        dump_hex("digest_data=", pdu->outer_ptr, pdu->outer_len);
+        //dump_hex("digest_key=", pdu->user.auth_key, pdu->user.auth_len);
+        //dump_hex("digest_data=", pdu->outer_ptr, pdu->outer_len);
 
-        dump_hex("digest=", pdu->msg_digest,
-                   sizeof(pdu->msg_digest));
+        //dump_hex("digest=", pdu->msg_digest,
+        //           sizeof(pdu->msg_digest));
         if ((pdu->flags & SNMP_MSG_AUTH_FLAG) != 0)
             memcpy(pdu->digest_ptr, pdu->msg_digest,
             sizeof(pdu->msg_digest));
@@ -1145,18 +1165,7 @@ static __inline void dump_bindings(const snmp_pdu_t *pdu)
         snmp_printf("\n");
     }
 }
-static __inline void dump_hex(const char* s, const u_char* octets, u_int len) {
-    u_int i = 0;
-    if (500 < len) {
-        snmp_printf("%s overflow %lu:", s, len);
-        return;
-    }
-    
-    snmp_printf("%s %lu:", s, len);
-    for (i = 0; i < len; i++)
-       snmp_printf(" %02x", octets[i]);
-    snmp_printf("\n");
-}
+
 static __inline void dump_notrap(const snmp_pdu_t *pdu)
 {
     snmp_printf(" request_id=%d", pdu->request_id);

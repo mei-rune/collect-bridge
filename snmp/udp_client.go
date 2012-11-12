@@ -203,7 +203,6 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 
 	if uint32(SNMP_V3) == pdu.version {
 
-		C.snmp_pdu_dump(&pdu)
 		req, ok = client.pendings[int(pdu.identifier)]
 		if !ok {
 			log.Printf("not found request with requestId = %d.\r\n", int(pdu.identifier))
@@ -223,13 +222,13 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 		err = FillUser(&pdu, usm.auth_proto, usm.localization_auth_key,
 			usm.priv_proto, usm.localization_priv_key)
 		if nil != err {
-			log.Printf("%v\r\n", err)
+			log.Printf("%s\r\n", err.Error())
 			goto complete
 		}
 
 		err = DecodePDUBody(&buffer, &pdu)
 		if nil != err {
-			log.Printf("%v\r\n", err)
+			log.Printf("%s\r\n", err.Error())
 			goto complete
 		}
 		var v3 V3PDU
@@ -238,7 +237,7 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 	} else {
 		err = DecodePDUBody(&buffer, &pdu)
 		if nil != err {
-			log.Printf("%v\r\n", err)
+			log.Printf("%s\r\n", err.Error())
 			return
 		}
 

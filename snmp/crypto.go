@@ -15,8 +15,6 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	//"encoding/hex"
-	//"encoding/hex"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"unsafe"
@@ -210,11 +208,14 @@ func SCGenerateDigest(hash_type int, key *C.uint8_t, key_len C.uint32_t,
 	}
 
 	if nil == err {
-		memcpy(out_ptr, int(out_len), bytes)
-		fmt.Println("digest_key=" + hex.EncodeToString(priv_key))
-		fmt.Println("digest_data=" + hex.EncodeToString(scoped))
-		fmt.Println("digest=" + hex.EncodeToString(bytes))
-		return C.SNMP_CODE_OK
+		err = memcpy(out_ptr, int(out_len), bytes)
+		if nil == err {
+			//fmt.Println("digest_key=" + hex.EncodeToString(priv_key))
+			//fmt.Println("digest_data=" + hex.EncodeToString(scoped))
+			//fmt.Println("digest=" + hex.EncodeToString(bytes))
+			//fmt.Println("digest_mem=" + hex.EncodeToString(readGoBytes(out_ptr, out_len)))
+			return C.SNMP_CODE_OK
+		}
 	}
 	strcpy(err_msg, err_len, err.Error())
 	return C.SNMP_CODE_ERR_GOFUNCTION

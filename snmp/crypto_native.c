@@ -63,7 +63,7 @@
 enum snmp_code snmp_pdu_calc_digest(const snmp_pdu_t *pdu, uint8_t *digest) {
 	if  (pdu->user.auth_proto == SNMP_AUTH_NOAUTH)
 		return (SNMP_CODE_OK);
-
+  memset(digest, 0, SNMP_USM_AUTH_SIZE);
   return SCGenerateDigest((GoInt)pdu->user.auth_proto, 
 	  (uint8_t *)pdu->user.auth_key, (uint32_t)pdu->user.auth_len, 
 	  (uint8_t *)pdu->outer_ptr, (uint32_t)pdu->outer_len,

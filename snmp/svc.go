@@ -85,6 +85,8 @@ func (msg *message) Reply(results ...interface{}) {
 
 	if nil != msg.ch {
 		msg.ch <- msg
+	} else {
+		log.Println("send response failed, channel is nil")
 	}
 }
 

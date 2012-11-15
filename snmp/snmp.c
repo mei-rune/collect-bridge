@@ -719,8 +719,10 @@ enum snmp_code snmp_pdu_decode_secmode(asn_buf_t *b, snmp_pdu_t *pdu)
     enum snmp_code code;
     uint8_t	digest[SNMP_USM_AUTH_SIZE];
     if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH &&
-        (pdu->flags & SNMP_MSG_AUTH_FLAG) == 0)
+        (pdu->flags & SNMP_MSG_AUTH_FLAG) == 0) {
+        snmp_error("bad security level for auth.");
         return (SNMP_CODE_BADSECLEVEL);
+    }
 
     if(0 != pdu->digest_ptr)
         memset(pdu->digest_ptr, 0, sizeof(pdu->msg_digest));
@@ -736,6 +738,10 @@ enum snmp_code snmp_pdu_decode_secmode(asn_buf_t *b, snmp_pdu_t *pdu)
         return (SNMP_CODE_BADDIGEST);
     }
 
+    if (pdu->user.priv_proto == SNMP_PRIV_NOPRIV ||
+            (pdu->flags & SNMP_MSG_PRIV_FLAG) == 0)
+        return (SNMP_CODE_OK);
+
     if (pdu->user.priv_proto != SNMP_PRIV_NOPRIV && (asn_get_header(b, &type,
         &pdu->scoped_len) != ASN_ERR_OK || type != ASN_TYPE_OCTETSTRING)) {
             snmp_error("cannot decode encrypted pdu");
@@ -744,8 +750,10 @@ enum snmp_code snmp_pdu_decode_secmode(asn_buf_t *b, snmp_pdu_t *pdu)
     pdu->scoped_ptr = b->asn_ptr;
 
     if (pdu->user.priv_proto != SNMP_PRIV_NOPRIV &&
-        (pdu->flags & SNMP_MSG_PRIV_FLAG) == 0)
+        (pdu->flags & SNMP_MSG_PRIV_FLAG) == 0) {
+        snmp_error("bad security level for priv.");
         return (SNMP_CODE_BADSECLEVEL);
+    }
 
     if ((code = snmp_pdu_decrypt(pdu)) != SNMP_CODE_OK)
         return (code);
@@ -1553,11 +1561,12 @@ static void snmp_printf_func(const char *fmt, ...)
     va_end(ap);
 }
 
-static enum snmp_code snmp_parse_bad_oid(const asn_oid_t* oid) {
-	static asn_subid_t      badOid[] =
-        { 1, 3, 6, 1, 6, 3, 15, 1, 1};
 
-//	static asn_subid_t      unknownSecurityLevel[] =
+static enum snmp_code snmp_check_bad_oid(const asn_oid_t* oid) {
+    static asn_subid_t      badOid[] =
+    { 1, 3, 6, 1, 6, 3, 15, 1, 1};
+
+//  static asn_subid_t      unknownSecurityLevel[] =
 //        { 1, 3, 6, 1, 6, 3, 15, 1, 1, 1, 0 };
 //  static asn_subid_t      notInTimeWindow[] =
 //        { 1, 3, 6, 1, 6, 3, 15, 1, 1, 2, 0 };
@@ -1565,31 +1574,56 @@ static enum snmp_code snmp_parse_bad_oid(const asn_oid_t* oid) {
 //        { 1, 3, 6, 1, 6, 3, 15, 1, 1, 3, 0 };
 //  static asn_subid_t      unknownEngineID[] =
 //        { 1, 3, 6, 1, 6, 3, 15, 1, 1, 4, 0 };
-//  static asn_subid_t      wrongDigest[] = 
-//	    { 1, 3, 6, 1, 6, 3, 15, 1, 1, 5, 0 };
+//  static asn_subid_t      wrongDigest[] =
+//      { 1, 3, 6, 1, 6, 3, 15, 1, 1, 5, 0 };
 //  static asn_subid_t      decryptionError[] =
 //        { 1, 3, 6, 1, 6, 3, 15, 1, 1, 6, 0 };
 
-	if(11 == oid->len && 0 == memcmp(badOid, oid->subs, sizeof(asn_subid_t) * 9)) {
-		switch(oid->subs[0]) {
-		case 1:
-			return SNMP_CODE_BADSECLEVEL;
-		case 2:
-			return SNMP_CODE_NOTINTIME;
-		case 3:
-			return SNMP_CODE_BADUSER;
-		case 4:
-			return SNMP_CODE_BADENGINE;
-		case 5:
-			return SNMP_CODE_BADDIGEST;
-		case 6:
-			return SNMP_CODE_EDECRYPT;
-		}
-	}
+    if(11 == oid->len && 0 == memcmp(badOid, oid->subs, sizeof(asn_subid_t) * 9)) {
+        switch(oid->subs[9]) {
+        case 1:
+            return SNMP_CODE_BADSECLEVEL;
+        case 2:
+            return SNMP_CODE_NOTINTIME;
+        case 3:
+            return SNMP_CODE_BADUSER;
+        case 4:
+            return SNMP_CODE_BADENGINE;
+        case 5:
+            return SNMP_CODE_BADDIGEST;
+        case 6:
+            return SNMP_CODE_EDECRYPT;
+        }
+    }
 
-	return SNMP_CODE_BADOID;
+    return SNMP_CODE_OK;
 }
 
+static enum snmp_code snmp_parse_bad_oid(const asn_oid_t* oid) {
+    enum snmp_code ret = snmp_check_bad_oid(oid);
+    if (SNMP_CODE_OK == ret) 
+        ret = SNMP_CODE_BADOID;
+    return ret;
+}
+
+
+/*
+* Check the response to a SET PDU. We check: - the error status must be 0 -
+* the number of bindings must be equal in response and request - the
+* syntaxes must be the same in response and request - the OIDs must be the
+* same in response and request
+*/
+enum snmp_code snmp_check_bad_oids(const snmp_pdu_t * resp) {
+    uint32_t i;
+    enum snmp_code ret;
+    for (i = 0; i < resp->nbindings; i++) {
+        ret = snmp_check_bad_oid(&resp->bindings[i].oid);
+        if (ret != SNMP_CODE_OK) {
+            return ret;
+        }
+    }
+    return (SNMP_CODE_OK);
+}
 
 /*
 * Check the response to a SET PDU. We check: - the error status must be 0 -

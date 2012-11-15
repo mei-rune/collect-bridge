@@ -255,11 +255,11 @@ func generate_digest(hash crypto.Hash, key, src []byte) ([]byte, error) {
 	return calc.Sum(nil)[0:SNMP_USM_AUTH_SIZE], nil
 }
 
-func generate_keys(hash crypto.Hash, passphrase string) ([]byte, error) {
+func generate_keys(hash crypto.Hash, passphrase string) ([]byte, SnmpCodeError) {
 	bytes := []byte(passphrase)
 	passphrase_len := len(bytes)
 	if 0 == passphrase_len {
-		return nil, errors.New("passphrase is empty.")
+		return nil, Error(SNMP_CODE_FAILED, "passphrase is empty.")
 	}
 
 	var buf [SNMP_EXTENDED_KEY_SIZ]byte
@@ -272,29 +272,29 @@ func generate_keys(hash crypto.Hash, passphrase string) ([]byte, error) {
 		}
 		_, err := calc.Write(buf[:])
 		if nil != err {
-			return nil, err
+			return nil, newError(SNMP_CODE_FAILED, err, "encryto data failed")
 		}
 	}
 
 	return calc.Sum(nil), nil
 }
 
-func generate_localization_keys(hash crypto.Hash, b1, b2 []byte) ([]byte, error) {
+func generate_localization_keys(hash crypto.Hash, b1, b2 []byte) ([]byte, SnmpCodeError) {
 	if C.SNMP_ENGINE_ID_SIZ < len(b2) {
-		return nil, errors.New("'b2' is too long.")
+		return nil, Error(SNMP_CODE_BADLEN, "'b2' is too long.")
 	}
 	calc := hash.New()
 	_, err := calc.Write(b1)
 	if nil != err {
-		return nil, err
+		return nil, newError(SNMP_CODE_FAILED, err, "")
 	}
 	_, err = calc.Write(b2)
 	if nil != err {
-		return nil, err
+		return nil, newError(SNMP_CODE_FAILED, err, "")
 	}
 	_, err = calc.Write(b1)
 	if nil != err {
-		return nil, err
+		return nil, newError(SNMP_CODE_FAILED, err, "")
 	}
 	return calc.Sum(nil), nil
 }

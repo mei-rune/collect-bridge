@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"web"
 )
 
@@ -25,6 +26,9 @@ func snmpGet(driver Driver, ctx *web.Context, host, oid, action string) {
 
 	obj, err := driver.Get(ctx.Params)
 	if nil != err {
+		if nil != obj {
+			log.Printf("%v\r\n", obj)
+		}
 		ctx.Abort(500, err.Error())
 		return
 	}

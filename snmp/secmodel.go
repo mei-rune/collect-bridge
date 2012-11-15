@@ -9,18 +9,17 @@ import "C"
 import (
 	"crypto"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"strings"
 )
 
 type securityModelWithCopy interface {
 	SecurityModel
-	Write(*C.snmp_user_t) error
-	Read(*C.snmp_user_t) error
+	Write(*C.snmp_user_t) SnmpCodeError
+	Read(*C.snmp_user_t) SnmpCodeError
 }
 
-func getAuth(params map[string]string) (crypto.Hash, AuthType, string, error) {
+func getAuth(params map[string]string) (crypto.Hash, AuthType, string, SnmpCodeError) {
 	auth, ok := params["auth_pass"]
 
 	if !ok {
@@ -28,7 +27,7 @@ func getAuth(params map[string]string) (crypto.Hash, AuthType, string, error) {
 	}
 	ss := strings.SplitN(auth, "-", 2)
 	if 2 != len(ss) {
-		return 0, SNMP_AUTH_NOAUTH, "", errors.New("auth passphrase hasn`t auth protocol. " +
+		return 0, SNMP_AUTH_NOAUTH, "", Error(SNMP_CODE_BADENC, "auth passphrase hasn`t auth protocol. "+
 			"please input auth key with \"protocol-passphrase\", auth protocol is \"md5\" or \"sha\"")
 	}
 
@@ -38,11 +37,11 @@ func getAuth(params map[string]string) (crypto.Hash, AuthType, string, error) {
 	case "sha", "SHA":
 		return crypto.SHA1, SNMP_AUTH_HMAC_SHA, ss[1], nil
 	}
-	return 0, SNMP_AUTH_NOAUTH, "", errors.New("unsupported auth protocol. " +
+	return 0, SNMP_AUTH_NOAUTH, "", Error(SNMP_CODE_BADENC, "unsupported auth protocol. "+
 		"auth protocol must is \"md5\" or \"sha\"")
 }
 
-func getPriv(params map[string]string) (PrivType, string, error) {
+func getPriv(params map[string]string) (PrivType, string, SnmpCodeError) {
 	priv, ok := params["priv_pass"]
 
 	if !ok {
@@ -51,7 +50,7 @@ func getPriv(params map[string]string) (PrivType, string, error) {
 
 	ss := strings.SplitN(priv, "-", 2)
 	if 2 != len(ss) {
-		return SNMP_PRIV_NOPRIV, "", errors.New("priv passphrase hasn`t priv protocol. " +
+		return SNMP_PRIV_NOPRIV, "", Error(SNMP_CODE_BADENC, "priv passphrase hasn`t priv protocol. "+
 			"please input priv key with \"protocol-passphrase\", priv protocol is \"des\" or \"aes\"")
 	}
 
@@ -61,11 +60,11 @@ func getPriv(params map[string]string) (PrivType, string, error) {
 	case "aes", "AES":
 		return SNMP_PRIV_AES, ss[1], nil
 	}
-	return SNMP_PRIV_NOPRIV, "", errors.New("unsupported priv protocol. " +
+	return SNMP_PRIV_NOPRIV, "", Error(SNMP_CODE_BADENC, "unsupported priv protocol. "+
 		"priv protocol must is \"des\" or \"aes\"")
 }
 
-func NewSecurityModel(params map[string]string) (sm securityModelWithCopy, err error) {
+func NewSecurityModel(params map[string]string) (sm securityModelWithCopy, err SnmpCodeError) {
 	switch params["secmodel"] {
 	case "usm", "Usm", "USM":
 		securityModel := new(USM)
@@ -76,7 +75,7 @@ func NewSecurityModel(params map[string]string) (sm securityModelWithCopy, err e
 		securityModel.InitHash(params)
 		sm = securityModel
 	default:
-		err = errors.New(fmt.Sprintf("unsupported security module: %s", params["secmodel"]))
+		err = Error(SNMP_CODE_FAILED, fmt.Sprintf("unsupported security module: %s", params["secmodel"]))
 	}
 	return
 }
@@ -96,10 +95,10 @@ type USM struct {
 	name string
 }
 
-func (usm *USM) InitHash(params map[string]string) error {
+func (usm *USM) InitHash(params map[string]string) SnmpCodeError {
 	name, ok := params["secname"]
 	if !ok {
-		return errors.New("secname is required.")
+		return Error(SNMP_CODE_BADENC, "secname is required.")
 	}
 	usm.name = name
 
@@ -121,10 +120,10 @@ func (usm *USM) InitHash(params map[string]string) error {
 	return nil
 }
 
-func (usm *USM) InitString(params map[string]string) error {
+func (usm *USM) InitString(params map[string]string) SnmpCodeError {
 	name, ok := params["secname"]
 	if !ok {
-		return errors.New("secname is required.")
+		return Error(SNMP_CODE_BADENC, "secname is required.")
 	}
 	usm.name = name
 
@@ -139,7 +138,7 @@ func (usm *USM) InitString(params map[string]string) error {
 	if 0 != int(hash) {
 		usm.auth_key, err = generate_keys(hash, value)
 		if nil != err {
-			return errors.New("generate auth key failed - " + err.Error())
+			return newError(SNMP_CODE_BADENC, err, "generate auth key failed")
 		}
 	}
 
@@ -154,7 +153,7 @@ func (usm *USM) InitString(params map[string]string) error {
 	if 0 != int(hash) {
 		usm.priv_key, err = generate_keys(hash, value)
 		if nil != err {
-			return errors.New("generate priv key failed - " + err.Error())
+			return newError(SNMP_CODE_BADENC, err, "generate priv key failed")
 		}
 	}
 
@@ -164,7 +163,7 @@ func (usm *USM) InitString(params map[string]string) error {
 func (usm *USM) IsLocalize() bool {
 	return nil != usm.localization_auth_key
 }
-func (usm *USM) Localize(key []byte) (err error) {
+func (usm *USM) Localize(key []byte) (err SnmpCodeError) {
 
 	if 0 == int(usm.hash) {
 		return nil
@@ -192,31 +191,31 @@ func (usm *USM) Localize(key []byte) (err error) {
 //	char				sec_name[SNMP_ADM_STR32_SIZ];
 // } snmp_user_t;
 
-func (usm *USM) Write(user *C.snmp_user_t) error {
+func (usm *USM) Write(user *C.snmp_user_t) SnmpCodeError {
 
 	user.auth_proto = uint32(usm.auth_proto)
 	user.priv_proto = uint32(usm.priv_proto)
 
 	err := strcpy(&user.sec_name[0], SNMP_ADM_STR32_LEN, usm.name)
 	if nil != err {
-		return fmt.Errorf("sec_name too long")
+		return Error(SNMP_CODE_ERR_WRONG_LENGTH, "sec_name too long")
 	}
 
 	err = memcpy(&user.auth_key[0], SNMP_AUTH_KEY_LEN, usm.localization_auth_key)
 	if nil != err {
-		return fmt.Errorf("auth_key too long")
+		return Error(SNMP_CODE_ERR_WRONG_LENGTH, "auth_key too long")
 	}
 	user.auth_len = C.size_t(len(usm.localization_auth_key))
 
 	err = memcpy(&user.priv_key[0], SNMP_AUTH_KEY_LEN, usm.localization_priv_key)
 	if nil != err {
-		return fmt.Errorf("priv_key too long")
+		return Error(SNMP_CODE_ERR_WRONG_LENGTH, "priv_key too long")
 	}
 	user.priv_len = C.size_t(len(usm.localization_priv_key))
 	return nil
 }
 
-func (usm *USM) Read(user *C.snmp_user_t) error {
+func (usm *USM) Read(user *C.snmp_user_t) SnmpCodeError {
 	usm.auth_proto = AuthType(user.auth_proto)
 	usm.priv_proto = PrivType(user.priv_proto)
 	usm.name = readGoString(&user.sec_name[0], SNMP_ADM_STR32_LEN)

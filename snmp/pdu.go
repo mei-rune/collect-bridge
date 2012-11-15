@@ -13,8 +13,6 @@ import "C"
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"strconv"
 	"unsafe"
 )
@@ -38,13 +36,13 @@ type V2CPDU struct {
 	client           Client
 }
 
-func (pdu *V2CPDU) Init(params map[string]string) error {
+func (pdu *V2CPDU) Init(params map[string]string) SnmpCodeError {
 	community, ok := params["community"]
 	if ok && "" != community {
 		pdu.community = community
 		return nil
 	}
-	return errors.New("community is empty.")
+	return Error(SNMP_CODE_FAILED, "community is empty.")
 }
 
 func (pdu *V2CPDU) GetRequestID() int {
@@ -88,14 +86,14 @@ func (pdu *V2CPDU) String() string {
 	return buffer.String()
 }
 
-func (pdu *V2CPDU) encodePDU() ([]byte, error) {
+func (pdu *V2CPDU) encodePDU() ([]byte, SnmpCodeError) {
 	var internal C.snmp_pdu_t
 	C.snmp_pdu_init(&internal)
 	defer C.snmp_pdu_free(&internal)
 
 	err := strcpy(&internal.community[0], MAX_COMMUNITY_LEN, pdu.community)
 	if nil != err {
-		return nil, err
+		return nil, newError(SNMP_CODE_FAILED, err, "copy community")
 	}
 	internal.engine.max_msg_size = 10000
 	internal.request_id = C.int32_t(pdu.requestId)
@@ -105,13 +103,13 @@ func (pdu *V2CPDU) encodePDU() ([]byte, error) {
 	err = encodeBindings(&internal, pdu.GetVariableBindings())
 
 	if nil != err {
-		return nil, err
+		return nil, newError(SNMP_CODE_FAILED, err, "encode bindings")
 	}
 
 	return encodeNativePdu(&internal)
 }
 
-func (pdu *V2CPDU) decodePDU(native *C.snmp_pdu_t) error {
+func (pdu *V2CPDU) decodePDU(native *C.snmp_pdu_t) (bool, SnmpCodeError) {
 	native.community[MAX_COMMUNITY_LEN-1] = 0
 	pdu.community = C.GoString(&native.community[0])
 
@@ -120,7 +118,7 @@ func (pdu *V2CPDU) decodePDU(native *C.snmp_pdu_t) error {
 	pdu.version = SnmpVersion(native.version)
 
 	decodeBindings(native, pdu.GetVariableBindings())
-	return nil
+	return true, nil
 }
 
 type V3PDU struct {
@@ -137,7 +135,9 @@ type V3PDU struct {
 	engine           *snmpEngine
 }
 
-func (pdu *V3PDU) Init(params map[string]string) (err error) {
+func (pdu *V3PDU) Init(params map[string]string) (err SnmpCodeError) {
+	var e error
+
 	pdu.maxMsgSize = 10000
 
 	if v, ok := params["max_msg_size"]; ok {
@@ -149,38 +149,38 @@ func (pdu *V3PDU) Init(params map[string]string) (err error) {
 	if s, ok := params["context_name"]; ok {
 		pdu.contextName = s
 		if s, ok = params["context_engine"]; ok {
-			pdu.contextEngine, err = hex.DecodeString(s)
-			if nil != err {
-				return fmt.Errorf("'context_engine' decode failed, %s", err.Error())
+			pdu.contextEngine, e = hex.DecodeString(s)
+			if nil != e {
+				return newError(SNMP_CODE_FAILED, e, "'context_engine' decode failed")
 			}
 		}
 	}
 
 	pdu.identifier = -1
 	if s, ok := params["identifier"]; ok {
-		pdu.identifier, err = strconv.Atoi(s)
-		if nil != err {
-			return fmt.Errorf("'identifier' decode failed, %s", err.Error())
+		pdu.identifier, e = strconv.Atoi(s)
+		if nil != e {
+			return newError(SNMP_CODE_FAILED, e, "'identifier' decode failed")
 		}
 	}
 
 	if s, ok := params["engine_id"]; ok {
 		pdu.engine = new(snmpEngine)
-		pdu.engine.engine_id, err = hex.DecodeString(s)
-		if nil != err {
-			return fmt.Errorf("'engine_id' decode failed, %s", err.Error())
+		pdu.engine.engine_id, e = hex.DecodeString(s)
+		if nil != e {
+			return newError(SNMP_CODE_FAILED, e, "'engine_id' decode failed")
 		}
 
 		if s, ok = params["engine_boots"]; ok {
-			pdu.engine.engine_boots, err = strconv.Atoi(s)
-			if nil != err {
-				return fmt.Errorf("'engine_boots' decode failed, %s", err.Error())
+			pdu.engine.engine_boots, e = strconv.Atoi(s)
+			if nil != e {
+				return newError(SNMP_CODE_FAILED, e, "'engine_boots' decode failed")
 			}
 		}
 		if s, ok = params["engine_time"]; ok {
-			pdu.engine.engine_time, err = strconv.Atoi(s)
-			if nil != err {
-				return fmt.Errorf("'engine_time' decode failed, %s", err.Error())
+			pdu.engine.engine_time, e = strconv.Atoi(s)
+			if nil != e {
+				return newError(SNMP_CODE_FAILED, e, "'engine_time' decode failed")
 			}
 		}
 	}
@@ -237,7 +237,7 @@ func (pdu *V3PDU) String() string {
 	return buffer.String()
 }
 
-func (pdu *V3PDU) encodePDU() ([]byte, error) {
+func (pdu *V3PDU) encodePDU() ([]byte, SnmpCodeError) {
 	var internal C.snmp_pdu_t
 	C.snmp_pdu_init(&internal)
 	defer C.snmp_pdu_free(&internal)
@@ -255,19 +255,19 @@ func (pdu *V3PDU) encodePDU() ([]byte, error) {
 
 	err := memcpy(&internal.context_engine[0], SNMP_ENGINE_ID_LEN, pdu.contextEngine)
 	if nil != err {
-		return nil, err
+		return nil, newError(SNMP_CODE_FAILED, err, "copy context_engine failed")
 	}
 	internal.context_engine_len = C.uint32_t(len(pdu.contextEngine))
 
 	err = strcpy(&internal.context_name[0], SNMP_CONTEXT_NAME_LEN, pdu.contextName)
 	if nil != err {
-		return nil, err
+		return nil, newError(SNMP_CODE_FAILED, err, "copy context_name failed")
 	}
 
 	if nil != pdu.engine {
 		err = memcpy(&internal.engine.engine_id[0], SNMP_ENGINE_ID_LEN, pdu.engine.engine_id)
 		if nil != err {
-			return nil, err
+			return nil, newError(SNMP_CODE_FAILED, err, "copy engine_id failed")
 		}
 		internal.engine.engine_len = C.uint32_t(len(pdu.engine.engine_id))
 		internal.engine.engine_boots = C.int32_t(pdu.engine.engine_boots)
@@ -283,20 +283,20 @@ func (pdu *V3PDU) encodePDU() ([]byte, error) {
 	err = pdu.securityModel.Write(&internal.user)
 
 	if nil != err {
-		return nil, err
+		return nil, newError(SNMP_CODE_FAILED, err, "fill security model failed")
 	}
 
 	err = encodeBindings(&internal, pdu.GetVariableBindings())
 
 	if nil != err {
-		return nil, err
+		return nil, newError(SNMP_CODE_FAILED, err, "fill encode bindings failed")
 	}
 
 	//C.snmp_pdu_dump(&internal)
 	return encodeNativePdu(&internal)
 }
 
-func (pdu *V3PDU) decodePDU(native *C.snmp_pdu_t) error {
+func (pdu *V3PDU) decodePDU(native *C.snmp_pdu_t) (bool, SnmpCodeError) {
 
 	//C.snmp_pdu_dump(native)
 	pdu.requestId = int(native.request_id)
@@ -316,11 +316,20 @@ func (pdu *V3PDU) decodePDU(native *C.snmp_pdu_t) error {
 	err := pdu.securityModel.Read(&native.user)
 
 	if nil != err {
-		return err
+		return false, newError(SNMP_CODE_FAILED, err, "read security model failed")
 	}
 
 	decodeBindings(native, pdu.GetVariableBindings())
-	return nil
+
+	if native.pdu_type == C.SNMP_PDU_REPORT {
+		ret_code := C.snmp_check_bad_oids(native)
+		if ret_code != 0 {
+			err = Error(SnmpResult(ret_code), "check pdu failed, "+C.GoString(C.snmp_get_error(ret_code)))
+			return true, err //newError(, err, "check pdu failed")
+		}
+	}
+
+	return true, nil
 }
 
 ///////////////////////// Encode/Decode /////////////////////////////
@@ -330,10 +339,10 @@ const (
 	SNMP_MAX_BINDINGS = 100
 )
 
-func oidWrite(dst *C.asn_oid_t, value SnmpValue) error {
+func oidWrite(dst *C.asn_oid_t, value SnmpValue) SnmpCodeError {
 	uintArray := value.GetUint32s()
 	if ASN_MAXOIDLEN <= len(uintArray) {
-		return fmt.Errorf("oid is too long, maximum size is %d, oid is %s", ASN_MAXOIDLEN, value.String())
+		return Errorf(SNMP_CODE_FAILED, "oid is too long, maximum size is %d, oid is %s", ASN_MAXOIDLEN, value.String())
 	}
 
 	for i, subOid := range uintArray {
@@ -377,7 +386,7 @@ func debug_init_secparams(pdu *C.snmp_pdu_t) {
 	}
 }
 
-func encodeNativePdu(pdu *C.snmp_pdu_t) ([]byte, error) {
+func encodeNativePdu(pdu *C.snmp_pdu_t) ([]byte, SnmpCodeError) {
 	bytes := make([]byte, int(pdu.engine.max_msg_size))
 	var buffer C.asn_buf_t
 	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
@@ -390,17 +399,17 @@ func encodeNativePdu(pdu *C.snmp_pdu_t) ([]byte, error) {
 	//C.snmp_pdu_dump(pdu)
 	ret_code := C.snmp_pdu_encode(pdu, &buffer)
 	if 0 != ret_code {
-		err := errors.New(C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
+		err := Error(SnmpResult(ret_code), C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
 		return nil, err
 	}
 	length := C.get_buffer_length(&buffer, (*C.u_char)(unsafe.Pointer(&bytes[0])))
 	return bytes[0:length], nil
 }
 
-func encodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) error {
+func encodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) SnmpCodeError {
 
 	if SNMP_MAX_BINDINGS < vbs.Len() {
-		return fmt.Errorf("bindings too long, SNMP_MAX_BINDINGS is %d, variableBindings is %d",
+		return Errorf(SNMP_CODE_FAILED, "bindings too long, SNMP_MAX_BINDINGS is %d, variableBindings is %d",
 			SNMP_MAX_BINDINGS, vbs.Len())
 	}
 
@@ -431,7 +440,7 @@ func encodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) error {
 		case SNMP_SYNTAX_IPADDRESS:
 			bytes := vb.Value.GetBytes()
 			if 4 != len(bytes) {
-				return fmt.Errorf("ip address is error, it's length is %d, excepted length is 4, value is %s",
+				return Errorf(SNMP_CODE_FAILED, "ip address is error, it's length is %d, excepted length is 4, value is %s",
 					len(bytes), vb.Value.String())
 			}
 			C.snmp_value_put_ipaddress(&internal.bindings[i].v, C.u_char(bytes[0]),
@@ -445,7 +454,7 @@ func encodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) error {
 		case SNMP_SYNTAX_COUNTER64:
 			C.snmp_value_put_uint64(&internal.bindings[i].v, C.uint64_t(vb.Value.GetUint64()))
 		default:
-			return fmt.Errorf("unsupported type - %v", vb.Value)
+			return Errorf(SNMP_CODE_FAILED, "unsupported type - %v", vb.Value)
 		}
 	}
 	internal.nbindings = C.u_int(vbs.Len())
@@ -491,48 +500,48 @@ func decodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) {
 	}
 }
 
-func DecodePDUHeader(buffer *C.asn_buf_t, pdu *C.snmp_pdu_t) error {
+func DecodePDUHeader(buffer *C.asn_buf_t, pdu *C.snmp_pdu_t) SnmpCodeError {
 	C.snmp_pdu_init(pdu)
 
 	ret_code := C.snmp_pdu_decode_header(buffer, pdu)
 	if 0 != ret_code {
-		return errors.New("decode pdu header failed -" + C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
+		return Error(SNMP_CODE_FAILED, "decode pdu header failed -"+C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
 	}
 	return nil
 }
 
 func FillUser(pdu *C.snmp_pdu_t,
 	auth_proto AuthType, auth_key []byte,
-	priv_proto PrivType, priv_key []byte) error {
+	priv_proto PrivType, priv_key []byte) SnmpCodeError {
 
 	pdu.user.auth_proto = uint32(auth_proto)
 	err := memcpy(&pdu.user.auth_key[0], C.SNMP_AUTH_KEY_SIZ, auth_key)
 	if nil != err {
-		return errors.New("set auth_key failed - " + err.Error())
+		return newError(SNMP_CODE_FAILED, err, "set auth_key failed")
 	}
 	pdu.user.auth_len = C.size_t(len(auth_key))
 
 	pdu.user.priv_proto = uint32(priv_proto)
 	err = memcpy(&pdu.user.priv_key[0], C.SNMP_PRIV_KEY_SIZ, priv_key)
 	if nil != err {
-		return errors.New("set priv_key failed - " + err.Error())
+		return newError(SNMP_CODE_FAILED, err, "set priv_key failed")
 	}
 	pdu.user.priv_len = C.size_t(len(priv_key))
 
 	return nil
 }
 
-func DecodePDUBody(buffer *C.asn_buf_t, pdu *C.snmp_pdu_t) error {
+func DecodePDUBody(buffer *C.asn_buf_t, pdu *C.snmp_pdu_t) SnmpCodeError {
 	var recv_len C.int32_t
 	var ret_code uint32
 
 	if C.SNMP_V3 == pdu.version {
 		if C.SNMP_SECMODEL_USM != pdu.security_model {
-			return fmt.Errorf("unsupport security model - %d", int(pdu.security_model))
+			return Errorf(SNMP_CODE_FAILED, "unsupport security model - %d", int(pdu.security_model))
 		}
 
 		if ret_code = C.snmp_pdu_decode_secmode(buffer, pdu); C.SNMP_CODE_OK != ret_code {
-			return errors.New(C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
+			return Error(SnmpResult(ret_code), C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
 		}
 	}
 
@@ -540,16 +549,16 @@ func DecodePDUBody(buffer *C.asn_buf_t, pdu *C.snmp_pdu_t) error {
 		switch ret_code {
 		case C.SNMP_CODE_BADENC:
 			if C.SNMP_Verr == pdu.version {
-				return fmt.Errorf("unsupport security model - %d", int(pdu.security_model))
+				return Errorf(SNMP_CODE_FAILED, "unsupport security model - %d", int(pdu.security_model))
 			}
 		}
 
-		return errors.New(C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
+		return Error(SnmpResult(ret_code), C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
 	}
 	return nil
 }
 
-func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, error) {
+func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, SnmpCodeError) {
 	var buffer C.asn_buf_t
 	var pdu C.snmp_pdu_t
 
@@ -571,12 +580,22 @@ func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, error) {
 		return nil, err
 	}
 
+	var ok bool = false
 	if uint32(SNMP_V3) == pdu.version {
 		var v3 V3PDU
-		return &v3, v3.decodePDU(&pdu)
+		ok, err = v3.decodePDU(&pdu)
+		if ok {
+			return &v3, err
+		}
+		return nil, err
 	}
 	var v2 V2CPDU
-	return &v2, v2.decodePDU(&pdu)
+
+	ok, err = v2.decodePDU(&pdu)
+	if ok {
+		return &v2, err
+	}
+	return nil, err
 }
 
 // func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, error) {
@@ -610,7 +629,7 @@ func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, error) {
 //	return &v2, v2.decodePDU(&pdu)
 // }
 
-func EncodePDU(pdu PDU) ([]byte, error) {
+func EncodePDU(pdu PDU) ([]byte, SnmpCodeError) {
 	if pdu.GetVersion() != SNMP_V3 {
 		return pdu.(*V2CPDU).encodePDU()
 	}

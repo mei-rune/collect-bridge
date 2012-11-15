@@ -321,9 +321,9 @@ func testEncodeV3PDU(t *testing.T, args map[string]string, txt, msg string) {
 }
 
 func TestDecodePDU(t *testing.T) {
-	bytes, e := hex.DecodeString(snmpv1_txt)
-	if nil != e {
-		t.Errorf("decode hex failed - %s", e.Error())
+	bytes, err := hex.DecodeString(snmpv1_txt)
+	if nil != err {
+		t.Errorf("decode hex failed - %s", err.Error())
 		return
 	}
 	pdu, e := DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil)
@@ -343,9 +343,9 @@ func TestDecodePDU(t *testing.T) {
 		checkPdu(pdu.GetVariableBindings(), t)
 	}
 
-	bytes, e = hex.DecodeString(snmpv2c_txt)
-	if nil != e {
-		t.Errorf("decode hex failed - %s", e.Error())
+	bytes, err = hex.DecodeString(snmpv2c_txt)
+	if nil != err {
+		t.Errorf("decode hex failed - %s", err.Error())
 		return
 	}
 	pdu, e = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil)
@@ -381,9 +381,9 @@ func TestDecodeV3PDU(t *testing.T) {
 }
 
 func testDecodeV3PDU(t *testing.T, txt string, auth AuthType, auth_s string, priv PrivType, priv_s []byte, msg string) {
-	bytes, e := hex.DecodeString(txt)
-	if nil != e {
-		t.Errorf(msg+"decode hex failed - %s", e.Error())
+	bytes, err := hex.DecodeString(txt)
+	if nil != err {
+		t.Errorf(msg+"decode hex failed - %s", err.Error())
 		return
 	}
 	pdu, e := DecodePDU(bytes, priv, priv_s)

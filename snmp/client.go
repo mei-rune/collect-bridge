@@ -127,6 +127,58 @@ const (
 	SNMP_SECMODEL_UNKNOWN = 4
 )
 
+type SnmpResult int
+
+const (
+	SNMP_CODE_OK               SnmpResult = 0
+	SNMP_CODE_FAILED           SnmpResult = 1
+	SNMP_CODE_BADVERS          SnmpResult = 2
+	SNMP_CODE_BADLEN           SnmpResult = 3
+	SNMP_CODE_BADENC           SnmpResult = 4
+	SNMP_CODE_OORANGE          SnmpResult = 5
+	SNMP_CODE_BADSECLEVEL      SnmpResult = 6
+	SNMP_CODE_NOTINTIME        SnmpResult = 7
+	SNMP_CODE_BADUSER          SnmpResult = 8
+	SNMP_CODE_BADENGINE        SnmpResult = 9
+	SNMP_CODE_BADDIGEST        SnmpResult = 10
+	SNMP_CODE_EDECRYPT         SnmpResult = 11
+	SNMP_CODE_BADBINDINGNUMBER SnmpResult = 12
+	SNMP_CODE_BADRESULT        SnmpResult = 13
+	SNMP_CODE_BADOID           SnmpResult = 14
+
+	SNMP_CODE_SYNTAX_MISMATCH       SnmpResult = 15
+	SNMP_CODE_SYNTAX_NOSUCHOBJECT   SnmpResult = 16 /* exception */
+	SNMP_CODE_SYNTAX_NOSUCHINSTANCE SnmpResult = 17 /* exception */
+	SNMP_CODE_SYNTAX_ENDOFMIBVIEW   SnmpResult = 18 /* exception */
+
+	SNMP_CODE_ERR_TOOBIG         SnmpResult = 19
+	SNMP_CODE_ERR_NOSUCHNAME     SnmpResult = 20
+	SNMP_CODE_ERR_BADVALUE       SnmpResult = 21
+	SNMP_CODE_ERR_READONLY       SnmpResult = 22
+	SNMP_CODE_ERR_GENERR         SnmpResult = 23
+	SNMP_CODE_ERR_NO_ACCESS      SnmpResult = 24
+	SNMP_CODE_ERR_WRONG_TYPE     SnmpResult = 25
+	SNMP_CODE_ERR_WRONG_LENGTH   SnmpResult = 26
+	SNMP_CODE_ERR_WRONG_ENCODING SnmpResult = 27
+	SNMP_CODE_ERR_WRONG_VALUE    SnmpResult = 28
+	SNMP_CODE_ERR_NO_CREATION    SnmpResult = 29
+	SNMP_CODE_ERR_INCONS_VALUE   SnmpResult = 30
+	SNMP_CODE_ERR_RES_UNAVAIL    SnmpResult = 31
+	SNMP_CODE_ERR_COMMIT_FAILED  SnmpResult = 32
+	SNMP_CODE_ERR_UNDO_FAILED    SnmpResult = 33
+	SNMP_CODE_ERR_AUTH_ERR       SnmpResult = 34
+	SNMP_CODE_ERR_NOT_WRITEABLE  SnmpResult = 35
+	SNMP_CODE_ERR_INCONS_NAME    SnmpResult = 36
+
+	SNMP_CODE_ERR_GOFUNCTION SnmpResult = 37
+	SNMP_CODE_BADNET         SnmpResult = 38
+)
+
+type SnmpCodeError interface {
+	Error() string
+	Code() SnmpResult
+}
+
 ///////////////////////// VariableBindings ///////////////////////////////////
 type VariableBinding struct {
 	Oid   SnmpOid
@@ -210,7 +262,7 @@ func (vbs *VariableBindings) String() string {
 }
 
 type PDU interface {
-	Init(params map[string]string) error
+	Init(params map[string]string) SnmpCodeError
 	SetRequestID(id int)
 	GetRequestID() int
 	GetVersion() SnmpVersion
@@ -223,7 +275,7 @@ type PDU interface {
 type SecurityModel interface {
 	String() string
 	IsLocalize() bool
-	Localize(key []byte) error
+	Localize(key []byte) SnmpCodeError
 }
 
 type snmpEngine struct {
@@ -243,6 +295,6 @@ func (engine *snmpEngine) CopyFrom(src *snmpEngine) {
 }
 
 type Client interface {
-	CreatePDU(op SnmpType, version SnmpVersion) (PDU, error)
-	SendAndRecv(req PDU, timeout time.Duration) (PDU, error)
+	CreatePDU(op SnmpType, version SnmpVersion) (PDU, SnmpCodeError)
+	SendAndRecv(req PDU, timeout time.Duration) (PDU, SnmpCodeError)
 }

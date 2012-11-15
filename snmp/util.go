@@ -83,3 +83,33 @@ func NormalizeAddress(s string) string {
 	}
 	return NormalizeIP(s[0:idx]) + ":" + NormalizePort(s[idx+1:])
 }
+
+type snmpCodeException struct {
+	code    SnmpResult
+	message string
+}
+
+func (err *snmpCodeException) Error() string {
+	return err.message
+}
+
+func (err *snmpCodeException) Code() SnmpResult {
+	return err.code
+}
+
+// Errorf formats according to a format specifier and returns the string 
+// as a value that satisfies error.
+func Errorf(code SnmpResult, format string, a ...interface{}) SnmpCodeError {
+	return &snmpCodeException{code: code, message: fmt.Sprintf(format, a...)}
+}
+
+func Error(code SnmpResult, msg string) SnmpCodeError {
+	return &snmpCodeException{code: code, message: msg}
+}
+
+func newError(code SnmpResult, err error, msg string) SnmpCodeError {
+	if "" == msg {
+		return &snmpCodeException{code: code, message: err.Error()}
+	}
+	return &snmpCodeException{code: code, message: msg + " - " + err.Error()}
+}

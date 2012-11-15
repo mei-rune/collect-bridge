@@ -330,7 +330,8 @@ const char* snmp_pdu_get_error(snmp_pdu_t *pdu, enum snmp_code code);
 
 
 /* check wheater the answer is valid or not */
-enum snmp_code  snmp_pdu_check(const snmp_pdu_t *_req, const snmp_pdu_t *_resp);
+enum snmp_code snmp_pdu_check(const snmp_pdu_t *_req, const snmp_pdu_t *_resp);
+enum snmp_code snmp_check_bad_oids(const snmp_pdu_t * resp);
 
 #define TRUTH_MK(F) ((F) ? 1 : 2)
 #define TRUTH_GET(T) (((T) == 1) ? 1 : 0)

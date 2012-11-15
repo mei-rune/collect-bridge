@@ -71,7 +71,16 @@ func (client *UdpClient) SendAndRecv(req PDU, timeout time.Duration) (pdu PDU, e
 		}
 	}()
 
+	if *logPdu {
+		log.Printf("snmp - invoke begin.")
+	}
+
 	values := client.SafelyCall(timeout, func(ctx InvokedContext) { client.handleSend(ctx, req) })
+
+	if *logPdu {
+		log.Printf("snmp - invoke end.")
+	}
+
 	switch len(values) {
 	case 0:
 		err = Error(SNMP_CODE_FAILED, "return empty.")
@@ -115,22 +124,51 @@ func (client *UdpClient) discoverEngine(fn func(PDU, SnmpCodeError)) {
 	client.sendPdu(pdu, nil, fn)
 }
 
-func (client *UdpClient) sendV3PDU(ctx InvokedContext, pdu *V3PDU) {
+func (client *UdpClient) sendV3PDU(ctx InvokedContext, pdu *V3PDU, autoDiscoverEngine bool) {
 	if !pdu.securityModel.IsLocalize() {
 		if nil == pdu.engine {
+			if *logPdu {
+				log.Printf("snmp - send failed, " + pdu.String())
+			}
 			ctx.Reply(nil, Error(SNMP_CODE_FAILED, "nil == pdu.engine"))
 			return
 		}
 		pdu.securityModel.Localize(pdu.engine.engine_id)
 	}
+	if autoDiscoverEngine {
+		client.sendPdu(pdu, nil, func(resp PDU, err SnmpCodeError) {
+			if nil != err {
+				switch err.Code() {
+				case SNMP_CODE_NOTINTIME, SNMP_CODE_BADENGINE:
 
-	client.sendPdu(pdu, ctx, nil)
+					if nil != pdu.engine {
+						pdu.engine.engine_id = nil
+					}
+					client.engine.engine_id = nil
+					client.discoverEngineAndSend(ctx, pdu)
+					return
+				}
+			}
+
+			if *logPdu {
+				if nil != err {
+					log.Printf("snmp - recv pdu failed, %v", err)
+				} else {
+					log.Printf("snmp - recv pdu success, %v", resp)
+				}
+			}
+
+			ctx.Reply(resp, err)
+		})
+	} else {
+		client.sendPdu(pdu, ctx, nil)
+	}
 }
 
 func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 
 	if nil != pdu.engine && nil != pdu.engine.engine_id && 0 != len(pdu.engine.engine_id) {
-		client.sendV3PDU(ctx, pdu)
+		client.sendV3PDU(ctx, pdu, false)
 		return
 	}
 
@@ -141,22 +179,39 @@ func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 		} else {
 			pdu.engine.CopyFrom(&client.engine)
 		}
-		client.sendV3PDU(ctx, pdu)
+		client.sendV3PDU(ctx, pdu, true)
 		return
 	}
 
 	client.discoverEngine(func(resp PDU, err SnmpCodeError) {
 		if nil == resp {
+
 			if nil != err {
-				ctx.Reply(nil, newError(err.Code(), err, "discover engine failed"))
+				err = newError(err.Code(), err, "discover engine failed")
 			} else {
-				ctx.Reply(nil, Error(SNMP_CODE_FAILED, "discover engine failed - return nil pdu"))
+				err = Error(SNMP_CODE_FAILED, "discover engine failed - return nil pdu")
 			}
+
+			if *logPdu {
+				log.Printf("snmp - recv pdu, " + err.Error())
+			}
+			ctx.Reply(nil, err)
 			return
 		}
 		v3, ok := resp.(*V3PDU)
 		if !ok {
-			ctx.Reply(nil, Error(SNMP_CODE_FAILED, "discover engine failed - oooooooooooo! it is not v3pdu"))
+
+			if nil != err {
+				err = newError(err.Code(), err, "discover engine failed - oooooooooooo! it is not v3pdu")
+			} else {
+				err = Error(SNMP_CODE_FAILED, "discover engine failed - oooooooooooo! it is not v3pdu")
+			}
+
+			if *logPdu {
+				log.Printf("snmp - recv pdu, " + err.Error())
+			}
+
+			ctx.Reply(nil, err)
 			return
 		}
 
@@ -166,12 +221,13 @@ func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 		} else {
 			pdu.engine.engine_id = client.engine.engine_id
 		}
-		client.sendV3PDU(ctx, pdu)
+		client.sendV3PDU(ctx, pdu, false)
 	})
 }
 
 func (client *UdpClient) readUDP(conn *net.UDPConn) {
 	defer func() {
+		client.conn = nil
 		if err := recover(); nil != err {
 			log.Printf("%v\r\n", err)
 		}
@@ -184,6 +240,10 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 		if nil != err {
 			client.Logger.Println(err)
 			break
+		}
+
+		if *logPdu {
+			log.Printf("snmp - read ok")
 		}
 
 		func(buf []byte) {
@@ -263,6 +323,15 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 
 complete:
 	if nil != req.ctx {
+
+		if *logPdu {
+			if nil != err {
+				log.Printf("snmp - recv pdu failed, %v", err)
+			} else {
+				log.Printf("snmp - recv pdu success, %v", result)
+			}
+		}
+
 		req.ctx.Reply(result, err)
 	} else {
 		req.callback(result, err)
@@ -292,8 +361,26 @@ func (client *UdpClient) handleSend(ctx InvokedContext, pdu PDU) {
 	client.sendPdu(pdu, ctx, nil)
 	return
 failed:
+
+	if *logPdu {
+		log.Printf("snmp - send failed, " + pdu.String())
+	}
+
 	ctx.Reply(nil, err)
 	return
+}
+
+func (client *UdpClient) safelyKillConnection() {
+	defer func() {
+		client.conn = nil
+		if err := recover(); nil != err {
+			client.Logger.Printf("%v\r\n", err)
+		}
+	}()
+	if nil != client.conn {
+		client.conn.Close()
+		client.conn = nil
+	}
 }
 
 func (client *UdpClient) sendPdu(pdu PDU, ctx InvokedContext, callback func(PDU, SnmpCodeError)) {
@@ -325,17 +412,24 @@ func (client *UdpClient) sendPdu(pdu PDU, ctx InvokedContext, callback func(PDU,
 
 	client.pendings[pdu.GetRequestID()] = &Request{pdu: pdu, ctx: ctx, callback: callback}
 
-	if *logPdu {
-		log.Printf("snmp - " + pdu.String())
-	}
-
 	_, e = client.conn.Write(bytes)
 	if nil != e {
+		client.safelyKillConnection()
 		err = newError(SNMP_CODE_BADNET, e, "send pdu failed")
 		goto failed
 	}
+
+	if *logPdu {
+		log.Printf("snmp - send success, " + pdu.String())
+	}
+
 	return
 failed:
+
+	if *logPdu {
+		log.Printf("snmp - send failed, " + err.Error())
+	}
+
 	ctx.Reply(nil, err)
 	return
 }

@@ -106,10 +106,14 @@ func (pdu *V2CPDU) encodePDU() ([]byte, SnmpCodeError) {
 		return nil, newError(SNMP_CODE_FAILED, err, "encode bindings")
 	}
 
+	C.snmp_pdu_dump(&internal)
 	return encodeNativePdu(&internal)
 }
 
 func (pdu *V2CPDU) decodePDU(native *C.snmp_pdu_t) (bool, SnmpCodeError) {
+
+	C.snmp_pdu_dump(native)
+
 	native.community[MAX_COMMUNITY_LEN-1] = 0
 	pdu.community = C.GoString(&native.community[0])
 
@@ -118,6 +122,13 @@ func (pdu *V2CPDU) decodePDU(native *C.snmp_pdu_t) (bool, SnmpCodeError) {
 	pdu.version = SnmpVersion(native.version)
 
 	decodeBindings(native, pdu.GetVariableBindings())
+
+	if C.SNMP_ERR_NOERROR != native.error_status {
+		ret_code := uint32(C.SNMP_CODE_ERR_NOERROR + native.error_status)
+		err := Error(SnmpResult(ret_code), "check pdu failed, "+C.GoString(C.snmp_get_error(ret_code)))
+		return true, err //newError(, err, "check pdu failed")
+	}
+
 	return true, nil
 }
 
@@ -292,13 +303,13 @@ func (pdu *V3PDU) encodePDU() ([]byte, SnmpCodeError) {
 		return nil, newError(SNMP_CODE_FAILED, err, "fill encode bindings failed")
 	}
 
-	//C.snmp_pdu_dump(&internal)
+	C.snmp_pdu_dump(&internal)
 	return encodeNativePdu(&internal)
 }
 
 func (pdu *V3PDU) decodePDU(native *C.snmp_pdu_t) (bool, SnmpCodeError) {
 
-	//C.snmp_pdu_dump(native)
+	C.snmp_pdu_dump(native)
 	pdu.requestId = int(native.request_id)
 	pdu.identifier = int(native.identifier)
 	pdu.op = SnmpType(native.pdu_type)
@@ -327,6 +338,12 @@ func (pdu *V3PDU) decodePDU(native *C.snmp_pdu_t) (bool, SnmpCodeError) {
 			err = Error(SnmpResult(ret_code), "check pdu failed, "+C.GoString(C.snmp_get_error(ret_code)))
 			return true, err //newError(, err, "check pdu failed")
 		}
+	}
+
+	if C.SNMP_ERR_NOERROR != native.error_status {
+		ret_code := uint32(C.SNMP_CODE_ERR_NOERROR + native.error_status)
+		err = Error(SnmpResult(ret_code), "check pdu failed, "+C.GoString(C.snmp_get_error(ret_code)))
+		return true, err //newError(, err, "check pdu failed")
 	}
 
 	return true, nil

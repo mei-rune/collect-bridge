@@ -88,13 +88,21 @@ func TestReturnNoSuchInstancePdu(t *testing.T) {
 		}
 
 		res, err := cl.SendAndRecv(pdu, 2*time.Second)
-		if nil != err {
-			t.Errorf("sendAndRecv pdu failed - %s", err.Error())
+		if nil == err {
+			t.Errorf("sendAndRecv pdu failed - err is nil")
 			return
 		}
 
 		if nil == res {
 			t.Errorf("sendAndRecv pdu failed - res is nil")
+		}
+
+		if !res.GetVariableBindings().Get(0).Value.IsError() {
+			t.Errorf("sendAndRecv pdu failed - res is not error")
+		}
+
+		if SNMP_SYNTAX_NOSUCHINSTANCE != res.GetVariableBindings().Get(0).Value.GetSyntax() {
+			t.Errorf("sendAndRecv pdu failed - res is not NOSUCHINSTANCE")
 		}
 
 		//cl.FreePDU(pdu, res)

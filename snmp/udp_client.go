@@ -6,6 +6,7 @@ package snmp
 // #include "bsnmp/gobindings.h"
 import "C"
 import (
+	"encoding/hex"
 	"errors"
 	"flag"
 	"log"
@@ -21,6 +22,24 @@ type Request struct {
 	pdu      PDU
 	ctx      InvokedContext
 	callback func(PDU, SnmpCodeError)
+}
+
+func (req *Request) reply(result PDU, err SnmpCodeError) {
+
+	if nil != req.ctx {
+
+		if *logPdu {
+			if nil != err {
+				log.Printf("snmp - recv pdu failed, %v", err)
+			} else {
+				log.Printf("snmp - recv pdu success, %v", result)
+			}
+		}
+
+		req.ctx.Reply(result, err)
+	} else {
+		req.callback(result, err)
+	}
 }
 
 type UdpClient struct {
@@ -226,6 +245,8 @@ func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 }
 
 func (client *UdpClient) readUDP(conn *net.UDPConn) {
+	var err error
+
 	defer func() {
 		client.conn = nil
 		if err := recover(); nil != err {
@@ -233,10 +254,12 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 		}
 		conn.Close()
 	}()
-
 	for {
-		bytes := make([]byte, *maxPDUSize)
-		length, err := conn.Read(bytes)
+		var length int
+		var bytes []byte
+
+		bytes = make([]byte, *maxPDUSize)
+		length, err = conn.Read(bytes)
 		if nil != err {
 			client.Logger.Println(err)
 			break
@@ -244,11 +267,22 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 
 		if *logPdu {
 			log.Printf("snmp - read ok")
+			log.Println(hex.EncodeToString(bytes[:length]))
 		}
 
 		func(buf []byte) {
 			client.Send(func() { client.handleRecv(buf) })
 		}(bytes[:length])
+	}
+
+	client.Send(func() { client.handleDisConnection(err) })
+}
+
+func (client *UdpClient) handleDisConnection(err error) {
+	e := newError(SNMP_CODE_BADNET, err, "")
+
+	for _, req := range client.pendings {
+		req.reply(nil, e)
 	}
 }
 
@@ -322,20 +356,7 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 	}
 
 complete:
-	if nil != req.ctx {
-
-		if *logPdu {
-			if nil != err {
-				log.Printf("snmp - recv pdu failed, %v", err)
-			} else {
-				log.Printf("snmp - recv pdu success, %v", result)
-			}
-		}
-
-		req.ctx.Reply(result, err)
-	} else {
-		req.callback(result, err)
-	}
+	req.reply(result, err)
 }
 
 func (client *UdpClient) handleSend(ctx InvokedContext, pdu PDU) {
@@ -430,7 +451,11 @@ failed:
 		log.Printf("snmp - send failed, " + err.Error())
 	}
 
-	ctx.Reply(nil, err)
+	if nil != callback {
+		callback(nil, err)
+	} else {
+		ctx.Reply(nil, err)
+	}
 	return
 }
 

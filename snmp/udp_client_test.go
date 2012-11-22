@@ -124,6 +124,11 @@ func TestSendFailed(t *testing.T) {
 			t.Errorf("except throw an error, actual return ok")
 			return
 		}
+
+		if !strings.Contains(err.Error(), "time out") {
+			t.Errorf("except throw an timeout error, actual return %s", err.Error())
+			return
+		}
 		//cl.FreePDU(pdu)
 	})
 }

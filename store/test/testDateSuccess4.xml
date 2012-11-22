@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cmdbt:typeDefinitions lastModified="2009-12-23T12:12:12" xmlns:cmdbt="http://schemas.betasoft.com.cn/cmdb/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.betasoft.com.cn/cmdb/1/typeDefinitions C:\DOCUME~1\Administrator\桌面\betasoft_cmdb_typeDefinitions.xsd">
+	<cmdbt:propertyDefinitions>
+		<cmdbt:propertyDefinition name="Age" displayName="cc">
+			<cmdbt:restriction base="dateTime">
+				<cmdbt:defaultValue value="2009-12-24 12:12:12" />
+				<cmdbt:minExclusive  value="2009-12-23 12:12:12" />
+				<cmdbt:maxExclusive value="2009-12-25 12:12:12" />
+			</cmdbt:restriction>
+		</cmdbt:propertyDefinition>
+	</cmdbt:propertyDefinitions>
+	<cmdbt:classDefinitions>
+		<cmdbt:classDefinition name="Person" displayName="人员" >
+			<cmdbt:derivedFrom />
+			<cmdbt:propertyList>
+				<cmdbt:ref id="Age" isIdentifier="true" />
+			</cmdbt:propertyList>
+		</cmdbt:classDefinition>		
+	</cmdbt:classDefinitions>
+	<cmdbt:categoryDefinitions/>
+</cmdbt:typeDefinitions>

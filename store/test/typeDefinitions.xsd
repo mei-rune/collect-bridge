@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:oodb="http://schemas.meijing.com.cn/oodbs/1/typeDefinitions" targetNamespace="http://schemas.meijing.com.cn/oodbs/1/typeDefinitions" elementFormDefault="qualified" blockDefault="#all">
+	<xs:simpleType name="dataType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="integer"/>
+			<xs:enumeration value="decimal"/>
+			<xs:enumeration value="string"/>
+			<xs:enumeration value="dateTime"/>
+			<xs:enumeration value="file"/>
+			<xs:enumeration value="ipAddress"/>
+			<xs:enumeration value="physicalAddress"/>
+			<xs:enumeration value="password"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="propertyType">
+		<xs:sequence>
+			<xs:element name="restriction">
+				<xs:complexType>
+					<xs:sequence minOccurs="0">
+						<xs:element name="enumeration" minOccurs="0" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>定义可接受值的一个列表</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:attribute name="value" use="required"/>
+							</xs:complexType>
+						</xs:element>
+						<xs:element name="defaultValue" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>定义空白字符（换行、回车、空格以及制表符）的处理方式。</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:attribute name="value" use="required"/>
+							</xs:complexType>
+						</xs:element>
+						<xs:element name="pattern" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>定义可接受的字符的精确序列。</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:attribute name="value" use="required"/>
+							</xs:complexType>
+						</xs:element>
+						<xs:choice>
+							<xs:sequence>
+								<xs:choice minOccurs="0">
+									<xs:element name="minExclusive" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>定义数值的下限。所允许的值必需大于此值。</xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:attribute name="value" type="xs:string" use="required"/>
+										</xs:complexType>
+									</xs:element>
+									<xs:element name="minInclusive" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>定义数值的下限。所允许的值必需大于或等于此值。</xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:attribute name="value" type="xs:string" use="required"/>
+										</xs:complexType>
+									</xs:element>
+								</xs:choice>
+								<xs:choice minOccurs="0">
+									<xs:element name="maxExclusive" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>定义数值的上限。所允许的值必须小于此值。</xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:attribute name="value" type="xs:string" use="required"/>
+										</xs:complexType>
+									</xs:element>
+									<xs:element name="maxInclusive" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>定义数值的上限。所允许的值必须小于或等于此值。</xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:attribute name="value" type="xs:string" use="required"/>
+										</xs:complexType>
+									</xs:element>
+								</xs:choice>
+								<xs:element name="fractionDigits" minOccurs="0">
+									<xs:annotation>
+										<xs:documentation>定义所允许的最大的小数位数。必须大于等于0。</xs:documentation>
+									</xs:annotation>
+									<xs:complexType>
+										<xs:attribute name="value" type="xs:integer" use="required"/>
+									</xs:complexType>
+								</xs:element>
+								<xs:element name="totalDigits" minOccurs="0">
+									<xs:annotation>
+										<xs:documentation>定义所允许的阿拉伯数字的精确位数。必须大于0。</xs:documentation>
+									</xs:annotation>
+									<xs:complexType>
+										<xs:attribute name="value" type="xs:integer" use="required"/>
+									</xs:complexType>
+								</xs:element>
+							</xs:sequence>
+							<xs:choice minOccurs="0">
+								<xs:element name="length" minOccurs="0">
+									<xs:annotation>
+										<xs:documentation>定义所允许的字符或者列表项目的精确数目。必须大于或等于0。</xs:documentation>
+									</xs:annotation>
+									<xs:complexType>
+										<xs:attribute name="value" type="xs:integer" use="required"/>
+									</xs:complexType>
+								</xs:element>
+								<xs:sequence minOccurs="0">
+									<xs:element name="minLength" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>定义所允许的字符或者列表项目的最小数目。必须大于或等于0。</xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:attribute name="value" type="xs:integer" use="required"/>
+										</xs:complexType>
+									</xs:element>
+									<xs:element name="maxLength" minOccurs="0">
+										<xs:complexType>
+											<xs:attribute name="value" type="xs:integer" use="required"/>
+										</xs:complexType>
+									</xs:element>
+								</xs:sequence>
+							</xs:choice>
+						</xs:choice>
+					</xs:sequence>
+					<xs:attribute name="base" type="oodb:dataType" use="required"/>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="designFor" type="xs:anyType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>可用于第三方设计软件保存私有数据,oodbs将不对其进行解析.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="name" type="xs:ID" use="required">
+			<xs:annotation>
+				<xs:documentation>属性名</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="displayName">
+			<xs:annotation>
+				<xs:documentation>显示名</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="classDefinitions">
+		<xs:annotation>
+			<xs:documentation>类列表</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="class" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>定义一个类</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="derivedFrom" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>父类列表</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="ref" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>指向一个classDefinition作为它的父类</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:attribute name="id" type="xs:IDREF" use="required">
+													<xs:annotation>
+														<xs:documentation>其值应是某个classDefinition实例的name值</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="property" type="oodb:propertyType" minOccurs="0" maxOccurs="unbounded"/>
+							<xs:element name="designFor" type="xs:anyType" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>可用于第三方设计软件保存私有数据,oodbs将不对其进行解析.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+						</xs:sequence>
+						<xs:attribute name="name" type="xs:ID" use="required">
+							<xs:annotation>
+								<xs:documentation>类名</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="displayName">
+							<xs:annotation>
+								<xs:documentation>显示名</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="designFor" type="xs:anyType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>可用于第三方设计软件保存私有数据,oodbs将不对其进行解析.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="lastModified" type="xs:dateTime" use="required">
+				<xs:annotation>
+					<xs:documentation>本文档的最后修改时间</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

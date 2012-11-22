@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cmdbt:classDefinitions lastModified="2009-12-23T12:12:12" xmlns:cmdbt="http://schemas.meijing.com.cn/cmdb/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/cmdb/1/typeDefinitions typeDefinitions.xsd">
+	<cmdbt:class name="Person" displayName="人员" >
+		<cmdbt:property name="Name" displayName="cc">
+			<cmdbt:restriction base="string">
+				<cmdbt:defaultValue value="mf" />
+				<cmdbt:minLength value="3" />
+				<cmdbt:maxLength value="13" />
+			</cmdbt:restriction>
+		</cmdbt:property>
+	</cmdbt:class>		
+</cmdbt:classDefinitions>

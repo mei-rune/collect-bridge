@@ -10,7 +10,7 @@ import (
 )
 
 type Validatable interface {
-	validate(value interface{}) (bool, error)
+	Validate(value interface{}) (bool, error)
 }
 
 type StringValidator struct {
@@ -18,7 +18,7 @@ type StringValidator struct {
 	Pattern              *regexp.Regexp
 }
 
-func (self *StringValidator) validate(obj interface{}) (bool, error) {
+func (self *StringValidator) Validate(obj interface{}) (bool, error) {
 	value, ok := obj.(string)
 	if !ok {
 		return false, errors.New("syntex error")
@@ -42,7 +42,7 @@ func (self *StringValidator) validate(obj interface{}) (bool, error) {
 
 type PhysicalAddressValidator struct{}
 
-func (self *PhysicalAddressValidator) validate(obj interface{}) (bool, error) {
+func (self *PhysicalAddressValidator) Validate(obj interface{}) (bool, error) {
 	value, ok := obj.(string)
 	if !ok {
 		return false, errors.New("syntex error")
@@ -56,7 +56,7 @@ func (self *PhysicalAddressValidator) validate(obj interface{}) (bool, error) {
 
 type IPAddressValidator struct{}
 
-func (self *IPAddressValidator) validate(obj interface{}) (bool, error) {
+func (self *IPAddressValidator) Validate(obj interface{}) (bool, error) {
 	value, ok := obj.(string)
 	if !ok {
 		return false, errors.New("syntex error")
@@ -72,7 +72,7 @@ type IntegerValidator struct {
 	MinValue, MaxValue int64
 }
 
-func (self *IntegerValidator) validate(obj interface{}) (bool, error) {
+func (self *IntegerValidator) Validate(obj interface{}) (bool, error) {
 	var value int64
 	switch v := obj.(type) {
 	case int:
@@ -104,7 +104,7 @@ type EnumerationValidator struct {
 	Values []interface{}
 }
 
-func (self *EnumerationValidator) validate(obj interface{}) (bool, error) {
+func (self *EnumerationValidator) Validate(obj interface{}) (bool, error) {
 	var found bool = false
 	for v := range self.Values {
 		if v == obj {
@@ -123,7 +123,7 @@ type DecimalValidator struct {
 	MinValue, MaxValue float64
 }
 
-func (self *DecimalValidator) validate(obj interface{}) (bool, error) {
+func (self *DecimalValidator) Validate(obj interface{}) (bool, error) {
 	var value float64
 	switch v := obj.(type) {
 	case uint:
@@ -169,7 +169,7 @@ type DateValidator struct {
 	MinValue, MaxValue time.Time
 }
 
-func (self *DateValidator) validate(obj interface{}) (bool, error) {
+func (self *DateValidator) Validate(obj interface{}) (bool, error) {
 	value, ok := obj.(time.Time)
 	if !ok {
 		return false, errors.New("syntex error")

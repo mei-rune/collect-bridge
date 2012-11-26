@@ -1,104 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<cmdbt:classDefinitions lastModified="2009-12-23T12:12:12" xmlns:cmdbt="http://schemas.meijing.com.cn/cmdb/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/cmdb/1/typeDefinitions typeDefinitions.xsd">
-	<cmdbt:class name="Person" displayName="人员" >
-		<cmdbt:derivedFrom />
-		<cmdbt:property name="ID1" displayName="cc">
-			<cmdbt:restriction base="integer">
-				<cmdbt:defaultValue value="0" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="Name" displayName="cc">
-			<cmdbt:restriction base="string">
-				<cmdbt:defaultValue value="mfk" />
-				<cmdbt:minLength value="3" />
-				<cmdbt:maxLength value="13" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="Name2" displayName="cc">
-			<cmdbt:restriction base="string">
-				<cmdbt:defaultValue value="mfk" />
-				<cmdbt:length value="3" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="Age" displayName="cc">
-			<cmdbt:restriction base="integer">
-				<cmdbt:defaultValue value="123" />
-				<cmdbt:minInclusive  value="3" />
-				<cmdbt:maxInclusive value="313" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="Age2" displayName="cc">
-			<cmdbt:restriction base="integer">
-				<cmdbt:defaultValue value="123" />
-				<cmdbt:minExclusive  value="3" />
-				<cmdbt:maxExclusive value="313" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="Day" displayName="cc">
-			<cmdbt:restriction base="dateTime">
-				<cmdbt:defaultValue value="2009-12-12 12:23:23" />
-				<cmdbt:minInclusive value="2009-12-11 10:23:23" />
-				<cmdbt:maxInclusive value="2009-12-13 12:23:23" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="Day2" displayName="cc">
-			<cmdbt:restriction base="dateTime">
-				<cmdbt:defaultValue value="2009-12-12 12:23:23" />
-				<cmdbt:minExclusive value="2009-12-11 10:23:23" />
-				<cmdbt:maxExclusive value="2009-12-13 12:23:23" />
-			</cmdbt:restriction></cmdbt:property>
-		<cmdbt:property name="Mony" displayName="cc">
-			<cmdbt:restriction base="decimal">
-				<cmdbt:defaultValue value="1.3" />
-				<cmdbt:minInclusive value="1.0" />
-				<cmdbt:maxInclusive value="3.0" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="Mony2" displayName="cc">
-			<cmdbt:restriction base="decimal">
-				<cmdbt:defaultValue value="1.3" />
-				<cmdbt:minExclusive value="1.0" />
-				<cmdbt:maxExclusive value="3.0" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="File" displayName="cc">
-			<cmdbt:restriction base="file">
-				<cmdbt:defaultValue value="ssdd" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="IP" displayName="cc">
-			<cmdbt:restriction base="ipAddress">
-				<cmdbt:defaultValue value="12.12.12.12" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="MAC" displayName="cc">
-			<cmdbt:restriction base="physicalAddress">
-				<cmdbt:defaultValue value="12-12-12-12-12-12" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="Sex" displayName="cc">
-			<cmdbt:restriction base="string">
-				<cmdbt:enumeration value="male" />
-				<cmdbt:enumeration value="female" />
-				<cmdbt:defaultValue value="male" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-		<cmdbt:property name="Password" displayName="cc">
-			<cmdbt:restriction base="password">
-				<cmdbt:defaultValue value="mfk" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-	</cmdbt:class>
-	<cmdbt:class name="Employee" displayName="雇员" >
-	   <cmdbt:derivedFrom>
-		  <cmdbt:ref id="Person" />
-	    </cmdbt:derivedFrom>
-		<cmdbt:property name="Job" displayName="cc">
-				<cmdbt:restriction base="string">
-					<cmdbt:defaultValue value="developer" />
-				</cmdbt:restriction>
-		</cmdbt:property>
-	  <cmdbt:designFor></cmdbt:designFor>
-	</cmdbt:class>	
-	<cmdbt:designFor/>
-</cmdbt:classDefinitions>
+<classDefinitions lastModified="2009-12-23T12:12:12" xmlns="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions typeDefinitions.xsd">
+	<class name="Person" displayName="人员" >
+		<property name="ID1" displayName="cc">
+			<restriction base="integer">
+				<defaultValue value="0" />
+			</restriction>
+		</property>
+		<property name="Name" displayName="cc">
+			<restriction base="string">
+				<defaultValue value="mfk" />
+				<minLength value="3" />
+				<maxLength value="13" />
+			</restriction>
+		</property>
+		<property name="Name2" displayName="cc">
+			<restriction base="string">
+				<defaultValue value="mfk" />
+				<length value="3" />
+			</restriction>
+		</property>
+		<property name="Age" displayName="cc">
+			<restriction base="integer">
+				<defaultValue value="123" />
+				<minValue  value="3" />
+				<maxValue value="313" />
+			</restriction>
+		</property>
+		<property name="Day" displayName="cc">
+			<restriction base="dateTime">
+				<defaultValue value="2009-12-12 12:23:23" />
+				<minValue value="2009-12-11 10:23:23" />
+				<maxValue value="2009-12-13 12:23:23" />
+			</restriction>
+		</property>
+		<property name="Mony" displayName="cc">
+			<restriction base="decimal">
+				<defaultValue value="1.3" />
+				<minValue value="1.0" />
+				<maxValue value="3.0" />
+			</restriction>
+		</property>
+		<property name="IP" displayName="cc">
+			<restriction base="ipAddress">
+				<defaultValue value="12.12.12.12" />
+			</restriction>
+		</property>
+		<property name="MAC" displayName="cc">
+			<restriction base="physicalAddress">
+				<defaultValue value="12-12-12-12-12-12" />
+			</restriction>
+		</property>
+		<property name="Sex" displayName="cc">
+			<restriction base="string">
+				<enumeration>
+					<value>male</value>
+					<value>female</value>
+				</enumeration>
+				<defaultValue value="male" />
+			</restriction>
+		</property>
+		<property name="Password" displayName="cc">
+			<restriction base="password">
+				<defaultValue value="mfk" />
+			</restriction>
+		</property>
+	</class>
+	<class name="Employee" displayName="雇员" base="Person">
+		<property name="Job" displayName="cc">
+				<restriction base="string">
+					<defaultValue value="developer" />
+				</restriction>
+		</property>
+	  <designFor></designFor>
+	</class>	
+	<designFor/>
+</classDefinitions>

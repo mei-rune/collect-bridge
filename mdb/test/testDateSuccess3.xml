@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<cmdbt:classDefinitions lastModified="2009-12-23T12:12:12" xmlns:cmdbt="http://schemas.meijing.com.cn/cmdb/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/cmdb/1/typeDefinitions typeDefinitions.xsd">
-	<cmdbt:class name="Person" displayName="人员" >
-		<cmdbt:property name="Age" displayName="cc">
-			<cmdbt:restriction base="dateTime">
-				<cmdbt:defaultValue value="2009-12-25 12:12:12" />
-				<cmdbt:minInclusive  value="2009-12-23 12:12:12" />
-				<cmdbt:maxInclusive value="2009-12-25 12:12:12" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-	</cmdbt:class>		
-</cmdbt:classDefinitions>
+<mdbs:classDefinitions lastModified="2009-12-23T12:12:12" xmlns:mdbs="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions typeDefinitions.xsd">
+	<mdbs:class name="Person" displayName="人员" >
+		<mdbs:property name="Age" displayName="cc">
+			<mdbs:restriction base="dateTime">
+				<mdbs:defaultValue value="2009-12-25 12:12:12" />
+				<mdbs:minInclusive  value="2009-12-23 12:12:12" />
+				<mdbs:maxInclusive value="2009-12-25 12:12:12" />
+			</mdbs:restriction>
+		</mdbs:property>
+	</mdbs:class>		
+</mdbs:classDefinitions>

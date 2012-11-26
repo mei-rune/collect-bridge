@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<cmdbt:classDefinitions lastModified="2009-12-23T12:12:12" xmlns:cmdbt="http://schemas.meijing.com.cn/cmdb/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/cmdb/1/typeDefinitions typeDefinitions.xsd">
-	<cmdbt:class name="Person" displayName="人员" >
-		<cmdbt:property name="Age" displayName="cc">
-			<cmdbt:restriction base="integer">
-				<cmdbt:defaultValue value="c" />
-				<cmdbt:minExclusive  value="3" />
-				<cmdbt:maxExclusive value="5" />
-			</cmdbt:restriction>
-		</cmdbt:property>
-	</cmdbt:class>		
-</cmdbt:classDefinitions>
+<mdbs:classDefinitions lastModified="2009-12-23T12:12:12" xmlns:mdbs="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions typeDefinitions.xsd">
+	<mdbs:class name="Person" displayName="人员" >
+		<mdbs:property name="Age" displayName="cc">
+			<mdbs:restriction base="integer">
+				<mdbs:defaultValue value="c" />
+				<mdbs:minExclusive  value="3" />
+				<mdbs:maxExclusive value="5" />
+			</mdbs:restriction>
+		</mdbs:property>
+	</mdbs:class>		
+</mdbs:classDefinitions>

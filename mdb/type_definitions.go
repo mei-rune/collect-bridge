@@ -35,7 +35,7 @@ var (
 )
 
 func GetTypeDefinition(t string) TypeDefinition {
-	switch {
+	switch t {
 	case "integer":
 		return integerType
 	case "decimal":

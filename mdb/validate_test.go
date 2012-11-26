@@ -18,12 +18,12 @@ func TestDate(t *testing.T) {
 	var validator DateValidator
 
 	assertTrue := func(value interface{}) {
-		if ok, err := validator.validate(value); !ok {
+		if ok, err := validator.Validate(value); !ok {
 			t.Errorf("test Date failed, %s", err.Error())
 		}
 	}
 	assertFalse := func(value interface{}) {
-		if ok, _ := validator.validate(value); ok {
+		if ok, _ := validator.Validate(value); ok {
 			t.Errorf("test Date failed")
 		}
 	}
@@ -71,12 +71,12 @@ func TestInteger(t *testing.T) {
 	var validator IntegerValidator
 
 	assertTrue := func(value interface{}) {
-		if ok, err := validator.validate(value); !ok {
+		if ok, err := validator.Validate(value); !ok {
 			t.Errorf("test integer failed, %s", err.Error())
 		}
 	}
 	assertFalse := func(value interface{}) {
-		if ok, _ := validator.validate(value); ok {
+		if ok, _ := validator.Validate(value); ok {
 			t.Errorf("test integer failed")
 		}
 	}
@@ -125,12 +125,12 @@ func TestDouble(t *testing.T) {
 	var validator DecimalValidator
 
 	assertTrue := func(value interface{}) {
-		if ok, err := validator.validate(value); !ok {
+		if ok, err := validator.Validate(value); !ok {
 			t.Errorf("test float failed, %s", err.Error())
 		}
 	}
 	assertFalse := func(value interface{}) {
-		if ok, _ := validator.validate(value); ok {
+		if ok, _ := validator.Validate(value); ok {
 			t.Errorf("test float failed")
 		}
 	}
@@ -179,12 +179,12 @@ func TestString(t *testing.T) {
 	var validator StringValidator
 
 	assertTrue := func(value interface{}) {
-		if ok, err := validator.validate(value); !ok {
+		if ok, err := validator.Validate(value); !ok {
 			t.Errorf("test string failed, %s", err.Error())
 		}
 	}
 	assertFalse := func(value interface{}) {
-		if ok, _ := validator.validate(value); ok {
+		if ok, _ := validator.Validate(value); ok {
 			t.Errorf("test string failed")
 		}
 	}

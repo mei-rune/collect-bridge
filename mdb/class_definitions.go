@@ -1,7 +1,10 @@
 package mdb
 
 import (
+	"encoding/xml"
 	"errors"
+	"fmt"
+	"io/ioutil"
 )
 
 type PropertyDefinition struct {
@@ -15,21 +18,21 @@ type MutiErrorsError struct {
 	errs []error
 }
 
-func (self *MutiErrorsError) Error() {
+func (self *MutiErrorsError) Error() string {
 	return self.msg
 }
 func (self *MutiErrorsError) Errors() []error {
 	return self.errs
 }
 
-func (self *PropertyDefinition) Validate(obj interface{}) (bool, []error) {
+func (self *PropertyDefinition) Validate(obj interface{}) (bool, error) {
 	if nil == self.restriction {
 		return true, nil
 	}
 
 	var result bool = true
 	var errs []error = make([]error, 0, len(self.restriction))
-	for validatable := range self.restriction {
+	for _, validatable := range self.restriction {
 		if ok, err := validatable.Validate(obj); !ok {
 			result = false
 			errs = append(errs, err)
@@ -43,47 +46,71 @@ func (self *PropertyDefinition) Validate(obj interface{}) (bool, []error) {
 }
 
 type ClassDefinition struct {
-	super      ClassDefinition
+	Super      *ClassDefinition
 	Name       string
-	properties map[string]PropertyDefinition
+	properties map[string]*PropertyDefinition
 }
 
 func (self *ClassDefinition) CollectionName() string {
-	if nil == super {
+	if nil == self.Super {
 		return self.Name
 	}
 
-	return self.super.CollectionName()
+	return self.Super.CollectionName()
 }
 
 type ClassDefinitions struct {
-	clsDefinitions map[string]ClassDefinition
+	clsDefinitions map[string]*ClassDefinition
+}
+
+func (self *ClassDefinitions) LoadProperty(pr *XMLPropertyDefinition, errs []error) (*PropertyDefinition, []error) {
+	// TODO
+	panic("not implemented")
 }
 
 func (self *ClassDefinitions) LoadFromXml(nm string) error {
-	var errs = make([]error, 0, 20)
+	bytes, err := ioutil.ReadFile("test/test1.xml")
+	if nil != err {
+		return fmt.Errorf("read file '%s' failed, %s", nm, err.Error())
+	}
 
-	for clsDefinition := range readXml(nm) {
-		super, ok := self.clsDefinitions[clsDefinition.Name]
+	var xml_definitions XMLClassDefinitions
+	err = xml.Unmarshal(bytes, &xml_definitions)
+	if nil != err {
+		return fmt.Errorf("unmarshal xml '%s' failed, %s", nm, err.Error())
+	}
+
+	if nil == xml_definitions.Definitions || 0 == len(xml_definitions.Definitions) {
+		return fmt.Errorf("unmarshal xml '%s' error, class definition is empty", nm)
+	}
+
+	var errs = make([]error, 0, 20)
+	for _, xmlDefinition := range xml_definitions.Definitions {
+		_, ok := self.clsDefinitions[xmlDefinition.Name]
 		if ok {
-			errs = append(errs, errors.New("class '"+clsDefinition.Name+
+			errs = append(errs, errors.New("class '"+xmlDefinition.Name+
 				"' is aleady exists."))
 			continue
 		}
 
-		if "" != clsDefinition.Base {
-			base, ok := self.clsDefinitions[clsDefinition.Base]
-			if !ok || nil == base {
-				errs = append(errs, errors.New("Base '"+clsDefinition.Base+
-					"' of class '"+clsDefinition.Name+"' is not found."))
+		var super *ClassDefinition = nil
+		if "" != xmlDefinition.Base {
+			super, ok := self.clsDefinitions[xmlDefinition.Base]
+			if !ok || nil == super {
+				errs = append(errs, errors.New("Base '"+xmlDefinition.Base+
+					"' of class '"+xmlDefinition.Name+"' is not found."))
 				continue
 			}
 		}
 
-		cls = &ClassDefinition{Name: clsDefinition.Name}
-
-		for pr := range clsDefinition.Properties {
-
+		cls := &ClassDefinition{Name: xmlDefinition.Name, Super: super}
+		cls.properties = make(map[string]*PropertyDefinition)
+		for _, pr := range xmlDefinition.Properties {
+			var cpr *PropertyDefinition = nil
+			cpr, errs = self.LoadProperty(&pr, errs)
+			if nil != cpr {
+				cls.properties[cpr.Name] = cpr
+			}
 		}
 		self.clsDefinitions[cls.Name] = cls
 	}
@@ -94,7 +121,7 @@ func (self *ClassDefinitions) LoadFromXml(nm string) error {
 	return &MutiErrorsError{errs: errs, msg: "load file '" + nm + "' failed."}
 }
 
-func (self *ClassDefinitions) Find(nm string) {
+func (self *ClassDefinitions) Find(nm string) *ClassDefinition {
 	if cls, ok := self.clsDefinitions[nm]; ok {
 		return cls
 	}

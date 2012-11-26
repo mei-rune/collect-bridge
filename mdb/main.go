@@ -22,85 +22,84 @@ type MdbDriver struct {
 	definitions ClassDefinitions
 }
 
-func objectFindById(driver MdbDriver, ctx *web.Context, objectType, id string) {
+func objectFindById(driver *MdbDriver, ctx *web.Context, objectType, id string) {
 	var result map[string]interface{}
-	definition = driver.definitions.Find(objectType)
+	definition := driver.definitions.Find(objectType)
 	if nil == definition {
 		log.Panicln("class '" + objectType + "' is not found")
 	}
 
-	err := driver.session.DB(mgoDB).C(definition.CollectionName()).FindId(id).One(&result)
+	err := driver.session.DB(*mgoDB).C(definition.CollectionName()).FindId(id).One(&result)
 	if err != nil {
-		log.Panicln("query result from db, " + err)
+		log.Panicln("query result from db, " + err.Error())
 	}
 	bytes, err := json.Marshal(result)
 	if err != nil {
-		log.Panicln("convert result to json failed, " + err)
+		log.Panicln("convert result to json failed, " + err.Error())
 	}
 
 	ctx.Write(bytes)
 }
 
-func objectUpdateById(driver MdbDriver, ctx *web.Context, objectType, id string) {
+func objectUpdateById(driver *MdbDriver, ctx *web.Context, objectType, id string) {
 	var result map[string]interface{}
-	definition = driver.definitions.Find(objectType)
+	definition := driver.definitions.Find(objectType)
 	if nil == definition {
 		log.Panicln("class '" + objectType + "' is not found")
 	}
 
-	bytes, err := ioutil.ReadAll(ctx)
+	bytes, err := ioutil.ReadAll(ctx.Request.Body)
 	if err != nil {
-		log.Panicln("read data from request failed, " + err)
+		log.Panicln("read data from request failed, " + err.Error())
 	}
 
 	err = json.Unmarshal(bytes, &result)
 	if err != nil {
-		log.Panicln("unmarshal object from request failed, " + err)
+		log.Panicln("unmarshal object from request failed, " + err.Error())
 	}
 
-	err = driver.session.DB(mgoDB).C(definition.CollectionName()).UpdateId(id, &result)
+	err = driver.session.DB(*mgoDB).C(definition.CollectionName()).UpdateId(id, &result)
 	if err != nil {
-		log.Panicln("update object to db, " + err)
+		log.Panicln("update object to db, " + err.Error())
 	}
 
 	ctx.WriteString("ok")
 }
 
-func objectDeleteById(driver MdbDriver, ctx *web.Context, objectType, id string) {
-	var result map[string]interface{}
-	definition = driver.definitions.Find(objectType)
+func objectDeleteById(driver *MdbDriver, ctx *web.Context, objectType, id string) {
+	definition := driver.definitions.Find(objectType)
 	if nil == definition {
 		log.Panicln("class '" + objectType + "' is not found")
 	}
 
-	err := driver.session.DB(mgoDB).C(definition.CollectionName()).RemoveId(id)
+	err := driver.session.DB(*mgoDB).C(definition.CollectionName()).RemoveId(id)
 	if err != nil {
-		log.Panicln("insert object to db, " + err)
+		log.Panicln("insert object to db, " + err.Error())
 	}
 
 	ctx.WriteString("ok")
 }
 
-func objectCreate(driver MdbDriver, ctx *web.Context, objectType string) {
+func objectCreate(driver *MdbDriver, ctx *web.Context, objectType string) {
 	var result map[string]interface{}
-	definition = driver.definitions.Find(objectType)
+	definition := driver.definitions.Find(objectType)
 	if nil == definition {
 		log.Panicln("class '" + objectType + "' is not found")
 	}
 
-	bytes, err := ioutil.ReadAll(ctx)
+	bytes, err := ioutil.ReadAll(ctx.Request.Body)
 	if err != nil {
-		log.Panicln("read data from request failed, " + err)
+		log.Panicln("read data from request failed, " + err.Error())
 	}
 
 	err = json.Unmarshal(bytes, &result)
 	if err != nil {
-		log.Panicln("unmarshal object from request failed, " + err)
+		log.Panicln("unmarshal object from request failed, " + err.Error())
 	}
 
-	err = driver.session.DB(mgoDB).C(definition.CollectionName()).Insert(&result)
+	err = driver.session.DB(*mgoDB).C(definition.CollectionName()).Insert(&result)
 	if err != nil {
-		log.Panicln("insert object to db, " + err)
+		log.Panicln("insert object to db, " + err.Error())
 	}
 
 	ctx.WriteString("ok")
@@ -113,8 +112,13 @@ func main() {
 	svr.Config.Address = *address
 	svr.Config.StaticDirectory = *directory
 	svr.Config.CookieSecret = *cookies
+	sess, err := mgo.Dial(*mgoUrl)
+	if nil != err {
+		log.Printf("connect to mongo server failed, %s", err.Error())
+		return
+	}
 
-	driver := &MdbDriver{session: mgo.Dial(mgoUrl)}
+	driver := &MdbDriver{session: sess}
 
 	svr.Get("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectFindById(driver, ctx, objectType, id) })
 	svr.Put("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectUpdateById(driver, ctx, objectType, id) })

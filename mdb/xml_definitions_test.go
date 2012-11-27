@@ -1,11 +1,11 @@
 package mdb
 
 import (
-	"commons"
+	a "commons/assert"
 	"encoding/xml"
 	//"fmt"
 	"io/ioutil"
-	"os"
+	//"os"
 	"testing"
 )
 
@@ -55,13 +55,13 @@ func TestOutXML(t *testing.T) {
 	person := xmlDefinitions.Definitions[0]
 	employee := xmlDefinitions.Definitions[1]
 
-	commons.Check(t, person.Name, commons.Equals, "Person", commons.Commentf("check Class name"))
-	commons.Check(t, person.Base, commons.Equals, "", commons.Commentf("check Base name"))
-	commons.Assert(t, len(person.Properties), commons.Equals, 5, commons.Commentf("check len of Properties"))
-	commons.Check(t, person.Properties[0].Name, commons.Equals, "Id", commons.Commentf("check name of Properties[0]"))
+	a.Check(t, person.Name, a.Equals, "Person", a.Commentf("check Class name"))
+	a.Check(t, person.Base, a.Equals, "", a.Commentf("check Base name"))
+	a.Assert(t, len(person.Properties), a.Equals, 5, a.Commentf("check len of Properties"))
+	a.Check(t, person.Properties[0].Name, a.Equals, "Id", a.Commentf("check name of Properties[0]"))
 
-	commons.Check(t, employee.Name, commons.Equals, "Employee", commons.Commentf("check Class name"))
-	commons.Check(t, employee.Base, commons.Equals, "Person", commons.Commentf("check Base name"))
+	a.Check(t, employee.Name, a.Equals, "Employee", a.Commentf("check Class name"))
+	a.Check(t, employee.Base, a.Equals, "Person", a.Commentf("check Base name"))
 }
 
 // func TestXml(t *testing.T) {
@@ -158,34 +158,34 @@ func TestReadXML(t *testing.T) {
 	person := xmlDefinitions.Definitions[0]
 	employee := xmlDefinitions.Definitions[1]
 
-	commons.Check(t, person.Name, commons.Equals, "Person", commons.Commentf("check Class name"))
-	commons.Check(t, person.Base, commons.Equals, "", commons.Commentf("check Base name"))
-	commons.Assert(t, len(person.Properties), commons.Equals, 10, commons.Commentf("check len of Properties"))
-	commons.Check(t, person.Properties[0].Name, commons.Equals, "ID1", commons.Commentf("check name of Properties[0]"))
+	a.Check(t, person.Name, a.Equals, "Person", a.Commentf("check Class name"))
+	a.Check(t, person.Base, a.Equals, "", a.Commentf("check Base name"))
+	a.Assert(t, len(person.Properties), a.Equals, 10, a.Commentf("check len of Properties"))
+	a.Check(t, person.Properties[0].Name, a.Equals, "ID1", a.Commentf("check name of Properties[0]"))
 
 	assertProperty := func(p1, p2 *XMLPropertyDefinition, comment int) {
-		commons.Check(t, p1.Name, commons.Equals, p2.Name, commons.Commentf("check Name of properties[%d]", comment))
-		commons.Check(t, p1.Restrictions.Type, commons.Equals, p2.Restrictions.Type,
-			commons.Commentf("check Restrictions.Type of properties[%d]", comment))
-		commons.Check(t, p1.Restrictions.DefaultValue, commons.Equals, p1.Restrictions.DefaultValue,
-			commons.Commentf("check Restrictions.DefaultValueof properties[%d]", comment))
+		a.Check(t, p1.Name, a.Equals, p2.Name, a.Commentf("check Name of properties[%d]", comment))
+		a.Check(t, p1.Restrictions.Type, a.Equals, p2.Restrictions.Type,
+			a.Commentf("check Restrictions.Type of properties[%d]", comment))
+		a.Check(t, p1.Restrictions.DefaultValue, a.Equals, p1.Restrictions.DefaultValue,
+			a.Commentf("check Restrictions.DefaultValueof properties[%d]", comment))
 
 		if !checkArray(p1.Restrictions.Enumerations, p2.Restrictions.Enumerations) {
 			t.Errorf("check Restrictions.Enumerations properties[%d] failed, value is %v", comment, p1.Restrictions.Enumerations)
 		}
 
-		commons.Check(t, p1.Restrictions.Length, commons.Equals, p1.Restrictions.Length,
-			commons.Commentf("check Restrictions.Length properties[%d]", comment))
-		commons.Check(t, p1.Restrictions.MaxLength, commons.Equals, p1.Restrictions.MaxLength,
-			commons.Commentf("check Restrictions.MaxLength properties[%d]", comment))
-		commons.Check(t, p1.Restrictions.MinLength, commons.Equals, p1.Restrictions.MinLength,
-			commons.Commentf("check Restrictions.MinLength properties[%d]", comment))
-		commons.Check(t, p1.Restrictions.MaxValue, commons.Equals, p1.Restrictions.MaxValue,
-			commons.Commentf("check Restrictions.MaxValue properties[%d]", comment))
-		commons.Check(t, p1.Restrictions.MinValue, commons.Equals, p1.Restrictions.MinValue,
-			commons.Commentf("check Restrictions.MinValue properties[%d]", comment))
-		commons.Check(t, p1.Restrictions.Pattern, commons.Equals, p1.Restrictions.Pattern,
-			commons.Commentf("check Restrictions.Pattern properties[%d]", comment))
+		a.Check(t, p1.Restrictions.Length, a.Equals, p1.Restrictions.Length,
+			a.Commentf("check Restrictions.Length properties[%d]", comment))
+		a.Check(t, p1.Restrictions.MaxLength, a.Equals, p1.Restrictions.MaxLength,
+			a.Commentf("check Restrictions.MaxLength properties[%d]", comment))
+		a.Check(t, p1.Restrictions.MinLength, a.Equals, p1.Restrictions.MinLength,
+			a.Commentf("check Restrictions.MinLength properties[%d]", comment))
+		a.Check(t, p1.Restrictions.MaxValue, a.Equals, p1.Restrictions.MaxValue,
+			a.Commentf("check Restrictions.MaxValue properties[%d]", comment))
+		a.Check(t, p1.Restrictions.MinValue, a.Equals, p1.Restrictions.MinValue,
+			a.Commentf("check Restrictions.MinValue properties[%d]", comment))
+		a.Check(t, p1.Restrictions.Pattern, a.Equals, p1.Restrictions.Pattern,
+			a.Commentf("check Restrictions.Pattern properties[%d]", comment))
 	}
 
 	assertProperty(&person.Properties[0], &XMLPropertyDefinition{Name: "ID1",
@@ -227,10 +227,10 @@ func TestReadXML(t *testing.T) {
 		Restrictions: XMLRestrictionsDefinition{Type: "password",
 			DefaultValue: "mfk"}}, 9)
 
-	commons.Check(t, employee.Name, commons.Equals, "Employee", commons.Commentf("check Class name"))
-	commons.Check(t, employee.Base, commons.Equals, "Person", commons.Commentf("check Base name"))
+	a.Check(t, employee.Name, a.Equals, "Employee", a.Commentf("check Class name"))
+	a.Check(t, employee.Base, a.Equals, "Person", a.Commentf("check Base name"))
 
-	commons.Assert(t, len(employee.Properties), commons.Equals, 1, commons.Commentf("check len of Properties"))
+	a.Assert(t, len(employee.Properties), a.Equals, 1, a.Commentf("check len of Properties"))
 
 	assertProperty(&employee.Properties[0], &XMLPropertyDefinition{Name: "Job",
 		Restrictions: XMLRestrictionsDefinition{Type: "string",

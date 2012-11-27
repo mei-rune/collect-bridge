@@ -1,6 +1,7 @@
 package main
 
 import (
+	c "commons/as"
 	"errors"
 	"fmt"
 	"log"
@@ -51,17 +52,17 @@ func checkArray(t *testing.T, old interface{}) {
 	var res interface{}
 	var err error
 
-	array, err := asArray(old)
+	array, err := c.AsArray(old)
 	if nil != err {
 		t.Errorf("test array - "+err.Error()+" - %v", old)
 	} else {
-		res, err = asInt(array[0])
+		res, err = c.AsInt(array[0])
 		checkReturn(t, int(1), array[0], res, err, "test int in array - ")
 
-		res, err = asUint(array[1])
+		res, err = c.AsUint(array[1])
 		checkReturn(t, uint(2), array[1], res, err, "test uint in array - ")
 
-		res, err = asString(array[2])
+		res, err = c.AsString(array[2])
 		checkReturn(t, "s1", array[2], res, err, "test string in array - ")
 	}
 }
@@ -71,19 +72,19 @@ func checkMap(t *testing.T, old interface{}) {
 	var res interface{}
 	var err error
 
-	assoc, err := asMap(old)
+	assoc, err := c.AsMap(old)
 	if nil != err {
 		t.Errorf("test map - "+err.Error()+" - %v", old)
 	} else {
 		fmt.Print(assoc)
 
-		res, err = asInt(assoc["a1"])
+		res, err = c.AsInt(assoc["a1"])
 		checkReturn(t, int(1), assoc["a1"], res, err, "test int in map - ")
 
-		res, err = asUint(assoc["a2"])
+		res, err = c.AsUint(assoc["a2"])
 		checkReturn(t, uint(2), assoc["a2"], res, err, "test uint in map - ")
 
-		res, err = asString(assoc["a3"])
+		res, err = c.AsString(assoc["a3"])
 		checkReturn(t, "s3", assoc["a3"], res, err, "test string in array - ")
 	}
 }
@@ -142,51 +143,51 @@ func TestPushAny(t *testing.T) {
 	if nil == old {
 		panic("nil == old")
 	}
-	res, err = asBool(old)
+	res, err = c.AsBool(old)
 	checkReturn(t, true, old, res, err, "test bool - ")
 
 	old = pushAnyTest(drv, int8(8))
-	res, err = asInt8(old)
+	res, err = c.AsInt8(old)
 	checkReturn(t, int8(8), old, res, err, "test int8 - ")
 
 	old = pushAnyTest(drv, int16(16))
-	res, err = asInt16(old)
+	res, err = c.AsInt16(old)
 	checkReturn(t, int16(16), old, res, err, "test int16 - ")
 
 	old = pushAnyTest(drv, int32(32))
-	res, err = asInt32(old)
+	res, err = c.AsInt32(old)
 	checkReturn(t, int32(32), old, res, err, "test int32 - ")
 
 	old = pushAnyTest(drv, int64(64))
-	res, err = asInt64(old)
+	res, err = c.AsInt64(old)
 	checkReturn(t, int64(64), old, res, err, "test int64 - ")
 
 	old = pushAnyTest(drv, uint8(98))
-	res, err = asUint8(old)
+	res, err = c.AsUint8(old)
 	checkReturn(t, uint8(98), old, res, err, "test uint8 - ")
 
 	old = pushAnyTest(drv, uint16(916))
-	res, err = asUint16(old)
+	res, err = c.AsUint16(old)
 	checkReturn(t, uint16(916), old, res, err, "test uint16 - ")
 
 	old = pushAnyTest(drv, uint32(932))
-	res, err = asUint32(old)
+	res, err = c.AsUint32(old)
 	checkReturn(t, uint32(932), old, res, err, "test uint32 - ")
 
 	old = pushAnyTest(drv, uint64(964))
-	res, err = asUint64(old)
+	res, err = c.AsUint64(old)
 	checkReturn(t, uint64(964), old, res, err, "test uint64 - ")
 
 	old = pushAnyTest(drv, uint(123))
-	res, err = asUint(old)
+	res, err = c.AsUint(old)
 	checkReturn(t, uint(123), old, res, err, "test uint - ")
 
 	old = pushAnyTest(drv, int(223))
-	res, err = asInt(old)
+	res, err = c.AsInt(old)
 	checkReturn(t, int(223), old, res, err, "test int - ")
 
 	old = pushAnyTest(drv, "aa")
-	res, err = asString(old)
+	res, err = c.AsString(old)
 	checkReturn(t, "aa", old, res, err, "test string - ")
 
 	old = pushAnyTest(drv, []interface{}{int8(1), uint8(2), "s1"})
@@ -198,7 +199,7 @@ func TestPushAny(t *testing.T) {
 	old = pushAnyTest(drv, []interface{}{int8(1), uint8(2), "s1", map[string]interface{}{"a1": 1, "a2": uint(2), "a3": "s3"}})
 	checkArray(t, old)
 
-	array, err := asArray(old)
+	array, err := c.AsArray(old)
 	if nil == err {
 		t.Log("test map in array")
 		checkMap(t, array[3])
@@ -208,7 +209,7 @@ func TestPushAny(t *testing.T) {
 	old = pushAnyTest(drv, map[string]interface{}{"a1": 1, "a2": uint(2), "a3": "s3", "a4": []interface{}{int8(1), uint8(2), "s1"}})
 	checkMap(t, old)
 
-	assoc, err := asMap(old)
+	assoc, err := c.AsMap(old)
 	if nil == err {
 		t.Log("test array in map")
 		checkArray(t, assoc["a4"])
@@ -229,7 +230,7 @@ func TestInvoke(t *testing.T) {
 	v, e := drv.Get(nil)
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
-	} else if s, _ := asString(v); "test ok" != s {
+	} else if s, _ := c.AsString(v); "test ok" != s {
 		t.Errorf("execute get faile, excepted value is 'ok', actual is %v", v)
 	} else {
 		t.Log("execute get ok")
@@ -248,7 +249,7 @@ func TestInvokeScript(t *testing.T) {
 	v, e := drv.Get(params)
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
-	} else if s, _ := asString(v); "get ok" != s {
+	} else if s, _ := c.AsString(v); "get ok" != s {
 		t.Errorf("execute get faile, excepted value is 'ok', actual is %v", v)
 	} else {
 		t.Log("execute get ok")
@@ -315,7 +316,7 @@ func TestInvokeAndCallback(t *testing.T) {
 	v, e := drv.Get(params)
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
-	} else if s, _ := asString(v); "get12" != s {
+	} else if s, _ := c.AsString(v); "get12" != s {
 		t.Errorf("execute get faile, excepted value is 'ok', actual is %v", v)
 	} else {
 		t.Log("execute get ok")
@@ -325,7 +326,7 @@ func TestInvokeAndCallback(t *testing.T) {
 func checkResult(t *testing.T, drv *LuaDriver, excepted string, actual interface{}, e error) {
 	if nil != e {
 		t.Errorf("execute failed, " + e.Error())
-	} else if s, _ := asString(actual); excepted != s {
+	} else if s, _ := c.AsString(actual); excepted != s {
 		t.Errorf("execute failed, excepted value is '%s', actual is %v", excepted, s)
 	} else {
 		t.Log("execute ok")
@@ -335,7 +336,7 @@ func checkResult(t *testing.T, drv *LuaDriver, excepted string, actual interface
 func checkErrorResult(t *testing.T, drv *LuaDriver, excepted bool, actual interface{}, msg string, e error) {
 	if nil == e {
 		t.Errorf("execute failed, err is nil")
-	} else if s, _ := asBool(actual); excepted != s {
+	} else if s, _ := c.AsBool(actual); excepted != s {
 		t.Errorf("execute failed, excepted value is '%v', actual is %v", excepted, s)
 	} else if !strings.Contains(e.Error(), msg) {
 		t.Errorf("execute failed, excepted value contains '%v', actual is %v", msg, e.Error())

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type Validatable interface {
+type Validator interface {
 	Validate(value interface{}) (bool, error)
 }
 

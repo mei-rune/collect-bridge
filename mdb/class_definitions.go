@@ -8,9 +8,10 @@ import (
 )
 
 type PropertyDefinition struct {
-	Name        string
-	Type        TypeDefinition
-	restriction []Validatable
+	Name         string
+	Type         TypeDefinition
+	restriction  []Validator
+	defaultValue interface{}
 }
 
 type MutiErrorsError struct {
@@ -32,8 +33,8 @@ func (self *PropertyDefinition) Validate(obj interface{}) (bool, error) {
 
 	var result bool = true
 	var errs []error = make([]error, 0, len(self.restriction))
-	for _, validatable := range self.restriction {
-		if ok, err := validatable.Validate(obj); !ok {
+	for _, Validator := range self.restriction {
+		if ok, err := Validator.Validate(obj); !ok {
 			result = false
 			errs = append(errs, err)
 		}
@@ -64,8 +65,63 @@ type ClassDefinitions struct {
 }
 
 func (self *ClassDefinitions) LoadProperty(pr *XMLPropertyDefinition, errs []error) (*PropertyDefinition, []error) {
-	// TODO
-	panic("not implemented")
+
+	cpr := &PropertyDefinition{Name: pr.Name,
+		Type:        GetTypeDefinition(pr.Restrictions.Type),
+		restriction: make([]Validator, 0, 4)}
+
+	if "" != pr.Restrictions.DefaultValue {
+		var err error
+		cpr.defaultValue, err = cpr.Type.ConvertFrom(pr.Restrictions.DefaultValue)
+		if nil != err {
+			errs = append(errs, err)
+		}
+	}
+	if nil != pr.Restrictions.Enumerations && 0 != len(*pr.Restrictions.Enumerations) {
+		validator, err := cpr.Type.CreateEnumerationValidator(*pr.Restrictions.Enumerations)
+		if nil != err {
+			errs = append(errs, err)
+		} else {
+			cpr.restriction = append(cpr.restriction, validator)
+		}
+	}
+	if "" != pr.Restrictions.Pattern {
+		validator, err := cpr.Type.CreatePatternValidator(pr.Restrictions.Pattern)
+		if nil != err {
+			errs = append(errs, err)
+		} else {
+			cpr.restriction = append(cpr.restriction, validator)
+		}
+	}
+	if "" != pr.Restrictions.MinValue || "" != pr.Restrictions.MaxValue {
+		validator, err := cpr.Type.CreateRangeValidator(pr.Restrictions.MinValue,
+			pr.Restrictions.MaxValue)
+		if nil != err {
+			errs = append(errs, err)
+		} else {
+			cpr.restriction = append(cpr.restriction, validator)
+		}
+	}
+	if "" != pr.Restrictions.Length {
+		validator, err := cpr.Type.CreateLengthValidator(pr.Restrictions.Length,
+			pr.Restrictions.Length)
+		if nil != err {
+			errs = append(errs, err)
+		} else {
+			cpr.restriction = append(cpr.restriction, validator)
+		}
+	}
+	if "" != pr.Restrictions.MinLength || "" != pr.Restrictions.MaxLength {
+		validator, err := cpr.Type.CreateLengthValidator(pr.Restrictions.MinLength,
+			pr.Restrictions.MaxLength)
+		if nil != err {
+			errs = append(errs, err)
+		} else {
+			cpr.restriction = append(cpr.restriction, validator)
+		}
+	}
+
+	return cpr, errs
 }
 
 func (self *ClassDefinitions) LoadFromXml(nm string) error {

@@ -176,15 +176,18 @@ func TestString(t *testing.T) {
 	var value5 string = "aaaaaaa5"
 	var value6 string = "aaaaaaaa6"
 
-	var validator StringValidator
+	var checker Validator
+	var validator StringLengthValidator
+
+	checker = &validator
 
 	assertTrue := func(value interface{}) {
-		if ok, err := validator.Validate(value); !ok {
+		if ok, err := checker.Validate(value); !ok {
 			t.Errorf("test string failed, %s", err.Error())
 		}
 	}
 	assertFalse := func(value interface{}) {
-		if ok, _ := validator.Validate(value); ok {
+		if ok, _ := checker.Validate(value); ok {
 			t.Errorf("test string failed")
 		}
 	}
@@ -220,7 +223,9 @@ func TestString(t *testing.T) {
 	validator.MaxLength = -1
 	validator.MinLength = -1
 
-	validator.Pattern, _ = regexp.Compile("a.*")
+	pv := &PatternValidator{}
+	checker = pv
+	pv.Pattern, _ = regexp.Compile("a.*")
 	assertFalse("ddd")
 	assertTrue("aaa")
 }

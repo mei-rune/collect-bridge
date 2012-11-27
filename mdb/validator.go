@@ -1,9 +1,9 @@
 package mdb
 
 import (
+	"commons/as"
 	"errors"
 	"fmt"
-	"net"
 	"regexp"
 	"strconv"
 	"time"
@@ -13,12 +13,29 @@ type Validator interface {
 	Validate(value interface{}) (bool, error)
 }
 
-type StringValidator struct {
-	MinLength, MaxLength int
-	Pattern              *regexp.Regexp
+type PatternValidator struct {
+	Pattern *regexp.Regexp
 }
 
-func (self *StringValidator) Validate(obj interface{}) (bool, error) {
+func (self *PatternValidator) Validate(obj interface{}) (bool, error) {
+	value, ok := obj.(string)
+	if !ok {
+		return false, errors.New("syntex error")
+	}
+
+	if nil != self.Pattern {
+		if !self.Pattern.MatchString(value) {
+			return false, errors.New("'" + value + "' is not match '" + self.Pattern.String() + "'")
+		}
+	}
+	return true, nil
+}
+
+type StringLengthValidator struct {
+	MinLength, MaxLength int
+}
+
+func (self *StringLengthValidator) Validate(obj interface{}) (bool, error) {
 	value, ok := obj.(string)
 	if !ok {
 		return false, errors.New("syntex error")
@@ -32,38 +49,6 @@ func (self *StringValidator) Validate(obj interface{}) (bool, error) {
 		return false, errors.New("length of '" + value + "' is greate " + strconv.Itoa(self.MaxLength))
 	}
 
-	if nil != self.Pattern {
-		if !self.Pattern.MatchString(value) {
-			return false, errors.New("'" + value + "' is not match '" + self.Pattern.String() + "'")
-		}
-	}
-	return true, nil
-}
-
-type PhysicalAddressValidator struct{}
-
-func (self *PhysicalAddressValidator) Validate(obj interface{}) (bool, error) {
-	value, ok := obj.(string)
-	if !ok {
-		return false, errors.New("syntex error")
-	}
-
-	if _, err := net.ParseMAC(value); nil != err {
-		return false, errors.New("syntex error, " + err.Error())
-	}
-	return true, nil
-}
-
-type IPAddressValidator struct{}
-
-func (self *IPAddressValidator) Validate(obj interface{}) (bool, error) {
-	value, ok := obj.(string)
-	if !ok {
-		return false, errors.New("syntex error")
-	}
-	if nil == net.ParseIP(value) {
-		return false, errors.New("syntex error")
-	}
 	return true, nil
 }
 
@@ -73,48 +58,19 @@ type IntegerValidator struct {
 }
 
 func (self *IntegerValidator) Validate(obj interface{}) (bool, error) {
-	var value int64
-	switch v := obj.(type) {
-	case int:
-		value = int64(v)
-	case int8:
-		value = int64(v)
-	case int16:
-		value = int64(v)
-	case int32:
-		value = int64(v)
-	case int64:
-		value = int64(v)
-	default:
-		return false, errors.New("syntex error")
+	i64, err := as.AsInt64(obj)
+	if nil != err {
+		return false, errors.New("it is not a integer")
 	}
 
-	if self.HasMin && self.MinValue > value {
-		return false, fmt.Errorf("'%d' is less minValue '%d'", value, self.MinValue)
+	if self.HasMin && self.MinValue > i64 {
+		return false, fmt.Errorf("'%d' is less minValue '%d'", i64, self.MinValue)
 	}
 
-	if self.HasMax && self.MaxValue < value {
-		return false, fmt.Errorf("'%d' is greate maxValue '%d'", value, self.MaxValue)
+	if self.HasMax && self.MaxValue < i64 {
+		return false, fmt.Errorf("'%d' is greate maxValue '%d'", i64, self.MaxValue)
 	}
 
-	return true, nil
-}
-
-type EnumerationValidator struct {
-	Values []interface{}
-}
-
-func (self *EnumerationValidator) Validate(obj interface{}) (bool, error) {
-	var found bool = false
-	for v := range self.Values {
-		if v == obj {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return false, fmt.Errorf("enum is not contains %v", obj)
-	}
 	return true, nil
 }
 
@@ -124,42 +80,17 @@ type DecimalValidator struct {
 }
 
 func (self *DecimalValidator) Validate(obj interface{}) (bool, error) {
-	var value float64
-	switch v := obj.(type) {
-	case uint:
-		value = float64(v)
-	case uint8:
-		value = float64(v)
-	case uint16:
-		value = float64(v)
-	case uint32:
-		value = float64(v)
-	case uint64:
-		value = float64(v)
-	case int:
-		value = float64(v)
-	case int8:
-		value = float64(v)
-	case int16:
-		value = float64(v)
-	case int32:
-		value = float64(v)
-	case int64:
-		value = float64(v)
-	case float32:
-		value = float64(v)
-	case float64:
-		value = float64(v)
-	default:
-		return false, errors.New("syntex error")
+	f64, err := as.AsFloat64(obj)
+	if nil != err {
+		return false, errors.New("it is not a decimal")
 	}
 
-	if self.HasMin && self.MinValue > value {
-		return false, fmt.Errorf("'%f' is less minValue '%f'", value, self.MinValue)
+	if self.HasMin && self.MinValue > f64 {
+		return false, fmt.Errorf("'%f' is less minValue '%f'", f64, self.MinValue)
 	}
 
-	if self.HasMax && self.MaxValue < value {
-		return false, fmt.Errorf("'%f' is greate maxValue '%f'", value, self.MaxValue)
+	if self.HasMax && self.MaxValue < f64 {
+		return false, fmt.Errorf("'%f' is greate maxValue '%f'", f64, self.MaxValue)
 	}
 	return true, nil
 }
@@ -181,6 +112,52 @@ func (self *DateValidator) Validate(obj interface{}) (bool, error) {
 
 	if self.HasMax && self.MaxValue.Before(value) {
 		return false, fmt.Errorf("'%s' is greate maxValue '%s'", value.String(), self.MaxValue.String())
+	}
+	return true, nil
+}
+
+type EnumerationValidator struct {
+	Values []interface{}
+}
+
+func (self *EnumerationValidator) Validate(obj interface{}) (bool, error) {
+	var found bool = false
+	for v := range self.Values {
+		if v == obj {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return false, fmt.Errorf("enum is not contains %v", obj)
+	}
+	return true, nil
+}
+
+type StringEnumerationValidator struct {
+	Values []string
+}
+
+func (self *StringEnumerationValidator) Validate(obj interface{}) (bool, error) {
+	var s string
+	switch value := obj.(type) {
+	case string:
+		s = value
+	case *string:
+		s = *value
+	default:
+		return false, errors.New("syntex error, it is not a string")
+	}
+
+	var found bool = false
+	for _, v := range self.Values {
+		if v == s {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return false, fmt.Errorf("enum is not contains %v", obj)
 	}
 	return true, nil
 }

@@ -4,8 +4,8 @@
 		<mdbs:property name="Age" displayName="cc">
 			<mdbs:restriction base="integer">
 				<mdbs:defaultValue value="c" />
-				<mdbs:minInclusive  value="3" />
-				<mdbs:maxInclusive value="5" />
+				<mdbs:minValue value="3" />
+				<mdbs:maxValue value="5" />
 			</mdbs:restriction>
 		</mdbs:property>
 	</mdbs:class>		

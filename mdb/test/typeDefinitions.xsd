@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2011 (http://www.altova.com) by TeaM DJiNN (TeaM DJiNN) -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:mdbs="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions" targetNamespace="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions" elementFormDefault="qualified" blockDefault="#all">
 	<xs:simpleType name="dataType">
 		<xs:restriction base="xs:string">
@@ -16,13 +17,13 @@
 			<xs:element name="restriction">
 				<xs:complexType>
 					<xs:sequence minOccurs="0">
-						<xs:element name="enumeration" minOccurs="0" maxOccurs="unbounded">
+						<xs:element name="enumeration" minOccurs="0">
 							<xs:annotation>
 								<xs:documentation>定义可接受值的一个列表</xs:documentation>
 							</xs:annotation>
 							<xs:complexType>
 								<xs:sequence minOccurs="0">
-									<xs:element name="value" minOccurs="1">
+									<xs:element name="value" minOccurs="1" maxOccurs="unbounded">
 										<xs:annotation>
 											<xs:documentation>定义多个枚举值。</xs:documentation>
 										</xs:annotation>
@@ -51,22 +52,22 @@
 						</xs:element>
 						<xs:choice>
 							<xs:sequence>
-									<xs:element name="minValue" minOccurs="0">
-										<xs:annotation>
-											<xs:documentation>定义数值的下限。所允许的值必需大于或等于此值。</xs:documentation>
-										</xs:annotation>
-										<xs:complexType>
-											<xs:attribute name="value" type="xs:string" use="required"/>
-										</xs:complexType>
-									</xs:element>
-									<xs:element name="maxValue" minOccurs="0">
-										<xs:annotation>
-											<xs:documentation>定义数值的上限。所允许的值必须小于或等于此值。</xs:documentation>
-										</xs:annotation>
-										<xs:complexType>
-											<xs:attribute name="value" type="xs:string" use="required"/>
-										</xs:complexType>
-									</xs:element>
+								<xs:element name="minValue" minOccurs="0">
+									<xs:annotation>
+										<xs:documentation>定义数值的下限。所允许的值必需大于或等于此值。</xs:documentation>
+									</xs:annotation>
+									<xs:complexType>
+										<xs:attribute name="value" type="xs:string" use="required"/>
+									</xs:complexType>
+								</xs:element>
+								<xs:element name="maxValue" minOccurs="0">
+									<xs:annotation>
+										<xs:documentation>定义数值的上限。所允许的值必须小于或等于此值。</xs:documentation>
+									</xs:annotation>
+									<xs:complexType>
+										<xs:attribute name="value" type="xs:string" use="required"/>
+									</xs:complexType>
+								</xs:element>
 								<xs:element name="fractionDigits" minOccurs="0">
 									<xs:annotation>
 										<xs:documentation>定义所允许的最大的小数位数。必须大于等于0。</xs:documentation>
@@ -130,7 +131,7 @@
 				<xs:documentation>显示名</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
-<!-- 		<xs:attribute name="type" type="xs:IDREF" use="required">
+		<!-- 		<xs:attribute name="type" type="xs:IDREF" use="required">
 			<xs:annotation>
 				<xs:documentation>属性的类型</xs:documentation>
 			</xs:annotation>
@@ -186,7 +187,7 @@
 								<xs:documentation>显示名</xs:documentation>
 							</xs:annotation>
 						</xs:attribute>
-						<xs:attribute name="base" type="xs:IDREF" use="required">
+						<xs:attribute name="base" type="xs:IDREF" use="optional">
 							<xs:annotation>
 								<xs:documentation>指向一个 classDefinition 作为它的父类, 其值应是某个 classDefinition 实例的 name 值</xs:documentation>
 							</xs:annotation>

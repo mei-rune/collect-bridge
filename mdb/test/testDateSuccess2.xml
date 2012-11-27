@@ -4,8 +4,8 @@
 		<mdbs:property name="Age" displayName="cc">
 			<mdbs:restriction base="dateTime">
 				<mdbs:defaultValue value="2009-12-23 12:12:12" />
-				<mdbs:minInclusive  value="2009-12-23 12:12:12" />
-				<mdbs:maxInclusive value="2009-12-25 12:12:12" />
+				<mdbs:minValue  value="2009-12-23 12:12:12" />
+				<mdbs:maxValue value="2009-12-25 12:12:12" />
 			</mdbs:restriction>
 		</mdbs:property>
 	</mdbs:class>		

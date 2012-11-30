@@ -1,10 +1,12 @@
 package mdb
 
 import (
+	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strings"
 )
 
 type PropertyDefinition struct {
@@ -50,6 +52,8 @@ type ClassDefinition struct {
 	Super      *ClassDefinition
 	Name       string
 	properties map[string]*PropertyDefinition
+
+	ownProperties map[string]*PropertyDefinition
 }
 
 func (self *ClassDefinition) CollectionName() string {
@@ -64,7 +68,8 @@ type ClassDefinitions struct {
 	clsDefinitions map[string]*ClassDefinition
 }
 
-func (self *ClassDefinitions) LoadProperty(pr *XMLPropertyDefinition, errs []error) (*PropertyDefinition, []error) {
+func (self *ClassDefinitions) LoadProperty(xmlCls *XMLClassDefinition,
+	pr *XMLPropertyDefinition, buffer bytes.Buffer) *PropertyDefinition {
 
 	cpr := &PropertyDefinition{Name: pr.Name,
 		Type:        GetTypeDefinition(pr.Restrictions.Type),
@@ -74,13 +79,17 @@ func (self *ClassDefinitions) LoadProperty(pr *XMLPropertyDefinition, errs []err
 		var err error
 		cpr.defaultValue, err = cpr.Type.ConvertFrom(pr.Restrictions.DefaultValue)
 		if nil != err {
-			errs = append(errs, err)
+			buffer.WriteString("\tload property '" + pr.Name + "' of class '" +
+				xmlCls.Name + "' failed, parse defaultValue '" +
+				pr.Restrictions.DefaultValue + "' failed, " + err.Error() + "\n")
 		}
 	}
 	if nil != pr.Restrictions.Enumerations && 0 != len(*pr.Restrictions.Enumerations) {
 		validator, err := cpr.Type.CreateEnumerationValidator(*pr.Restrictions.Enumerations)
 		if nil != err {
-			errs = append(errs, err)
+			buffer.WriteString("\tload property '" + pr.Name + "' of class '" +
+				xmlCls.Name + "' failed, parse Enumerations '" +
+				strings.Join(*pr.Restrictions.Enumerations, ",") + "' failed, " + err.Error() + "\n")
 		} else {
 			cpr.restriction = append(cpr.restriction, validator)
 		}
@@ -88,7 +97,9 @@ func (self *ClassDefinitions) LoadProperty(pr *XMLPropertyDefinition, errs []err
 	if "" != pr.Restrictions.Pattern {
 		validator, err := cpr.Type.CreatePatternValidator(pr.Restrictions.Pattern)
 		if nil != err {
-			errs = append(errs, err)
+			buffer.WriteString("\tload property '" + pr.Name + "' of class '" +
+				xmlCls.Name + "' failed, parse Pattern '" +
+				pr.Restrictions.Pattern + "' failed, " + err.Error() + "\n")
 		} else {
 			cpr.restriction = append(cpr.restriction, validator)
 		}
@@ -97,7 +108,10 @@ func (self *ClassDefinitions) LoadProperty(pr *XMLPropertyDefinition, errs []err
 		validator, err := cpr.Type.CreateRangeValidator(pr.Restrictions.MinValue,
 			pr.Restrictions.MaxValue)
 		if nil != err {
-			errs = append(errs, err)
+			buffer.WriteString("\tload property '" + pr.Name + "' of class '" +
+				xmlCls.Name + "' failed, parse Range of Value '" +
+				pr.Restrictions.MinValue + "," + pr.Restrictions.MaxValue +
+				"' failed, " + err.Error() + "\n")
 		} else {
 			cpr.restriction = append(cpr.restriction, validator)
 		}
@@ -106,7 +120,9 @@ func (self *ClassDefinitions) LoadProperty(pr *XMLPropertyDefinition, errs []err
 		validator, err := cpr.Type.CreateLengthValidator(pr.Restrictions.Length,
 			pr.Restrictions.Length)
 		if nil != err {
-			errs = append(errs, err)
+			buffer.WriteString("\tload property '" + pr.Name + "' of class '" +
+				xmlCls.Name + "' failed, parse Length '" +
+				pr.Restrictions.Length + "' failed, " + err.Error() + "\n")
 		} else {
 			cpr.restriction = append(cpr.restriction, validator)
 		}
@@ -115,23 +131,26 @@ func (self *ClassDefinitions) LoadProperty(pr *XMLPropertyDefinition, errs []err
 		validator, err := cpr.Type.CreateLengthValidator(pr.Restrictions.MinLength,
 			pr.Restrictions.MaxLength)
 		if nil != err {
-			errs = append(errs, err)
+			buffer.WriteString("\tload property '" + pr.Name + "' of class '" +
+				xmlCls.Name + "' failed, parse Range of Length '" +
+				pr.Restrictions.MinLength + "," + pr.Restrictions.MaxLength +
+				"' failed, " + err.Error() + "\n")
 		} else {
 			cpr.restriction = append(cpr.restriction, validator)
 		}
 	}
 
-	return cpr, errs
+	return cpr
 }
 
 func (self *ClassDefinitions) LoadFromXml(nm string) error {
-	bytes, err := ioutil.ReadFile("test/test1.xml")
+	f, err := ioutil.ReadFile("test/test1.xml")
 	if nil != err {
 		return fmt.Errorf("read file '%s' failed, %s", nm, err.Error())
 	}
 
 	var xml_definitions XMLClassDefinitions
-	err = xml.Unmarshal(bytes, &xml_definitions)
+	err = xml.Unmarshal(f, &xml_definitions)
 	if nil != err {
 		return fmt.Errorf("unmarshal xml '%s' failed, %s", nm, err.Error())
 	}
@@ -140,12 +159,12 @@ func (self *ClassDefinitions) LoadFromXml(nm string) error {
 		return fmt.Errorf("unmarshal xml '%s' error, class definition is empty", nm)
 	}
 
-	var errs = make([]error, 0, 20)
+	var buffer bytes.Buffer
 	for _, xmlDefinition := range xml_definitions.Definitions {
 		_, ok := self.clsDefinitions[xmlDefinition.Name]
 		if ok {
-			errs = append(errs, errors.New("class '"+xmlDefinition.Name+
-				"' is aleady exists."))
+			buffer.WriteString("\tclass '" + xmlDefinition.Name +
+				"' is aleady exists.\n")
 			continue
 		}
 
@@ -153,28 +172,28 @@ func (self *ClassDefinitions) LoadFromXml(nm string) error {
 		if "" != xmlDefinition.Base {
 			super, ok := self.clsDefinitions[xmlDefinition.Base]
 			if !ok || nil == super {
-				errs = append(errs, errors.New("Base '"+xmlDefinition.Base+
-					"' of class '"+xmlDefinition.Name+"' is not found."))
+				buffer.WriteString("\tBase '" + xmlDefinition.Base +
+					"' of class '" + xmlDefinition.Name + "' is not found.\n")
 				continue
 			}
 		}
 
 		cls := &ClassDefinition{Name: xmlDefinition.Name, Super: super}
-		cls.properties = make(map[string]*PropertyDefinition)
+		cls.ownProperties = make(map[string]*PropertyDefinition)
 		for _, pr := range xmlDefinition.Properties {
 			var cpr *PropertyDefinition = nil
-			cpr, errs = self.LoadProperty(&pr, errs)
+			cpr = self.LoadProperty(&xmlDefinition, &pr, buffer)
 			if nil != cpr {
-				cls.properties[cpr.Name] = cpr
+				cls.ownProperties[cpr.Name] = cpr
 			}
 		}
 		self.clsDefinitions[cls.Name] = cls
 	}
 
-	if 0 == len(errs) {
+	if 0 == buffer.Len() {
 		return nil
 	}
-	return &MutiErrorsError{errs: errs, msg: "load file '" + nm + "' failed."}
+	return errors.New("load file '" + nm + "' error\n" + buffer.String())
 }
 
 func (self *ClassDefinitions) Find(nm string) *ClassDefinition {

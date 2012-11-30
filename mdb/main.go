@@ -58,6 +58,11 @@ func objectUpdateById(driver *MdbDriver, ctx *web.Context, objectType, id string
 		log.Panicln("unmarshal object from request failed, " + err.Error())
 	}
 
+	err = definition.ValidatePartials(result)
+	if nil != err {
+		log.Panicln("validate input data failed, " + err.Error())
+	}
+
 	err = driver.session.DB(*mgoDB).C(definition.CollectionName()).UpdateId(id, &result)
 	if err != nil {
 		log.Panicln("update object to db, " + err.Error())
@@ -95,6 +100,11 @@ func objectCreate(driver *MdbDriver, ctx *web.Context, objectType string) {
 	err = json.Unmarshal(bytes, &result)
 	if err != nil {
 		log.Panicln("unmarshal object from request failed, " + err.Error())
+	}
+
+	instance, err := definition.CreateIt(result)
+	if nil != err {
+		log.Panicln("validate input data failed, " + err.Error())
 	}
 
 	err = driver.session.DB(*mgoDB).C(definition.CollectionName()).Insert(&result)

@@ -170,6 +170,17 @@
 									</xs:sequence>
 								</xs:complexType>
 							</xs:element-->
+							<xs:element name="belongs_to" type="xs:IDREF" minOccurs="0"/>
+							<xs:element name="has_many" minOccurs="0">
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:IDREF">
+											<xs:attribute name="through" type="xs:IDREF"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="has_and_belongs_to_many" type="xs:IDREF" minOccurs="0"/>
 							<xs:element name="property" type="mdbs:propertyType" minOccurs="0" maxOccurs="unbounded"/>
 							<xs:element name="designFor" type="xs:anyType" minOccurs="0">
 								<xs:annotation>

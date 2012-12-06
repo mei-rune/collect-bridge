@@ -6,7 +6,7 @@ import (
 )
 
 func TestCompiler(t *testing.T) {
-	var ok bool
+	//var ok bool
 	testSlice := []interface{}{"a", 12, 2}
 	if true {
 		s, ok := testSlice[0].(string)

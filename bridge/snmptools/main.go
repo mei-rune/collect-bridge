@@ -14,6 +14,7 @@ import (
 	"strings"
 	"unicode"
 	//"unicode/utf16"
+	"errors"
 	"unicode/utf8"
 )
 
@@ -26,6 +27,7 @@ var (
 	proxy           = flag.String("proxy", "127.0.0.1:7070", "the address of proxy server, default: 127.0.0.1:7070")
 	target          = flag.String("target", "127.0.0.1,161", "the address of snmp agent, default: 127.0.0.1,161")
 	community       = flag.String("community", "public", "the community of snmp agent, default: public")
+	action          = flag.String("action", "walk", "the action, default: walk")
 	version         = flag.String("version", "2c", "the version of snmp protocal, default: 2c")
 	secret_name     = flag.String("name", "", "the name, default: \"\"")
 	auth_passphrase = flag.String("auth", "", "the auth passphrase, default: \"\"")
@@ -167,7 +169,6 @@ func printValue(value string) {
 		}
 	}
 	fmt.Println()
-
 }
 
 func main() {
@@ -183,76 +184,157 @@ func main() {
 		decoder = mahonia.NewDecoder(*from_charset)
 	}
 
+	switch *action {
+	case "walk":
+		walk()
+	case "next":
+		next()
+	case "get":
+		get()
+	case "table":
+		table()
+	case "sys", "system":
+		oid := "1.3.6.1.2.1.1"
+		started_oid = &oid
+		table()
+	case "sys.descr", "sys.description", "system.descr", "system.description":
+		oid := "1.3.6.1.2.1.1.1.0"
+		started_oid = &oid
+		get()
+	case "interface", "interfaces":
+		oid := "1.3.6.1.2.1.2.2.1"
+		started_oid = &oid
+		table()
+	case "arp":
+		oid := "1.3.6.1.2.1.4.22.1"
+		started_oid = &oid
+		table()
+	case "ip":
+		oid := "1.3.6.1.2.1.4.20.1"
+		started_oid = &oid
+		table()
+	case "mac":
+		oid := "1.3.6.1.2.1.4.20.1" // ?
+		started_oid = &oid
+		table()
+	case "route":
+		oid := "1.3.6.1.2.1.4.21.1"
+		started_oid = &oid
+		table()
+	default:
+		fmt.Println("unsupported action - " + *action)
+	}
+}
+
+func get() {
+	_, err := invoke("get", *started_oid)
+	if nil != err {
+		fmt.Println(err.Error())
+	}
+}
+
+func next() {
+	_, err := invoke("next", *started_oid)
+	if nil != err {
+		fmt.Println(err.Error())
+	}
+}
+
+func walk() {
+	var err error = nil
 	oid := *started_oid
 	for {
-		var url string
-		switch *version {
-		case "2", "2c", "v2", "v2c", "1", "v1":
-			url = fmt.Sprintf("http://%s/snmp/next/%s/%s?community=%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *community)
-		case "3", "v3":
-			url = fmt.Sprintf("http://%s/snmp/next/%s/%s?version=3&secmodel=usm&secname=%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *secret_name)
-			if "" != *auth_passphrase {
-				url = url + "&auth_pass=" + *auth_passphrase
-				if "" != *priv_passphrase {
-					url = url + "&priv_pass=" + *priv_passphrase
-				}
-			}
-		default:
-			fmt.Println("version is error.")
-			break
-		}
-
-		fmt.Println("Get " + url)
-		resp, err := http.Get(url)
+		oid, err = invoke("next", oid)
 		if nil != err {
-			fmt.Println("get failed - " + err.Error())
-			break
-		}
-
-		bytes, err := ioutil.ReadAll(resp.Body)
-		if nil != err {
-			fmt.Println("read body failed - " + err.Error())
-			break
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			fmt.Println(string(bytes))
-			break
-		}
-
-		var vbs map[string]string
-		err = json.Unmarshal(bytes, &vbs)
-		if nil != err {
-			fmt.Println(string(bytes))
-			fmt.Println("unmarshal failed - " + err.Error())
-			break
-		}
-		if 0 == len(vbs) {
-			fmt.Println(string(bytes))
-			fmt.Println("result is empty.")
-			break
-		}
-
-		isFailed := false
-		for key, value := range vbs {
-
-			if strings.HasPrefix(value, "[error") {
-				if !strings.HasPrefix(value, "[error:11]") {
-					fmt.Println(value)
-					fmt.Println("invalid value.")
-				} else {
-					fmt.Println("walk end.")
-				}
-				isFailed = true
-				break
-			}
-
-			oid = key
-			printValue(value)
-		}
-
-		if isFailed {
+			fmt.Println(err.Error())
 			break
 		}
 	}
+}
+func table() {
+	var err error = nil
+	oid := *started_oid
+	for {
+		oid, err = invoke("next", oid)
+		if nil != err {
+			fmt.Println(err.Error())
+			break
+		}
+
+		if !strings.HasPrefix(oid, *started_oid) {
+			break
+		}
+	}
+}
+
+func createUrl(action, oid string) (string, error) {
+
+	var url string
+	switch *version {
+	case "2", "2c", "v2", "v2c", "1", "v1":
+		url = fmt.Sprintf("http://%s/snmp/"+action+"/%s/%s?community=%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *community)
+	case "3", "v3":
+		url = fmt.Sprintf("http://%s/snmp/"+action+"/%s/%s?version=3&secmodel=usm&secname=%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *secret_name)
+		if "" != *auth_passphrase {
+			url = url + "&auth_pass=" + *auth_passphrase
+			if "" != *priv_passphrase {
+				url = url + "&priv_pass=" + *priv_passphrase
+			}
+		}
+	default:
+		return "", errors.New("version is error.")
+	}
+	return url, nil
+}
+
+func invoke(action, oid string) (string, error) {
+	var err error
+
+	url, err := createUrl(action, oid)
+	if nil != err {
+		return "", err
+	}
+
+	fmt.Println("Get " + url)
+	resp, err := http.Get(url)
+	if nil != err {
+		return "", fmt.Errorf("get failed - " + err.Error())
+	}
+
+	bytes, err := ioutil.ReadAll(resp.Body)
+	if nil != err {
+		return "", fmt.Errorf("read body failed - " + err.Error())
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.New(string(bytes))
+	}
+
+	var vbs map[string]string
+	err = json.Unmarshal(bytes, &vbs)
+	if nil != err {
+		return "", errors.New("unmarshal failed - " + err.Error() + "\n" + string(bytes))
+	}
+	if 0 == len(vbs) {
+		return "", errors.New("result is empty." + "\n" + string(bytes))
+	}
+
+	err = nil
+	var next_oid string
+	for key, value := range vbs {
+
+		if strings.HasPrefix(value, "[error") {
+			if !strings.HasPrefix(value, "[error:11]") {
+				err = fmt.Errorf("invalid value - %v", value)
+			} else {
+				err = errors.New("walk end.")
+			}
+			return "", err
+		}
+
+		next_oid = key
+		printValue(value)
+	}
+
+	return next_oid, nil
 }

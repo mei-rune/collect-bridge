@@ -1,6 +1,7 @@
 package main
 
 import (
+	"commons"
 	"encoding/json"
 	"io/ioutil"
 	"web"
@@ -14,7 +15,7 @@ func registerDriverBridge(svr *web.Server) {
 }
 
 func driverGet(ctx *web.Context, name string) {
-	driver, ok := Connect(name)
+	driver, ok := commons.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return
@@ -29,7 +30,7 @@ func driverGet(ctx *web.Context, name string) {
 }
 
 func driverPut(ctx *web.Context, name string) {
-	driver, ok := Connect(name)
+	driver, ok := commons.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return
@@ -50,7 +51,7 @@ func driverPut(ctx *web.Context, name string) {
 }
 
 func driverDelete(ctx *web.Context, name string) {
-	driver, ok := Connect(name)
+	driver, ok := commons.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return
@@ -69,7 +70,7 @@ func driverDelete(ctx *web.Context, name string) {
 }
 
 func driverCreate(ctx *web.Context, name string) {
-	driver, ok := Connect(name)
+	driver, ok := commons.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return

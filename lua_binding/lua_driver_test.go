@@ -1,6 +1,7 @@
-package main
+package lua_binding
 
 import (
+	"commons"
 	c "commons/as"
 	"errors"
 	"fmt"
@@ -98,25 +99,25 @@ func TestParams(t *testing.T) {
 	drv.init_path = "test/lua_init_test_pushAny.lua"
 	drv.Start()
 
-	pushString(drv.ls, "test")
-	pushParams(drv.ls, map[string]string{"a": "sa", "b": "sb"})
+	pushString(drv.LS, "test")
+	pushParams(drv.LS, map[string]string{"a": "sa", "b": "sb"})
 	ResumeLuaFiber(drv, 2)
-	params := toParams(drv.ls, 2)
+	params := toParams(drv.LS, 2)
 
 	assertExceptedEqualActual(t, "sa", params["a"], "test params - ")
 	assertExceptedEqualActual(t, "sb", params["b"], "test params - ")
 
-	pushString(drv.ls, "test")
-	pushParams(drv.ls, map[string]string{})
+	pushString(drv.LS, "test")
+	pushParams(drv.LS, map[string]string{})
 	ResumeLuaFiber(drv, 2)
-	params = toParams(drv.ls, 2)
+	params = toParams(drv.LS, 2)
 
 	assertExceptedEqualActual(t, int(0), len(params), "test params - ")
 
-	pushString(drv.ls, "test")
-	pushParams(drv.ls, nil)
+	pushString(drv.LS, "test")
+	pushParams(drv.LS, nil)
 	ResumeLuaFiber(drv, 2)
-	params = toParams(drv.ls, 2)
+	params = toParams(drv.LS, 2)
 
 	// A nil map is equivalent to an empty map except that no elements may be added. 
 	assertExceptedEqualActual(t, int(0), len(params), "test params - ")
@@ -272,7 +273,7 @@ func TestInvokeScriptFailed(t *testing.T) {
 		t.Errorf("execute get failed, except error contains 'syntax error near <eof>', actual return - " + e.Error())
 	}
 	drv.Stop()
-	Unregister("test")
+	commons.Unregister("test")
 }
 
 type TestDriver struct {
@@ -305,11 +306,11 @@ func TestInvokeAndCallback(t *testing.T) {
 	drv.Start()
 
 	td := &TestDriver{get: "get12", put: "put12", create: true, delete: true}
-	Register("test_dumy", td)
+	commons.Register("test_dumy", td)
 
 	defer func() {
 		drv.Stop()
-		Unregister("test_dumy")
+		commons.Unregister("test_dumy")
 	}()
 
 	params := map[string]string{"schema": "script", "script": "mj.log(mj.DEBUG, 'log a test log.')\nreturn mj.execute('test_dumy', action, params)"}
@@ -375,11 +376,11 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	td := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
 		create: false, delete: false, create_msg: "create test cb ok test1whj23",
 		delete_msg: "delete test cb ok test1whj23"}
-	Register("test_dumy_TestInvokeModuleAndCallback", td)
+	commons.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {
 		drv.Stop()
-		Unregister("test_dumy_TestInvokeModuleAndCallback")
+		commons.Unregister("test_dumy_TestInvokeModuleAndCallback")
 	}()
 
 	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"commons"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -18,7 +19,7 @@ func registerSNMP(svr *web.Server) {
 	svr.Get("/snmp/table/(.*)/(.*)", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "table") })
 }
 
-func snmpGet(driver Driver, ctx *web.Context, host, oid, action string) {
+func snmpGet(driver commons.Driver, ctx *web.Context, host, oid, action string) {
 	//params := make(map[string]string, len(ctx.Params)*3)
 	ctx.Params["host"] = host
 	ctx.Params["oid"] = oid
@@ -35,7 +36,7 @@ func snmpGet(driver Driver, ctx *web.Context, host, oid, action string) {
 	json.NewEncoder(ctx).Encode(obj)
 }
 
-func snmpPut(driver Driver, ctx *web.Context, host, oid, action string) {
+func snmpPut(driver commons.Driver, ctx *web.Context, host, oid, action string) {
 	//params := make(map[string]string, len(ctx.Params)*3)
 	ctx.Params["host"] = host
 	ctx.Params["oid"] = oid

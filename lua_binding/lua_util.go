@@ -1,4 +1,4 @@
-package main
+package lua_binding
 
 // #include <stdlib.h>
 // #include "lua.h"
@@ -26,22 +26,22 @@ func fileExists(dir string) bool {
 }
 
 func ResumeLuaFiber(drv *LuaDriver, argc int) {
-	ret := C.lua_resume(drv.ls, nil, C.int(argc))
+	ret := C.lua_resume(drv.LS, nil, C.int(argc))
 	if C.LUA_YIELD != ret {
-		err := getError(drv.ls, ret, "test push params failed")
+		err := getError(drv.LS, ret, "test push params failed")
 		log.Panicf(err.Error())
 	}
 }
 
 func pushAnyTest(drv *LuaDriver, any interface{}) interface{} {
-	pushString(drv.ls, "test")
-	pushAny(drv.ls, any)
-	ret := C.lua_resume(drv.ls, nil, 2)
+	pushString(drv.LS, "test")
+	pushAny(drv.LS, any)
+	ret := C.lua_resume(drv.LS, nil, 2)
 	if C.LUA_YIELD != ret {
-		err := getError(drv.ls, ret, "test push any failed")
+		err := getError(drv.LS, ret, "test push any failed")
 		log.Panicf(err.Error())
 	}
-	return toAny(drv.ls, 2)
+	return toAny(drv.LS, 2)
 }
 
 // unsigned int* go_check_any(lua_State* L, int index)
@@ -78,6 +78,10 @@ func pushAnyTest(drv *LuaDriver, any interface{}) interface{} {
 //}
 
 func toAny(ls *C.lua_State, index C.int) interface{} {
+	if nil == ls {
+		return nil
+	}
+
 	t := C.lua_type(ls, index)
 	switch t {
 	case C.LUA_TNONE:
@@ -138,6 +142,10 @@ func convertMapToArray(m map[int]interface{}) []interface{} {
 }
 func toTable(ls *C.lua_State, index C.int) interface{} {
 
+	if nil == ls {
+		return nil
+	}
+
 	if LUA_TTABLE != C.lua_type(ls, index) {
 		return nil
 	}
@@ -188,6 +196,9 @@ func toTable(ls *C.lua_State, index C.int) interface{} {
 }
 
 func toParams(ls *C.lua_State, index C.int) map[string]string {
+	if nil == ls {
+		return nil
+	}
 
 	if LUA_TTABLE != C.lua_type(ls, index) {
 		return nil
@@ -215,11 +226,17 @@ func toParams(ls *C.lua_State, index C.int) map[string]string {
 }
 
 func toInteger(ls *C.lua_State, index C.int) int {
+	if nil == ls {
+		return -1
+	}
 	iv := C.lua_tointegerx(ls, index, nil)
 	return int(iv)
 }
 
 func toString(ls *C.lua_State, index C.int) string {
+	if nil == ls {
+		return ""
+	}
 	var length C.size_t
 	cs := C.lua_tolstring(ls, index, &length)
 	if nil == cs {
@@ -229,6 +246,9 @@ func toString(ls *C.lua_State, index C.int) string {
 }
 
 func toError(ls *C.lua_State, index C.int) error {
+	if nil == ls {
+		return nil
+	}
 	var length C.size_t
 	cs := C.lua_tolstring(ls, index, &length)
 	if nil == cs {
@@ -238,6 +258,10 @@ func toError(ls *C.lua_State, index C.int) error {
 }
 
 func getError(ls *C.lua_State, ret C.int, msg string) error {
+	if nil == ls {
+		return nil
+	}
+
 	var length C.size_t
 	cs := C.lua_tolstring(ls, -1, &length)
 	if nil == cs {
@@ -248,6 +272,10 @@ func getError(ls *C.lua_State, ret C.int, msg string) error {
 }
 
 func pushError(ls *C.lua_State, e error) {
+	if nil == ls {
+		return
+	}
+
 	if nil == e {
 		C.lua_pushnil(ls)
 		return
@@ -259,6 +287,10 @@ func pushError(ls *C.lua_State, e error) {
 	C.lua_pushstring(ls, cs)
 }
 func pushAny(ls *C.lua_State, any interface{}) {
+	if nil == ls {
+		return
+	}
+
 	switch v := any.(type) {
 	case nil:
 		C.lua_pushnil(ls)
@@ -304,6 +336,10 @@ func pushAny(ls *C.lua_State, any interface{}) {
 }
 
 func pushMap(ls *C.lua_State, params map[string]interface{}) {
+	if nil == ls {
+		return
+	}
+
 	if nil == params {
 		C.lua_pushnil(ls)
 		return
@@ -328,6 +364,10 @@ func pushMap(ls *C.lua_State, params map[string]interface{}) {
 }
 
 func pushArray(ls *C.lua_State, params []interface{}) {
+	if nil == ls {
+		return
+	}
+
 	if nil == params {
 		C.lua_pushnil(ls)
 		return
@@ -347,6 +387,10 @@ func pushString(ls *C.lua_State, s string) {
 }
 
 func pushParams(ls *C.lua_State, params map[string]string) {
+	if nil == ls {
+		return
+	}
+
 	if nil == params {
 		C.lua_pushnil(ls)
 		return

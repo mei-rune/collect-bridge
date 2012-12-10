@@ -1,4 +1,4 @@
-package main
+package lua_binding
 
 // #cgo windows CFLAGS: -DLUA_COMPAT_ALL -DLUA_COMPAT_ALL -I ./include
 // #cgo windows LDFLAGS: -L ./lib -llua52 -lm
@@ -10,6 +10,8 @@ package main
 // #include "lauxlib.h"
 import "C"
 import (
+	"commons"
+	"commons/as"
 	"errors"
 	"fmt"
 	"os"
@@ -171,15 +173,24 @@ const (
 	LUA_EXECUTE_FAILED   LUA_CODE = 2
 )
 
+type NativeMethod struct {
+	Name     string
+	Read     func(dr *LuaDriver) (interface{}, error)
+	Write    func(dr *LuaDriver, params interface{}, err error) (int, error)
+	Callback func(params interface{}) (interface{}, error)
+}
+
 type LuaDriver struct {
 	snmp.Svc
 	init_path string
-	ls        *C.lua_State
+	LS        *C.lua_State
 	waitG     sync.WaitGroup
+
+	methods map[string]*NativeMethod
 }
 
 type Continuous struct {
-	ls     *C.lua_State
+	LS     *C.lua_State
 	status LUA_CODE
 	drv    string
 	action string
@@ -190,16 +201,162 @@ type Continuous struct {
 	intValue int
 }
 
+func readStdArguments(dr *LuaDriver) (interface{}, error) {
+	schema, err := dr.ToStringParam(2)
+	if nil != err {
+		return nil, err
+	}
+	params, err := dr.ToParamsParam(3)
+	if nil != err {
+		return nil, err
+	}
+	return []interface{}{schema, params}, nil
+}
+
+func writeStdArguments(dr *LuaDriver, res interface{}, e error) (int, error) {
+	err := dr.PushAnyParam(res)
+	if nil != err {
+		return -1, err
+	}
+	err = dr.PushErrorParam(e)
+	if nil != err {
+		return -1, err
+	}
+	return 2, nil
+}
+
 // func (svc *Svc) Set(onStart, onStop, onTimeout func()) {
-// 	svc.onStart = onStart
-// 	svc.onStop = onStop
-// 	svc.onTimeout = onTimeout
+//	svc.onStart = onStart
+//	svc.onStop = onStop
+//	svc.onTimeout = onTimeout
 // }
 func NewLuaDriver() *LuaDriver {
 	driver := &LuaDriver{}
 	driver.Name = "lua_driver"
+	driver.methods = make(map[string]*NativeMethod)
 	driver.Set(func() { driver.atStart() }, func() { driver.atStop() }, nil)
+	driver.CallbackWith(&NativeMethod{
+		Name:  "get",
+		Read:  readStdArguments,
+		Write: writeStdArguments,
+		Callback: func(params interface{}) (interface{}, error) {
+			ar, err := as.AsArray(params)
+			if nil != err {
+				return nil, err
+			}
+			schema := ar[0].(string)
+			args := ar[1].(map[string]string)
+
+			drv, ok := commons.Connect(schema)
+			if !ok {
+				return nil, fmt.Errorf("driver '%s' is not exists.", schema)
+			}
+
+			return drv.Get(args)
+		}}, &NativeMethod{
+		Name:  "put",
+		Read:  readStdArguments,
+		Write: writeStdArguments,
+		Callback: func(params interface{}) (interface{}, error) {
+			ar, err := as.AsArray(params)
+			if nil != err {
+				return nil, err
+			}
+			schema := ar[0].(string)
+			args := ar[1].(map[string]string)
+
+			drv, ok := commons.Connect(schema)
+			if !ok {
+				return nil, fmt.Errorf("driver '%s' is not exists.", schema)
+			}
+
+			return drv.Put(args)
+		}}, &NativeMethod{
+		Name:  "create",
+		Read:  readStdArguments,
+		Write: writeStdArguments,
+		Callback: func(params interface{}) (interface{}, error) {
+			ar, err := as.AsArray(params)
+			if nil != err {
+				return nil, err
+			}
+			schema := ar[0].(string)
+			args := ar[1].(map[string]string)
+
+			drv, ok := commons.Connect(schema)
+			if !ok {
+				return nil, fmt.Errorf("driver '%s' is not exists.", schema)
+			}
+
+			return drv.Create(args)
+		}}, &NativeMethod{
+		Name:  "delete",
+		Read:  readStdArguments,
+		Write: writeStdArguments,
+		Callback: func(params interface{}) (interface{}, error) {
+			ar, err := as.AsArray(params)
+			if nil != err {
+				return nil, err
+			}
+			schema := ar[0].(string)
+			args := ar[1].(map[string]string)
+
+			drv, ok := commons.Connect(schema)
+			if !ok {
+				return nil, fmt.Errorf("driver '%s' is not exists.", schema)
+			}
+
+			return drv.Delete(args)
+		}}, &NativeMethod{
+		Name: "log",
+		Read: func(dr *LuaDriver) (interface{}, error) {
+			return dr.ToStringParam(3)
+		},
+		Write: func(dr *LuaDriver, res interface{}, e error) (int, error) {
+			return 0, nil
+		},
+		Callback: func(params interface{}) (interface{}, error) {
+			driver.Logger.Println(params)
+			return nil, nil
+		}})
 	return driver
+}
+
+func (self *LuaDriver) ToParamsParam(idx int) (map[string]string, error) {
+	return toParams(self.LS, C.int(idx)), nil
+}
+
+func (self *LuaDriver) ToStringParam(idx int) (string, error) {
+	return toString(self.LS, C.int(idx)), nil
+}
+
+func (self *LuaDriver) PushAnyParam(any interface{}) error {
+	pushAny(self.LS, any)
+	return nil
+}
+
+func (self *LuaDriver) PushErrorParam(e error) error {
+	pushError(self.LS, e)
+	return nil
+}
+
+func (self *LuaDriver) CallbackWith(methods ...*NativeMethod) error {
+	for _, m := range methods {
+		if nil == m {
+			return nil
+		}
+		if nil == m.Callback {
+			return errors.New("'callback' is nil.")
+		}
+		if "" == m.Name {
+			return errors.New("'name' is empty.")
+		}
+		if _, ok := self.methods[m.Name]; ok {
+			return errors.New("'" + m.Name + "' is already exists.")
+		}
+		self.methods[m.Name] = m
+	}
+	return nil
 }
 
 func (driver *LuaDriver) lua_init(ls *C.lua_State) C.int {
@@ -257,7 +414,7 @@ func (driver *LuaDriver) lua_init(ls *C.lua_State) C.int {
 }
 
 func (driver *LuaDriver) executeTask(schema, action string, params map[string]string) (ret interface{}, err error) {
-	drv, ok := Connect(schema)
+	drv, ok := commons.Connect(schema)
 	if !ok {
 		err = fmt.Errorf("driver '%s' is not exists.", schema)
 		return
@@ -278,10 +435,10 @@ func (driver *LuaDriver) executeTask(schema, action string, params map[string]st
 	return
 }
 
-func (driver *LuaDriver) eval(ls, from *C.lua_State, argc C.int) (ret C.int) {
+func (self *LuaDriver) eval(ls, from *C.lua_State, argc int) (ret C.int) {
 
 	for {
-		ret = C.lua_resume(ls, from, argc)
+		ret = C.lua_resume(ls, from, C.int(argc))
 		if C.LUA_YIELD != ret {
 			break
 		}
@@ -293,26 +450,34 @@ func (driver *LuaDriver) eval(ls, from *C.lua_State, argc C.int) (ret C.int) {
 			return
 		}
 
+		argc = -1
+		var args interface{} = nil
 		var res interface{} = nil
 		var err error = nil
 
 		action := toString(ls, 1)
-		switch action {
-		case "log":
-			if nil != driver.Logger {
-				driver.Logger.Println(toString(ls, 3))
-			}
-		case "get", "put", "delete", "create":
-			schema := toString(ls, 2)
-			params := toParams(ls, 3)
-			res, err = driver.executeTask(schema, action, params)
-		default:
+		method, ok := self.methods[action]
+		if !ok {
 			err = fmt.Errorf("unsupport action '%s'", action)
+		} else {
+			if nil != method.Read {
+				args, err = method.Read(self)
+			}
+			if nil == err {
+				res, err = method.Callback(args)
+			}
+			if nil != method.Write {
+				argc, err = method.Write(self, res, err)
+				if nil != err {
+					argc = -1 // ensure push err to lua vm if write failed
+				}
+			}
 		}
-
-		pushAny(ls, res)
-		pushError(ls, err)
-		argc = 2
+		if -1 == argc {
+			pushAny(ls, res)
+			pushError(ls, err)
+			argc = 2
+		}
 	}
 	return
 }
@@ -343,64 +508,64 @@ func (driver *LuaDriver) atStart() {
 		driver.Logger.Panicf(getError(ls, ret, "launch main fiber failed").Error())
 	}
 
-	driver.ls = ls
+	driver.LS = ls
 	ls = nil
 	driver.Logger.Println("driver is started!")
 }
 
 func (driver *LuaDriver) atStop() {
-	if nil == driver.ls {
+	if nil == driver.LS {
 		return
 	}
 
-	ret := C.lua_status(driver.ls)
+	ret := C.lua_status(driver.LS)
 	if C.LUA_YIELD != ret {
-		driver.Logger.Panicf(getError(driver.ls, ret, "stop main fiber failed").Error())
+		driver.Logger.Panicf(getError(driver.LS, ret, "stop main fiber failed").Error())
 	}
 
-	pushString(driver.ls, "__exit__")
-	ret = driver.eval(driver.ls, nil, 1)
+	pushString(driver.LS, "__exit__")
+	ret = driver.eval(driver.LS, nil, 1)
 	if 0 != ret {
-		driver.Logger.Panicf(getError(driver.ls, ret, "stop main fiber failed").Error())
+		driver.Logger.Panicf(getError(driver.LS, ret, "stop main fiber failed").Error())
 	}
 
 	driver.Logger.Println("wait for all fibers to exit!")
 	driver.waitG.Wait()
 	driver.Logger.Println("all fibers is exited!")
 
-	C.lua_close(driver.ls)
-	driver.ls = nil
+	C.lua_close(driver.LS)
+	driver.LS = nil
 	driver.Logger.Println("driver is exited!")
 }
 
 func (driver *LuaDriver) newContinuous(action string, params map[string]string) *Continuous {
-	pushString(driver.ls, action)
-	pushParams(driver.ls, params)
+	pushString(driver.LS, action)
+	pushParams(driver.LS, params)
 
-	ret := driver.eval(driver.ls, nil, 2)
+	ret := driver.eval(driver.LS, nil, 2)
 	if C.LUA_YIELD != ret {
 		if 0 == ret {
 			return &Continuous{status: LUA_EXECUTE_FAILED,
 				err: errors.New("'core.lua' is directly exited.")}
 		} else {
 			return &Continuous{status: LUA_EXECUTE_FAILED,
-				err: getError(driver.ls, ret, "switch to main fiber failed")}
+				err: getError(driver.LS, ret, "switch to main fiber failed")}
 		}
 	}
 
-	if C.LUA_TTHREAD != C.lua_type(driver.ls, -1) {
+	if C.LUA_TTHREAD != C.lua_type(driver.LS, -1) {
 		return &Continuous{status: LUA_EXECUTE_FAILED,
 			err: errors.New("main fiber return value by yeild is not 'lua_State' type")}
 	}
 
-	new_th := C.lua_tothread(driver.ls, -1)
+	new_th := C.lua_tothread(driver.LS, -1)
 	if nil == new_th {
 		return &Continuous{status: LUA_EXECUTE_FAILED,
 			err: errors.New("main fiber return value by yeild is nil")}
 	}
 
-	ct := &Continuous{status: LUA_EXECUTE_FAILED, ls: new_th}
-	ret = C.lua_resume(new_th, driver.ls, 0)
+	ct := &Continuous{status: LUA_EXECUTE_FAILED, LS: new_th}
+	ret = C.lua_resume(new_th, driver.LS, 0)
 	ct = driver.executeContinuous(ret, ct)
 
 	if LUA_EXECUTE_CONTINUE == ct.status {
@@ -410,10 +575,10 @@ func (driver *LuaDriver) newContinuous(action string, params map[string]string) 
 }
 
 func (driver *LuaDriver) againContinue(ct *Continuous) *Continuous {
-	pushAny(ct.ls, ct.any)
-	pushError(ct.ls, ct.err)
+	pushAny(ct.LS, ct.any)
+	pushError(ct.LS, ct.err)
 
-	ret := C.lua_resume(ct.ls, driver.ls, 2)
+	ret := C.lua_resume(ct.LS, driver.LS, 2)
 	return driver.executeContinuous(ret, ct)
 }
 
@@ -421,23 +586,23 @@ func (driver *LuaDriver) executeContinuous(ret C.int, ct *Continuous) *Continuou
 	switch ret {
 	case C.LUA_YIELD:
 		ct.status = LUA_EXECUTE_CONTINUE
-		ct.action = toString(ct.ls, -3)
+		ct.action = toString(ct.LS, -3)
 		if "log" == ct.action {
-			ct.intValue = toInteger(ct.ls, -2)
-			ct.err = toError(ct.ls, -1)
+			ct.intValue = toInteger(ct.LS, -2)
+			ct.err = toError(ct.LS, -1)
 		} else {
-			ct.drv = toString(ct.ls, -2)
-			ct.params = toParams(ct.ls, -1)
+			ct.drv = toString(ct.LS, -2)
+			ct.params = toParams(ct.LS, -1)
 		}
 	case 0:
 		ct.status = LUA_EXECUTE_END
-		ct.any = toAny(ct.ls, -2)
-		ct.err = toError(ct.ls, -1)
+		ct.any = toAny(ct.LS, -2)
+		ct.err = toError(ct.LS, -1)
 		// There is no explicit function to close or to destroy a thread. Threads are
 		// subject to garbage collection, like any Lua object. 
 	default:
 		ct.status = LUA_EXECUTE_FAILED
-		ct.err = getError(ct.ls, ret, "script execute failed - ")
+		ct.err = getError(ct.LS, ret, "script execute failed - ")
 		// There is no explicit function to close or to destroy a thread. Threads are
 		// subject to garbage collection, like any Lua object. 
 	}

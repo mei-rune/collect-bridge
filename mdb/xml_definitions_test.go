@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	//"fmt"
 	"io/ioutil"
-	//"os"
+	"os"
 	"testing"
 )
 
@@ -21,6 +21,9 @@ func TestOutXML(t *testing.T) {
 		XMLPropertyDefinition{Name: "Age", Restrictions: XMLRestrictionsDefinition{Type: "integer", MinValue: "1", MaxValue: "130"}},
 		XMLPropertyDefinition{Name: "Address", Restrictions: XMLRestrictionsDefinition{Type: "string", MinLength: "10", MaxLength: "20"}}}}
 	cl2 := &XMLClassDefinition{Name: "Employee", Base: "Person",
+		BelongsTo:           []XMLBelongsTo{XMLBelongsTo{Name: "cc_id", Target: "CC"}, XMLBelongsTo{Name: "bb_id", Target: "BB"}},
+		HasMany:             []XMLHasMang{XMLHasMang{Target: "DD"}, XMLHasMang{Target: "BB"}},
+		HasAndBelongsToMany: []XMLHasAndBelongsToMany{XMLHasAndBelongsToMany{Target: "DD"}, XMLHasAndBelongsToMany{Target: "BB"}},
 		Properties: []XMLPropertyDefinition{
 			XMLPropertyDefinition{Name: "Id2", Restrictions: XMLRestrictionsDefinition{Type: "string", DefaultValue: "12"}},
 			XMLPropertyDefinition{Name: "Sex2", Restrictions: XMLRestrictionsDefinition{Type: "string", Enumerations: &[]string{"male", "female"}}},
@@ -34,8 +37,8 @@ func TestOutXML(t *testing.T) {
 	if err != nil {
 		t.Errorf("error: %v\n", err)
 	}
-	//os.Stdout.Write([]byte(xml.Header))
-	//os.Stdout.Write(output)
+	os.Stdout.Write([]byte(xml.Header))
+	os.Stdout.Write(output)
 
 	var xmlDefinitions XMLClassDefinitions
 	err = xml.Unmarshal(output, &xmlDefinitions)

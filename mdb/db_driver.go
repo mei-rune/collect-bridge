@@ -1,8 +1,12 @@
 package mdb
 
+type ObjectId struct {
+	definition *ClassDefinition
+	id         string
+}
 type Driver interface {
-	Insert(tableName string, properties map[string]interface{}) (uint64, error)
-	Update(tableName string, properties map[string]interface{}, condition string) (uint64, error)
-	Get(condition interface{}, args ...interface{}) (interface{}, error)
-  Delete(tableName string, output interface{}) (int64, error) {
+	Insert(cd *ClassDefinition, properties map[string]interface{}, parents []ObjectId) (interface{}, error)
+	Update(cd *ClassDefinition, properties map[string]interface{}, parents []ObjectId) error
+	FindById(cd *ClassDefinition, id string, parents []ObjectId) (interface{}, error)
+	Delete(cd *ClassDefinition, id string, parents []ObjectId) error
 }

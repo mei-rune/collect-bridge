@@ -9,6 +9,56 @@ import (
 	"strings"
 )
 
+type AssocationType int
+
+const (
+	BELONGS_TO              AssocationType = 1
+	HAS_MANG                AssocationType = 2
+	HAS_AND_BELONGS_TO_MANY AssocationType = 3
+)
+
+type Assocation interface {
+	Type() AssocationType
+	Target() *ClassDefinition
+}
+
+type BelongsTo struct {
+	TargetClass *ClassDefinition
+	Name        *PropertyDefinition
+}
+
+func (self *BelongsTo) Type() AssocationType {
+	return BELONGS_TO
+}
+
+func (self *BelongsTo) Target() *ClassDefinition {
+	return self.TargetClass
+}
+
+type HasMang struct {
+	TargetClass *ClassDefinition
+}
+
+func (self *HasMang) Type() AssocationType {
+	return BELONGS_TO
+}
+
+func (self *HasMang) Target() *ClassDefinition {
+	return self.TargetClass
+}
+
+type HasAndBelongsToMany struct {
+	TargetClass *ClassDefinition
+}
+
+func (self *HasAndBelongsToMany) Type() AssocationType {
+	return BELONGS_TO
+}
+
+func (self *HasAndBelongsToMany) Target() *ClassDefinition {
+	return self.TargetClass
+}
+
 type PropertyDefinition struct {
 	Name         string
 	Type         TypeDefinition
@@ -49,11 +99,13 @@ func (self *PropertyDefinition) Validate(obj interface{}) (bool, error) {
 }
 
 type ClassDefinition struct {
-	Super      *ClassDefinition
-	Name       string
-	properties map[string]*PropertyDefinition
+	Super *ClassDefinition
+	Name  string
 
 	ownProperties map[string]*PropertyDefinition
+
+	properties  map[string]*PropertyDefinition
+	assocations []Assocation
 }
 
 func (self *ClassDefinition) CollectionName() string {
@@ -62,6 +114,11 @@ func (self *ClassDefinition) CollectionName() string {
 	}
 
 	return self.Super.CollectionName()
+}
+
+func (self *ClassDefinition) GetProperty(nm string) (pr *PropertyDefinition, ok bool) {
+	pr, ok = self.properties[nm]
+	return pr, ok
 }
 
 type ClassDefinitions struct {

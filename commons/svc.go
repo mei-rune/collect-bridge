@@ -174,7 +174,9 @@ func (svc *Svc) Start() (err error) {
 			svc.Name = "SVC-" + strconv.Itoa(time.Now().Second())
 		}
 
-		svc.InitLoggers(os.Stdout, svc.Name+" - ", log.LstdFlags|log.Lshortfile)
+		if !svc.LogInitialized() {
+			svc.InitLoggers(os.Stdout, nil, svc.Name, log.LstdFlags|log.Lshortfile)
+		}
 
 		if "" == svc.LogPrefix() {
 			svc.SetLogPrefix(svc.Name)

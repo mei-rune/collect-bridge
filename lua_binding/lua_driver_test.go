@@ -95,6 +95,7 @@ func TestParams(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestParams"
 	drv.init_path = "test/lua_init_test_pushAny.lua"
 	drv.Start()
@@ -135,6 +136,7 @@ func TestPushAny(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestPushAny"
 	drv.init_path = "test/lua_init_test_pushAny.lua"
 	drv.Start()
@@ -234,6 +236,7 @@ func TestInvoke(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "test_invoke"
 	drv.init_path = "test/lua_init_test.lua"
 	drv.Start()
@@ -247,7 +250,7 @@ func TestInvoke(t *testing.T) {
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
 	} else if s, _ := c.AsString(v); "test ok" != s {
-		t.Errorf("execute get faile, excepted value is 'ok', actual is %v", v)
+		t.Errorf("execute get failed, excepted value is 'ok', actual is %v", v)
 	} else {
 		t.Log("execute get ok")
 	}
@@ -258,6 +261,7 @@ func TestInvokeScript(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeScript"
 	drv.Start()
 
@@ -271,7 +275,7 @@ func TestInvokeScript(t *testing.T) {
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
 	} else if s, _ := c.AsString(v); "get ok" != s {
-		t.Errorf("execute get faile, excepted value is 'ok', actual is %v", v)
+		t.Errorf("execute get failed, excepted value is 'ok', actual is %v", v)
 	} else {
 		t.Log("execute get ok")
 	}
@@ -282,6 +286,7 @@ func TestInvokeScriptFailed(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeScriptFailed"
 	drv.Start()
 
@@ -327,6 +332,7 @@ func TestInvokeAndCallback(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeAndCallback"
 	drv.Start()
 
@@ -348,7 +354,7 @@ func TestInvokeAndCallback(t *testing.T) {
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
 	} else if s, _ := c.AsString(v); "get12" != s {
-		t.Errorf("execute get faile, excepted value is 'ok', actual is %v", v)
+		t.Errorf("execute get failed, excepted value is 'ok', actual is %v", v)
 	} else {
 		t.Log("execute get ok")
 	}
@@ -380,6 +386,7 @@ func TestInvokeModule(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeModule"
 	drv.Start()
 	defer func() {
@@ -400,6 +407,7 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeModuleAndCallback"
 	drv.Start()
 
@@ -428,6 +436,7 @@ func TestInitScriptWithErrorSyntex(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.init_path = "test/lua_error_script.lua"
 	err := drv.Start()
 	if nil == err {
@@ -440,7 +449,7 @@ func TestInitScriptWithErrorSyntex(t *testing.T) {
 func doFunc(b bool, t *testing.T) {
 	if b {
 		defer func() {
-			t.Error("it is faile")
+			t.Error("it is failed")
 		}()
 	}
 }

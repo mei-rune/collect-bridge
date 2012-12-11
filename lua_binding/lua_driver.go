@@ -16,7 +16,6 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"snmp"
 	"sync"
 	"time"
 	"unsafe"
@@ -206,7 +205,7 @@ var (
 )
 
 type LuaDriver struct {
-	snmp.Svc
+	commons.Svc
 	init_path string
 	LS        *C.lua_State
 	waitG     sync.WaitGroup
@@ -220,8 +219,7 @@ type Continuous struct {
 	status LUA_CODE
 	method *NativeMethod
 
-	unshift func(drv *LuaDriver, ctx *Continuous)
-	push    func(drv *LuaDriver, ctx *Continuous) (int, error)
+	on_end func(drv *LuaDriver, ctx *Continuous)
 
 	Error       error
 	IntValue    int
@@ -300,11 +298,11 @@ func writeCallResult(drv *LuaDriver, ctx *Continuous) (int, error) {
 }
 
 func readActionResult(drv *LuaDriver, ctx *Continuous) {
-	ctx.Any, ctx.Error = ctx.ToAnyParam(2)
+	ctx.Any, ctx.Error = ctx.ToAnyParam(-2)
 	if nil != ctx.Error {
 		return
 	}
-	ctx.Error = ctx.ToErrorParam(3)
+	ctx.Error = ctx.ToErrorParam(-1)
 }
 
 func writeActionArguments(drv *LuaDriver, ctx *Continuous) (int, error) {
@@ -385,11 +383,23 @@ func NewLuaDriver() *LuaDriver {
 			ctx.StringValue, _ = ctx.ToStringParam(3)
 		},
 		Write: func(drv *LuaDriver, ctx *Continuous) (int, error) {
+			switch {
+			case 9000 >= ctx.IntValue:
+				drv.DEBUG.Print(ctx.StringValue)
+			case 6000 >= ctx.IntValue:
+				drv.INFO.Print(ctx.StringValue)
+			case 4000 >= ctx.IntValue:
+				drv.WARN.Print(ctx.StringValue)
+			case 2000 >= ctx.IntValue:
+				drv.ERROR.Print(ctx.StringValue)
+			case 1000 >= ctx.IntValue:
+				drv.FATAL.Print(ctx.StringValue)
+			case 0 >= ctx.IntValue:
+				drv.INFO.Print(ctx.StringValue)
+			}
 			return 0, nil
 		},
-		Callback: func(drv *LuaDriver, ctx *Continuous) {
-			drv.Logger.Println(ctx.StringValue)
-		}})
+		Callback: nil})
 	return driver
 }
 
@@ -456,7 +466,7 @@ func (driver *LuaDriver) lua_init(ls *C.lua_State) C.int {
 			cs = C.CString(pa)
 			return C.luaL_loadfilex(ls, cs, nil)
 		}
-		driver.Logger.Printf("LuaDriver: '%s' is not exist.", pa)
+		driver.INFO.Printf("LuaDriver: '%s' is not exist.", pa)
 	}
 
 	if nil != cs {
@@ -482,9 +492,9 @@ func (driver *LuaDriver) atStart() {
 	ret := driver.lua_init(ls)
 
 	if LUA_ERRFILE == ret {
-		driver.Logger.Panicf("'" + driver.init_path + "' read fail")
+		driver.FATAL.Print("'" + driver.init_path + "' read fail")
 	} else if 0 != ret {
-		driver.Logger.Panicf(getError(ls, ret, "load '"+driver.init_path+"' failed").Error())
+		driver.FATAL.Print(getError(ls, ret, "load '"+driver.init_path+"' failed").Error())
 	}
 
 	ctx := &Continuous{LS: ls, method: method_init_lua}
@@ -498,12 +508,12 @@ func (driver *LuaDriver) atStart() {
 	}
 
 	if LUA_EXECUTE_YIELD != ctx.status {
-		driver.Logger.Panicf("launch main fiber failed, " + ctx.Error.Error())
+		driver.FATAL.Print("launch main fiber failed, " + ctx.Error.Error())
 	}
 
 	driver.LS = ls
 	ls = nil
-	driver.Logger.Println("driver is started!")
+	driver.INFO.Print("driver is started!")
 }
 
 func (driver *LuaDriver) atStop() {
@@ -513,7 +523,7 @@ func (driver *LuaDriver) atStop() {
 
 	ret := C.lua_status(driver.LS)
 	if C.LUA_YIELD != ret {
-		driver.Logger.Panicf(getError(driver.LS, ret, "stop main fiber failed, status is error").Error())
+		driver.FATAL.Print(getError(driver.LS, ret, "stop main fiber failed, status is error").Error())
 	}
 
 	ctx := &Continuous{LS: driver.LS, method: method_exit_lua}
@@ -527,16 +537,16 @@ func (driver *LuaDriver) atStop() {
 	}
 
 	if LUA_EXECUTE_END != ctx.status {
-		driver.Logger.Panicf("stop main fiber failed," + ctx.Error.Error())
+		driver.FATAL.Print("stop main fiber failed," + ctx.Error.Error())
 	}
 
-	driver.Logger.Println("wait for all fibers to exit!")
+	driver.INFO.Print("wait for all fibers to exit!")
 	driver.waitG.Wait()
-	driver.Logger.Println("all fibers is exited!")
+	driver.INFO.Print("all fibers is exited!")
 
 	C.lua_close(driver.LS)
 	driver.LS = nil
-	driver.Logger.Println("driver is exited!")
+	driver.INFO.Print("driver is exited!")
 }
 
 func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
@@ -565,32 +575,34 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 		} else {
 			argc = 0
 		}
-		self.Logger.Println(ctx.method.Name, ls, from, argc)
+		self.INFO.Print(ctx.method.Name, ls, from, argc)
 		ret = C.lua_resume(ls, from, C.int(argc))
+		self.INFO.Print(ret)
 
 		ctx.clear()
 
 		switch ret {
 		case 0:
 			ctx.status = LUA_EXECUTE_END
-			if nil != ctx.unshift {
-				ctx.unshift(self, ctx)
+			if nil != ctx.on_end {
+				ctx.on_end(self, ctx)
 			}
 			// There is no explicit function to close or to destroy a thread. Threads are
 			// subject to garbage collection, like any Lua object. 
 			return ctx
 		case C.LUA_YIELD:
+			ctx.status = LUA_EXECUTE_YIELD
 			if 0 == C.lua_gettop(ls) {
-				ctx.status = LUA_EXECUTE_YIELD
 				ctx.IntValue = int(ret)
 				ctx.Error = errors.New("script execute failed - return arguments is empty.")
+				self.DEBUG.Print("h1")
 				return ctx
 			}
 
 			if 0 == C.lua_isstring(ls, 1) {
-				ctx.status = LUA_EXECUTE_YIELD
 				ctx.IntValue = int(ret)
 				ctx.Error = errors.New("script execute failed - return first argument is not string.")
+				self.DEBUG.Print("h2")
 				return ctx
 			}
 
@@ -608,6 +620,7 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 
 			if nil != ctx.method.Callback {
 				ctx.status = LUA_EXECUTE_CONTINUE
+				self.DEBUG.Print("h3")
 				return ctx
 			}
 		default:
@@ -633,7 +646,7 @@ func toContinuous(values []interface{}) (ctx *Continuous, err error) {
 		ctx, ok = values[0].(*Continuous)
 		if !ok {
 			if nil != err {
-				err = snmp.NewTwinceError(err, fmt.Errorf("oooooooo! It is not a Continuous - %v", values[0]))
+				err = commons.NewTwinceError(err, fmt.Errorf("oooooooo! It is not a Continuous - %v", values[0]))
 			} else {
 				err = fmt.Errorf("oooooooo! It is not a Continuous - %v", values[0])
 			}
@@ -659,52 +672,56 @@ func (self *LuaDriver) newContinuous(action string, params map[string]string) *C
 		status:      LUA_EXECUTE_END,
 		StringValue: action,
 		Params:      params,
-		push:        writeActionArguments,
-		unshift:     readActionResult,
+		on_end:      readActionResult,
 		method:      method}
 
 	ctx = self.eval(ctx)
-	if LUA_EXECUTE_YIELD != ctx.status {
-		if LUA_EXECUTE_END == ctx.status {
+	switch ctx.status {
+	case LUA_EXECUTE_CONTINUE:
+		ctx.status = LUA_EXECUTE_FAILED
+		ctx.Error = errors.New("Synchronization call is prohibited while the process of creating thread.")
+		return ctx
+	case LUA_EXECUTE_END:
+		ctx.status = LUA_EXECUTE_FAILED
+		ctx.Error = errors.New("'core.lua' is directly exited.")
+		return ctx
+	case LUA_EXECUTE_YIELD:
+
+		if nil == self.LS { // check for muti-thread
 			ctx.status = LUA_EXECUTE_FAILED
-			ctx.Error = errors.New("'core.lua' is directly exited.")
-			return ctx
-		} else {
-			ctx.status = LUA_EXECUTE_FAILED
-			if nil == ctx.Error {
-				ctx.Error = errors.New("switch to main fiber failed.")
-			} else {
-				ctx.Error = errors.New("switch to main fiber failed, " + ctx.Error.Error())
-			}
+			ctx.Error = errors.New("lua status is nil, exited?")
 			return ctx
 		}
-	}
 
-	if nil == self.LS { // check for muti-thread
-		ctx.status = LUA_EXECUTE_FAILED
-		ctx.Error = errors.New("lua status is nil, exited?")
+		if C.LUA_TTHREAD != C.lua_type(self.LS, -1) {
+			ctx.status = LUA_EXECUTE_FAILED
+			ctx.Error = errors.New("main fiber return value by yeild is not 'lua_State' type")
+			return ctx
+		}
+
+		new_th := C.lua_tothread(self.LS, -1)
+		if nil == new_th {
+			ctx.status = LUA_EXECUTE_FAILED
+			ctx.Error = errors.New("main fiber return value by yeild is nil")
+			return ctx
+		}
+
+		ctx.LS = new_th
+		ctx.method = method
+		ctx.method.Write = nil
+		ctx = self.eval(ctx)
+		if LUA_EXECUTE_CONTINUE == ctx.status {
+			self.waitG.Add(1)
+		}
 		return ctx
-	}
-
-	if C.LUA_TTHREAD != C.lua_type(self.LS, -1) {
+	default:
 		ctx.status = LUA_EXECUTE_FAILED
-		ctx.Error = errors.New("main fiber return value by yeild is not 'lua_State' type")
+		if nil == ctx.Error {
+			ctx.Error = errors.New("switch to main fiber failed.")
+		} else {
+			ctx.Error = errors.New("switch to main fiber failed, " + ctx.Error.Error())
+		}
 		return ctx
-	}
-
-	new_th := C.lua_tothread(self.LS, -1)
-	if nil == new_th {
-		ctx.status = LUA_EXECUTE_FAILED
-		ctx.Error = errors.New("main fiber return value by yeild is nil")
-		return ctx
-	}
-
-	ctx.LS = new_th
-	ctx.method = method
-	ctx.method.Write = nil
-	ctx = self.eval(ctx)
-	if LUA_EXECUTE_CONTINUE == ctx.status {
-		self.waitG.Add(1)
 	}
 	return ctx
 }

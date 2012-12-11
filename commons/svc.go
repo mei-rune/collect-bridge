@@ -1,4 +1,4 @@
-package snmp
+package commons
 
 import (
 	"errors"
@@ -142,8 +142,8 @@ const (
 )
 
 type Svc struct {
+	Loggers
 	Name                    string
-	Logger                  *log.Logger
 	initialized             sync.Once
 	status                  int32
 	ch                      chan *message
@@ -174,11 +174,11 @@ func (svc *Svc) Start() (err error) {
 			svc.Name = "SVC-" + strconv.Itoa(time.Now().Second())
 		}
 
-		if nil == svc.Logger {
-			svc.Logger = log.New(os.Stdout, svc.Name+" - ", log.LstdFlags|log.Lshortfile)
-		} else if "" == svc.Logger.Prefix() {
-			svc.Logger.SetPrefix(svc.Name + " - ")
-			svc.Logger.SetFlags(svc.Logger.Flags() | log.Lshortfile)
+		svc.InitLoggers(os.Stdout, svc.Name+" - ", log.LstdFlags|log.Lshortfile)
+
+		if "" == svc.LogPrefix() {
+			svc.SetLogPrefix(svc.Name)
+			svc.SetLogFlags(svc.LogFlags() | log.Lshortfile)
 		}
 	})
 	if !atomic.CompareAndSwapInt32(&svc.status, status_inactive, status_active) {
@@ -201,7 +201,7 @@ func (svc *Svc) IsRunning() bool {
 }
 func (svc *Svc) Stop() {
 	if !atomic.CompareAndSwapInt32(&svc.status, status_active, status_inactive) {
-		svc.Logger.Printf("It is already exited\r\n")
+		svc.INFO.Printf("It is already exited\r\n")
 		return
 	}
 
@@ -380,7 +380,7 @@ func serve(svc *Svc) {
 			handleExit(svc)
 		}
 		if err := recover(); nil != err {
-			svc.Logger.Printf("%v\r\n", err)
+			svc.INFO.Printf("%v\r\n", err)
 		}
 		if nil != exit_ch {
 			exit_ch <- exit_msg
@@ -392,7 +392,7 @@ func serve(svc *Svc) {
 	}
 
 	if nil == svc.ch {
-		svc.Logger.Println("start svc failed, ch is nil!")
+		svc.INFO.Print("start svc failed, ch is nil!")
 		return
 	}
 
@@ -431,7 +431,7 @@ func serve(svc *Svc) {
 		}
 	}
 exit:
-	svc.Logger.Printf("channel is closed or recv an exit message!\r\n")
+	svc.INFO.Printf("channel is closed or recv an exit message!\r\n")
 }
 
 func handleStart(svc *Svc) (err error) {
@@ -452,7 +452,7 @@ func handleExit(svc *Svc) {
 
 	defer func() {
 		if err := recover(); nil != err {
-			svc.Logger.Printf("on exit - %v\r\n", err)
+			svc.INFO.Printf("on exit - %v\r\n", err)
 		}
 	}()
 
@@ -465,7 +465,7 @@ func handleTick(svc *Svc) {
 
 	defer func() {
 		if err := recover(); nil != err {
-			svc.Logger.Printf("on idle - %v\r\n", err)
+			svc.INFO.Printf("on idle - %v\r\n", err)
 		}
 	}()
 
@@ -485,7 +485,7 @@ func (svc *Svc) safelyCall(msg *message) {
 
 	defer func() {
 		if err := recover(); nil != err {
-			svc.Logger.Printf("%v\r\n", err)
+			svc.INFO.Printf("%v\r\n", err)
 		}
 	}()
 

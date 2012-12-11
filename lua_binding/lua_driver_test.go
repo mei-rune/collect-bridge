@@ -99,6 +99,11 @@ func TestParams(t *testing.T) {
 	drv.init_path = "test/lua_init_test_pushAny.lua"
 	drv.Start()
 
+	if !drv.IsRunning() {
+		t.Errorf("TestParams - start failed")
+		return
+	}
+
 	pushString(drv.LS, "test")
 	pushParams(drv.LS, map[string]string{"a": "sa", "b": "sb"})
 	ResumeLuaFiber(drv, 2)
@@ -133,6 +138,11 @@ func TestPushAny(t *testing.T) {
 	drv.Name = "TestPushAny"
 	drv.init_path = "test/lua_init_test_pushAny.lua"
 	drv.Start()
+
+	if !drv.IsRunning() {
+		t.Errorf("TestPushAny - start failed")
+		return
+	}
 
 	var old, res interface{}
 	var err error
@@ -228,6 +238,11 @@ func TestInvoke(t *testing.T) {
 	drv.init_path = "test/lua_init_test.lua"
 	drv.Start()
 
+	if !drv.IsRunning() {
+		t.Errorf("TestInvoke - start failed")
+		return
+	}
+
 	v, e := drv.Get(nil)
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
@@ -245,6 +260,11 @@ func TestInvokeScript(t *testing.T) {
 	drv := NewLuaDriver()
 	drv.Name = "TestInvokeScript"
 	drv.Start()
+
+	if !drv.IsRunning() {
+		t.Errorf("TestInvokeScript - start failed")
+		return
+	}
 
 	params := map[string]string{"schema": "script", "script": "return action..' ok', nil"}
 	v, e := drv.Get(params)
@@ -264,6 +284,11 @@ func TestInvokeScriptFailed(t *testing.T) {
 	drv := NewLuaDriver()
 	drv.Name = "TestInvokeScriptFailed"
 	drv.Start()
+
+	if !drv.IsRunning() {
+		t.Errorf("TestInvokeScriptFailed - start failed")
+		return
+	}
 
 	params := map[string]string{"schema": "script", "script": "aa"}
 	_, e := drv.Get(params)
@@ -304,6 +329,11 @@ func TestInvokeAndCallback(t *testing.T) {
 	drv := NewLuaDriver()
 	drv.Name = "TestInvokeAndCallback"
 	drv.Start()
+
+	if !drv.IsRunning() {
+		t.Errorf("TestInvokeAndCallback - start failed")
+		return
+	}
 
 	td := &TestDriver{get: "get12", put: "put12", create: true, delete: true}
 	commons.Register("test_dumy", td)

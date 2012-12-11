@@ -12,6 +12,7 @@ import (
 type LogCallback func(s string) error
 
 type Logger interface {
+	IsEnabled() bool
 	Output(calldepth int, s string) error
 	Printf(format string, v ...interface{})
 	Print(v ...interface{})
@@ -195,6 +196,8 @@ func (l *InternalLogger) Output(calldepth int, s string) error {
 	return nil
 }
 
+func (l *InternalLogger) IsEnabled() bool { return true }
+
 func (l *InternalLogger) Printf(format string, v ...interface{}) {
 	l.Output(2, fmt.Sprintf(format, v...))
 }
@@ -212,6 +215,8 @@ func (l *InternalLogger) Prefix() string { return l.prefix }
 func (l *InternalLogger) SetPrefix(prefix string) { l.prefix = prefix }
 
 type NullLogger struct{}
+
+func (l *NullLogger) IsEnabled() bool { return false }
 
 func (l *NullLogger) Output(calldepth int, s string) error { return nil }
 

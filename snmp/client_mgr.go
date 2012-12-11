@@ -1,11 +1,12 @@
 package snmp
 
 import (
+	"commons"
 	"time"
 )
 
 type ClientManager struct {
-	Svc
+	commons.Svc
 	clients map[string]Client
 }
 
@@ -35,7 +36,7 @@ func (mgr *ClientManager) createClient(host string) (client Client, err error) {
 			return
 		}
 
-		start, ok := client.(Startable)
+		start, ok := client.(commons.Startable)
 		if ok {
 			err = start.Start()
 			if nil != err {

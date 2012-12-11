@@ -6,21 +6,22 @@ package snmp
 // #include "bsnmp/gobindings.h"
 import "C"
 import (
+	"commons"
 	"encoding/hex"
 	"errors"
 	"flag"
-	"log"
 	"net"
 	"time"
 	"unsafe"
 )
 
 var maxPDUSize = flag.Int("maxPDUSize", 10240, "set max size of pdu")
-var logPdu = flag.Bool("log.pdu", true, "log pdu content?")
 
 type Request struct {
+	client *UdpClient
+
 	pdu      PDU
-	ctx      InvokedContext
+	ctx      commons.InvokedContext
 	callback func(PDU, SnmpCodeError)
 }
 
@@ -28,11 +29,11 @@ func (req *Request) reply(result PDU, err SnmpCodeError) {
 
 	if nil != req.ctx {
 
-		if *logPdu {
+		if req.client.DEBUG.IsEnabled() {
 			if nil != err {
-				log.Printf("snmp - recv pdu failed, %v", err)
+				req.client.DEBUG.Printf("snmp - recv pdu failed, %v", err)
 			} else {
-				log.Printf("snmp - recv pdu success, %v", result)
+				req.client.DEBUG.Printf("snmp - recv pdu success, %v", result)
 			}
 		}
 
@@ -48,7 +49,7 @@ type UdpClient struct {
 	engine    snmpEngine
 	conn      *net.UDPConn
 	pendings  map[int]*Request
-	Svc
+	commons.Svc
 }
 
 func NewSnmpClient(host string) (Client, SnmpCodeError) {
@@ -90,15 +91,11 @@ func (client *UdpClient) SendAndRecv(req PDU, timeout time.Duration) (pdu PDU, e
 		}
 	}()
 
-	if *logPdu {
-		log.Printf("snmp - invoke begin.")
-	}
+	client.DEBUG.Print("snmp - invoke begin.")
 
-	values := client.SafelyCall(timeout, func(ctx InvokedContext) { client.handleSend(ctx, req) })
+	values := client.SafelyCall(timeout, func(ctx commons.InvokedContext) { client.handleSend(ctx, req) })
 
-	if *logPdu {
-		log.Printf("snmp - invoke end.")
-	}
+	client.DEBUG.Print("snmp - invoke end.")
 
 	switch len(values) {
 	case 0:
@@ -143,11 +140,11 @@ func (client *UdpClient) discoverEngine(fn func(PDU, SnmpCodeError)) {
 	client.sendPdu(pdu, nil, fn)
 }
 
-func (client *UdpClient) sendV3PDU(ctx InvokedContext, pdu *V3PDU, autoDiscoverEngine bool) {
+func (client *UdpClient) sendV3PDU(ctx commons.InvokedContext, pdu *V3PDU, autoDiscoverEngine bool) {
 	if !pdu.securityModel.IsLocalize() {
 		if nil == pdu.engine {
-			if *logPdu {
-				log.Printf("snmp - send failed, " + pdu.String())
+			if client.DEBUG.IsEnabled() {
+				client.DEBUG.Printf("snmp - send failed, " + pdu.String())
 			}
 			ctx.Reply(nil, Error(SNMP_CODE_FAILED, "nil == pdu.engine"))
 			return
@@ -169,11 +166,11 @@ func (client *UdpClient) sendV3PDU(ctx InvokedContext, pdu *V3PDU, autoDiscoverE
 				}
 			}
 
-			if *logPdu {
+			if client.DEBUG.IsEnabled() {
 				if nil != err {
-					log.Printf("snmp - recv pdu failed, %v", err)
+					client.DEBUG.Printf("snmp - recv pdu failed, %v", err)
 				} else {
-					log.Printf("snmp - recv pdu success, %v", resp)
+					client.DEBUG.Printf("snmp - recv pdu success, %v", resp)
 				}
 			}
 
@@ -184,7 +181,7 @@ func (client *UdpClient) sendV3PDU(ctx InvokedContext, pdu *V3PDU, autoDiscoverE
 	}
 }
 
-func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
+func (client *UdpClient) discoverEngineAndSend(ctx commons.InvokedContext, pdu *V3PDU) {
 
 	if nil != pdu.engine && nil != pdu.engine.engine_id && 0 != len(pdu.engine.engine_id) {
 		client.sendV3PDU(ctx, pdu, false)
@@ -211,8 +208,8 @@ func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 				err = Error(SNMP_CODE_FAILED, "discover engine failed - return nil pdu")
 			}
 
-			if *logPdu {
-				log.Printf("snmp - recv pdu, " + err.Error())
+			if client.DEBUG.IsEnabled() {
+				client.DEBUG.Printf("snmp - recv pdu, " + err.Error())
 			}
 			ctx.Reply(nil, err)
 			return
@@ -226,8 +223,8 @@ func (client *UdpClient) discoverEngineAndSend(ctx InvokedContext, pdu *V3PDU) {
 				err = Error(SNMP_CODE_FAILED, "discover engine failed - oooooooooooo! it is not v3pdu")
 			}
 
-			if *logPdu {
-				log.Printf("snmp - recv pdu, " + err.Error())
+			if client.DEBUG.IsEnabled() {
+				client.DEBUG.Printf("snmp - recv pdu, " + err.Error())
 			}
 
 			ctx.Reply(nil, err)
@@ -250,7 +247,7 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 	defer func() {
 		client.conn = nil
 		if err := recover(); nil != err {
-			log.Printf("%v\r\n", err)
+			client.WARN.Print(err)
 		}
 		conn.Close()
 	}()
@@ -261,13 +258,13 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 		bytes = make([]byte, *maxPDUSize)
 		length, err = conn.Read(bytes)
 		if nil != err {
-			client.Logger.Println(err)
+			client.WARN.Print(err)
 			break
 		}
 
-		if *logPdu {
-			log.Printf("snmp - read ok")
-			log.Println(hex.EncodeToString(bytes[:length]))
+		if client.DEBUG.IsEnabled() {
+			client.DEBUG.Printf("snmp - read ok")
+			client.DEBUG.Print(hex.EncodeToString(bytes[:length]))
 		}
 
 		func(buf []byte) {
@@ -299,7 +296,7 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 
 	err := DecodePDUHeader(&buffer, &pdu)
 	if nil != err {
-		client.Logger.Println(err)
+		client.WARN.Print(err)
 		return
 	}
 	defer C.snmp_pdu_free(&pdu)
@@ -308,7 +305,7 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 
 		req, ok = client.pendings[int(pdu.identifier)]
 		if !ok {
-			client.Logger.Printf("not found request with requestId = %d.\r\n", int(pdu.identifier))
+			client.WARN.Printf("not found request with requestId = %d.\r\n", int(pdu.identifier))
 			return
 		}
 
@@ -325,13 +322,13 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 		err = FillUser(&pdu, usm.auth_proto, usm.localization_auth_key,
 			usm.priv_proto, usm.localization_priv_key)
 		if nil != err {
-			log.Printf("%s\r\n", err.Error())
+			client.WARN.Print(err.Error())
 			goto complete
 		}
 
 		err = DecodePDUBody(&buffer, &pdu)
 		if nil != err {
-			log.Printf("%s\r\n", err.Error())
+			client.WARN.Print(err.Error())
 			goto complete
 		}
 		var v3 V3PDU
@@ -340,13 +337,13 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 	} else {
 		err = DecodePDUBody(&buffer, &pdu)
 		if nil != err {
-			log.Printf("%s\r\n", err.Error())
+			client.WARN.Print(err.Error())
 			return
 		}
 
 		req, ok = client.pendings[int(pdu.request_id)]
 		if !ok {
-			client.Logger.Printf("not found request with requestId = %d.\r\n", int(pdu.request_id))
+			client.WARN.Printf("not found request with requestId = %d.\r\n", int(pdu.request_id))
 			return
 		}
 
@@ -359,7 +356,7 @@ complete:
 	req.reply(result, err)
 }
 
-func (client *UdpClient) handleSend(ctx InvokedContext, pdu PDU) {
+func (client *UdpClient) handleSend(ctx commons.InvokedContext, pdu PDU) {
 	var err error = nil
 	if nil == client.conn {
 		err = client.createConnect()
@@ -383,8 +380,8 @@ func (client *UdpClient) handleSend(ctx InvokedContext, pdu PDU) {
 	return
 failed:
 
-	if *logPdu {
-		log.Printf("snmp - send failed, " + pdu.String())
+	if client.ERROR.IsEnabled() {
+		client.ERROR.Print("snmp - send failed, " + pdu.String())
 	}
 
 	ctx.Reply(nil, err)
@@ -395,7 +392,7 @@ func (client *UdpClient) safelyKillConnection() {
 	defer func() {
 		client.conn = nil
 		if err := recover(); nil != err {
-			client.Logger.Printf("%v\r\n", err)
+			client.WARN.Print(err)
 		}
 	}()
 	if nil != client.conn {
@@ -404,7 +401,7 @@ func (client *UdpClient) safelyKillConnection() {
 	}
 }
 
-func (client *UdpClient) sendPdu(pdu PDU, ctx InvokedContext, callback func(PDU, SnmpCodeError)) {
+func (client *UdpClient) sendPdu(pdu PDU, ctx commons.InvokedContext, callback func(PDU, SnmpCodeError)) {
 	if nil == ctx {
 		if nil == callback {
 			panic("'ctx' and 'callback' is nil")
@@ -431,7 +428,7 @@ func (client *UdpClient) sendPdu(pdu PDU, ctx InvokedContext, callback func(PDU,
 		goto failed
 	}
 
-	client.pendings[pdu.GetRequestID()] = &Request{pdu: pdu, ctx: ctx, callback: callback}
+	client.pendings[pdu.GetRequestID()] = &Request{client: client, pdu: pdu, ctx: ctx, callback: callback}
 
 	_, e = client.conn.Write(bytes)
 	if nil != e {
@@ -440,15 +437,15 @@ func (client *UdpClient) sendPdu(pdu PDU, ctx InvokedContext, callback func(PDU,
 		goto failed
 	}
 
-	if *logPdu {
-		log.Printf("snmp - send success, " + pdu.String())
+	if client.INFO.IsEnabled() {
+		client.INFO.Print("snmp - send success, " + pdu.String())
 	}
 
 	return
 failed:
 
-	if *logPdu {
-		log.Printf("snmp - send failed, " + err.Error())
+	if client.ERROR.IsEnabled() {
+		client.ERROR.Print("snmp - send failed, " + pdu.String())
 	}
 
 	if nil != callback {

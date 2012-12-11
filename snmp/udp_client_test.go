@@ -1,6 +1,7 @@
 package snmp
 
 import (
+	"commons"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -165,8 +166,8 @@ func testWith(t *testing.T, laddr, caddr, pdu_txt string, f callback) {
 			stopServer(listener)
 			waiter.Wait()
 		}
-		if nil != cl && nil != cl.(Startable) {
-			cl.(Startable).Stop()
+		if nil != cl && nil != cl.(commons.Startable) {
+			cl.(commons.Startable).Stop()
 		}
 	}()
 
@@ -184,8 +185,8 @@ func testWith(t *testing.T, laddr, caddr, pdu_txt string, f callback) {
 		t.Errorf("create snmp client failed - %s", e.Error())
 		return
 	}
-	if nil != cl.(Startable) {
-		cl.(Startable).Start()
+	if nil != cl.(commons.Startable) {
+		cl.(commons.Startable).Start()
 	}
 
 	f(t, cl, addr)

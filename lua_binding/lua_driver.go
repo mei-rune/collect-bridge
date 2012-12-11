@@ -242,7 +242,7 @@ func (self *Continuous) ToErrorParam(idx int) error {
 }
 
 func (self *Continuous) ToAnyParam(idx int) (interface{}, error) {
-	return toAny(self.LS, C.int(idx)), nil
+	return toAny(self.LS, C.int(idx))
 }
 
 func (self *Continuous) ToParamsParam(idx int) (map[string]string, error) {
@@ -686,23 +686,10 @@ func (self *LuaDriver) newContinuous(action string, params map[string]string) *C
 		ctx.Error = errors.New("'core.lua' is directly exited.")
 		return ctx
 	case LUA_EXECUTE_YIELD:
-
-		if nil == self.LS { // check for muti-thread
+		new_th, err := toThread(self.LS, -1)
+		if nil != err {
 			ctx.status = LUA_EXECUTE_FAILED
-			ctx.Error = errors.New("lua status is nil, exited?")
-			return ctx
-		}
-
-		if C.LUA_TTHREAD != C.lua_type(self.LS, -1) {
-			ctx.status = LUA_EXECUTE_FAILED
-			ctx.Error = errors.New("main fiber return value by yeild is not 'lua_State' type")
-			return ctx
-		}
-
-		new_th := C.lua_tothread(self.LS, -1)
-		if nil == new_th {
-			ctx.status = LUA_EXECUTE_FAILED
-			ctx.Error = errors.New("main fiber return value by yeild is nil")
+			ctx.Error = errors.New("main fiber return error by yeild, " + err.Error())
 			return ctx
 		}
 

@@ -246,15 +246,15 @@ func (self *Continuous) ToAnyParam(idx int) (interface{}, error) {
 }
 
 func (self *Continuous) ToParamsParam(idx int) (map[string]string, error) {
-	return toParams(self.LS, C.int(idx)), nil
+	return toParams(self.LS, C.int(idx))
 }
 
 func (self *Continuous) ToStringParam(idx int) (string, error) {
-	return toString(self.LS, C.int(idx)), nil
+	return toString(self.LS, C.int(idx))
 }
 
 func (self *Continuous) ToIntParam(idx int) (int, error) {
-	return toInteger(self.LS, C.int(idx)), nil
+	return toInteger(self.LS, C.int(idx))
 }
 
 func (self *Continuous) PushAnyParam(any interface{}) error {
@@ -575,9 +575,8 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 		} else {
 			argc = 0
 		}
-		self.INFO.Print(ctx.method.Name, ls, from, argc)
+
 		ret = C.lua_resume(ls, from, C.int(argc))
-		self.INFO.Print(ret)
 
 		ctx.clear()
 
@@ -595,18 +594,15 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 			if 0 == C.lua_gettop(ls) {
 				ctx.IntValue = int(ret)
 				ctx.Error = errors.New("script execute failed - return arguments is empty.")
-				self.DEBUG.Print("h1")
 				return ctx
 			}
 
-			if 0 == C.lua_isstring(ls, 1) {
+			action, err := toString(ls, 1)
+			if nil != err {
 				ctx.IntValue = int(ret)
-				ctx.Error = errors.New("script execute failed - return first argument is not string.")
-				self.DEBUG.Print("h2")
+				ctx.Error = errors.New("script execute failed, read action failed, " + err.Error())
 				return ctx
 			}
-
-			action := toString(ls, 1)
 			ctx.method, ok = self.methods[action]
 			if !ok {
 				ctx.Error = fmt.Errorf("unsupport action '%s'", action)
@@ -620,7 +616,6 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 
 			if nil != ctx.method.Callback {
 				ctx.status = LUA_EXECUTE_CONTINUE
-				self.DEBUG.Print("h3")
 				return ctx
 			}
 		default:

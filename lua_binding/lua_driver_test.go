@@ -108,7 +108,7 @@ func TestParams(t *testing.T) {
 	pushString(drv.LS, "test")
 	pushParams(drv.LS, map[string]string{"a": "sa", "b": "sb"})
 	ResumeLuaFiber(drv, 2)
-	params := toParams(drv.LS, 2)
+	params, _ := toParams(drv.LS, 2)
 
 	assertExceptedEqualActual(t, "sa", params["a"], "test params - ")
 	assertExceptedEqualActual(t, "sb", params["b"], "test params - ")
@@ -116,14 +116,14 @@ func TestParams(t *testing.T) {
 	pushString(drv.LS, "test")
 	pushParams(drv.LS, map[string]string{})
 	ResumeLuaFiber(drv, 2)
-	params = toParams(drv.LS, 2)
+	params, _ = toParams(drv.LS, 2)
 
 	assertExceptedEqualActual(t, int(0), len(params), "test params - ")
 
 	pushString(drv.LS, "test")
 	pushParams(drv.LS, nil)
 	ResumeLuaFiber(drv, 2)
-	params = toParams(drv.LS, 2)
+	params, _ = toParams(drv.LS, 2)
 
 	// A nil map is equivalent to an empty map except that no elements may be added. 
 	assertExceptedEqualActual(t, int(0), len(params), "test params - ")

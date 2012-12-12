@@ -121,7 +121,7 @@ func toAny(ls *C.lua_State, index C.int) (interface{}, error) {
 			return float64(nu), nil
 		}
 	case C.LUA_TSTRING:
-		return toString(ls, index), nil
+		return toString(ls, index)
 	case C.LUA_TTABLE:
 		return toTable(ls, index)
 	case C.LUA_TFUNCTION:
@@ -196,7 +196,12 @@ func toTable(ls *C.lua_State, index C.int) (interface{}, error) {
 			if nil != err {
 				return nil, err
 			}
-			res2[toString(ls, -2)] = any
+			k, err := toString(ls, -2)
+			if nil != err {
+				return nil, errors.New("read key failed, " + err.Error())
+			}
+
+			res2[k] = any
 		} else {
 			return nil, fmt.Errorf("key must is a string or number while read table from stack[%d] fail.", index)
 		}
@@ -219,13 +224,14 @@ func toTable(ls *C.lua_State, index C.int) (interface{}, error) {
 	return res2, nil
 }
 
-func toParams(ls *C.lua_State, index C.int) map[string]string {
+func toParams(ls *C.lua_State, index C.int) (map[string]string, error) {
+
 	if nil == ls {
-		return nil
+		return nil, errors.New("lua_State is nil")
 	}
 
 	if LUA_TTABLE != C.lua_type(ls, index) {
-		return nil
+		return nil, fmt.Errorf("stack[%d] is not a table.", index)
 	}
 
 	res := make(map[string]string)
@@ -236,42 +242,52 @@ func toParams(ls *C.lua_State, index C.int) map[string]string {
 
 	C.lua_pushnil(ls) /* first key */
 	for 0 != C.lua_next(ls, index) {
-		if 0 == C.lua_isstring(ls, -2) {
-			log.Panicln("key must is a string.")
+		/* 'key' is at index -2 and 'value' at index -1 */
+		k, err := toString(ls, -2)
+		if nil != err {
+			return nil, errors.New("read key failed, " + err.Error())
+		}
+		v, err := toString(ls, -1)
+		if nil != err {
+			return nil, errors.New("read value failed, " + err.Error())
 		}
 
-		/* 'key' is at index -2 and 'value' at index -1 */
-		res[toString(ls, -2)] = toString(ls, -1)
+		res[k] = v
 
 		/* removes 'value'; keeps 'key' for next iteration */
 		C.lua_settop(ls, -2) // C.lua_pop(ls, 1)
 	}
-	return res
+	return res, nil
 }
 
-func toInteger(ls *C.lua_State, index C.int) int {
+func toInteger(ls *C.lua_State, index C.int) (int, error) {
 	if nil == ls {
-		return -1
+		return 0, errors.New("lua_State is nil")
 	}
 	iv := C.lua_tointegerx(ls, index, nil)
-	return int(iv)
+	return int(iv), nil
 }
 
-func toString(ls *C.lua_State, index C.int) string {
+func toString(ls *C.lua_State, index C.int) (string, error) {
 	if nil == ls {
-		return ""
+		return "", errors.New("lua_State is nil")
 	}
+
+	if 0 == C.lua_isstring(ls, index) {
+		return "", fmt.Errorf("stack[%d] is not a string.", index)
+	}
+
 	var length C.size_t
 	cs := C.lua_tolstring(ls, index, &length)
 	if nil == cs {
-		return ""
+		return "", errors.New("lua_State is not string?")
 	}
-	return C.GoStringN(cs, C.int(length))
+	return C.GoStringN(cs, C.int(length)), nil
 }
 
 func toError(ls *C.lua_State, index C.int) error {
 	if nil == ls {
-		return nil
+		return errors.New("lua_State is nil")
 	}
 	var length C.size_t
 	cs := C.lua_tolstring(ls, index, &length)
@@ -283,7 +299,7 @@ func toError(ls *C.lua_State, index C.int) error {
 
 func getError(ls *C.lua_State, ret C.int, msg string) error {
 	if nil == ls {
-		return nil
+		return errors.New("lua_State is nil")
 	}
 
 	var length C.size_t

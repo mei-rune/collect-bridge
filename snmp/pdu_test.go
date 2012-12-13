@@ -157,7 +157,7 @@ func checkOid(target *SnmpOid, i int, t *testing.T) {
 	copy(oid, oid1)
 	oid[5] = uint32(i + 1)
 	if target.String() != NewOid(oid).String() {
-		t.Errorf("decode v1 pdu faile - oid[%d] not equal, excepted is %s, value is %s", i, NewOid(oid).GetString(), target.GetString())
+		t.Errorf("decode v1 pdu failed - oid[%d] not equal, excepted is %s, value is %s", i, NewOid(oid).GetString(), target.GetString())
 	}
 }
 func uint32ToString(ints []uint32) string {
@@ -177,24 +177,24 @@ func fillPdu(vbs *VariableBindings) {
 	AppendBindings(vbs, "[counter64]12352121212122683")
 }
 
-func checkVB(vbs *VariableBindings, i int, excepted string, t *testing.T) {
+func checkVB(vbs *VariableBindings, i int, excepted string, t *testing.T, s string) {
 	oid := vbs.Get(i).Oid
 	checkOid(&oid, i, t)
 	if vbs.Get(i).Value.String() != excepted {
-		t.Errorf("decode v1 pdu faile - value[%d] error, excepted is '%s', value is %s", i, excepted, vbs.Get(i).Value.String())
+		t.Errorf(s+" - value[%d] error, excepted is '%s', value is %s", i, excepted, vbs.Get(i).Value.String())
 	}
 }
 
-func checkPdu(vbs *VariableBindings, t *testing.T) {
-	checkVB(vbs, 0, "[null]", t)
-	checkVB(vbs, 1, "[int32]12", t)
-	checkVB(vbs, 2, "[octets]"+hex.EncodeToString([]byte("1234567890")), t)
-	checkVB(vbs, 3, uint32ToString(oid2), t)
-	checkVB(vbs, 4, "[ip]1.2.3.4", t)
-	checkVB(vbs, 5, "[counter32]2235683", t)
-	checkVB(vbs, 6, "[gauge]1235683", t)
-	checkVB(vbs, 7, "[timeticks]1235683", t)
-	checkVB(vbs, 8, "[counter64]12352121212122683", t)
+func checkPdu(vbs *VariableBindings, t *testing.T, s string) {
+	checkVB(vbs, 0, "[null]", t, s)
+	checkVB(vbs, 1, "[int32]12", t, s)
+	checkVB(vbs, 2, "[octets]"+hex.EncodeToString([]byte("1234567890")), t, s)
+	checkVB(vbs, 3, uint32ToString(oid2), t, s)
+	checkVB(vbs, 4, "[ip]1.2.3.4", t, s)
+	checkVB(vbs, 5, "[counter32]2235683", t, s)
+	checkVB(vbs, 6, "[gauge]1235683", t, s)
+	checkVB(vbs, 7, "[timeticks]1235683", t, s)
+	checkVB(vbs, 8, "[counter64]12352121212122683", t, s)
 }
 
 func TestEncodePDU(t *testing.T) {
@@ -340,7 +340,7 @@ func TestDecodePDU(t *testing.T) {
 				t.Errorf("decode v1 pdu failed - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
 			}
 		}
-		checkPdu(pdu.GetVariableBindings(), t)
+		checkPdu(pdu.GetVariableBindings(), t, "decode v1 pdu failed")
 	}
 
 	bytes, err = hex.DecodeString(snmpv2c_txt)
@@ -362,7 +362,7 @@ func TestDecodePDU(t *testing.T) {
 				t.Errorf("decode v2 pdu failed - requestId error, excepted is '234', actual value is %d", pdu.(*V2CPDU).requestId)
 			}
 		}
-		checkPdu(pdu.GetVariableBindings(), t)
+		checkPdu(pdu.GetVariableBindings(), t, "decode v2 pdu failed")
 	}
 
 }
@@ -453,6 +453,6 @@ func testDecodeV3PDU(t *testing.T, txt string, auth AuthType, auth_s string, pri
 			//	}
 			// }
 		}
-		checkPdu(pdu.GetVariableBindings(), t)
+		checkPdu(pdu.GetVariableBindings(), t, "decode v3 pdu failed")
 	}
 }

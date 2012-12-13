@@ -21,6 +21,10 @@ void snmp_value_put_ipaddress(snmp_values_t* value, u_char addr0, u_char addr1,
      u_char addr2, u_char addr3);
 u_char* snmp_value_get_ipaddress(snmp_values_t* value);
 void snmp_value_put_uint32(snmp_values_t* value, uint32_t i);
-uint32_t snmp_value_get_uint32(snmp_values_t* value) ;
+uint32_t snmp_value_get_uint32(snmp_values_t* value);
 void snmp_value_put_uint64(snmp_values_t* value, uint64_t i) ;
 uint64_t snmp_value_get_uint64(snmp_values_t* value);
+
+
+void snmp_value_put_uint64_str(snmp_values_t* value, char* s) ;
+int32_t snmp_value_get_uint64_str(snmp_values_t* value, char* s, int32_t len);

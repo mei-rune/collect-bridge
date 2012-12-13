@@ -23,6 +23,7 @@
 #define snprintf   _snprintf
 #define vsnprintf   _vsnprintf
 #define strtoll     _strtoi64
+
 #define strtoull    _strtoui64
 #define random      rand
 #define strncasecmp _strnicmp

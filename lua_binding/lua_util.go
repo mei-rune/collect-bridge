@@ -264,7 +264,11 @@ func toInteger(ls *C.lua_State, index C.int) (int, error) {
 	if nil == ls {
 		return 0, errors.New("lua_State is nil")
 	}
-	iv := C.lua_tointegerx(ls, index, nil)
+	var isnum C.int = 0
+	iv := C.lua_tointegerx(ls, index, &isnum)
+	if 0 == isnum {
+		return 0, errors.New("It is not a number")
+	}
 	return int(iv), nil
 }
 

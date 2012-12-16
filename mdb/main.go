@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	//"io/ioutil"
+	"fmt"
+	"io/ioutil"
 	"labix.org/v2/mgo"
 	"log"
-	"strings"
+	//"strings"
 	"web"
 )
 
@@ -24,35 +25,75 @@ type MdbServer struct {
 	definitions ClassDefinitions
 }
 
-func splitUrl(driver *MdbServer, t, s string) ([]ObjectId, error) {
-	ss := strings.Split(s, "/")
-	if len(ss)%2 != 1 {
-		return nil, errors.New("url format is error, it must is 'type/id(type/id)*'")
-	}
-
-	parents := make([]ObjectId, 0, 4)
-	parents = append(parents, ObjectId{definition: driver.definitions.Find(ss[1]), id: ss[0]})
-	for i := 2; i < len(ss); i += 2 {
-		parents = append(parents, ObjectId{definition: driver.definitions.Find(ss[1]), id: ss[i]})
-	}
-	return parents, nil
+func (self *MdbServer) validate(cls *ClassDefinition, attributes map[string]interface{}) (map[string]interface{}, error) {
+	//new_attributes := make(map[string]interface{}, len(attributes))
+	return nil, errors.New("not implemented")
 }
 
-func objectFindById(driver *MdbServer, ctx *web.Context, objectType, url string) {
-	var result map[string]interface{}
-	parents, err := splitUrl(driver, objectType, url)
-	if nil != err {
-		log.Panicln(err.Error())
+func (self *MdbServer) Create(cls *ClassDefinition, attributes map[string]interface{}) (interface{}, error) {
+	//attributes, errs := self.validate(cls, attributes)
+	return nil, errors.New("not implemented")
+
+}
+func (self *MdbServer) FindById(cls *ClassDefinition, id interface{}) (interface{}, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (self *MdbServer) Update(cls *ClassDefinition, id interface{}, attributes map[string]interface{}) error {
+	return errors.New("not implemented")
+}
+
+func (self *MdbServer) RemoveById(cls *ClassDefinition, id interface{}) error {
+	return errors.New("not implemented")
+}
+
+// func splitUrl(driver *MdbServer, t, s string) ([]ObjectId, error) {
+// 	ss := strings.Split(s, "/")
+// 	if len(ss)%2 != 1 {
+// 		return nil, errors.New("url format is error, it must is 'type/id(type/id)*'")
+// 	}
+
+// 	parents := make([]ObjectId, 0, 4)
+// 	parents = append(parents, ObjectId{definition: driver.definitions.Find(ss[1]), id: ss[0]})
+// 	for i := 2; i < len(ss); i += 2 {
+// 		parents = append(parents, ObjectId{definition: driver.definitions.Find(ss[1]), id: ss[i]})
+// 	}
+// 	return parents, nil
+// }
+
+func objectCreate(driver *MdbServer, ctx *web.Context, objectType string) {
+	definition := driver.definitions.Find(objectType)
+	if nil == definition {
+		log.Panicln("class '" + objectType + "' is not found")
 	}
-	definition := parents[len(parents)-1].definition
-	id := parents[len(parents)-1].id
 
-	// definition := driver.definitions.Find(t)
-	// if nil == definition {
-	// 	log.Panicln("class '" + t + "' is not found")
-	// }
+	bytes, err := ioutil.ReadAll(ctx.Request.Body)
+	if err != nil {
+		log.Panicln("read data from request failed, " + err.Error())
+	}
 
-	driver.driver.FindById(definition, id, parents[0:len(parents)-1])
+	var result map[string]interface{}
+	err = json.Unmarshal(bytes, &result)
+	if err != nil {
+		log.Panicln("unmarshal object from request failed, " + err.Error())
+	}
+
+	instance_id, err := driver.Create(definition, result)
+	if err != nil {
+		log.Panicln("insert object to db, " + err.Error())
+	}
+
+	ctx.WriteString(fmt.Sprint(instance_id))
+}
+
+func objectFindById(driver *MdbServer, ctx *web.Context, objectType, id string) {
+
+	definition := driver.definitions.Find(objectType)
+	if nil == definition {
+		log.Panicln("class '" + objectType + "' is not found")
+	}
+
+	result, err := driver.FindById(definition, id)
 	if err != nil {
 		log.Panicln("query result from db, " + err.Error())
 	}
@@ -64,85 +105,43 @@ func objectFindById(driver *MdbServer, ctx *web.Context, objectType, url string)
 	ctx.Write(bytes)
 }
 
-func objectUpdateById(driver *MdbServer, ctx *web.Context, objectType, url string) {
-	// var result map[string]interface{}
-	// definition := driver.definitions.Find(objectType)
-	// if nil == definition {
-	// 	log.Panicln("class '" + objectType + "' is not found")
-	// }
+func objectUpdateById(driver *MdbServer, ctx *web.Context, objectType, id string) {
+	var result map[string]interface{}
+	definition := driver.definitions.Find(objectType)
+	if nil == definition {
+		log.Panicln("class '" + objectType + "' is not found")
+	}
 
-	// bytes, err := ioutil.ReadAll(ctx.Request.Body)
-	// if err != nil {
-	// 	log.Panicln("read data from request failed, " + err.Error())
-	// }
+	bytes, err := ioutil.ReadAll(ctx.Request.Body)
+	if err != nil {
+		log.Panicln("read data from request failed, " + err.Error())
+	}
 
-	// err = json.Unmarshal(bytes, &result)
-	// if err != nil {
-	// 	log.Panicln("unmarshal object from request failed, " + err.Error())
-	// }
+	err = json.Unmarshal(bytes, &result)
+	if err != nil {
+		log.Panicln("unmarshal object from request failed, " + err.Error())
+	}
 
-	// err = definition.ValidatePartials(result)
-	// if nil != err {
-	// 	log.Panicln("validate input data failed, " + err.Error())
-	// }
+	err = driver.Update(definition, id, result)
+	if err != nil {
+		log.Panicln("update object to db, " + err.Error())
+	}
 
-	// err = driver.session.DB(*mgoDB).C(definition.CollectionName()).UpdateId(id, &result)
-	// if err != nil {
-	// 	log.Panicln("update object to db, " + err.Error())
-	// }
-
-	// ctx.WriteString("ok")
+	ctx.WriteString("ok")
 }
 
 func objectDeleteById(driver *MdbServer, ctx *web.Context, objectType, id string) {
-	// definition := driver.definitions.Find(objectType)
-	// if nil == definition {
-	// 	log.Panicln("class '" + objectType + "' is not found")
-	// }
+	definition := driver.definitions.Find(objectType)
+	if nil == definition {
+		log.Panicln("class '" + objectType + "' is not found")
+	}
 
-	// err := driver.session.DB(*mgoDB).C(definition.CollectionName()).RemoveId(id)
-	// if err != nil {
-	// 	log.Panicln("insert object to db, " + err.Error())
-	// }
+	err := driver.RemoveById(definition, id)
+	if err != nil {
+		log.Panicln("insert object to db, " + err.Error())
+	}
 
-	// ctx.WriteString("ok")
-}
-
-func objectCreate(driver *MdbServer, ctx *web.Context, objectType string) {
-	// var result map[string]interface{}
-	// definition := driver.definitions.Find(objectType)
-	// if nil == definition {
-	// 	log.Panicln("class '" + objectType + "' is not found")
-	// }
-
-	// bytes, err := ioutil.ReadAll(ctx.Request.Body)
-	// if err != nil {
-	// 	log.Panicln("read data from request failed, " + err.Error())
-	// }
-
-	// err = json.Unmarshal(bytes, &result)
-	// if err != nil {
-	// 	log.Panicln("unmarshal object from request failed, " + err.Error())
-	// }
-
-	// instance, err := definition.CreateIt(result)
-	// if nil != err {
-	// 	log.Panicln("validate input data failed, " + err.Error())
-	// }
-
-	// err = driver.session.DB(*mgoDB).C(definition.CollectionName()).Insert(&result)
-	// if err != nil {
-	// 	log.Panicln("insert object to db, " + err.Error())
-	// }
-
-	// ctx.WriteString("ok")
-}
-
-func mdb_get(driver *MdbServer, ctx *web.Context, url string) {
-}
-
-func mdb_post(driver *MdbServer, ctx *web.Context, url string) {
-
+	ctx.WriteString("ok")
 }
 
 func main() {

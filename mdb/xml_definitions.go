@@ -17,7 +17,7 @@ type XMLClassDefinition struct {
 	Properties          []XMLPropertyDefinition  `xml:"property"`
 	BelongsTo           []XMLBelongsTo           `xml:"belongs_to"`
 	HasMany             []XMLHasMang             `xml:"has_many"`
-	HasAndBelongsToMany []XMLHasAndBelongsToMany //`xml:"has_and_belongs_to_many"`
+	HasAndBelongsToMany []XMLHasAndBelongsToMany `xml:"has_and_belongs_to_many"`
 }
 
 type XMLBelongsTo struct {
@@ -26,14 +26,14 @@ type XMLBelongsTo struct {
 }
 
 type XMLHasMang struct {
-	XMLName struct{} `xml:"has_many"`
-	Name    string   `xml:"name,attr,omitempty"`
-	Target  string   `xml:",chardata"`
+	//XMLName struct{} `xml:"has_many"`
+	//Name   string `xml:"name,attr,omitempty"`
+	Target string `xml:",chardata"`
 }
 
 type XMLHasAndBelongsToMany struct {
-	XMLName struct{} `xml:"has_and_belongs_to_many"`
-	Target  string   `xml:",chardata"`
+	//XMLName struct{} `xml:"has_and_belongs_to_many"`
+	Target string `xml:",chardata"`
 }
 
 // <xs:element name="ref" minOccurs="0" maxOccurs="unbounded">

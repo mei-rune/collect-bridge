@@ -11,6 +11,7 @@ import (
 )
 
 type TypeDefinition interface {
+	Name() string
 	CreateEnumerationValidator(values []string) (Validator, error)
 	CreatePatternValidator(pattern string) (Validator, error)
 	CreateRangeValidator(minValue, maxValue string) (Validator, error)
@@ -19,6 +20,10 @@ type TypeDefinition interface {
 }
 
 type IntegerTypeDefinition struct {
+}
+
+func (self *IntegerTypeDefinition) Name() string {
+	return "integer"
 }
 
 func (self *IntegerTypeDefinition) CreateEnumerationValidator(ss []string) (Validator, error) {
@@ -76,6 +81,10 @@ func (self *IntegerTypeDefinition) ConvertFrom(v interface{}) (interface{}, erro
 type DecimalTypeDefinition struct {
 }
 
+func (self *DecimalTypeDefinition) Name() string {
+	return "decimal"
+}
+
 func (self *DecimalTypeDefinition) CreateEnumerationValidator(ss []string) (Validator, error) {
 	if nil == ss || 0 == len(ss) {
 		return nil, errors.New("values is null or empty.")
@@ -129,6 +138,10 @@ func (self *DecimalTypeDefinition) ConvertFrom(v interface{}) (interface{}, erro
 }
 
 type StringTypeDefinition struct {
+}
+
+func (self *StringTypeDefinition) Name() string {
+	return "string"
 }
 
 func (self *StringTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
@@ -187,6 +200,11 @@ func (self *StringTypeDefinition) ConvertFrom(v interface{}) (interface{}, error
 
 type DateTimeTypeDefinition struct {
 	Layout string //"2006-01-02 15:04:05"
+	name   string //datetime
+}
+
+func (self *DateTimeTypeDefinition) Name() string {
+	return self.name
 }
 
 func (self *DateTimeTypeDefinition) CreateEnumerationValidator(ss []string) (Validator, error) {
@@ -260,6 +278,10 @@ func (self *DateTimeTypeDefinition) ConvertFrom(v interface{}) (interface{}, err
 type IpAddressTypeDefinition struct {
 }
 
+func (self *IpAddressTypeDefinition) Name() string {
+	return "ipAddress"
+}
+
 func (self *IpAddressTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
 	panic("not supported")
 }
@@ -296,6 +318,10 @@ func (self *IpAddressTypeDefinition) ConvertFrom(v interface{}) (interface{}, er
 }
 
 type PhysicalAddressTypeDefinition struct {
+}
+
+func (self *PhysicalAddressTypeDefinition) Name() string {
+	return "physicalAddress"
 }
 
 func (self *PhysicalAddressTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
@@ -337,6 +363,10 @@ type PasswordTypeDefinition struct {
 	StringTypeDefinition
 }
 
+func (self *PasswordTypeDefinition) Name() string {
+	return "password"
+}
+
 func (self *PasswordTypeDefinition) ConvertFrom(v interface{}) (interface{}, error) {
 	s, ok := v.(string)
 	if !ok {
@@ -367,7 +397,7 @@ func GetTypeDefinition(t string) TypeDefinition {
 		return &decimalType
 	case "string":
 		return &stringType
-	case "dateTime":
+	case "datetime":
 		return &datetimeType
 	case "ipAddress":
 		return &ipAddressType

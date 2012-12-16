@@ -3,9 +3,9 @@
 	<mdbs:class name="Person" displayName="人员" >
 		<mdbs:property name="Name" displayName="cc">
 			<mdbs:restriction base="string">
-				<mdbs:defaultValue value="m222222222222222222222222222222222222222222222222222222222222222222f" />
-				<mdbs:minLength value="3" />
-				<mdbs:maxLength value="13" />
+				<mdbs:defaultValue>m222222222222222222222222222222222222222222222222222222222222222222f<mdbs:defaultValue
+				<mdbs:minLength>3</mdbs:minLength>
+				<mdbs:maxLength>13</mdbs:maxLength>
 			</mdbs:restriction>
 		</mdbs:property>
 	</mdbs:class>		

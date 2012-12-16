@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	//"fmt"
 	"io/ioutil"
-	"os"
+	//"os"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func TestOutXML(t *testing.T) {
 		XMLPropertyDefinition{Name: "Address", Restrictions: XMLRestrictionsDefinition{Type: "string", MinLength: "10", MaxLength: "20"}}}}
 	cl2 := &XMLClassDefinition{Name: "Employee", Base: "Person",
 		BelongsTo:           []XMLBelongsTo{XMLBelongsTo{Name: "cc_id", Target: "CC"}, XMLBelongsTo{Name: "bb_id", Target: "BB"}},
-		HasMany:             []XMLHasMang{XMLHasMang{Target: "DD"}, XMLHasMang{Target: "BB"}},
+		HasMany:             []XMLHasMany{XMLHasMany{Target: "DD"}, XMLHasMany{Target: "BB"}},
 		HasAndBelongsToMany: []XMLHasAndBelongsToMany{XMLHasAndBelongsToMany{Target: "DD"}, XMLHasAndBelongsToMany{Target: "BB"}},
 		Properties: []XMLPropertyDefinition{
 			XMLPropertyDefinition{Name: "Id2", Restrictions: XMLRestrictionsDefinition{Type: "string", DefaultValue: "12"}},
@@ -37,8 +37,8 @@ func TestOutXML(t *testing.T) {
 	if err != nil {
 		t.Errorf("error: %v\n", err)
 	}
-	os.Stdout.Write([]byte(xml.Header))
-	os.Stdout.Write(output)
+	//os.Stdout.Write([]byte(xml.Header))
+	//os.Stdout.Write(output)
 
 	var xmlDefinitions XMLClassDefinitions
 	err = xml.Unmarshal(output, &xmlDefinitions)
@@ -137,6 +137,35 @@ func checkArray(s1, s2 *[]string) bool {
 	return true
 }
 
+// func TestXML2(t *testing.T) {
+// 	bytes, err := ioutil.ReadFile("test/test_property_override.xml")
+// 	if nil != err {
+// 		t.Errorf("read file 'test/test1.xml' failed, %s", err.Error())
+// 		return
+// 	}
+// 	var xmlDefinitions XMLClassDefinitions
+// 	err = xml.Unmarshal(bytes, &xmlDefinitions)
+// 	if nil != err {
+// 		t.Errorf("unmarshal xml 'test/test1.xml' failed, %s", err.Error())
+// 		return
+// 	}
+// 	if nil == xmlDefinitions.Definitions {
+// 		t.Errorf("unmarshal xml 'test/test1.xml' error, classDefinition is nil")
+// 		return
+// 	}
+// 	if 3 != len(xmlDefinitions.Definitions) {
+// 		t.Errorf("unmarshal xml 'test/test1.xml' error, len of classDefinitions is not 2", len(xmlDefinitions.Definitions))
+// 		return
+// 	}
+
+// 	output, err := xml.MarshalIndent(xmlDefinitions, "  ", "    ")
+// 	if err != nil {
+// 		t.Errorf("error: %v\n", err)
+// 	}
+// 	os.Stdout.Write([]byte(xml.Header))
+// 	os.Stdout.Write(output)
+// }
+
 func TestReadXML(t *testing.T) {
 	bytes, err := ioutil.ReadFile("test/test1.xml")
 	if nil != err {
@@ -153,13 +182,14 @@ func TestReadXML(t *testing.T) {
 		t.Errorf("unmarshal xml 'test/test1.xml' error, classDefinition is nil")
 		return
 	}
-	if 2 != len(xmlDefinitions.Definitions) {
+	if 3 != len(xmlDefinitions.Definitions) {
 		t.Errorf("unmarshal xml 'test/test1.xml' error, len of classDefinitions is not 2", len(xmlDefinitions.Definitions))
 		return
 	}
 
-	person := xmlDefinitions.Definitions[0]
-	employee := xmlDefinitions.Definitions[1]
+	employee := xmlDefinitions.Definitions[0]
+	person := xmlDefinitions.Definitions[1]
+	company := xmlDefinitions.Definitions[2]
 
 	a.Check(t, person.Name, a.Equals, "Person", a.Commentf("check Class name"))
 	a.Check(t, person.Base, a.Equals, "", a.Commentf("check Base name"))
@@ -170,8 +200,8 @@ func TestReadXML(t *testing.T) {
 		a.Check(t, p1.Name, a.Equals, p2.Name, a.Commentf("check Name of properties[%d]", comment))
 		a.Check(t, p1.Restrictions.Type, a.Equals, p2.Restrictions.Type,
 			a.Commentf("check Restrictions.Type of properties[%d]", comment))
-		a.Check(t, p1.Restrictions.DefaultValue, a.Equals, p1.Restrictions.DefaultValue,
-			a.Commentf("check Restrictions.DefaultValueof properties[%d]", comment))
+		a.Check(t, p1.Restrictions.DefaultValue, a.DeepEquals, p1.Restrictions.DefaultValue,
+			a.Commentf("check Restrictions.DefaultValue of properties[%d]", comment))
 
 		if !checkArray(p1.Restrictions.Enumerations, p2.Restrictions.Enumerations) {
 			t.Errorf("check Restrictions.Enumerations properties[%d] failed, value is %v", comment, p1.Restrictions.Enumerations)
@@ -191,6 +221,15 @@ func TestReadXML(t *testing.T) {
 			a.Commentf("check Restrictions.Pattern properties[%d]", comment))
 	}
 
+	assertBelongsTo := func(p1, p2 *XMLBelongsTo, comment int) {
+		a.Check(t, p1.Name, a.Equals, p2.Name, a.Commentf("check Name of belongs_to[%d]", comment))
+		a.Check(t, p1.Target, a.Equals, p2.Target, a.Commentf("check Target of belongs_to[%d]", comment))
+	}
+
+	assertHasMany := func(p1, p2 *XMLHasMany, comment int) {
+		a.Check(t, p1.Target, a.Equals, p2.Target, a.Commentf("check Target of has_many[%d]", comment))
+	}
+
 	assertProperty(&person.Properties[0], &XMLPropertyDefinition{Name: "ID1",
 		Restrictions: XMLRestrictionsDefinition{Type: "integer", DefaultValue: "0"}}, 0)
 	assertProperty(&person.Properties[1], &XMLPropertyDefinition{Name: "Name",
@@ -207,7 +246,7 @@ func TestReadXML(t *testing.T) {
 			MinValue:     "3",
 			MaxValue:     "313"}}, 3)
 	assertProperty(&person.Properties[4], &XMLPropertyDefinition{Name: "Day",
-		Restrictions: XMLRestrictionsDefinition{Type: "dateTime",
+		Restrictions: XMLRestrictionsDefinition{Type: "datetime",
 			DefaultValue: "2009-12-12 12:23:23",
 			MinValue:     "2009-12-11 10:23:23",
 			MaxValue:     "2009-12-13 12:23:23"}}, 4)
@@ -233,10 +272,27 @@ func TestReadXML(t *testing.T) {
 	a.Check(t, employee.Name, a.Equals, "Employee", a.Commentf("check Class name"))
 	a.Check(t, employee.Base, a.Equals, "Person", a.Commentf("check Base name"))
 
-	a.Assert(t, len(employee.Properties), a.Equals, 1, a.Commentf("check len of Properties"))
+	a.Assert(t, len(employee.Properties), a.Equals, 2, a.Commentf("check len of Properties"))
 
 	assertProperty(&employee.Properties[0], &XMLPropertyDefinition{Name: "Job",
 		Restrictions: XMLRestrictionsDefinition{Type: "string",
 			DefaultValue: "developer"}}, 0)
+	assertProperty(&employee.Properties[1], &XMLPropertyDefinition{Name: "company_id",
+		Restrictions: XMLRestrictionsDefinition{Type: "string"}}, 0)
+
+	a.Check(t, company.Name, a.Equals, "Company", a.Commentf("check Class name"))
+
+	a.Assert(t, len(company.Properties), a.Equals, 1, a.Commentf("check len of Properties"))
+
+	assertProperty(&company.Properties[0], &XMLPropertyDefinition{Name: "Name",
+		Restrictions: XMLRestrictionsDefinition{Type: "string",
+			DefaultValue: "Sina"}}, 0)
+
+	// if 3 != len(xmlDefinitions.Definitions) {
+	// 	t.Errorf("", len(xmlDefinitions.Definitions))
+	// 	return
+	// }
+	assertBelongsTo(&employee.BelongsTo[0], &XMLBelongsTo{Target: "Company", Name: "company_id"}, 0)
+	assertHasMany(&company.HasMany[0], &XMLHasMany{Target: "Employee"}, 0)
 
 }

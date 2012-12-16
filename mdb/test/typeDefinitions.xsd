@@ -6,7 +6,7 @@
 			<xs:enumeration value="integer"/>
 			<xs:enumeration value="decimal"/>
 			<xs:enumeration value="string"/>
-			<xs:enumeration value="dateTime"/>
+			<xs:enumeration value="datetime"/>
 			<xs:enumeration value="ipAddress"/>
 			<xs:enumeration value="physicalAddress"/>
 			<xs:enumeration value="password"/>

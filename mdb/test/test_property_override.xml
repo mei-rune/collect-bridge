@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classDefinitions lastModified="2009-12-23T12:12:12" xmlns="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions typeDefinitions.xsd">
+	<class name="Employee">
+		<property name="Job" displayName="cc">
+				<restriction base="string">
+					<defaultValue>developer</defaultValue>
+				</restriction>
+		</property>
+	</class>
+
+	<class name="Boss" base="Employee">
+		<property name="Job">
+				<restriction base="string">
+					<defaultValue>boss</defaultValue>
+					<minLength>3</minLength>
+					<maxLength>13</maxLength>
+				</restriction>
+		</property>
+	</class>
+
+	<class name="Manager" base="Employee">
+		<property name="Job">
+				<restriction base="string">
+					<defaultValue>manager</defaultValue>
+					<minLength>4</minLength>
+					<maxLength>14</maxLength>
+				</restriction>
+		</property>
+	</class>
+
+</classDefinitions>

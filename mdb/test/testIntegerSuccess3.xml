@@ -3,9 +3,9 @@
 	<mdbs:class name="Person" displayName="人员" >
 		<mdbs:property name="Age" displayName="cc">
 			<mdbs:restriction base="integer">
-				<mdbs:defaultValue value="5" />
-				<mdbs:minValue value="3" />
-				<mdbs:maxValue value="5" />
+				<mdbs:defaultValue>5</mdbs:defaultValue>
+				<mdbs:minValue>3</mdbs:minValue>
+				<mdbs:maxValue>5</mdbs:maxValue>
 			</mdbs:restriction>
 		</mdbs:property>
 	</mdbs:class>		

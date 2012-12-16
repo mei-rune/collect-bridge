@@ -2,7 +2,6 @@ package mdb
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -20,48 +19,7 @@ var (
 	mgoDB     = flag.String("db", "test", "the db of mongo server")
 )
 
-type MdbServer struct {
-	driver      Driver
-	definitions ClassDefinitions
-}
-
-func (self *MdbServer) validate(cls *ClassDefinition, attributes map[string]interface{}) (map[string]interface{}, error) {
-	//new_attributes := make(map[string]interface{}, len(attributes))
-	return nil, errors.New("not implemented")
-}
-
-func (self *MdbServer) Create(cls *ClassDefinition, attributes map[string]interface{}) (interface{}, error) {
-	//attributes, errs := self.validate(cls, attributes)
-	return nil, errors.New("not implemented")
-
-}
-func (self *MdbServer) FindById(cls *ClassDefinition, id interface{}) (interface{}, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (self *MdbServer) Update(cls *ClassDefinition, id interface{}, attributes map[string]interface{}) error {
-	return errors.New("not implemented")
-}
-
-func (self *MdbServer) RemoveById(cls *ClassDefinition, id interface{}) error {
-	return errors.New("not implemented")
-}
-
-// func splitUrl(driver *MdbServer, t, s string) ([]ObjectId, error) {
-// 	ss := strings.Split(s, "/")
-// 	if len(ss)%2 != 1 {
-// 		return nil, errors.New("url format is error, it must is 'type/id(type/id)*'")
-// 	}
-
-// 	parents := make([]ObjectId, 0, 4)
-// 	parents = append(parents, ObjectId{definition: driver.definitions.Find(ss[1]), id: ss[0]})
-// 	for i := 2; i < len(ss); i += 2 {
-// 		parents = append(parents, ObjectId{definition: driver.definitions.Find(ss[1]), id: ss[i]})
-// 	}
-// 	return parents, nil
-// }
-
-func objectCreate(driver *MdbServer, ctx *web.Context, objectType string) {
+func objectCreate(ctx *web.Context, driver *MdbServer, objectType string) {
 	definition := driver.definitions.Find(objectType)
 	if nil == definition {
 		log.Panicln("class '" + objectType + "' is not found")
@@ -86,7 +44,7 @@ func objectCreate(driver *MdbServer, ctx *web.Context, objectType string) {
 	ctx.WriteString(fmt.Sprint(instance_id))
 }
 
-func objectFindById(driver *MdbServer, ctx *web.Context, objectType, id string) {
+func objectFindById(ctx *web.Context, driver *MdbServer, objectType, id string) {
 
 	definition := driver.definitions.Find(objectType)
 	if nil == definition {
@@ -105,7 +63,7 @@ func objectFindById(driver *MdbServer, ctx *web.Context, objectType, id string) 
 	ctx.Write(bytes)
 }
 
-func objectUpdateById(driver *MdbServer, ctx *web.Context, objectType, id string) {
+func objectUpdateById(ctx *web.Context, driver *MdbServer, objectType, id string) {
 	var result map[string]interface{}
 	definition := driver.definitions.Find(objectType)
 	if nil == definition {
@@ -130,7 +88,7 @@ func objectUpdateById(driver *MdbServer, ctx *web.Context, objectType, id string
 	ctx.WriteString("ok")
 }
 
-func objectDeleteById(driver *MdbServer, ctx *web.Context, objectType, id string) {
+func objectDeleteById(ctx *web.Context, driver *MdbServer, objectType, id string) {
 	definition := driver.definitions.Find(objectType)
 	if nil == definition {
 		log.Panicln("class '" + objectType + "' is not found")
@@ -159,10 +117,10 @@ func main() {
 
 	driver := &MdbServer{driver: &mgo_driver{session: sess.DB(*mgoDB)}}
 
-	svr.Get("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectFindById(driver, ctx, objectType, id) })
-	svr.Put("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectUpdateById(driver, ctx, objectType, id) })
-	svr.Delete("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectDeleteById(driver, ctx, objectType, id) })
-	svr.Post("/mdb/(.*)", func(ctx *web.Context, objectType string) { objectCreate(driver, ctx, objectType) })
+	svr.Get("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectFindById(ctx, driver, objectType, id) })
+	svr.Put("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectUpdateById(ctx, driver, objectType, id) })
+	svr.Delete("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectDeleteById(ctx, driver, objectType, id) })
+	svr.Post("/mdb/(.*)", func(ctx *web.Context, objectType string) { objectCreate(ctx, driver, objectType) })
 
 	svr.Run()
 }

@@ -12,62 +12,69 @@ type ClassDefinitions struct {
 	clsDefinitions map[string]*ClassDefinition
 }
 
-func (self *ClassDefinitions) loadParentProperties(cls *ClassDefinition, errs []error) []error {
-	if nil != cls.properties {
+func loadParentProperties(self *ClassDefinitions, cls *ClassDefinition, errs []error) []error {
+	if nil != cls.Properties {
 		return errs
 	}
-	cls.properties = make(map[string]*PropertyDefinition, 2*len(cls.ownProperties))
+	cls.Properties = make(map[string]*PropertyDefinition, 2*len(cls.OwnProperties))
 	if nil != cls.Super {
-		errs = self.loadParentProperties(cls.Super, errs)
-		for k, v := range cls.Super.properties {
-			cls.properties[k] = v
+		errs = loadParentProperties(self, cls.Super, errs)
+		for k, v := range cls.Super.Properties {
+			cls.Properties[k] = v
 		}
 	}
 
-	for k, v := range cls.ownProperties {
-		old, ok := cls.properties[k]
+	for k, v := range cls.OwnProperties {
+		old, ok := cls.Properties[k]
 		if ok {
 			if v.Type != old.Type {
 				errs = append(errs, errors.New("The property with '"+k+
 					"' override failed, type is not same, own is '"+
 					v.Type.Name()+"', super is '"+old.Type.Name()+"'"))
 			}
-			for _, r := range v.restriction {
-				old.restriction = append(old.restriction, r)
+
+			if nil != old.Restrictions {
+
+				if nil == v.Restrictions {
+					v.Restrictions = make([]Validator, 0)
+				}
+
+				for _, r := range old.Restrictions {
+					v.Restrictions = append(v.Restrictions, r)
+				}
 			}
-			if nil != v.defaultValue {
-				old.defaultValue = v.defaultValue
+			if nil == v.DefaultValue {
+				v.DefaultValue = old.DefaultValue
 			}
-		} else {
-			cls.properties[k] = v
 		}
+		cls.Properties[k] = v
 	}
 	return errs
 }
 
-func (self *ClassDefinitions) loadOwnProperties(xmlCls *XMLClassDefinition,
+func loadOwnProperties(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 	cls *ClassDefinition, errs []error) []error {
-	cls.ownProperties = make(map[string]*PropertyDefinition)
+	cls.OwnProperties = make(map[string]*PropertyDefinition)
 	for _, pr := range xmlCls.Properties {
 		var cpr *PropertyDefinition = nil
-		cpr, errs = self.loadOwnProperty(xmlCls, &pr, errs)
+		cpr, errs = loadOwnProperty(self, xmlCls, &pr, errs)
 		if nil != cpr {
-			cls.ownProperties[cpr.Name] = cpr
+			cls.OwnProperties[cpr.Name] = cpr
 		}
 	}
 	return errs
 }
 
-func (self *ClassDefinitions) loadOwnProperty(xmlCls *XMLClassDefinition,
+func loadOwnProperty(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 	pr *XMLPropertyDefinition, errs []error) (*PropertyDefinition, []error) {
 
 	cpr := &PropertyDefinition{Name: pr.Name,
-		Type:        GetTypeDefinition(pr.Restrictions.Type),
-		restriction: make([]Validator, 0, 4)}
+		Type:         GetTypeDefinition(pr.Restrictions.Type),
+		Restrictions: make([]Validator, 0, 4)}
 
 	if "" != pr.Restrictions.DefaultValue {
 		var err error
-		cpr.defaultValue, err = cpr.Type.ConvertFrom(pr.Restrictions.DefaultValue)
+		cpr.DefaultValue, err = cpr.Type.ConvertFrom(pr.Restrictions.DefaultValue)
 		if nil != err {
 			errs = append(errs, errors.New("load property '"+pr.Name+"' of class '"+
 				xmlCls.Name+"' failed, parse defaultValue '"+
@@ -82,7 +89,7 @@ func (self *ClassDefinitions) loadOwnProperty(xmlCls *XMLClassDefinition,
 				xmlCls.Name+"' failed, parse Enumerations '"+
 				strings.Join(*pr.Restrictions.Enumerations, ",")+"' failed, "+err.Error()))
 		} else {
-			cpr.restriction = append(cpr.restriction, validator)
+			cpr.Restrictions = append(cpr.Restrictions, validator)
 		}
 	}
 	if "" != pr.Restrictions.Pattern {
@@ -92,7 +99,7 @@ func (self *ClassDefinitions) loadOwnProperty(xmlCls *XMLClassDefinition,
 				xmlCls.Name+"' failed, parse Pattern '"+
 				pr.Restrictions.Pattern+"' failed, "+err.Error()))
 		} else {
-			cpr.restriction = append(cpr.restriction, validator)
+			cpr.Restrictions = append(cpr.Restrictions, validator)
 		}
 	}
 	if "" != pr.Restrictions.MinValue || "" != pr.Restrictions.MaxValue {
@@ -104,7 +111,7 @@ func (self *ClassDefinitions) loadOwnProperty(xmlCls *XMLClassDefinition,
 				pr.Restrictions.MinValue+","+pr.Restrictions.MaxValue+
 				"' failed, "+err.Error()))
 		} else {
-			cpr.restriction = append(cpr.restriction, validator)
+			cpr.Restrictions = append(cpr.Restrictions, validator)
 		}
 	}
 	if "" != pr.Restrictions.Length {
@@ -115,7 +122,7 @@ func (self *ClassDefinitions) loadOwnProperty(xmlCls *XMLClassDefinition,
 				xmlCls.Name+"' failed, parse Length '"+
 				pr.Restrictions.Length+"' failed, "+err.Error()))
 		} else {
-			cpr.restriction = append(cpr.restriction, validator)
+			cpr.Restrictions = append(cpr.Restrictions, validator)
 		}
 	}
 	if "" != pr.Restrictions.MinLength || "" != pr.Restrictions.MaxLength {
@@ -127,7 +134,7 @@ func (self *ClassDefinitions) loadOwnProperty(xmlCls *XMLClassDefinition,
 				pr.Restrictions.MinLength+","+pr.Restrictions.MaxLength+
 				"' failed, "+err.Error()))
 		} else {
-			cpr.restriction = append(cpr.restriction, validator)
+			cpr.Restrictions = append(cpr.Restrictions, validator)
 		}
 	}
 
@@ -141,7 +148,7 @@ func (self *ClassDefinitions) loadOwnProperty(xmlCls *XMLClassDefinition,
 	return cpr, errs
 }
 
-func (self *ClassDefinitions) loadAssocations(cls *ClassDefinition, xmlDefinition *XMLClassDefinition, errs []error) []error {
+func loadAssocations(self *ClassDefinitions, cls *ClassDefinition, xmlDefinition *XMLClassDefinition, errs []error) []error {
 	if nil != xmlDefinition.BelongsTo && 0 != len(xmlDefinition.BelongsTo) {
 		for _, belongs_to := range xmlDefinition.BelongsTo {
 			target, ok := self.clsDefinitions[belongs_to.Target]
@@ -151,17 +158,17 @@ func (self *ClassDefinitions) loadAssocations(cls *ClassDefinition, xmlDefinitio
 				continue
 			}
 
-			pr, ok := cls.ownProperties[belongs_to.Name]
+			pr, ok := cls.OwnProperties[belongs_to.Name]
 			if !ok {
 				errs = append(errs, errors.New("Property '"+belongs_to.Name+
 					"' of belongs_to '"+belongs_to.Name+"' is not found."))
 				continue
 			}
-			if nil == cls.assocations {
-				cls.assocations = make([]Assocation, 0, 4)
+			if nil == cls.Assocations {
+				cls.Assocations = make([]Assocation, 0, 4)
 			}
 
-			cls.assocations = append(cls.assocations, &BelongsTo{TargetClass: target, Name: pr})
+			cls.Assocations = append(cls.Assocations, &BelongsTo{TargetClass: target, Name: pr})
 		}
 	}
 	if nil != xmlDefinition.HasMany && 0 != len(xmlDefinition.HasMany) {
@@ -172,10 +179,10 @@ func (self *ClassDefinitions) loadAssocations(cls *ClassDefinition, xmlDefinitio
 					"' of has_many is not found."))
 				continue
 			}
-			if nil == cls.assocations {
-				cls.assocations = make([]Assocation, 0, 4)
+			if nil == cls.Assocations {
+				cls.Assocations = make([]Assocation, 0, 4)
 			}
-			cls.assocations = append(cls.assocations, &HasMany{TargetClass: target})
+			cls.Assocations = append(cls.Assocations, &HasMany{TargetClass: target})
 		}
 	}
 	if nil != xmlDefinition.HasAndBelongsToMany && 0 != len(xmlDefinition.HasAndBelongsToMany) {
@@ -186,31 +193,32 @@ func (self *ClassDefinitions) loadAssocations(cls *ClassDefinition, xmlDefinitio
 					"' of has_and_belongs_to_many is not found."))
 				continue
 			}
-			if nil == cls.assocations {
-				cls.assocations = make([]Assocation, 0, 4)
+			if nil == cls.Assocations {
+				cls.Assocations = make([]Assocation, 0, 4)
 			}
-			cls.assocations = append(cls.assocations, &HasAndBelongsToMany{TargetClass: target})
+			cls.Assocations = append(cls.Assocations, &HasAndBelongsToMany{TargetClass: target})
 		}
 	}
 	return errs
 }
 
-func (self *ClassDefinitions) LoadXml(nm string) error {
-	f, err := ioutil.ReadFile("test/test1.xml")
+func LoadXml(nm string) (*ClassDefinitions, error) {
+	f, err := ioutil.ReadFile(nm)
 	if nil != err {
-		return fmt.Errorf("read file '%s' failed, %s", nm, err.Error())
+		return nil, fmt.Errorf("read file '%s' failed, %s", nm, err.Error())
 	}
 
 	var xml_definitions XMLClassDefinitions
 	err = xml.Unmarshal(f, &xml_definitions)
 	if nil != err {
-		return fmt.Errorf("unmarshal xml '%s' failed, %s", nm, err.Error())
+		return nil, fmt.Errorf("unmarshal xml '%s' failed, %s", nm, err.Error())
 	}
 
 	if nil == xml_definitions.Definitions || 0 == len(xml_definitions.Definitions) {
-		return fmt.Errorf("unmarshal xml '%s' error, class definition is empty", nm)
+		return nil, fmt.Errorf("unmarshal xml '%s' error, class definition is empty", nm)
 	}
 
+	self := &ClassDefinitions{clsDefinitions: make(map[string]*ClassDefinition, 100)}
 	errs := make([]error, 0, 10)
 
 	// load class definitions and own properties
@@ -223,7 +231,7 @@ func (self *ClassDefinitions) LoadXml(nm string) error {
 		}
 
 		cls := &ClassDefinition{Name: xmlDefinition.Name}
-		errs = self.loadOwnProperties(&xmlDefinition, cls, errs)
+		errs = loadOwnProperties(self, &xmlDefinition, cls, errs)
 
 		self.clsDefinitions[cls.Name] = cls
 	}
@@ -234,7 +242,7 @@ func (self *ClassDefinitions) LoadXml(nm string) error {
 		if !ok {
 			continue
 		}
-		if "" == xmlDefinition.Base {
+		if "" != xmlDefinition.Base {
 			super, ok := self.clsDefinitions[xmlDefinition.Base]
 			if !ok || nil == super {
 				errs = append(errs, errors.New("Base '"+xmlDefinition.Base+
@@ -243,18 +251,18 @@ func (self *ClassDefinitions) LoadXml(nm string) error {
 				cls.Super = super
 			}
 		}
-		errs = self.loadAssocations(cls, &xmlDefinition, errs)
+		errs = loadAssocations(self, cls, &xmlDefinition, errs)
 	}
 
 	// load the properties of super class
 	for _, cls := range self.clsDefinitions {
-		errs = self.loadParentProperties(cls, errs)
+		errs = loadParentProperties(self, cls, errs)
 	}
 
 	if 0 == len(errs) {
-		return nil
+		return self, nil
 	}
-	return &MutiErrors{msg: "load file '" + nm + "' error", errs: errs}
+	return self, &MutiErrors{msg: "load file '" + nm + "' error", errs: errs}
 }
 
 func (self *ClassDefinitions) Find(nm string) *ClassDefinition {

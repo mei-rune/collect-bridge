@@ -53,8 +53,8 @@ func (self *HasAndBelongsToMany) Target() *ClassDefinition {
 type PropertyDefinition struct {
 	Name         string
 	Type         TypeDefinition
-	restriction  []Validator
-	defaultValue interface{}
+	Restrictions []Validator
+	DefaultValue interface{}
 }
 
 type MutiErrors struct {
@@ -70,13 +70,13 @@ func (self *MutiErrors) Errors() []error {
 }
 
 func (self *PropertyDefinition) Validate(obj interface{}) (bool, error) {
-	if nil == self.restriction {
+	if nil == self.Restrictions {
 		return true, nil
 	}
 
 	var result bool = true
-	var errs []error = make([]error, 0, len(self.restriction))
-	for _, Validator := range self.restriction {
+	var errs []error = make([]error, 0, len(self.Restrictions))
+	for _, Validator := range self.Restrictions {
 		if ok, err := Validator.Validate(obj); !ok {
 			result = false
 			errs = append(errs, err)
@@ -93,10 +93,10 @@ type ClassDefinition struct {
 	Super *ClassDefinition
 	Name  string
 
-	ownProperties map[string]*PropertyDefinition
+	OwnProperties map[string]*PropertyDefinition
 
-	properties  map[string]*PropertyDefinition
-	assocations []Assocation
+	Properties  map[string]*PropertyDefinition
+	Assocations []Assocation
 }
 
 func (self *ClassDefinition) CollectionName() string {
@@ -108,11 +108,11 @@ func (self *ClassDefinition) CollectionName() string {
 }
 
 func (self *ClassDefinition) GetProperty(nm string) (pr *PropertyDefinition, ok bool) {
-	pr, ok = self.properties[nm]
+	pr, ok = self.Properties[nm]
 	return pr, ok
 }
 
 func (self *ClassDefinition) GetOwnProperty(nm string) (pr *PropertyDefinition, ok bool) {
-	pr, ok = self.ownProperties[nm]
+	pr, ok = self.OwnProperties[nm]
 	return pr, ok
 }

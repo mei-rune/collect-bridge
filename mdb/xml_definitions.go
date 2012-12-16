@@ -16,7 +16,7 @@ type XMLClassDefinition struct {
 	Base                string                   `xml:"base,attr,omitempty"`
 	Properties          []XMLPropertyDefinition  `xml:"property"`
 	BelongsTo           []XMLBelongsTo           `xml:"belongs_to"`
-	HasMany             []XMLHasMang             `xml:"has_many"`
+	HasMany             []XMLHasMany             `xml:"has_many"`
 	HasAndBelongsToMany []XMLHasAndBelongsToMany `xml:"has_and_belongs_to_many"`
 }
 
@@ -25,7 +25,7 @@ type XMLBelongsTo struct {
 	Target string `xml:",chardata"`
 }
 
-type XMLHasMang struct {
+type XMLHasMany struct {
 	//XMLName struct{} `xml:"has_many"`
 	//Name   string `xml:"name,attr,omitempty"`
 	Target string `xml:",chardata"`

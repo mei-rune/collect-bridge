@@ -3,8 +3,8 @@
 	<mdbs:class name="Person" displayName="人员" >
 		<mdbs:property name="Name" displayName="cc">
 			<mdbs:restriction base="string">
-				<mdbs:defaultValue value="mfk" />
-				<mdbs:length value="2" />
+				<mdbs:defaultValue>mfk</mdbs:defaultValue
+				<mdbs:length>2</mdbs:length 
 			</mdbs:restriction>
 		</mdbs:property>
 	</mdbs:class>		

@@ -73,7 +73,7 @@ func loadOwnProperty(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 	pr *XMLPropertyDefinition, errs []error) (*PropertyDefinition, []error) {
 
 	cpr := &PropertyDefinition{Name: pr.Name,
-		IsRequired:   true,
+		IsRequired:   false,
 		Type:         GetTypeDefinition(pr.Restrictions.Type),
 		Restrictions: make([]Validator, 0, 4)}
 

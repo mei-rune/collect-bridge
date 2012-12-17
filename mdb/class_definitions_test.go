@@ -182,9 +182,9 @@ func TestPropertyOverride(t *testing.T) {
 	a.Check(t, bossp, a.NotNil)
 	a.Check(t, managerp, a.NotNil)
 
-	a.Check(t, employeep.DefaultValue, a.Equals, "developer", a.Commentf("check the defaultValue of employee"))
-	a.Check(t, bossp.DefaultValue, a.Equals, "boss", a.Commentf("check the defaultValue of boss"))
-	a.Check(t, managerp.DefaultValue, a.Equals, "manager", a.Commentf("check the defaultValue of manager"))
+	a.Check(t, employeep.DefaultValue, a.DeepEquals, SqlString("developer"), a.Commentf("check the defaultValue of employee"))
+	a.Check(t, bossp.DefaultValue, a.DeepEquals, SqlString("boss"), a.Commentf("check the defaultValue of boss"))
+	a.Check(t, managerp.DefaultValue, a.DeepEquals, SqlString("manager"), a.Commentf("check the defaultValue of manager"))
 
 	if nil != employeep.Restrictions && 0 != len(employeep.Restrictions) {
 		t.Errorf("check the restrictions of employee")

@@ -48,6 +48,36 @@ func toPath(parents []ObjectId) string {
 	return buf.String()
 }
 
+func (self *mgo_driver) removeObject(cd *ClassDefinition, id string, parents []ObjectId) (err error) {
+
+	if nil == parents || 0 == len(parents) {
+		err = self.session.C(cd.CollectionName()).RemoveId(id)
+	} else {
+		// db.inventory.update({"_id" : ObjectId("50b5f5bb6456afaf3407800b"), "rules.bb":
+		//      {$exists: false}},{$unset:{"rules.bb":0}})
+
+		if cd.CollectionName() != parents[0].definition.CollectionName() {
+			return errors.New("collectionName is error")
+		}
+
+		path := toPath(parents)
+		query := bson.M{"_id": bson.ObjectIdHex(id), path: bson.M{"$exists": "true"}}
+
+		err = self.session.C(cd.CollectionName()).Update(query, bson.M{"$unset": bson.M{path: 0}})
+	}
+	if nil != err {
+		e, ok := err.(*mgo.LastError)
+		if !ok {
+			return err
+		}
+		if "" != e.Err {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (self *mgo_driver) writeObject(cd *ClassDefinition, properties map[string]interface{}, parents []ObjectId, writeSytle WriteSytle) (id interface{}, err error) {
 
 	if nil == parents || 0 == len(parents) {
@@ -100,31 +130,42 @@ func (self *mgo_driver) writeObject(cd *ClassDefinition, properties map[string]i
 	return id, nil
 }
 
-func (self *mgo_driver) Insert(cd *ClassDefinition, properties map[string]interface{}, parents []ObjectId) (id interface{}, err error) {
-	return self.writeObject(cd, properties, parents, WRITE_INSERT)
-}
-
-func (self *mgo_driver) Update(cd *ClassDefinition, properties map[string]interface{}, parents []ObjectId) error {
-	_, err := self.writeObject(cd, properties, parents, WRITE_UPDATE)
-	return err
-}
-
-func (self *mgo_driver) FindById(cd *ClassDefinition, id string, parents []ObjectId) (result interface{}, err error) {
-	var q *mgo.Query
-	if nil == parents || 0 == len(parents) {
-
-		q = self.session.C(cd.CollectionName()).FindId(id)
-	} else {
-		// db.inventory.find({"_id" : ObjectId("50b5f5bb6456afaf3407800b"), "rules.bb":
-		//      {$exists: true}})
-		if cd.CollectionName() != parents[0].definition.CollectionName() {
-			return nil, errors.New("collectionName is error")
-		}
-
-		path := toPath(parents)
-		query := bson.M{"_id": bson.ObjectIdHex(id), path: bson.M{"$exists": "true"}}
-		q = self.session.C(cd.CollectionName()).Find(query).Select(bson.M{"_id": 0, path + ".base": 1})
+func (self *mgo_driver) Insert(cls *ClassDefinition, attributes map[string]interface{}) (interface{}, error) {
+	id, ok := attributes["_id"]
+	if !ok {
+		id = bson.NewObjectId()
+		attributes["_id"] = id
 	}
+	err := self.session.C(cls.CollectionName()).Insert(attributes)
+	if nil == err {
+		return id, nil
+	}
+	return nil, err
+}
+
+func (self *mgo_driver) Update(cls *ClassDefinition, id string, attributes map[string]interface{}) error {
+	err := self.session.C(cls.CollectionName()).UpdateId(id, bson.M{"$set": attributes})
+
+	if nil != err {
+		e, ok := err.(*mgo.LastError)
+		if !ok {
+			return err
+		}
+		if "" != e.Err {
+			return err
+		}
+		if 1 != e.N {
+			return errors.New("number of excepted change, actual is " + strconv.Itoa(e.N))
+		}
+		return nil
+	}
+
+	return errors.New("update failed, return nil.")
+}
+
+func (self *mgo_driver) FindById(cls *ClassDefinition, id string) (result interface{}, err error) {
+	var q *mgo.Query
+	q = self.session.C(cls.CollectionName()).FindId(id)
 	if nil == q {
 		return nil, errors.New("return nil")
 	}
@@ -133,23 +174,8 @@ func (self *mgo_driver) FindById(cd *ClassDefinition, id string, parents []Objec
 	return result, err
 }
 
-func (self *mgo_driver) Delete(cd *ClassDefinition, id string, parents []ObjectId) (err error) {
-
-	if nil == parents || 0 == len(parents) {
-		err = self.session.C(cd.CollectionName()).RemoveId(id)
-	} else {
-		// db.inventory.update({"_id" : ObjectId("50b5f5bb6456afaf3407800b"), "rules.bb":
-		//      {$exists: false}},{$unset:{"rules.bb":0}})
-
-		if cd.CollectionName() != parents[0].definition.CollectionName() {
-			return errors.New("collectionName is error")
-		}
-
-		path := toPath(parents)
-		query := bson.M{"_id": bson.ObjectIdHex(id), path: bson.M{"$exists": "true"}}
-
-		err = self.session.C(cd.CollectionName()).Update(query, bson.M{"$unset": bson.M{path: 0}})
-	}
+func (self *mgo_driver) Delete(cd *ClassDefinition, id string) (err error) {
+	err = self.session.C(cd.CollectionName()).RemoveId(id)
 	if nil != err {
 		e, ok := err.(*mgo.LastError)
 		if !ok {
@@ -159,6 +185,5 @@ func (self *mgo_driver) Delete(cd *ClassDefinition, id string, parents []ObjectI
 			return err
 		}
 	}
-
 	return nil
 }

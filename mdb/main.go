@@ -115,6 +115,8 @@ func main() {
 		return
 	}
 
+	sess.SetSafe(&mgo.Safe{W: 1, FSync: true, J: true})
+
 	driver := &MdbServer{driver: &mgo_driver{session: sess.DB(*mgoDB)}}
 
 	svr.Get("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectFindById(ctx, driver, objectType, id) })

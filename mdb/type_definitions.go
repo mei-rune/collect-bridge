@@ -377,21 +377,25 @@ func (self *DateTimeTypeDefinition) Convert(v interface{}) (interface{}, error) 
 		if nil != err {
 			return nil, err
 		}
-		return SqlDateTime(t), nil
+		tt := SqlDateTime(t)
+		return &tt, nil
 	case *string:
 		t, err := time.Parse(self.Layout, *value)
 		if nil != err {
 			return nil, err
 		}
-		return SqlDateTime(t), nil
+		tt := SqlDateTime(t)
+		return &tt, nil
 	case time.Time:
-		return SqlDateTime(value), nil
+		t := SqlDateTime(value)
+		return &t, nil
 	case *time.Time:
-		return SqlDateTime(*value), nil
+		t := SqlDateTime(*value)
+		return &t, nil
 	case SqlDateTime:
 		return value, nil
 	case *SqlDateTime:
-		return *value, nil
+		return value, nil
 	}
 
 	return nil, errors.New("syntex error, it is not a string")
@@ -423,21 +427,26 @@ func (self *IpAddressTypeDefinition) Convert(v interface{}) (interface{}, error)
 		if nil == ip {
 			return nil, errors.New("syntex error, it is not IP.")
 		}
-		return SqlIPAddress(ip), nil
+
+		addr := SqlIPAddress(ip)
+		return &addr, nil
 	case *string:
 		ip := net.ParseIP(*value)
 		if nil == ip {
 			return nil, errors.New("syntex error, it is not IP.")
 		}
-		return SqlIPAddress(ip), nil
+		addr := SqlIPAddress(ip)
+		return &addr, nil
 	case net.IP:
-		return SqlIPAddress(value), nil
+		addr := SqlIPAddress(value)
+		return &addr, nil
 	case *net.IP:
-		return SqlIPAddress(*value), nil
+		addr := SqlIPAddress(*value)
+		return &addr, nil
 	case SqlIPAddress:
-		return value, nil
+		return &value, nil
 	case *SqlIPAddress:
-		return *value, nil
+		return value, nil
 	}
 
 	return nil, errors.New("syntex error, it is not a string")
@@ -473,21 +482,25 @@ func (self *PhysicalAddressTypeDefinition) Convert(v interface{}) (interface{}, 
 		if nil != err {
 			return nil, err
 		}
-		return SqlPhysicalAddress(mac), nil
+		addr := SqlPhysicalAddress(mac)
+		return &addr, nil
 	case *string:
 		mac, err := net.ParseMAC(*value)
 		if nil != err {
 			return nil, err
 		}
-		return SqlPhysicalAddress(mac), nil
+		addr := SqlPhysicalAddress(mac)
+		return &addr, nil
 	case net.HardwareAddr:
-		return SqlPhysicalAddress(value), nil
+		addr := SqlPhysicalAddress(value)
+		return &addr, nil
 	case *net.HardwareAddr:
-		return SqlPhysicalAddress(*value), nil
+		addr := SqlPhysicalAddress(*value)
+		return &addr, nil
 	case SqlPhysicalAddress:
-		return value, nil
+		return &value, nil
 	case *SqlPhysicalAddress:
-		return *value, nil
+		return value, nil
 	}
 
 	return nil, errors.New("syntex error, it is not a string")

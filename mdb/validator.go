@@ -42,6 +42,10 @@ type StringLengthValidator struct {
 func (self *StringLengthValidator) Validate(pv interface{}, attributes map[string]interface{}) (bool, error) {
 	var s string
 	switch value := pv.(type) {
+	case SqlString:
+		s = string(value)
+	case *SqlString:
+		s = string(*value)
 	case string:
 		s = value
 	case *string:
@@ -110,17 +114,22 @@ type DateValidator struct {
 }
 
 func (self *DateValidator) Validate(pv interface{}, attributes map[string]interface{}) (bool, error) {
-	value, ok := pv.(SqlDateTime)
-	if !ok {
+	var t time.Time
+	switch value := pv.(type) {
+	case *SqlDateTime:
+		t = time.Time(*value)
+	case SqlDateTime:
+		t = time.Time(value)
+	default:
 		return false, errors.New("syntex error, it is not a time")
 	}
 
-	if self.HasMin && self.MinValue.After(time.Time(value)) {
-		return false, fmt.Errorf("'%s' is less minValue '%s'", time.Time(value).String(), self.MinValue.String())
+	if self.HasMin && self.MinValue.After(t) {
+		return false, fmt.Errorf("'%s' is less minValue '%s'", t.String(), self.MinValue.String())
 	}
 
-	if self.HasMax && self.MaxValue.Before(time.Time(value)) {
-		return false, fmt.Errorf("'%s' is greate maxValue '%s'", time.Time(value).String(), self.MaxValue.String())
+	if self.HasMax && self.MaxValue.Before(t) {
+		return false, fmt.Errorf("'%s' is greate maxValue '%s'", t.String(), self.MaxValue.String())
 	}
 	return true, nil
 }

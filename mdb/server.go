@@ -7,7 +7,7 @@ import (
 type MdbServer struct {
 	restrict    bool
 	driver      Driver
-	definitions ClassDefinitions
+	definitions *ClassDefinitions
 }
 
 func (self *MdbServer) convert(cls *ClassDefinition, attributes map[string]interface{}, is_update bool) (map[string]interface{}, error) {
@@ -30,8 +30,9 @@ func (self *MdbServer) convert(cls *ClassDefinition, attributes map[string]inter
 			if self.restrict {
 				delete(attributes, k)
 			}
-			new_value, err := pr.Type.Convert(value)
-			if nil == err {
+			var err error
+			new_value, err = pr.Type.Convert(value)
+			if nil != err {
 				errs = append(errs, errors.New("'"+k+"' convert to internal value failed, "+err.Error()))
 				continue
 			}
@@ -54,13 +55,13 @@ func (self *MdbServer) convert(cls *ClassDefinition, attributes map[string]inter
 	}
 
 	if 0 != len(errs) {
-		return nil, &MutiErrors{msg: "", errs: errs}
+		return nil, &MutiErrors{msg: "validate failed", errs: errs}
 	}
 	if self.restrict && 0 != len(attributes) {
-		for k, v := range attributes {
+		for k, _ := range attributes {
 			errs = append(errs, errors.New("'"+k+"' is useless"))
 		}
-		return nil, &MutiErrors{msg: "", errs: errs}
+		return nil, &MutiErrors{msg: "validate failed", errs: errs}
 	}
 	return new_attributes, nil
 }
@@ -71,10 +72,10 @@ func (self *MdbServer) Create(cls *ClassDefinition, attributes map[string]interf
 		return nil, errs
 	}
 
-	return self.driver.Insert(cls, new_attributes, nil)
+	return self.driver.Insert(cls, new_attributes)
 }
 func (self *MdbServer) FindById(cls *ClassDefinition, id string) (interface{}, error) {
-	return self.driver.FindById(cls, id, nil)
+	return self.driver.FindById(cls, id)
 }
 
 func (self *MdbServer) Update(cls *ClassDefinition, id string, attributes map[string]interface{}) error {
@@ -83,9 +84,9 @@ func (self *MdbServer) Update(cls *ClassDefinition, id string, attributes map[st
 		return errs
 	}
 
-	return self.driver.Update(cls, id, new_attributes, nil)
+	return self.driver.Update(cls, id, new_attributes)
 }
 
 func (self *MdbServer) RemoveById(cls *ClassDefinition, id string) error {
-	self.driver.Delete(cls, id, nil)
+	return self.driver.Delete(cls, id)
 }

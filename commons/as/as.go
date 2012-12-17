@@ -167,17 +167,18 @@ func AsUint64(value interface{}) (uint64, error) {
 		if nil == err {
 			return i64, nil
 		}
+		return i64, err
 	}
-	return 0, errors.New("type AsSertion to uint64 failed")
+	return 0, errors.New("type AsUint64 to uint64 failed")
 }
 
 func AsUint32(value interface{}) (uint32, error) {
 	ui64, err := AsUint64(value)
 	if nil != err {
-		return 0, errors.New("type AsSertion to uint32 failed")
+		return 0, errors.New("type AsUint32 to uint32 failed")
 	}
 	if 4294967295 < ui64 {
-		return 0, errors.New("type AsSertion to uint32 failed, it is too big.")
+		return 0, errors.New("type AsUint32 to uint32 failed, it is too big.")
 	}
 	return uint32(ui64), nil
 }
@@ -185,10 +186,10 @@ func AsUint32(value interface{}) (uint32, error) {
 func AsUint16(value interface{}) (uint16, error) {
 	ui64, err := AsUint64(value)
 	if nil != err {
-		return 0, errors.New("type AsSertion to uint16 failed")
+		return 0, errors.New("type AsUint16 to uint16 failed")
 	}
 	if 65535 < ui64 {
-		return 0, errors.New("type AsSertion to uint16 failed, it is too big.")
+		return 0, errors.New("type AsUint16 to uint16 failed, it is too big.")
 	}
 	return uint16(ui64), nil
 }
@@ -196,10 +197,10 @@ func AsUint16(value interface{}) (uint16, error) {
 func AsUint8(value interface{}) (uint8, error) {
 	ui64, err := AsUint64(value)
 	if nil != err {
-		return 0, errors.New("type AsSertion to uint8 failed")
+		return 0, errors.New("type AsUint8 to uint8 failed")
 	}
 	if 255 < ui64 {
-		return 0, errors.New("type AsSertion to uint8 failed, it is too big.")
+		return 0, errors.New("type AsUint8 to uint8 failed, it is too big.")
 	}
 	return uint8(ui64), nil
 }
@@ -236,14 +237,15 @@ func AsFloat64(value interface{}) (float64, error) {
 		if nil == err {
 			return f64, nil
 		}
+		return f64, err
 	}
-	return 0, errors.New("type AsSertion to float64 failed")
+	return 0, errors.New("type AsFloat64 to float64 failed")
 }
 
 func AsFloat32(value interface{}) (float32, error) {
 	f64, err := AsFloat64(value)
 	if nil != err {
-		return 0, errors.New("type AsSertion to float32 failed")
+		return 0, errors.New("type AsFloat64 to float32 failed")
 	}
 	return float32(f64), nil
 }
@@ -278,5 +280,5 @@ func AsString(value interface{}) (string, error) {
 	case float64:
 		return strconv.FormatFloat(float64(v), 'e', -1, 64), nil
 	}
-	return "", errors.New("type AsSertion to string failed")
+	return "", errors.New("type AsString to string failed")
 }

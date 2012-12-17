@@ -26,7 +26,7 @@ func toM(cd *ClassDefinition, properties map[string]interface{}) (values bson.M,
 		value := v
 		pr, ok := cd.GetProperty(k)
 		if ok {
-			value, err = pr.Type.ConvertFrom(v)
+			value, err = pr.Type.Convert(v)
 			if nil != err {
 				return nil, err
 			}

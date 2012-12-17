@@ -46,6 +46,10 @@ func loadParentProperties(self *ClassDefinitions, cls *ClassDefinition, errs []e
 			if nil == v.DefaultValue {
 				v.DefaultValue = old.DefaultValue
 			}
+
+			if !v.IsRequired {
+				v.IsRequired = old.IsRequired
+			}
 		}
 		cls.Properties[k] = v
 	}
@@ -69,12 +73,17 @@ func loadOwnProperty(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 	pr *XMLPropertyDefinition, errs []error) (*PropertyDefinition, []error) {
 
 	cpr := &PropertyDefinition{Name: pr.Name,
+		IsRequired:   true,
 		Type:         GetTypeDefinition(pr.Restrictions.Type),
 		Restrictions: make([]Validator, 0, 4)}
 
+	if nil != pr.Restrictions.Required {
+		cpr.IsRequired = true
+	}
+
 	if "" != pr.Restrictions.DefaultValue {
 		var err error
-		cpr.DefaultValue, err = cpr.Type.ConvertFrom(pr.Restrictions.DefaultValue)
+		cpr.DefaultValue, err = cpr.Type.Convert(pr.Restrictions.DefaultValue)
 		if nil != err {
 			errs = append(errs, errors.New("load property '"+pr.Name+"' of class '"+
 				xmlCls.Name+"' failed, parse defaultValue '"+

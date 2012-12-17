@@ -34,14 +34,6 @@
 								</xs:sequence>
 							</xs:complexType>
 						</xs:element>
-						<xs:element name="defaultValue" minOccurs="0">
-							<xs:annotation>
-								<xs:documentation>定义空白字符（换行、回车、空格以及制表符）的处理方式。</xs:documentation>
-							</xs:annotation>
-							<xs:complexType>
-								<xs:attribute name="value" use="required"/>
-							</xs:complexType>
-						</xs:element>
 						<xs:element name="pattern" minOccurs="0">
 							<xs:annotation>
 								<xs:documentation>定义可接受的字符的精确序列。</xs:documentation>
@@ -110,6 +102,17 @@
 									</xs:element>
 								</xs:sequence>
 							</xs:choice>
+						</xs:choice>
+						<xs:choice>
+							<xs:element name="defaultValue" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>定义空白字符（换行、回车、空格以及制表符）的处理方式。</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:attribute name="value" use="required"/>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="required" minOccurs="0"/>
 						</xs:choice>
 					</xs:sequence>
 					<xs:attribute name="base" type="mdbs:dataType" use="required"/>

@@ -64,14 +64,15 @@ type XMLRestrictionsDefinition struct {
 	XMLName xml.Name `xml:"restriction"`
 	Type    string   `xml:"base,attr"`
 
-	DefaultValue string    `xml:"defaultValue,omitempty"`
-	Enumerations *[]string `xml:"enumeration>value,omitempty"`
-	Pattern      string    `xml:"pattern,omitempty"`
-	MinValue     string    `xml:"minValue,omitempty"`
-	MaxValue     string    `xml:"maxValue,omitempty"`
-	Length       string    `xml:"Length,omitempty"`
-	MinLength    string    `xml:"minLength,omitempty"`
-	MaxLength    string    `xml:"maxLength,omitempty"`
+	Required     *XMLRequired `xml:",omitempty"`
+	DefaultValue string       `xml:"defaultValue,omitempty"`
+	Enumerations *[]string    `xml:"enumeration>value,omitempty"`
+	Pattern      string       `xml:"pattern,omitempty"`
+	MinValue     string       `xml:"minValue,omitempty"`
+	MaxValue     string       `xml:"maxValue,omitempty"`
+	Length       string       `xml:"length,omitempty"`
+	MinLength    string       `xml:"minLength,omitempty"`
+	MaxLength    string       `xml:"maxLength,omitempty"`
 
 	// DefaultValue DefaultValueRestrictionDefinition `xml:"defaultValue,omitempty"`
 	// Enumerations XMLEnumerationRestrictionDefinition  `xml:",omitempty"`
@@ -81,6 +82,10 @@ type XMLRestrictionsDefinition struct {
 	// Length       LengthRestrictionDefinition       `xml:"Length,omitempty"`
 	// MinLength    MinLengthRestrictionDefinition    `xml:"minLength,omitempty"`
 	// MaxLength    MaxLengthRestrictionDefinition    `xml:"maxLength,omitempty"`
+}
+
+type XMLRequired struct {
+	XMLName xml.Name `xml:"required"`
 }
 
 // type DefaultValueRestrictionDefinition struct {

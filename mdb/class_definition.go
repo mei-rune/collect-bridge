@@ -53,6 +53,7 @@ func (self *HasAndBelongsToMany) Target() *ClassDefinition {
 type PropertyDefinition struct {
 	Name         string
 	Type         TypeDefinition
+	IsRequired   bool
 	Restrictions []Validator
 	DefaultValue interface{}
 }
@@ -69,25 +70,25 @@ func (self *MutiErrors) Errors() []error {
 	return self.errs
 }
 
-func (self *PropertyDefinition) Validate(obj interface{}) (bool, error) {
-	if nil == self.Restrictions {
-		return true, nil
-	}
+// func (self *PropertyDefinition) Validate(obj interface{}) (bool, error) {
+//	if nil == self.Restrictions {
+//		return true, nil
+//	}
 
-	var result bool = true
-	var errs []error = make([]error, 0, len(self.Restrictions))
-	for _, Validator := range self.Restrictions {
-		if ok, err := Validator.Validate(obj); !ok {
-			result = false
-			errs = append(errs, err)
-		}
-	}
+//	var result bool = true
+//	var errs []error = make([]error, 0, len(self.Restrictions))
+//	for _, Validator := range self.Restrictions {
+//		if ok, err := Validator.Validate(obj); !ok {
+//			result = false
+//			errs = append(errs, err)
+//		}
+//	}
 
-	if result {
-		return true, nil
-	}
-	return false, &MutiErrors{errs: errs, msg: "property '" + self.Name + "' is error"}
-}
+//	if result {
+//		return true, nil
+//	}
+//	return false, &MutiErrors{errs: errs, msg: "property '" + self.Name + "' is error"}
+// }
 
 type ClassDefinition struct {
 	Super *ClassDefinition

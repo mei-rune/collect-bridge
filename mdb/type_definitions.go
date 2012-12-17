@@ -1,7 +1,6 @@
 package mdb
 
 import (
-	"commons/as"
 	"errors"
 	"fmt"
 	"net"
@@ -16,7 +15,7 @@ type TypeDefinition interface {
 	CreatePatternValidator(pattern string) (Validator, error)
 	CreateRangeValidator(minValue, maxValue string) (Validator, error)
 	CreateLengthValidator(minLength, maxLength string) (Validator, error)
-	ConvertFrom(v interface{}) (interface{}, error)
+	Convert(v interface{}) (interface{}, error)
 }
 
 type IntegerTypeDefinition struct {
@@ -33,11 +32,11 @@ func (self *IntegerTypeDefinition) CreateEnumerationValidator(ss []string) (Vali
 
 	values := make([]interface{}, 0, len(ss))
 	for i, s := range ss {
-		v, err := self.ConvertFrom(s)
+		v, err := strconv.ParseInt(s, 10, 64)
 		if nil != err {
 			return nil, fmt.Errorf("value[%d] '%v' is syntex error, %s", i, s, err.Error())
 		}
-		values = append(values, v)
+		values = append(values, SqlInteger64(v))
 	}
 	return &EnumerationValidator{Values: values}, nil
 }
@@ -67,15 +66,58 @@ func (self *IntegerTypeDefinition) CreateRangeValidator(minValue, maxValue strin
 			return nil, fmt.Errorf("maxValue '%s' is not a integer", maxValue)
 		}
 	}
-	return &IntegerValidator{HasMax: hasMax, MaxValue: max, HasMin: hasMin, MinValue: min}, nil
+	return &IntegerValidator{HasMax: hasMax, MaxValue: max,
+		HasMin: hasMin, MinValue: min}, nil
 }
 
-func (self *IntegerTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+func (self *IntegerTypeDefinition) CreateLengthValidator(minLength,
+	maxLength string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *IntegerTypeDefinition) ConvertFrom(v interface{}) (interface{}, error) {
-	return as.AsInt64(v)
+func (self *IntegerTypeDefinition) Convert(value interface{}) (interface{}, error) {
+	switch v := value.(type) {
+	case int:
+		return SqlInteger64(v), nil
+	case int8:
+		return SqlInteger64(v), nil
+	case int16:
+		return SqlInteger64(v), nil
+	case int32:
+		return SqlInteger64(v), nil
+	case int64:
+		return SqlInteger64(v), nil
+	case uint:
+		if 9223372036854775807 >= int64(v) {
+			return SqlInteger64(v), nil
+		}
+		return SqlInteger64(0), errors.New("it is uint32, value is overflow.")
+	case uint8:
+		return SqlInteger64(v), nil
+	case uint16:
+		return SqlInteger64(v), nil
+	case uint32:
+		return SqlInteger64(v), nil
+	case uint64:
+		if 9223372036854775807 >= v {
+			return SqlInteger64(v), nil
+		}
+		return SqlInteger64(0), errors.New("it is uint64, value is overflow.")
+	case float32:
+		return SqlInteger64(v), nil
+	case float64:
+		return SqlInteger64(v), nil
+	case string:
+		i64, err := strconv.ParseInt(v, 10, 64)
+		if nil == err {
+			return SqlInteger64(i64), nil
+		}
+	case SqlInteger64:
+		return v, nil
+	case *SqlInteger64:
+		return *v, nil
+	}
+	return SqlInteger64(0), errors.New("convert to SqlInteger64 failed")
 }
 
 type DecimalTypeDefinition struct {
@@ -92,11 +134,11 @@ func (self *DecimalTypeDefinition) CreateEnumerationValidator(ss []string) (Vali
 
 	values := make([]interface{}, 0, len(ss))
 	for i, s := range ss {
-		v, err := self.ConvertFrom(s)
+		v, err := strconv.ParseFloat(s, 64)
 		if nil != err {
 			return nil, fmt.Errorf("value[%d] '%v' is syntex error, %s", i, s, err.Error())
 		}
-		values = append(values, v)
+		values = append(values, SqlDecimal(v))
 	}
 	return &EnumerationValidator{Values: values}, nil
 }
@@ -133,8 +175,45 @@ func (self *DecimalTypeDefinition) CreateLengthValidator(minLength, maxLength st
 	panic("not supported")
 }
 
-func (self *DecimalTypeDefinition) ConvertFrom(v interface{}) (interface{}, error) {
-	return as.AsFloat64(v)
+func (self *DecimalTypeDefinition) Convert(value interface{}) (interface{}, error) {
+
+	switch v := value.(type) {
+	case uint:
+		return SqlDecimal(v), nil
+	case uint8:
+		return SqlDecimal(v), nil
+	case uint16:
+		return SqlDecimal(v), nil
+	case uint32:
+		return SqlDecimal(v), nil
+	case uint64:
+		return SqlDecimal(v), nil
+	case int:
+		return SqlDecimal(v), nil
+	case int8:
+		return SqlDecimal(v), nil
+	case int16:
+		return SqlDecimal(v), nil
+	case int32:
+		return SqlDecimal(v), nil
+	case int64:
+		return SqlDecimal(v), nil
+	case float32:
+		return SqlDecimal(v), nil
+	case float64:
+		return SqlDecimal(v), nil
+	case string:
+		f64, err := strconv.ParseFloat(v, 64)
+		if nil == err {
+			return SqlDecimal(f64), nil
+		}
+		return SqlDecimal(0), err
+	case SqlDecimal:
+		return v, nil
+	case *SqlDecimal:
+		return *v, nil
+	}
+	return SqlDecimal(0), errors.New("convert to SqlDecimal failed")
 }
 
 type StringTypeDefinition struct {
@@ -149,12 +228,14 @@ func (self *StringTypeDefinition) CreateEnumerationValidator(values []string) (V
 		return nil, errors.New("values is null or empty")
 	}
 
+	new_values := make([]SqlString, len(values))
 	for i, s := range values {
 		if "" == s {
 			return nil, fmt.Errorf("value[%d] is empty", i)
 		}
+		new_values = append(new_values, SqlString(s))
 	}
-	return &StringEnumerationValidator{Values: values}, nil
+	return &StringEnumerationValidator{Values: new_values}, nil
 }
 
 func (self *StringTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
@@ -194,8 +275,42 @@ func (self *StringTypeDefinition) CreateLengthValidator(minLength, maxLength str
 	return &StringLengthValidator{MaxLength: int(max), MinLength: int(min)}, nil
 }
 
-func (self *StringTypeDefinition) ConvertFrom(v interface{}) (interface{}, error) {
-	return as.AsString(v)
+func (self *StringTypeDefinition) Convert(value interface{}) (interface{}, error) {
+	switch v := value.(type) {
+	case string:
+		return SqlString(v), nil
+	case *string:
+		return SqlString(*v), nil
+	case uint:
+		return SqlString(strconv.FormatUint(uint64(v), 10)), nil
+	case uint8:
+		return SqlString(strconv.FormatUint(uint64(v), 10)), nil
+	case uint16:
+		return SqlString(strconv.FormatUint(uint64(v), 10)), nil
+	case uint32:
+		return SqlString(strconv.FormatUint(uint64(v), 10)), nil
+	case uint64:
+		return SqlString(strconv.FormatUint(uint64(v), 10)), nil
+	case int:
+		return SqlString(strconv.FormatInt(int64(v), 10)), nil
+	case int8:
+		return SqlString(strconv.FormatInt(int64(v), 10)), nil
+	case int16:
+		return SqlString(strconv.FormatInt(int64(v), 10)), nil
+	case int32:
+		return SqlString(strconv.FormatInt(int64(v), 10)), nil
+	case int64:
+		return SqlString(strconv.FormatInt(int64(v), 10)), nil
+	case float32:
+		return SqlString(strconv.FormatFloat(float64(v), 'e', -1, 64)), nil
+	case float64:
+		return SqlString(strconv.FormatFloat(float64(v), 'e', -1, 64)), nil
+	case SqlString:
+		return v, nil
+	case *SqlString:
+		return *v, nil
+	}
+	return SqlString(""), errors.New("convert to SqlString failed")
 }
 
 type DateTimeTypeDefinition struct {
@@ -218,13 +333,15 @@ func (self *DateTimeTypeDefinition) CreateEnumerationValidator(ss []string) (Val
 		if nil != err {
 			return nil, fmt.Errorf("value[%d] '%v' is syntex error, %s", i, s, err.Error())
 		}
-		values = append(values, t)
+		values = append(values, SqlDateTime(t))
 	}
 	return &EnumerationValidator{Values: values}, nil
 }
+
 func (self *DateTimeTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
 	panic("not supported")
 }
+
 func (self *DateTimeTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
 	var min, max time.Time
 	var err error
@@ -252,23 +369,28 @@ func (self *DateTimeTypeDefinition) CreateRangeValidator(minValue, maxValue stri
 func (self *DateTimeTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
 	panic("not supported")
 }
-func (self *DateTimeTypeDefinition) ConvertFrom(v interface{}) (interface{}, error) {
+
+func (self *DateTimeTypeDefinition) Convert(v interface{}) (interface{}, error) {
 	switch value := v.(type) {
 	case string:
 		t, err := time.Parse(self.Layout, value)
 		if nil != err {
 			return nil, err
 		}
-		return t, nil
+		return SqlDateTime(t), nil
 	case *string:
 		t, err := time.Parse(self.Layout, *value)
 		if nil != err {
 			return nil, err
 		}
-		return t, nil
+		return SqlDateTime(t), nil
 	case time.Time:
-		return value, nil
+		return SqlDateTime(value), nil
 	case *time.Time:
+		return SqlDateTime(*value), nil
+	case SqlDateTime:
+		return value, nil
+	case *SqlDateTime:
 		return *value, nil
 	}
 
@@ -294,23 +416,27 @@ func (self *IpAddressTypeDefinition) CreateRangeValidator(minValue, maxValue str
 func (self *IpAddressTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
 	panic("not supported")
 }
-func (self *IpAddressTypeDefinition) ConvertFrom(v interface{}) (interface{}, error) {
+func (self *IpAddressTypeDefinition) Convert(v interface{}) (interface{}, error) {
 	switch value := v.(type) {
 	case string:
 		ip := net.ParseIP(value)
 		if nil == ip {
 			return nil, errors.New("syntex error, it is not IP.")
 		}
-		return ip, nil
+		return SqlIPAddress(ip), nil
 	case *string:
 		ip := net.ParseIP(*value)
 		if nil == ip {
 			return nil, errors.New("syntex error, it is not IP.")
 		}
-		return ip, nil
+		return SqlIPAddress(ip), nil
 	case net.IP:
-		return value, nil
+		return SqlIPAddress(value), nil
 	case *net.IP:
+		return SqlIPAddress(*value), nil
+	case SqlIPAddress:
+		return value, nil
+	case *SqlIPAddress:
 		return *value, nil
 	}
 
@@ -327,32 +453,40 @@ func (self *PhysicalAddressTypeDefinition) Name() string {
 func (self *PhysicalAddressTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
 	panic("not supported")
 }
+
 func (self *PhysicalAddressTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
 	panic("not supported")
 }
+
 func (self *PhysicalAddressTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
 	panic("not supported")
 }
+
 func (self *PhysicalAddressTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
 	panic("not supported")
 }
-func (self *PhysicalAddressTypeDefinition) ConvertFrom(v interface{}) (interface{}, error) {
+
+func (self *PhysicalAddressTypeDefinition) Convert(v interface{}) (interface{}, error) {
 	switch value := v.(type) {
 	case string:
 		mac, err := net.ParseMAC(value)
 		if nil != err {
 			return nil, err
 		}
-		return mac, nil
+		return SqlPhysicalAddress(mac), nil
 	case *string:
 		mac, err := net.ParseMAC(*value)
 		if nil != err {
 			return nil, err
 		}
-		return mac, nil
+		return SqlPhysicalAddress(mac), nil
 	case net.HardwareAddr:
-		return value, nil
+		return SqlPhysicalAddress(value), nil
 	case *net.HardwareAddr:
+		return SqlPhysicalAddress(*value), nil
+	case SqlPhysicalAddress:
+		return value, nil
+	case *SqlPhysicalAddress:
 		return *value, nil
 	}
 
@@ -367,12 +501,17 @@ func (self *PasswordTypeDefinition) Name() string {
 	return "password"
 }
 
-func (self *PasswordTypeDefinition) ConvertFrom(v interface{}) (interface{}, error) {
-	s, ok := v.(string)
-	if !ok {
-		return nil, errors.New("syntex error, it is not a string")
+func (self *PasswordTypeDefinition) Convert(v interface{}) (interface{}, error) {
+	switch value := v.(type) {
+	case string:
+		return SqlPassword(value), nil
+	case SqlPassword:
+		return value, nil
+	case *SqlPassword:
+		return *value, nil
 	}
-	return s, nil
+
+	return nil, errors.New("syntex error, it is not a string")
 }
 
 var (

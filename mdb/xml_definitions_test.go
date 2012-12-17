@@ -166,7 +166,7 @@ func checkArray(s1, s2 *[]string) bool {
 // 	os.Stdout.Write(output)
 // }
 
-func TestReadXML(t *testing.T) {
+func TestXML1(t *testing.T) {
 	bytes, err := ioutil.ReadFile("test/test1.xml")
 	if nil != err {
 		t.Errorf("read file 'test/test1.xml' failed, %s", err.Error())
@@ -200,24 +200,27 @@ func TestReadXML(t *testing.T) {
 		a.Check(t, p1.Name, a.Equals, p2.Name, a.Commentf("check Name of properties[%d]", comment))
 		a.Check(t, p1.Restrictions.Type, a.Equals, p2.Restrictions.Type,
 			a.Commentf("check Restrictions.Type of properties[%d]", comment))
-		a.Check(t, p1.Restrictions.DefaultValue, a.DeepEquals, p1.Restrictions.DefaultValue,
+		a.Check(t, p1.Restrictions.DefaultValue, a.DeepEquals, p2.Restrictions.DefaultValue,
 			a.Commentf("check Restrictions.DefaultValue of properties[%d]", comment))
+
+		a.Check(t, p1.Restrictions.Required, a.DeepEquals, p2.Restrictions.Required,
+			a.Commentf("check Restrictions.Required of properties[%d]", comment))
 
 		if !checkArray(p1.Restrictions.Enumerations, p2.Restrictions.Enumerations) {
 			t.Errorf("check Restrictions.Enumerations properties[%d] failed, value is %v", comment, p1.Restrictions.Enumerations)
 		}
 
-		a.Check(t, p1.Restrictions.Length, a.Equals, p1.Restrictions.Length,
+		a.Check(t, p1.Restrictions.Length, a.Equals, p2.Restrictions.Length,
 			a.Commentf("check Restrictions.Length properties[%d]", comment))
-		a.Check(t, p1.Restrictions.MaxLength, a.Equals, p1.Restrictions.MaxLength,
+		a.Check(t, p1.Restrictions.MaxLength, a.Equals, p2.Restrictions.MaxLength,
 			a.Commentf("check Restrictions.MaxLength properties[%d]", comment))
-		a.Check(t, p1.Restrictions.MinLength, a.Equals, p1.Restrictions.MinLength,
+		a.Check(t, p1.Restrictions.MinLength, a.Equals, p2.Restrictions.MinLength,
 			a.Commentf("check Restrictions.MinLength properties[%d]", comment))
-		a.Check(t, p1.Restrictions.MaxValue, a.Equals, p1.Restrictions.MaxValue,
+		a.Check(t, p1.Restrictions.MaxValue, a.Equals, p2.Restrictions.MaxValue,
 			a.Commentf("check Restrictions.MaxValue properties[%d]", comment))
-		a.Check(t, p1.Restrictions.MinValue, a.Equals, p1.Restrictions.MinValue,
+		a.Check(t, p1.Restrictions.MinValue, a.Equals, p2.Restrictions.MinValue,
 			a.Commentf("check Restrictions.MinValue properties[%d]", comment))
-		a.Check(t, p1.Restrictions.Pattern, a.Equals, p1.Restrictions.Pattern,
+		a.Check(t, p1.Restrictions.Pattern, a.Equals, p2.Restrictions.Pattern,
 			a.Commentf("check Restrictions.Pattern properties[%d]", comment))
 	}
 
@@ -242,7 +245,7 @@ func TestReadXML(t *testing.T) {
 			Length:       "3"}}, 2)
 	assertProperty(&person.Properties[3], &XMLPropertyDefinition{Name: "Age",
 		Restrictions: XMLRestrictionsDefinition{Type: "integer",
-			DefaultValue: "mfk",
+			DefaultValue: "123",
 			MinValue:     "3",
 			MaxValue:     "313"}}, 3)
 	assertProperty(&person.Properties[4], &XMLPropertyDefinition{Name: "Day",
@@ -276,13 +279,13 @@ func TestReadXML(t *testing.T) {
 
 	assertProperty(&employee.Properties[0], &XMLPropertyDefinition{Name: "Job",
 		Restrictions: XMLRestrictionsDefinition{Type: "string",
-			DefaultValue: "developer"}}, 0)
+			Required: &XMLRequired{XMLName: xml.Name{Space: "http://schemas.meijing.com.cn/mdbs/1/typeDefinitions", Local: "required"}}}}, 0)
 	assertProperty(&employee.Properties[1], &XMLPropertyDefinition{Name: "company_id",
 		Restrictions: XMLRestrictionsDefinition{Type: "string"}}, 0)
 
-	a.Check(t, company.Name, a.Equals, "Company", a.Commentf("check Class name"))
+	a.Check(t, company.Name, a.Equals, "Company", a.Commentf("check Class company.name"))
 
-	a.Assert(t, len(company.Properties), a.Equals, 1, a.Commentf("check len of Properties"))
+	a.Assert(t, len(company.Properties), a.Equals, 1, a.Commentf("check len of company.Properties"))
 
 	assertProperty(&company.Properties[0], &XMLPropertyDefinition{Name: "Name",
 		Restrictions: XMLRestrictionsDefinition{Type: "string",

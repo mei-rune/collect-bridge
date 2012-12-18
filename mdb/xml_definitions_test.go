@@ -250,9 +250,9 @@ func TestXML1(t *testing.T) {
 			MaxValue:     "313"}}, 3)
 	assertProperty(&person.Properties[4], &XMLPropertyDefinition{Name: "Day",
 		Restrictions: XMLRestrictionsDefinition{Type: "datetime",
-			DefaultValue: "2009-12-12 12:23:23",
-			MinValue:     "2009-12-11 10:23:23",
-			MaxValue:     "2009-12-13 12:23:23"}}, 4)
+			DefaultValue: "2009-12-12T12:23:23+08:00",
+			MinValue:     "2009-12-11T10:23:23+08:00",
+			MaxValue:     "2009-12-13T12:23:23+08:00"}}, 4)
 	assertProperty(&person.Properties[5], &XMLPropertyDefinition{Name: "Mony",
 		Restrictions: XMLRestrictionsDefinition{Type: "decimal",
 			DefaultValue: "1.3",

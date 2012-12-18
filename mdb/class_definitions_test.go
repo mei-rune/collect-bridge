@@ -91,12 +91,12 @@ func TestLoadXml(t *testing.T) {
 		Restrictions: []Validator{&IntegerValidator{
 			MinValue: 3, MaxValue: 313}}}, 3)
 
-	dateValidator, _ := datetimeType.CreateRangeValidator("2009-12-11 10:23:23",
-		"2009-12-13 12:23:23")
+	dateValidator, _ := datetimeType.CreateRangeValidator("2009-12-11T10:23:23+06:00",
+		"2009-12-13T12:23:23+06:00")
 
 	assertProperty(person.Properties["Day"], &PropertyDefinition{Name: "Day",
 		Type:         GetTypeDefinition("datetime"),
-		DefaultValue: "2009-12-12 12:23:23",
+		DefaultValue: "2009-12-12T12:23:23Z08:00",
 		Restrictions: []Validator{dateValidator}}, 4)
 	assertProperty(person.Properties["Mony"], &PropertyDefinition{Name: "Mony",
 		Type:         GetTypeDefinition("decimal"),

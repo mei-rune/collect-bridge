@@ -538,7 +538,7 @@ var (
 )
 
 func init() {
-	datetimeType.Layout = "2006-01-02 15:04:05"
+	datetimeType.Layout = time.RFC3339 // `"` + time.RFC3339 + `"`
 }
 
 func GetTypeDefinition(t string) TypeDefinition {

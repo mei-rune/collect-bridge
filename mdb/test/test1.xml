@@ -40,9 +40,9 @@
 	        	</property>
 	        	<property name="Day" displayName="cc">
 	        		<restriction base="datetime">
-	        			<defaultValue>2009-12-12 12:23:23</defaultValue>
-	        			<minValue>2009-12-11 10:23:23</minValue>
-	        			<maxValue>2009-12-13 12:23:23</maxValue>
+	        			<defaultValue>2009-12-12T12:23:23+08:00</defaultValue>
+	        			<minValue>2009-12-11T10:23:23+08:00</minValue>
+	        			<maxValue>2009-12-13T12:23:23+08:00</maxValue>
 	        		</restriction>
 	        	</property>
 	        	<property name="Mony" displayName="cc">

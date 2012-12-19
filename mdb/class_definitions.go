@@ -1,6 +1,7 @@
 package mdb
 
 import (
+	"commons/stringutils"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -181,31 +182,55 @@ func loadAssocations(self *ClassDefinitions, cls *ClassDefinition, xmlDefinition
 		}
 	}
 	if nil != xmlDefinition.HasMany && 0 != len(xmlDefinition.HasMany) {
-		for _, belongs_to := range xmlDefinition.HasMany {
-			target, ok := self.clsDefinitions[belongs_to.Target]
+		for _, hasMany := range xmlDefinition.HasMany {
+			target, ok := self.clsDefinitions[hasMany.Target]
 			if !ok {
-				errs = append(errs, errors.New("Target '"+belongs_to.Target+
+				errs = append(errs, errors.New("Target '"+hasMany.Target+
 					"' of has_many is not found."))
 				continue
 			}
 			if nil == cls.Assocations {
 				cls.Assocations = make([]Assocation, 0, 4)
 			}
-			cls.Assocations = append(cls.Assocations, &HasMany{TargetClass: target})
+			foreignKey := hasMany.ForeignKey
+			if "" == foreignKey {
+				foreignKey = stringutils.Underscore(cls.Name) + "_id"
+			}
+			cls.Assocations = append(cls.Assocations, &HasMany{TargetClass: target, ForeignKey: foreignKey})
 		}
 	}
 	if nil != xmlDefinition.HasAndBelongsToMany && 0 != len(xmlDefinition.HasAndBelongsToMany) {
-		for _, belongs_to := range xmlDefinition.HasAndBelongsToMany {
-			target, ok := self.clsDefinitions[belongs_to.Target]
+		for _, habtm := range xmlDefinition.HasAndBelongsToMany {
+			target, ok := self.clsDefinitions[habtm.Target]
 			if !ok {
-				errs = append(errs, errors.New("Target '"+belongs_to.Target+
+				errs = append(errs, errors.New("Target '"+habtm.Target+
 					"' of has_and_belongs_to_many is not found."))
 				continue
 			}
 			if nil == cls.Assocations {
 				cls.Assocations = make([]Assocation, 0, 4)
 			}
-			cls.Assocations = append(cls.Assocations, &HasAndBelongsToMany{TargetClass: target})
+			foreignKey := habtm.ForeignKey
+			if "" == foreignKey {
+				foreignKey = stringutils.Underscore(cls.Name) + "_id"
+			}
+			var collectionName string
+			through, ok := self.clsDefinitions[habtm.Through]
+			if !ok {
+				t1 := stringutils.Tableize(target.Name)
+				t2 := stringutils.Tableize(cls.Name)
+
+				if t1[0] > t2[0] {
+					collectionName = t1 + "_" + t2
+				} else {
+					collectionName = t2 + "_" + t1
+				}
+			} else {
+				through = nil
+				collectionName = stringutils.Tableize(habtm.Through)
+			}
+			cls.Assocations = append(cls.Assocations, &HasAndBelongsToMany{TargetClass: target,
+				Through: through, CollectionName: collectionName, ForeignKey: foreignKey})
 		}
 	}
 	return errs
@@ -239,7 +264,8 @@ func LoadXml(nm string) (*ClassDefinitions, error) {
 			continue
 		}
 
-		cls := &ClassDefinition{Name: xmlDefinition.Name}
+		cls := &ClassDefinition{Name: xmlDefinition.Name,
+			collectionName: stringutils.Tableize(xmlDefinition.Name)}
 		errs = loadOwnProperties(self, &xmlDefinition, cls, errs)
 
 		self.clsDefinitions[cls.Name] = cls

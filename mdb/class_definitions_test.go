@@ -124,7 +124,7 @@ func TestLoadXml(t *testing.T) {
 	assertProperty(employee.Properties["Job"], &PropertyDefinition{Name: "Job",
 		Type:         GetTypeDefinition("string"),
 		DefaultValue: "developer"}, 0)
-	assertProperty(employee.Properties["company_id"], &PropertyDefinition{Name: "company_id",
+	assertProperty(employee.Properties["company_test_id"], &PropertyDefinition{Name: "company_test_id",
 		Type: GetTypeDefinition("string")}, 0)
 
 	a.Check(t, company.Name, a.Equals, "Company", a.Commentf("check Class name"))
@@ -139,8 +139,8 @@ func TestLoadXml(t *testing.T) {
 	// 	t.Errorf("", len(xmlDefinitions.Definitions))
 	// 	return
 	// }
-	assertBelongsTo(employee.Assocations[0], &BelongsTo{TargetClass: company, Name: employee.Properties["company_id"]}, 0)
-	assertHasMany(company.Assocations[0], &HasMany{TargetClass: employee}, 0)
+	assertBelongsTo(employee.Assocations[0], &BelongsTo{TargetClass: company, Name: employee.Properties["company_test_id"]}, 0)
+	assertHasMany(company.Assocations[0], &HasMany{TargetClass: employee, ForeignKey: "company_test_id"}, 0)
 }
 
 func TestPropertyOverride(t *testing.T) {

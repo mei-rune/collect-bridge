@@ -9,11 +9,28 @@ type ObjectId struct {
 	definition *ClassDefinition
 	id         string
 }
+
+type Iter interface {
+	Next(result interface{}) bool
+	Err() error
+}
+
+type Query interface {
+	Select(fields ...string) Query
+	Count() (n int, err error)
+	Skip(offest int) Query
+	Limit(n int) Query
+	Sort(fields ...string) Query
+	Iter() Iter
+	Explain(ers interface{}) error
+}
+
 type Driver interface {
 	Insert(cls *ClassDefinition, attributes map[string]interface{}) (interface{}, error)
 	Update(cls *ClassDefinition, id interface{}, updated_attributes map[string]interface{}) error
-	FindBy(cls *ClassDefinition, attributes map[string]interface{}, pr []string) (map[string]interface{}, error)
-	FindById(cls *ClassDefinition, id interface{}, pr []string) (map[string]interface{}, error)
+	Query(cls string, attributes map[string]interface{}) Query
+	FindBy(cls *ClassDefinition, attributes map[string]interface{}) Query
+	FindById(cls *ClassDefinition, id interface{}) (map[string]interface{}, error)
 	Delete(cls *ClassDefinition, id interface{}) error
 }
 

@@ -260,6 +260,14 @@ func (self *mgo_driver) FindById(cls *ClassDefinition, id interface{}) (result m
 	return self.post(cls, result)
 }
 
-func (self *mgo_driver) Delete(cd *ClassDefinition, id interface{}) (err error) {
-	return self.session.C(cd.CollectionName()).RemoveId(id)
+func (self *mgo_driver) Query(cls string, attributes map[string]interface{}) Query {
+	return self.session.C(cls).Find(attributes)
+}
+
+func (self *mgo_driver) FindBy(cls *ClassDefinition, attributes map[string]interface{}) Query {
+	return self.session.C(cls.CollectionName()).Find(attributes)
+}
+
+func (self *mgo_driver) Delete(cls *ClassDefinition, id interface{}) (err error) {
+	return self.session.C(cls.CollectionName()).RemoveId(id)
 }

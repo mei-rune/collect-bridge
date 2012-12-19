@@ -19,7 +19,7 @@ var (
 	mgoDB     = flag.String("db", "test", "the db of mongo server")
 )
 
-func objectCreate(ctx *web.Context, driver *MdbServer, objectType string) {
+func objectCreate(ctx *web.Context, driver *mdb_server, objectType string) {
 	definition := driver.definitions.Find(objectType)
 	if nil == definition {
 		log.Panicln("class '" + objectType + "' is not found")
@@ -44,7 +44,7 @@ func objectCreate(ctx *web.Context, driver *MdbServer, objectType string) {
 	ctx.WriteString(fmt.Sprint(instance_id))
 }
 
-func objectFindById(ctx *web.Context, driver *MdbServer, objectType, id string) {
+func objectFindById(ctx *web.Context, driver *mdb_server, objectType, id string) {
 
 	definition := driver.definitions.Find(objectType)
 	if nil == definition {
@@ -63,7 +63,7 @@ func objectFindById(ctx *web.Context, driver *MdbServer, objectType, id string) 
 	ctx.Write(bytes)
 }
 
-func objectUpdateById(ctx *web.Context, driver *MdbServer, objectType, id string) {
+func objectUpdateById(ctx *web.Context, driver *mdb_server, objectType, id string) {
 	var result map[string]interface{}
 	definition := driver.definitions.Find(objectType)
 	if nil == definition {
@@ -88,18 +88,18 @@ func objectUpdateById(ctx *web.Context, driver *MdbServer, objectType, id string
 	ctx.WriteString("ok")
 }
 
-func objectDeleteById(ctx *web.Context, driver *MdbServer, objectType, id string) {
+func objectDeleteById(ctx *web.Context, driver *mdb_server, objectType, id string) {
 	definition := driver.definitions.Find(objectType)
 	if nil == definition {
 		log.Panicln("class '" + objectType + "' is not found")
 	}
 
-	err := driver.RemoveById(definition, id)
-	if err != nil {
+	ok, err := driver.RemoveById(definition, id)
+	if !ok {
 		log.Panicln("insert object to db, " + err.Error())
 	}
 
-	ctx.WriteString("ok")
+	ctx.WriteString(err.Error())
 }
 
 func main() {
@@ -117,7 +117,7 @@ func main() {
 
 	sess.SetSafe(&mgo.Safe{W: 1, FSync: true, J: true})
 
-	driver := &MdbServer{driver: &mgo_driver{session: sess.DB(*mgoDB)}}
+	driver := &mdb_server{driver: &mgo_driver{session: sess.DB(*mgoDB)}}
 
 	svr.Get("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectFindById(ctx, driver, objectType, id) })
 	svr.Put("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectUpdateById(ctx, driver, objectType, id) })

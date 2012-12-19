@@ -2,6 +2,7 @@ package mdb
 
 import (
 	"fmt"
+	q "labix.org/v2/mgo/bson"
 )
 
 var (
@@ -9,7 +10,7 @@ var (
 )
 
 type assocationOp struct {
-	deleteOp func(s *mdb_server, assoc *Assocation, id interface{}) error
+	deleteOp func(s *mdb_server, assoc Assocation, id interface{}) error
 	//createOp func(s *mdb_server, assoc *Assocation, id interface{}) error
 }
 
@@ -42,13 +43,37 @@ func deleteChildren(s *mdb_server, assoc Assocation, id interface{}) error {
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
 	}
+	it := s.driver.FindBy(assoc.Target(), q.M{hasMany.ForeignKey: id}).Select("_id").Iter()
 
-	return nil
+	var result map[string]interface{}
+	for it.Next(&result) {
+		o, ok := result["_id"]
+		if !ok {
+			continue
+		}
+		s.RemoveById(assoc.Target(), o)
+	}
+
+	return it.Err()
 }
 
 func deleteMany2Many(s *mdb_server, assoc Assocation, id interface{}) error {
-	habt, ok := assoc.(*HasAndBelongsToMany)
-	return nil
+	habtm, ok := assoc.(*HasAndBelongsToMany)
+	if !ok {
+		panic(fmt.Sprintf("it is a %T, please ensure it is a HasAndBelongsToMany.", assoc))
+	}
+	it := s.driver.Query(habtm.CollectionName, q.M{habtm.ForeignKey: id}).Select("_id").Iter()
+
+	var result map[string]interface{}
+	for it.Next(&result) {
+		o, ok := result["_id"]
+		if !ok {
+			continue
+		}
+		s.RemoveById(assoc.Target(), o)
+	}
+
+	return it.Err()
 }
 
 func (self *mdb_server) RemoveById(cls *ClassDefinition, id interface{}) (bool, error) {

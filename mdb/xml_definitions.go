@@ -27,13 +27,15 @@ type XMLBelongsTo struct {
 
 type XMLHasMany struct {
 	//XMLName struct{} `xml:"has_many"`
-	//Name   string `xml:"name,attr,omitempty"`
-	Target string `xml:",chardata"`
+	ForeignKey string `xml:"foreignKey,attr,omitempty"`
+	Target     string `xml:",chardata"`
 }
 
 type XMLHasAndBelongsToMany struct {
 	//XMLName struct{} `xml:"has_and_belongs_to_many"`
-	Target string `xml:",chardata"`
+	ForeignKey string `xml:"foreignKey,attr,omitempty"`
+	Through    string `xml:"through,attr,omitempty"`
+	Target     string `xml:",chardata"`
 }
 
 // <xs:element name="ref" minOccurs="0" maxOccurs="unbounded">

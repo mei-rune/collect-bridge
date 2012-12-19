@@ -1,5 +1,9 @@
 package mdb
 
+import (
+//"commons/stringutils"
+)
+
 type AssocationType int
 
 const (
@@ -28,6 +32,7 @@ func (self *BelongsTo) Target() *ClassDefinition {
 
 type HasMany struct {
 	TargetClass *ClassDefinition
+	ForeignKey  string
 }
 
 func (self *HasMany) Type() AssocationType {
@@ -39,7 +44,10 @@ func (self *HasMany) Target() *ClassDefinition {
 }
 
 type HasAndBelongsToMany struct {
-	TargetClass *ClassDefinition
+	TargetClass    *ClassDefinition
+	Through        *ClassDefinition
+	CollectionName string
+	ForeignKey     string
 }
 
 func (self *HasAndBelongsToMany) Type() AssocationType {
@@ -91,18 +99,18 @@ func (self *MutiErrors) Errors() []error {
 // }
 
 type ClassDefinition struct {
-	Super *ClassDefinition
-	Name  string
+	Super          *ClassDefinition
+	Name           string
+	collectionName string
 
 	OwnProperties map[string]*PropertyDefinition
-
-	Properties  map[string]*PropertyDefinition
-	Assocations []Assocation
+	Properties    map[string]*PropertyDefinition
+	Assocations   []Assocation
 }
 
 func (self *ClassDefinition) CollectionName() string {
 	if nil == self.Super {
-		return self.Name
+		return self.collectionName
 	}
 
 	return self.Super.CollectionName()

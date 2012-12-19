@@ -6,10 +6,10 @@
 					<required />
 				</restriction>
 		</property>
-		<property name="company_id">
+		<property name="company_test_id">
 				<restriction base="string" />
 		</property>
-		<belongs_to name="company_id">Company</belongs_to>
+		<belongs_to name="company_test_id">Company</belongs_to>
 	  <designFor></designFor>
 	</class>
 	<class name="Person" displayName="人员" >
@@ -83,7 +83,7 @@
 					<defaultValue>Sina</defaultValue>
 				</restriction>
 		</property>
-		<has_many>Employee</has_many>
+		<has_many foreignKey="company_test_id" >Employee</has_many>
 	    <designFor></designFor>
 	</class>	
 	<designFor/>

@@ -105,7 +105,7 @@ func TestSimpleInsertByServer(t *testing.T) {
 		if "" == id {
 			t.Error("result.id of insert is nil")
 		}
-		t.Log("id=" + id)
+		t.Log("id=", id)
 
 		var result bson.M
 		err = db.C("Person").FindId(id).One(&result)
@@ -152,7 +152,7 @@ func TestSimpleUpdateByServer(t *testing.T) {
 		if "" == id {
 			t.Error("result.id of insert is nil")
 		}
-		t.Log("id=" + id)
+		t.Log("id=", id)
 
 		err = svr.Update(person, id, person1_update_attributes)
 		if nil != err {
@@ -218,7 +218,7 @@ func TestSimpleFindByidByServer(t *testing.T) {
 			t.Error("result.id of insert is nil")
 			return
 		}
-		t.Log("id=" + id)
+		t.Log("id=", id)
 
 		var result bson.M
 		err = db.C("Person").FindId(id).One(&result)
@@ -276,7 +276,7 @@ func TestSimpleDeleteByidByServer(t *testing.T) {
 			t.Error("result.id of insert is nil")
 			return
 		}
-		t.Log("id=" + id)
+		t.Log("id=", id)
 
 		var result bson.M
 		err = db.C("Person").FindId(id).One(&result)
@@ -285,8 +285,8 @@ func TestSimpleDeleteByidByServer(t *testing.T) {
 			return
 		}
 
-		err = svr.RemoveById(person, id)
-		if nil != err {
+		ok, err := svr.RemoveById(person, id)
+		if !ok {
 			t.Errorf(err.Error())
 			return
 		}

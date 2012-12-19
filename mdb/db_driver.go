@@ -12,7 +12,8 @@ type ObjectId struct {
 type Driver interface {
 	Insert(cls *ClassDefinition, attributes map[string]interface{}) (interface{}, error)
 	Update(cls *ClassDefinition, id interface{}, updated_attributes map[string]interface{}) error
-	FindById(cls *ClassDefinition, id interface{}) (map[string]interface{}, error)
+	FindBy(cls *ClassDefinition, attributes map[string]interface{}, pr []string) (map[string]interface{}, error)
+	FindById(cls *ClassDefinition, id interface{}, pr []string) (map[string]interface{}, error)
 	Delete(cls *ClassDefinition, id interface{}) error
 }
 

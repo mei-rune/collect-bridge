@@ -1,89 +1,75 @@
 package mdb
 
-type MdbServer struct {
+import (
+	"fmt"
+)
+
+var (
+	assocationOps = make([]*assocationOp, 4)
+)
+
+type assocationOp struct {
+	deleteOp func(s *mdb_server, assoc *Assocation, id interface{}) error
+	//createOp func(s *mdb_server, assoc *Assocation, id interface{}) error
+}
+
+func init() {
+	assocationOps[BELONGS_TO] = &assocationOp{}
+	assocationOps[HAS_MANG] = &assocationOp{deleteOp: deleteChildren}
+	assocationOps[HAS_AND_BELONGS_TO_MANY] = &assocationOp{deleteOp: deleteMany2Many}
+}
+
+type mdb_server struct {
 	restrict    bool
 	driver      Driver
 	definitions *ClassDefinitions
 }
 
-// func (self *MdbServer) convert(cls *ClassDefinition, attributes map[string]interface{}, is_update bool) (map[string]interface{}, error) {
-//	new_attributes := make(map[string]interface{}, len(attributes))
-//	errs := make([]error, 0, 10)
-//	for k, pr := range cls.Properties {
-//		var new_value interface{}
-//		value, ok := attributes[k]
-//		if !ok {
-//			if is_update {
-//				continue
-//			}
-
-//			if pr.IsRequired {
-//				errs = append(errs, errors.New("'"+k+"' is required"))
-//				continue
-//			}
-//			new_value = pr.DefaultValue
-//		} else {
-//			if self.restrict {
-//				delete(attributes, k)
-//			}
-//			var err error
-//			new_value, err = pr.Type.Convert(value)
-//			if nil != err {
-//				errs = append(errs, errors.New("'"+k+"' convert to internal value failed, "+err.Error()))
-//				continue
-//			}
-//		}
-//		if nil != pr.Restrictions && 0 != len(pr.Restrictions) {
-//			is_failed := false
-//			for _, r := range pr.Restrictions {
-//				if ok, err := r.Validate(new_value, attributes); !ok {
-//					errs = append(errs, errors.New("'"+k+"' is validate failed, "+err.Error()))
-//					is_failed = true
-//				}
-//			}
-
-//			if is_failed {
-//				continue
-//			}
-//		}
-
-//		new_attributes[k] = new_value
-//	}
-
-//	if 0 != len(errs) {
-//		return nil, &MutiErrors{msg: "validate failed", errs: errs}
-//	}
-//	if self.restrict && 0 != len(attributes) {
-//		for k, _ := range attributes {
-//			errs = append(errs, errors.New("'"+k+"' is useless"))
-//		}
-//		return nil, &MutiErrors{msg: "validate failed", errs: errs}
-//	}
-//	return new_attributes, nil
-// }
-
-func (self *MdbServer) Create(cls *ClassDefinition, attributes map[string]interface{}) (interface{}, error) {
-	// new_attributes, errs := self.convert(cls, attributes, false)
-	// if nil != errs {
-	//	return nil, errs
-	// }
-
+func (self *mdb_server) Create(cls *ClassDefinition, attributes map[string]interface{}) (interface{}, error) {
 	return self.driver.Insert(cls, attributes)
 }
 
-func (self *MdbServer) FindById(cls *ClassDefinition, id interface{}) (map[string]interface{}, error) {
+func (self *mdb_server) FindById(cls *ClassDefinition, id interface{}) (map[string]interface{}, error) {
 	return self.driver.FindById(cls, id)
 }
 
-func (self *MdbServer) Update(cls *ClassDefinition, id interface{}, attributes map[string]interface{}) error {
-	// new_attributes, errs := self.convert(cls, attributes, true)
-	// if nil != errs {
-	//	return errs
-	// }
-
+func (self *mdb_server) Update(cls *ClassDefinition, id interface{}, attributes map[string]interface{}) error {
 	return self.driver.Update(cls, id, attributes)
 }
 
-func (self *MdbServer) RemoveById(cls *ClassDefinition, id interface{}) error {
-	return self.driver.Delete(cls, id)
+func deleteChildren(s *mdb_server, assoc Assocation, id interface{}) error {
+	hasMany, ok := assoc.(*HasMany)
+	if !ok {
+		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
+	}
+
+	return nil
+}
+
+func deleteMany2Many(s *mdb_server, assoc Assocation, id interface{}) error {
+	habt, ok := assoc.(*HasAndBelongsToMany)
+	return nil
+}
+
+func (self *mdb_server) RemoveById(cls *ClassDefinition, id interface{}) (bool, error) {
+	err := self.driver.Delete(cls, id)
+	if nil != err {
+		return false, err
+	}
+
+	errs := make([]error, 0)
+	for _, a := range cls.Assocations {
+		op := assocationOps[a.Type()]
+		if nil == op || nil == op.deleteOp {
+			continue
+		}
+		err = op.deleteOp(self, a, id)
+		if nil != err {
+			errs = append(errs, err)
+		}
+	}
+	if 0 == len(errs) {
+		return true, nil
+	}
+	return true, &MutiErrors{msg: "", errs: errs}
 }

@@ -41,7 +41,7 @@ func init() {
 	person1_saved_attributes["MAC"], _ = physicalAddressType.Convert("22:32:62:82:52:42")
 }
 
-func newServer(t *testing.T) (*mgo.Session, *mgo.Database, *MdbServer) {
+func newServer(t *testing.T) (*mgo.Session, *mgo.Database, *mdb_server) {
 
 	definitions, err := LoadXml("test/test1.xml")
 	if nil != err {
@@ -83,12 +83,12 @@ func newServer(t *testing.T) (*mgo.Session, *mgo.Database, *MdbServer) {
 
 	db := sess.DB("test")
 
-	return sess, db, &MdbServer{definitions: definitions, driver: &mgo_driver{session: db}}
+	return sess, db, &mdb_server{definitions: definitions, driver: &mgo_driver{session: db}}
 }
 
 func TestSimpleInsertByServer(t *testing.T) {
 
-	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *MdbServer) {
+	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
 		person := svr.definitions.Find("Person")
 		a.Assert(t, person, a.NotNil, a.Commentf("person class is not nil"))
 
@@ -105,7 +105,7 @@ func TestSimpleInsertByServer(t *testing.T) {
 		if "" == id {
 			t.Error("result.id of insert is nil")
 		}
-		t.Log(id)
+		t.Log("id=" + id)
 
 		var result bson.M
 		err = db.C("Person").FindId(id).One(&result)
@@ -135,7 +135,7 @@ func TestSimpleInsertByServer(t *testing.T) {
 
 func TestSimpleUpdateByServer(t *testing.T) {
 
-	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *MdbServer) {
+	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
 		person := svr.definitions.Find("Person")
 		a.Assert(t, person, a.NotNil, a.Commentf("person class is not nil"))
 
@@ -152,7 +152,7 @@ func TestSimpleUpdateByServer(t *testing.T) {
 		if "" == id {
 			t.Error("result.id of insert is nil")
 		}
-		t.Log(id)
+		t.Log("id=" + id)
 
 		err = svr.Update(person, id, person1_update_attributes)
 		if nil != err {
@@ -199,7 +199,7 @@ func TestSimpleUpdateByServer(t *testing.T) {
 }
 
 func TestSimpleFindByidByServer(t *testing.T) {
-	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *MdbServer) {
+	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
 		person := svr.definitions.Find("Person")
 		a.Assert(t, person, a.NotNil, a.Commentf("person class is not nil"))
 
@@ -218,7 +218,7 @@ func TestSimpleFindByidByServer(t *testing.T) {
 			t.Error("result.id of insert is nil")
 			return
 		}
-		t.Log(id)
+		t.Log("id=" + id)
 
 		var result bson.M
 		err = db.C("Person").FindId(id).One(&result)
@@ -256,7 +256,7 @@ func TestSimpleFindByidByServer(t *testing.T) {
 
 func TestSimpleDeleteByidByServer(t *testing.T) {
 
-	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *MdbServer) {
+	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
 
 		person := svr.definitions.Find("Person")
 		a.Assert(t, person, a.NotNil, a.Commentf("person class is not nil"))
@@ -276,7 +276,7 @@ func TestSimpleDeleteByidByServer(t *testing.T) {
 			t.Error("result.id of insert is nil")
 			return
 		}
-		t.Log(id)
+		t.Log("id=" + id)
 
 		var result bson.M
 		err = db.C("Person").FindId(id).One(&result)
@@ -304,7 +304,7 @@ func TestSimpleDeleteByidByServer(t *testing.T) {
 }
 
 func simpleTest(t *testing.T, params []string,
-	cb func(sess *mgo.Session, db *mgo.Database, svr *MdbServer)) {
+	cb func(sess *mgo.Session, db *mgo.Database, svr *mdb_server)) {
 
 	sess, db, svr := newServer(t)
 	for _, s := range params {

@@ -11,6 +11,7 @@ import (
 
 type ClassDefinitions struct {
 	clsDefinitions map[string]*ClassDefinition
+	id2Definitions map[int]*ClassDefinition
 }
 
 func loadParentProperties(self *ClassDefinitions, cls *ClassDefinition, errs []error) []error {
@@ -284,6 +285,11 @@ func LoadXml(nm string) (*ClassDefinitions, error) {
 					"' of class '"+xmlDefinition.Name+"' is not found."))
 			} else {
 				cls.Super = super
+
+				if nil == super.Children {
+					super.Children = make([]*ClassDefinition, 0, 3)
+				}
+				super.Children = append(super.Children, cls)
 			}
 		}
 		errs = loadAssocations(self, cls, &xmlDefinition, errs)
@@ -299,6 +305,35 @@ func LoadXml(nm string) (*ClassDefinitions, error) {
 	}
 	return self, &MutiErrors{msg: "load file '" + nm + "' error", errs: errs}
 }
+
+// func LoadHierarchyFromXml(self *ClassDefinitions, nm string) error {
+// 	f, err := ioutil.ReadFile(nm)
+// 	if nil != err {
+// 		return nil, fmt.Errorf("read file '%s' failed, %s", nm, err.Error())
+// 	}
+
+// 	var xml_definitions XMLClassIdentifiers
+// 	err = xml.Unmarshal(f, &xml_definitions)
+// 	if nil != err {
+// 		return nil, fmt.Errorf("unmarshal xml '%s' failed, %s", nm, err.Error())
+// 	}
+
+// 	if nil == xml_definitions.Definitions || 0 == len(xml_definitions.Definitions) {
+// 		return nil, fmt.Errorf("unmarshal xml '%s' error, class definition is empty", nm)
+// 	}
+
+// 	self.id2Definitions = make(map[int]*ClassDefinition, 100)}
+// 	errs := make([]error, 0, 10)
+
+// 	for _, xmlDefinition := range xml_definitions.Definitions {
+
+// 	}
+
+// 	if 0 == len(errs) {
+// 		return nil
+// 	}
+// 	return &MutiErrors{msg: "load file '" + nm + "' error", errs: errs}
+// }
 
 func (self *ClassDefinitions) Find(nm string) *ClassDefinition {
 	if cls, ok := self.clsDefinitions[nm]; ok {

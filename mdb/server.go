@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
+	"strings"
 )
 
 var (
 	assocationOps = make([]*assocationOp, 4)
+	operators     = make(map[string]func(pr *PropertyDefinition, s string) (interface{}, error))
 )
 
 type assocationOp struct {
@@ -20,6 +22,8 @@ func init() {
 	assocationOps[BELONGS_TO] = &assocationOp{}
 	assocationOps[HAS_MANG] = &assocationOp{deleteOp: deleteChildren}
 	assocationOps[HAS_AND_BELONGS_TO_MANY] = &assocationOp{deleteOp: deleteMany2Many}
+
+	//operators["eq"] = "eq"
 }
 
 type mdb_server struct {
@@ -218,4 +222,85 @@ func (self *mdb_server) RemoveById(cls *ClassDefinition, id interface{}) (bool, 
 		return true, nil
 	}
 	return true, &MutiErrors{msg: "", errs: errs}
+}
+
+func collectOwnProperties(cls *ClassDefinition, properties map[string]*PropertyDefinition) {
+
+	for k, p := range cls.OwnProperties {
+		properties[k] = p
+	}
+
+	if nil != cls.Children || 0 == len(cls.Children) {
+		return
+	}
+
+	for _, child := range cls.Children {
+		collectOwnProperties(child, properties)
+	}
+}
+
+func collectProperties(cls *ClassDefinition) map[string]*PropertyDefinition {
+	if nil != cls.Children || 0 == len(cls.Children) {
+		return cls.Properties
+	}
+
+	properties := make(map[string]*PropertyDefinition, len(cls.Properties))
+
+	for k, p := range cls.Properties {
+		properties[k] = p
+	}
+
+	for _, child := range cls.Children {
+		collectOwnProperties(child, properties)
+	}
+	return properties
+}
+
+func BuildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M, error) {
+	if nil == params || 0 == len(params) {
+		return nil, nil
+	}
+
+	is_all := nil != cls.Children || 0 == len(cls.Children)
+	properties := cls.Properties
+	q := bson.M{}
+	for nm, exp := range params {
+		pr, _ := properties[nm]
+		if nil == pr {
+			if is_all {
+				return nil, errors.New("'" + nm + "' is not a property.")
+			}
+			properties = collectProperties(cls)
+			is_all = true
+			pr, _ = properties[nm]
+
+			if nil == pr {
+				return nil, errors.New("'" + nm + "' is not a property.")
+			}
+		}
+
+		ss := strings.SplitN(exp, "_", 2)
+		if 2 != len(ss) {
+			v, err := pr.Type.Convert(exp)
+			if nil != err {
+				return nil, errors.New("'" + nm + "' convert to " +
+					pr.Type.Name() + ", failed, " + err.Error())
+			}
+			q[nm] = v
+			continue
+		}
+
+		f, _ := operators[ss[0]]
+		if nil == f {
+			return nil, errors.New(" '" + ss[0] + "' is unsupported operator for '" +
+				nm + "'.")
+		}
+		value, err := f(pr, ss[1])
+		if nil != err {
+			return nil, errors.New("'" + nm + "' convert to " +
+				pr.Type.Name() + ", failed, " + err.Error())
+		}
+		q[nm] = value
+	}
+	return q, nil
 }

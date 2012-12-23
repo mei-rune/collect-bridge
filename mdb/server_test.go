@@ -270,6 +270,71 @@ func TestSimpleFindByidByServer(t *testing.T) {
 	})
 }
 
+func TestSimpleQueryByServer(t *testing.T) {
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
+		person := svr.definitions.Find(personClsName)
+		if nil == person {
+			t.Error("Person is not defined")
+			return
+		}
+
+		id, err := svr.Create(person, person1_attributes)
+		if nil != err {
+			t.Errorf(err.Error())
+			merr, _ := err.(*MutiErrors)
+			if nil != merr && nil != merr.errs {
+				for _, e := range merr.errs {
+					t.Errorf(e.Error())
+				}
+			}
+			return
+		}
+		if "" == id {
+			t.Error("result.id of insert is nil")
+			return
+		}
+		t.Log("id=", id)
+
+		var result bson.M
+		err = db.C(personName).FindId(id).One(&result)
+		if nil != err {
+			t.Error(err)
+			return
+		}
+		results, err := svr.FindBy(person, map[string]string{"_id": id.(bson.ObjectId).Hex()})
+		if nil != err {
+			t.Errorf(err.Error())
+			merr, _ := err.(*MutiErrors)
+			if nil != merr && nil != merr.errs {
+				for _, e := range merr.errs {
+					t.Errorf(e.Error())
+				}
+			}
+			return
+		}
+
+		if 1 != len(results) {
+			t.Errorf("result is empty")
+			return
+		}
+
+		db_attributes := results[0]
+		for k, v2 := range db_attributes {
+			if "_id" == k {
+				continue
+			}
+
+			v1, ok := person1_saved_attributes[k]
+			if !ok {
+				t.Error("'" + k + "' is not exists.")
+			} else if !reflect.DeepEqual(v1, v2) {
+				t.Errorf("'"+k+"' is not equals, excepted is [%T]%v, actual is [%T]%v.",
+					v1, v1, v2, v2)
+			}
+		}
+	})
+}
+
 func TestSimpleDeleteByidByServer(t *testing.T) {
 	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
 		person := svr.definitions.Find(personClsName)

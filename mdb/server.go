@@ -1,6 +1,7 @@
 package mdb
 
 import (
+	"commons"
 	"errors"
 	"fmt"
 	"labix.org/v2/mgo"
@@ -256,7 +257,17 @@ func collectProperties(cls *ClassDefinition) map[string]*PropertyDefinition {
 	return properties
 }
 
-func BuildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M, error) {
+func parseObjectIdHex(s string) (id bson.ObjectId, err error) {
+	defer func() {
+		if e := recover(); nil != e {
+			err = commons.NewError(e)
+		}
+	}()
+
+	v := bson.ObjectIdHex(s)
+	return v, nil
+}
+func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M, error) {
 	if nil == params || 0 == len(params) {
 		return nil, nil
 	}
@@ -267,15 +278,29 @@ func BuildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 	for nm, exp := range params {
 		pr, _ := properties[nm]
 		if nil == pr {
-			if is_all {
-				return nil, errors.New("'" + nm + "' is not a property.")
+			if "_id" == nm {
+				var err error
+				if strings.HasPrefix(exp, "eq_") {
+					q["_id"], err = parseObjectIdHex(exp[3:])
+				} else {
+					q["_id"], err = parseObjectIdHex(exp)
+				}
+				if nil != err {
+					return nil, errors.New("_id is a invalid ObjectId")
+				}
+				continue
 			}
-			properties = collectProperties(cls)
-			is_all = true
-			pr, _ = properties[nm]
-
 			if nil == pr {
-				return nil, errors.New("'" + nm + "' is not a property.")
+				if is_all {
+					return nil, errors.New("'" + nm + "' is not a property.")
+				}
+				properties = collectProperties(cls)
+				is_all = true
+				pr, _ = properties[nm]
+
+				if nil == pr {
+					return nil, errors.New("'" + nm + "' is not a property.")
+				}
 			}
 		}
 
@@ -303,4 +328,35 @@ func BuildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 		q[nm] = value
 	}
 	return q, nil
+}
+
+func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) ([]map[string]interface{}, error) {
+
+	s, err := buildQueryStatement(cls, params)
+	if nil != err {
+		return nil, err
+	}
+
+	q := self.session.C(cls.CollectionName()).Find(s)
+	if nil == q {
+		return nil, errors.New("return nil result")
+	}
+
+	results := make([]map[string]interface{}, 0, 10)
+	it := q.Iter()
+	var attributes map[string]interface{}
+	for it.Next(&attributes) {
+		attributes, err = self.postRead(cls, attributes)
+		if nil != err {
+			return nil, err
+		}
+		results = append(results, attributes)
+	}
+
+	err = it.Err()
+	if nil != err {
+		return nil, err
+	}
+
+	return results, nil
 }

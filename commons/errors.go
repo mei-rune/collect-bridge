@@ -1,5 +1,9 @@
 package commons
 
+import (
+	"fmt"
+)
+
 // const (
 //	MGR_STATUS_STANDBY  = 0
 //	MGR_STATUS_STARTING = 1
@@ -42,3 +46,11 @@ package commons
 //		return &StatusError(code, "mgr.status is unknown")
 //	}
 // }
+
+func NewError(v interface{}) error {
+	err, _ := v.(error)
+	if nil != err {
+		return err
+	}
+	return fmt.Errorf("%v", v)
+}

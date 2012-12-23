@@ -24,10 +24,11 @@ import (
 )
 
 type Context struct {
-	Request *http.Request
-	Params  map[string]string
-	Server  *Server
-	Writer  http.ResponseWriter
+	Request     *http.Request
+	Params      map[string]string
+	QueryParams map[string]string
+	Server      *Server
+	Writer      http.ResponseWriter
 }
 
 func (ctx *Context) WriteString(content string) {
@@ -306,8 +307,7 @@ func (s *Server) safelyCall(function reflect.Value, args []reflect.Value) (resp 
 
 func (s *Server) routeHandler(w http.ResponseWriter, req *http.Request) {
 	requestPath := req.URL.Path
-	ctx := Context{req, map[string]string{}, s, w}
-
+	ctx := Context{req, map[string]string{}, map[string]string{}, s, w}
 	//log the request
 	var logEntry bytes.Buffer
 	fmt.Fprintf(&logEntry, "\033[32;1m%s %s\033[0m\n", req.Method, requestPath)
@@ -324,6 +324,7 @@ func (s *Server) routeHandler(w http.ResponseWriter, req *http.Request) {
 	if len(req.URL.Query()) > 0 {
 		for k, v := range req.URL.Query() {
 			ctx.Params[k] = v[0]
+			ctx.QueryParams[k] = v[0]
 		}
 		fmt.Fprintf(&logEntry, "\033[37;1mQuerys: %v\033[0m\n", req.URL.Query())
 	}

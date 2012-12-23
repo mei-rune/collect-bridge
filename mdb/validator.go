@@ -42,10 +42,6 @@ type StringLengthValidator struct {
 func (self *StringLengthValidator) Validate(pv interface{}, attributes map[string]interface{}) (bool, error) {
 	var s string
 	switch value := pv.(type) {
-	case SqlString:
-		s = string(value)
-	case *SqlString:
-		s = string(*value)
 	case string:
 		s = value
 	case *string:
@@ -71,17 +67,17 @@ type IntegerValidator struct {
 }
 
 func (self *IntegerValidator) Validate(pv interface{}, attributes map[string]interface{}) (bool, error) {
-	i64, ok := pv.(SqlInteger64)
+	i64, ok := pv.(int64)
 	if !ok {
 		return false, errors.New("syntex error, it is not a integer")
 	}
 
-	if self.HasMin && self.MinValue > int64(i64) {
-		return false, fmt.Errorf("'%d' is less minValue '%d'", int64(i64), self.MinValue)
+	if self.HasMin && self.MinValue > i64 {
+		return false, fmt.Errorf("'%d' is less minValue '%d'", i64, self.MinValue)
 	}
 
-	if self.HasMax && self.MaxValue < int64(i64) {
-		return false, fmt.Errorf("'%d' is greate maxValue '%d'", int64(i64), self.MaxValue)
+	if self.HasMax && self.MaxValue < i64 {
+		return false, fmt.Errorf("'%d' is greate maxValue '%d'", i64, self.MaxValue)
 	}
 
 	return true, nil
@@ -93,17 +89,17 @@ type DecimalValidator struct {
 }
 
 func (self *DecimalValidator) Validate(pv interface{}, attributes map[string]interface{}) (bool, error) {
-	f64, ok := pv.(SqlDecimal)
+	f64, ok := pv.(float64)
 	if !ok {
 		return false, errors.New("syntex error, it is not a decimal")
 	}
 
-	if self.HasMin && self.MinValue > float64(f64) {
-		return false, fmt.Errorf("'%f' is less minValue '%f'", float64(f64), self.MinValue)
+	if self.HasMin && self.MinValue > f64 {
+		return false, fmt.Errorf("'%f' is less minValue '%f'", f64, self.MinValue)
 	}
 
-	if self.HasMax && self.MaxValue < float64(f64) {
-		return false, fmt.Errorf("'%f' is greate maxValue '%f'", float64(f64), self.MaxValue)
+	if self.HasMax && self.MaxValue < f64 {
+		return false, fmt.Errorf("'%f' is greate maxValue '%f'", f64, self.MaxValue)
 	}
 	return true, nil
 }
@@ -116,10 +112,10 @@ type DateValidator struct {
 func (self *DateValidator) Validate(pv interface{}, attributes map[string]interface{}) (bool, error) {
 	var t time.Time
 	switch value := pv.(type) {
-	case *SqlDateTime:
-		t = time.Time(*value)
-	case SqlDateTime:
-		t = time.Time(value)
+	case time.Time:
+		t = value
+	case *time.Time:
+		t = *value
 	default:
 		return false, errors.New("syntex error, it is not a time")
 	}
@@ -153,16 +149,16 @@ func (self *EnumerationValidator) Validate(pv interface{}, attributes map[string
 }
 
 type StringEnumerationValidator struct {
-	Values []SqlString
+	Values []string
 }
 
 func (self *StringEnumerationValidator) Validate(pv interface{}, attributes map[string]interface{}) (bool, error) {
-	var s SqlString
+	var s string
 	switch value := pv.(type) {
-	case SqlString:
-		s = value
 	case string:
-		s = SqlString(value)
+		s = value
+	case *string:
+		s = *value
 	default:
 		return false, errors.New("syntex error, it is not a string")
 	}

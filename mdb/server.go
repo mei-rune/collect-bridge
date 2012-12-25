@@ -2,6 +2,7 @@ package mdb
 
 import (
 	"commons"
+	"commons/as"
 	"errors"
 	"fmt"
 	"labix.org/v2/mgo"
@@ -33,8 +34,39 @@ type mdb_server struct {
 	definitions *ClassDefinitions
 }
 
-func (self *mdb_server) preWrite(cls *ClassDefinition, attributes map[string]interface{},
+func checkValue(pr *PropertyDefinition, attributes map[string]interface{}, value interface{}, errs []error) (interface{}, []error, bool) {
+
+	new_value, err := pr.Type.Convert(value)
+	if nil != err {
+		errs = append(errs, errors.New("'"+pr.Name+"' convert to internal value failed, "+err.Error()))
+		return nil, errs, false
+	}
+
+	if nil != pr.Restrictions && 0 != len(pr.Restrictions) {
+		is_failed := false
+		for _, r := range pr.Restrictions {
+			if ok, err := r.Validate(new_value, attributes); !ok {
+				errs = append(errs, errors.New("'"+pr.Name+"' is validate failed, "+err.Error()))
+				is_failed = true
+			}
+		}
+
+		if is_failed {
+			return nil, errs, false
+		}
+	}
+	return new_value, errs, true
+}
+
+func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]interface{},
 	is_update bool) (map[string]interface{}, error) {
+	attributes := uattributes
+	if self.restrict {
+		attributes = make(map[string]interface{}, len(attributes))
+		for k, v := range uattributes {
+			attributes[k] = v
+		}
+	}
 
 	new_attributes := make(map[string]interface{}, len(attributes))
 	errs := make([]error, 0, 10)
@@ -42,6 +74,10 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, attributes map[string]int
 		var new_value interface{}
 		value, ok := attributes[k]
 		if !ok {
+			if COLLECTION_UNKNOWN == pr.Collection {
+				continue
+			}
+
 			if is_update {
 				continue
 			}
@@ -55,21 +91,29 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, attributes map[string]int
 			if self.restrict {
 				delete(attributes, k)
 			}
-			var err error
-			new_value, err = pr.Type.Convert(value)
-			if nil != err {
-				errs = append(errs, errors.New("'"+k+"' convert to internal value failed, "+err.Error()))
-				continue
-			}
-		}
 
-		if nil != pr.Restrictions && 0 != len(pr.Restrictions) {
 			is_failed := false
-			for _, r := range pr.Restrictions {
-				if ok, err := r.Validate(new_value, attributes); !ok {
-					errs = append(errs, errors.New("'"+k+"' is validate failed, "+err.Error()))
-					is_failed = true
+
+			if COLLECTION_UNKNOWN == pr.Collection {
+				new_value, errs, is_failed = checkValue(pr, uattributes, value, errs)
+			} else {
+				array, _ := as.AsArray(value)
+				if nil == array {
+					errs = append(errs, fmt.Errorf("'"+k+"' must is a collection, actual is %v", value))
+					continue
 				}
+				new_array := make([]interface{}, 0, len(array))
+				var nv interface{} = nil
+				failed := false
+				for _, v := range array {
+					nv, errs, failed = checkValue(pr, uattributes, v, errs)
+					if !failed {
+						new_array = append(new_array, nv)
+					} else {
+						is_failed = true
+					}
+				}
+				new_value = new_array
 			}
 
 			if is_failed {
@@ -103,11 +147,37 @@ func (self *mdb_server) postRead(cls *ClassDefinition, attributes map[string]int
 		if !ok {
 			new_value = pr.DefaultValue
 		} else {
-			var err error
-			new_value, err = pr.Type.Convert(value)
-			if nil != err {
-				errs = append(errs, errors.New("'"+k+"' convert to internal value failed, "+err.Error()))
-				continue
+
+			if COLLECTION_UNKNOWN == pr.Collection {
+				var err error
+				new_value, err = pr.Type.Convert(value)
+				if nil != err {
+					errs = append(errs, errors.New("'"+k+"' convert to internal value failed, "+err.Error()))
+					continue
+				}
+			} else {
+				array, _ := as.AsArray(value)
+				if nil == array {
+					errs = append(errs, fmt.Errorf("'"+k+"' must is a collection, actual is %v", value))
+					continue
+				}
+
+				new_array := make([]interface{}, 0, len(array))
+				is_failed := false
+				for _, v := range array {
+					nv, err := pr.Type.Convert(v)
+					if nil != err {
+						errs = append(errs, errors.New("'"+k+"' convert to internal value failed, "+err.Error()))
+						is_failed = true
+					} else {
+						new_array = append(new_array, nv)
+					}
+				}
+
+				if is_failed {
+					continue
+				}
+				new_value = new_array
 			}
 		}
 

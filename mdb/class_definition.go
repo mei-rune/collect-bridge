@@ -1,17 +1,19 @@
 package mdb
 
-import (
-	"fmt"
-)
+import ()
 
 //"commons/stringutils"
-
+type CollectionType int
 type AssocationType int
 
 const (
 	BELONGS_TO              AssocationType = 1
 	HAS_MANG                AssocationType = 2
 	HAS_AND_BELONGS_TO_MANY AssocationType = 3
+
+	COLLECTION_UNKNOWN CollectionType = 0
+	COLLECTION_ARRAY   CollectionType = 1
+	COLLECTION_SET     CollectionType = 2
 )
 
 type Assocation interface {
@@ -63,6 +65,7 @@ func (self *HasAndBelongsToMany) Target() *ClassDefinition {
 type PropertyDefinition struct {
 	Name         string
 	Type         TypeDefinition
+	Collection   CollectionType
 	IsRequired   bool
 	Restrictions []Validator
 	DefaultValue interface{}

@@ -124,12 +124,12 @@ func loadOwnProperties(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 	cls *ClassDefinition, errs []error) []error {
 	cls.OwnProperties = make(map[string]*PropertyDefinition)
 	for _, pr := range xmlCls.Properties {
-		var cpr *PropertyDefinition = nil
-		cpr, errs = loadOwnProperty(self, xmlCls, &pr, errs)
-		if nil != cpr {
-			if "type" == cpr.Name {
-				cls.HierarchicalType, errs = loadOwnHierarchicalType(self, pr, errs)
-			} else {
+		if "type" == pr.Name {
+			cls.HierarchicalType, errs = loadOwnHierarchicalType(self, &pr, errs)
+		} else {
+			var cpr *PropertyDefinition = nil
+			cpr, errs = loadOwnProperty(self, xmlCls, &pr, errs)
+			if nil != cpr {
 				cls.OwnProperties[cpr.Name] = cpr
 			}
 		}
@@ -140,7 +140,7 @@ func loadOwnProperties(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 func loadOwnHierarchicalType(self *ClassDefinitions, pr *XMLPropertyDefinition, errs []error) (*HierarchicalEnumeration, []error) {
 	ok := true
 	if integerType.Name() != pr.Restrictions.Type {
-		errs = append(errs, errors.New("'type' is not a number - "+cpr.Type.Name()))
+		errs = append(errs, errors.New("'type' is not a number - "+pr.Restrictions.Type))
 		ok = false
 	}
 	if "" == pr.Restrictions.MinValue {
@@ -200,17 +200,31 @@ func loadOwnProperty(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 		Type:         GetTypeDefinition(pr.Restrictions.Type),
 		Restrictions: make([]Validator, 0, 4)}
 
+	switch pr.Restrictions.Collection {
+	case "array":
+		cpr.Collection = COLLECTION_ARRAY
+	case "set":
+		cpr.Collection = COLLECTION_SET
+	default:
+		cpr.Collection = COLLECTION_UNKNOWN
+	}
+
 	if nil != pr.Restrictions.Required {
 		cpr.IsRequired = true
 	}
 
 	if "" != pr.Restrictions.DefaultValue {
-		var err error
-		cpr.DefaultValue, err = cpr.Type.Convert(pr.Restrictions.DefaultValue)
-		if nil != err {
+		if COLLECTION_UNKNOWN != cpr.Collection {
 			errs = append(errs, errors.New("load property '"+pr.Name+"' of class '"+
-				xmlCls.Name+"' failed, parse defaultValue '"+
-				pr.Restrictions.DefaultValue+"' failed, "+err.Error()))
+				xmlCls.Name+"' failed, collection has not defaultValue "))
+		} else {
+			var err error
+			cpr.DefaultValue, err = cpr.Type.Convert(pr.Restrictions.DefaultValue)
+			if nil != err {
+				errs = append(errs, errors.New("load property '"+pr.Name+"' of class '"+
+					xmlCls.Name+"' failed, parse defaultValue '"+
+					pr.Restrictions.DefaultValue+"' failed, "+err.Error()))
+			}
 		}
 	}
 

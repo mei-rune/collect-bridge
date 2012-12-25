@@ -1,8 +1,10 @@
 package mdb
 
 import (
-//"commons/stringutils"
+	"fmt"
 )
+
+//"commons/stringutils"
 
 type AssocationType int
 
@@ -79,15 +81,31 @@ func (self *MutiErrors) Errors() []error {
 }
 
 type ClassDefinition struct {
-	Super          *ClassDefinition
-	Name           string
-	collectionName string
-
-	OwnProperties map[string]*PropertyDefinition
-	Properties    map[string]*PropertyDefinition
-	Assocations   []Assocation
-	Children      []*ClassDefinition
+	Super            *ClassDefinition
+	Name             string
+	collectionName   string
+	HierarchicalType *HierarchicalEnumeration
+	OwnProperties    map[string]*PropertyDefinition
+	Properties       map[string]*PropertyDefinition
+	Assocations      []Assocation
+	Children         []*ClassDefinition
 }
+
+type HierarchicalEnumeration struct {
+	Value, MinValue, MaxValue int
+}
+
+// func (self *ClassDefinition) String() string {
+// 	return fmt.Sprintf(`class %s : %s {
+// 	CollectionName  %s
+// 	table  %s` 
+// 	self.Name, self.Super.Name, self.collectionName, self.CollectionName(),
+// 	self.HierarchicalType.Value, self.HierarchicalType.MinValue, self.HierarchicalType.MaxValue,
+// 	OwnProperties    map[string]*PropertyDefinition
+// 	Properties       map[string]*PropertyDefinition
+// 	Assocations      []Assocation
+// 	Children         []*ClassDefinition)
+// }
 
 func (self *ClassDefinition) CollectionName() string {
 	if nil == self.Super {

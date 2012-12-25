@@ -6,12 +6,74 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"strings"
 )
 
 type ClassDefinitions struct {
 	clsDefinitions map[string]*ClassDefinition
 	id2Definitions map[int]*ClassDefinition
+}
+
+func checkHierarchicalType(self *ClassDefinitions, cls *ClassDefinition, errs []error) []error {
+	if nil == cls.HierarchicalType {
+		if nil != cls.Super && nil != cls.Super.HierarchicalType {
+			errs = append(errs, errors.New("parent '"+cls.Super.Name+"' is define hierarchical, child '"+
+				cls.Name+"' is not defined"))
+		}
+	} else if nil != cls.Super {
+		if nil == cls.Super.HierarchicalType {
+			errs = append(errs, errors.New("child '"+cls.Name+"' is define hierarchical and parent '"+
+				cls.Super.Name+"' is not defined"))
+		} else {
+
+			if cls.HierarchicalType.MinValue < cls.Super.HierarchicalType.MinValue {
+				errs = append(errs, errors.New("'minValue' of child '"+cls.Name+
+					"' is less than 'minValue' of parent '"+
+					cls.Super.Name+"'"))
+			}
+
+			if cls.HierarchicalType.MaxValue > cls.Super.HierarchicalType.MaxValue {
+				errs = append(errs, errors.New("'maxValue' of child '"+cls.Name+
+					"' is greater than 'maxValue' of parent '"+cls.Super.Name+"'"))
+			}
+
+			if cls.HierarchicalType.MinValue < cls.Super.HierarchicalType.Value &&
+				cls.Super.HierarchicalType.Value > cls.HierarchicalType.MaxValue {
+				errs = append(errs, errors.New("'Value' of child '"+cls.Name+
+					"' is between with 'minValue' and 'maxValue' of parent '"+cls.Super.Name+"'"))
+			}
+		}
+	}
+
+	if nil != cls.Children {
+		for _, c1 := range cls.Children {
+			if nil == c1.HierarchicalType {
+				continue
+			}
+			for _, c2 := range cls.Children {
+				if c1 == c2 {
+					continue
+				}
+				if nil == c2.HierarchicalType {
+					continue
+				}
+
+				if c1.HierarchicalType.MinValue < c2.HierarchicalType.MinValue {
+					if c1.HierarchicalType.MaxValue >= c2.HierarchicalType.MinValue {
+						errs = append(errs, errors.New("hierarchical range of '"+c1.Name+
+							"' and '"+c2.Name+"' is overlapping"))
+					}
+				} else {
+					if c1.HierarchicalType.MinValue <= c2.HierarchicalType.MaxValue {
+						errs = append(errs, errors.New("hierarchical range of '"+c1.Name+
+							"' and '"+c2.Name+"' is overlapping"))
+					}
+				}
+			}
+		}
+	}
+	return errs
 }
 
 func loadParentProperties(self *ClassDefinitions, cls *ClassDefinition, errs []error) []error {
@@ -65,10 +127,69 @@ func loadOwnProperties(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 		var cpr *PropertyDefinition = nil
 		cpr, errs = loadOwnProperty(self, xmlCls, &pr, errs)
 		if nil != cpr {
-			cls.OwnProperties[cpr.Name] = cpr
+			if "type" == cpr.Name {
+				cls.HierarchicalType, errs = loadOwnHierarchicalType(self, pr, errs)
+			} else {
+				cls.OwnProperties[cpr.Name] = cpr
+			}
 		}
 	}
 	return errs
+}
+
+func loadOwnHierarchicalType(self *ClassDefinitions, pr *XMLPropertyDefinition, errs []error) (*HierarchicalEnumeration, []error) {
+	ok := true
+	if integerType.Name() != pr.Restrictions.Type {
+		errs = append(errs, errors.New("'type' is not a number - "+cpr.Type.Name()))
+		ok = false
+	}
+	if "" == pr.Restrictions.MinValue {
+		errs = append(errs, errors.New(" 'minValue' of 'type' is empty"))
+		ok = false
+	}
+	if "" == pr.Restrictions.MaxValue {
+		errs = append(errs, errors.New(" 'maxValue' of 'type' is empty"))
+		ok = false
+	}
+	if "" == pr.Restrictions.DefaultValue {
+		errs = append(errs, errors.New(" 'defaultValue' of 'type' is empty"))
+		ok = false
+	}
+
+	min, err := strconv.Atoi(pr.Restrictions.MinValue)
+	if nil != err {
+		errs = append(errs, errors.New(" 'minValue' of 'type' is not a number - "+pr.Restrictions.MinValue))
+		ok = false
+	}
+
+	max, err := strconv.Atoi(pr.Restrictions.MaxValue)
+	if nil != err {
+		errs = append(errs, errors.New(" 'maxValue' of 'type' is not a number - "+pr.Restrictions.MaxValue))
+		ok = false
+	}
+
+	dvalue, err := strconv.Atoi(pr.Restrictions.DefaultValue)
+	if nil != err {
+		errs = append(errs, errors.New(" 'defaultValue' of 'type' is not a number - "+pr.Restrictions.DefaultValue))
+		ok = false
+	}
+
+	if min > max {
+		errs = append(errs, errors.New(" 'minValue' and 'maxValue' of 'type' is error - "+pr.Restrictions.MinValue+
+			" < "+pr.Restrictions.MaxValue))
+		ok = false
+	}
+
+	if min > dvalue || dvalue > max {
+		errs = append(errs, errors.New(" 'defaultValue' of 'type' is error - "+pr.Restrictions.MinValue+
+			" < "+pr.Restrictions.DefaultValue+"< "+pr.Restrictions.MaxValue))
+		ok = false
+	}
+
+	if ok {
+		return &HierarchicalEnumeration{Value: dvalue, MinValue: min, MaxValue: max}, errs
+	}
+	return nil, errs
 }
 
 func loadOwnProperty(self *ClassDefinitions, xmlCls *XMLClassDefinition,
@@ -298,6 +419,11 @@ func LoadXml(nm string) (*ClassDefinitions, error) {
 	// load the properties of super class
 	for _, cls := range self.clsDefinitions {
 		errs = loadParentProperties(self, cls, errs)
+	}
+
+	// check hierarchical of type
+	for _, cls := range self.clsDefinitions {
+		errs = checkHierarchicalType(self, cls, errs)
 	}
 
 	if 0 == len(errs) {

@@ -25,7 +25,49 @@ func init() {
 	assocationOps[HAS_MANG] = &assocationOp{deleteOp: deleteChildren}
 	assocationOps[HAS_AND_BELONGS_TO_MANY] = &assocationOp{deleteOp: deleteMany2Many}
 
-	//operators["eq"] = "eq"
+	operators["exists"] = op_exist
+	operators["in"] = op_in
+	operators["nin"] = op_nin
+	operators["gt"] = op_gt
+	operators["gte"] = op_gte
+	operators["eq"] = op_eq
+	operators["ne"] = op_ne
+	operators["lt"] = op_lt
+	operators["lte"] = op_lte
+}
+
+func op_exist(pr *PropertyDefinition, s string) (interface{}, error) {
+	switch s {
+	case "true":
+		return bson.M{"$exists": true}, nil
+	case "false":
+		return bson.M{"$exists": false}, nil
+	}
+	return nil, errors.New("'exist' of '" + pr.Name + "' require one bool operand - " + s)
+}
+func op_in(pr *PropertyDefinition, s string) (interface{}, error) {
+	return nil, errors.New("not implemented")
+}
+func op_nin(pr *PropertyDefinition, s string) (interface{}, error) {
+	return nil, errors.New("not implemented")
+}
+func op_gt(pr *PropertyDefinition, s string) (interface{}, error) {
+	return nil, errors.New("not implemented")
+}
+func op_gte(pr *PropertyDefinition, s string) (interface{}, error) {
+	return nil, errors.New("not implemented")
+}
+func op_eq(pr *PropertyDefinition, s string) (interface{}, error) {
+	return nil, errors.New("not implemented")
+}
+func op_ne(pr *PropertyDefinition, s string) (interface{}, error) {
+	return nil, errors.New("not implemented")
+}
+func op_lt(pr *PropertyDefinition, s string) (interface{}, error) {
+	return nil, errors.New("not implemented")
+}
+func op_lte(pr *PropertyDefinition, s string) (interface{}, error) {
+	return nil, errors.New("not implemented")
 }
 
 type mdb_server struct {
@@ -350,8 +392,8 @@ func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 		if nil == pr {
 			if "_id" == nm {
 				var err error
-				if strings.HasPrefix(exp, "eq_") {
-					q["_id"], err = parseObjectIdHex(exp[3:])
+				if strings.HasPrefix(exp, "[eq]") {
+					q["_id"], err = parseObjectIdHex(exp[4:])
 				} else {
 					q["_id"], err = parseObjectIdHex(exp)
 				}
@@ -361,21 +403,41 @@ func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 				continue
 			}
 			if nil == pr {
-				if is_all {
-					return nil, errors.New("'" + nm + "' is not a property.")
+				pos := strings.LastIndex(nm, ".")
+				if -1 != pos {
+					pr, _ := properties[nm[0:pos]]
 				}
-				properties = collectProperties(cls)
-				is_all = true
-				pr, _ = properties[nm]
 
 				if nil == pr {
-					return nil, errors.New("'" + nm + "' is not a property.")
+
+					if is_all {
+						return nil, errors.New("'" + nm + "' is not a property.")
+					}
+					properties = collectProperties(cls)
+					is_all = true
+					pr, _ = properties[nm]
+
+					if nil == pr {
+						if -1 != pos {
+							pr, _ := properties[nm[0:pos]]
+						}
+
+						if nil == pr {
+							return nil, errors.New("'" + nm + "' is not a property.")
+						}
+					}
 				}
 			}
 		}
 
-		ss := strings.SplitN(exp, "_", 2)
-		if 2 != len(ss) {
+		var ss []string
+		if '[' == exp[0] {
+			ss := strings.SplitN(exp[1:], "]", 2)
+		} else {
+			ss = nil
+		}
+
+		if nil == ss || 2 != len(ss) {
 			v, err := pr.Type.Convert(exp)
 			if nil != err {
 				return nil, errors.New("'" + nm + "' convert to " +

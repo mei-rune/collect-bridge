@@ -201,7 +201,7 @@ func TestEncodePDU(t *testing.T) {
 	pdu := &V2CPDU{version: SNMP_V1, requestId: 234}
 	pdu.Init(map[string]string{"community": "123987"})
 	fillPdu(pdu.GetVariableBindings())
-	bytes, e := pdu.encodePDU()
+	bytes, e := pdu.encodePDU(true)
 	if nil != e {
 		t.Errorf("encode v1 pdu faile - %s", e.Error())
 	}
@@ -214,7 +214,7 @@ func TestEncodePDU(t *testing.T) {
 	pdu = &V2CPDU{version: SNMP_V2C, requestId: 234}
 	pdu.Init(map[string]string{"community": "123987"})
 	fillPdu(pdu.GetVariableBindings())
-	bytes, e = pdu.encodePDU()
+	bytes, e = pdu.encodePDU(true)
 	if nil != e {
 		t.Errorf("encode v2 pdu faile - %s", e.Error())
 	}
@@ -309,7 +309,7 @@ func testEncodeV3PDU(t *testing.T, args map[string]string, txt, msg string) {
 		// usm.localization_priv_key = usm.priv_key
 	}
 	fillPdu(pduv3.GetVariableBindings())
-	bytes, e := pduv3.encodePDU()
+	bytes, e := pduv3.encodePDU(true)
 	if nil != e {
 		t.Errorf("%sencode v3 pdu failed - %s", msg, e.Error())
 	}
@@ -326,7 +326,7 @@ func TestDecodePDU(t *testing.T) {
 		t.Errorf("decode hex failed - %s", err.Error())
 		return
 	}
-	pdu, e := DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil)
+	pdu, e := DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil, true)
 	if nil != e {
 		t.Errorf("decode v1 pdu failed - %s", e.Error())
 	} else {
@@ -348,7 +348,7 @@ func TestDecodePDU(t *testing.T) {
 		t.Errorf("decode hex failed - %s", err.Error())
 		return
 	}
-	pdu, e = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil)
+	pdu, e = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil, true)
 	if nil != e {
 		t.Errorf("decode v2 pdu failed - %s", e.Error())
 	} else {
@@ -386,7 +386,7 @@ func testDecodeV3PDU(t *testing.T, txt string, auth AuthType, auth_s string, pri
 		t.Errorf(msg+"decode hex failed - %s", err.Error())
 		return
 	}
-	pdu, e := DecodePDU(bytes, priv, priv_s)
+	pdu, e := DecodePDU(bytes, priv, priv_s, true)
 	if nil != e {
 		t.Errorf(msg+"decode v3 pdu failed - %s", e.Error())
 	} else {

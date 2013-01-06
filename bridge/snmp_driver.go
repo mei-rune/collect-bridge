@@ -1,13 +1,14 @@
 package main
 
 import (
+	"commons"
 	"errors"
 	"flag"
 	"fmt"
 	"snmp"
+	"strconv"
 	"strings"
 	"time"
-	"web"
 )
 
 var (
@@ -43,7 +44,7 @@ func getVersion(params map[string]string) snmp.SnmpVersion {
 	case "v3", "V3", "3":
 		return snmp.SNMP_V3
 	}
-	panic(errors.New(fmt.Sprintf("error version: %s", v)))
+	panic(fmt.Sprintf("error version: %s", v))
 	return 0
 }
 
@@ -53,6 +54,8 @@ func getAction(params map[string]string) (snmp.SnmpType, error) {
 		return snmp.SNMP_PDU_GET, nil
 	}
 	switch v {
+	case "table", "Table", "TABLE":
+		return snmp.SNMP_PDU_TABLE, nil
 	case "get", "Get", "GET":
 		return snmp.SNMP_PDU_GET, nil
 	case "next", "Next", "NEXT", "getnext", "Getnext", "GETNEXT":
@@ -62,10 +65,13 @@ func getAction(params map[string]string) (snmp.SnmpType, error) {
 	case "set", "Set", "SET", "put", "Put", "PUT":
 		return snmp.SNMP_PDU_SET, nil
 	}
-	return snmp.SNMP_PDU_GET, errors.New(fmt.Sprintf("error pdu type: %s", v))
+	return snmp.SNMP_PDU_GET, fmt.Errorf("error pdu type: %s", v)
 }
 
 func internalError(msg string, err error) error {
+	if nil == err {
+		return errors.New(msg)
+	}
 	return fmt.Errorf(msg + "-" + err.Error())
 }
 
@@ -83,6 +89,16 @@ func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string)
 	client, err := bridge.GetClient(host)
 	if nil != err {
 		return nil, internalError("create client failed", err)
+	}
+
+	if snmp.SNMP_PDU_TABLE == action {
+		_, contains := params["columns"]
+
+		if contains {
+			return bridge.tableGetByColumns(params, client, oid)
+		}
+
+		return bridge.tableGet(params, client, oid)
 	}
 
 	req, err := client.CreatePDU(action, getVersion(params))
@@ -157,6 +173,168 @@ func (bridge *SnmpDriver) Delete(map[string]string) (bool, error) {
 	return false, fmt.Errorf("not implemented")
 }
 
-func (client *SnmpDriver) Table(ctx *web.Context, host, oids string) {
-	panic(fmt.Sprintf("not implemented"))
+var (
+	NilVariableBinding = snmp.VariableBinding{Oid: *snmp.NewOid([]uint32{}), Value: snmp.NewSnmpNil()}
+)
+
+func (bridge *SnmpDriver) getNext(params map[string]string, client snmp.Client, next_oid snmp.SnmpOid,
+	version snmp.SnmpVersion, timeout time.Duration) (snmp.VariableBinding, error) {
+	var err error
+
+	req, err := client.CreatePDU(snmp.SNMP_PDU_GETNEXT, version)
+	if nil != err {
+		return NilVariableBinding, internalError("create pdu failed", err)
+	}
+
+	err = req.Init(params)
+	if nil != err {
+		return NilVariableBinding, internalError("init pdu failed", err)
+	}
+
+	err = req.GetVariableBindings().AppendWith(next_oid, snmp.NewSnmpNil())
+	if nil != err {
+		return NilVariableBinding, internalError("append vb failed", err)
+	}
+
+	resp, err := client.SendAndRecv(req, timeout)
+	if nil != err {
+		return NilVariableBinding, internalError("snmp failed", err)
+	}
+
+	if 0 == resp.GetVariableBindings().Len() {
+		return NilVariableBinding, internalError("result is empty", nil)
+	}
+
+	return resp.GetVariableBindings().Get(0), nil
+}
+
+func (bridge *SnmpDriver) tableGet(params map[string]string, client snmp.Client,
+	oid string) (map[string]map[string]string, error) {
+
+	start_oid, err := snmp.ParseOidFromString(oid)
+	if nil != err {
+		return nil, internalError("param 'oid' is error", err)
+	}
+	oid_s := start_oid.GetString()
+	version := getVersion(params)
+	timeout := getTimeout(params)
+	next_oid := start_oid
+	results := make(map[string]map[string]string)
+	for {
+		vb, err := bridge.getNext(params, client, next_oid, version, timeout)
+		if nil != err {
+			return nil, err
+		}
+
+		if !strings.HasPrefix(vb.Oid.GetString(), oid_s) {
+			break
+		}
+
+		sub := vb.Oid.GetUint32s()[len(start_oid):]
+		if 2 > len(sub) {
+			return nil, fmt.Errorf("read '%s' return '%s', it is incorrect", next_oid.GetString(), vb.Oid.GetString())
+		}
+
+		idx := strconv.FormatUint(uint64(sub[0]), 10)
+		keys := snmp.NewOid(sub[1:]).GetString()
+
+		row, _ := results[keys]
+		if nil == row {
+			row = make(map[string]string)
+			results[keys] = row
+		}
+		row[idx] = vb.Value.String()
+
+		next_oid = vb.Oid
+	}
+
+	return results, nil
+}
+
+func (bridge *SnmpDriver) tableGetByColumns(params map[string]string, client snmp.Client,
+	oid string) (map[string]map[string]string, error) {
+
+	start_oid, err := snmp.ParseOidFromString(oid)
+	if nil != err {
+		return nil, internalError("param 'oid' is error", err)
+	}
+	columns, err := commons.GetIntList(params, "columns")
+	if nil != err {
+		return nil, internalError("param 'columns' is error", err)
+	}
+
+	version := getVersion(params)
+	timeout := getTimeout(params)
+	next_oids := make([]snmp.SnmpOid, 0, len(columns))
+	next_oids_s := make([]string, 0, len(columns))
+	for _, i := range columns {
+		o := start_oid.Concat(i)
+		next_oids = append(next_oids, o)
+		next_oids_s = append(next_oids_s, o.GetString())
+	}
+
+	results := make(map[string]map[string]string)
+
+	for {
+		var req snmp.PDU
+		req, err = client.CreatePDU(snmp.SNMP_PDU_GETNEXT, version)
+		if nil != err {
+			return nil, internalError("create pdu failed", err)
+		}
+
+		err = req.Init(params)
+		if nil != err {
+			return nil, internalError("init pdu failed", err)
+		}
+
+		for _, next_oid := range next_oids {
+			err = req.GetVariableBindings().AppendWith(next_oid, snmp.NewSnmpNil())
+			if nil != err {
+				return nil, internalError("append vb failed", err)
+			}
+		}
+
+		resp, err := client.SendAndRecv(req, timeout)
+		if nil != err {
+			return nil, internalError("snmp failed", err)
+		}
+
+		if len(next_oids) != resp.GetVariableBindings().Len() {
+			return nil, internalError(fmt.Sprintf("number of result is mismatch, excepted is %d, actual is %d",
+				len(next_oids), resp.GetVariableBindings().Len()), nil)
+		}
+
+		offset := 0
+		for i, vb := range resp.GetVariableBindings().All() {
+
+			if !strings.HasPrefix(vb.Oid.GetString(), next_oids_s[i]) {
+				copy(next_oids[i:], next_oids[i+1:])
+				copy(columns[i:], columns[i+1:])
+				continue
+			}
+
+			sub := vb.Oid.GetUint32s()[len(start_oid)+1:]
+			if 1 > len(sub) {
+				return nil, fmt.Errorf("read '%s' return '%s', it is incorrect", start_oid, vb.Oid.GetString())
+			}
+
+			keys := snmp.NewOid(sub).GetString()
+
+			row, _ := results[keys]
+			if nil == row {
+				row = make(map[string]string)
+				results[keys] = row
+			}
+			row[strconv.FormatInt(int64(columns[i]), 10)] = vb.Value.String()
+
+			next_oids[offset] = vb.Oid
+			offset++
+		}
+
+		if 0 == offset {
+			break
+		}
+		next_oids = next_oids[0:offset]
+	}
+	return results, nil
 }

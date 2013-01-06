@@ -63,9 +63,8 @@ type XMLPropertyDefinition struct {
 }
 
 type XMLRestrictionsDefinition struct {
-	XMLName    xml.Name `xml:"restriction"`
-	Type       string   `xml:"base,attr"`
-	Collection string   `xml:"collection,attr,omitempty"`
+	XMLName xml.Name `xml:"restriction"`
+	Type    string   `xml:"base,attr"`
 
 	Required     *XMLRequired `xml:",omitempty"`
 	DefaultValue string       `xml:"defaultValue,omitempty"`

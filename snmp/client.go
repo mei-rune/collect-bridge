@@ -85,6 +85,8 @@ const (
 	SNMP_PDU_INFORM   SnmpType = 6 /* v2 */
 	SNMP_PDU_TRAP2    SnmpType = 7 /* v2 */
 	SNMP_PDU_REPORT   SnmpType = 8 /* v2 */
+
+	SNMP_PDU_TABLE SnmpType = 999999
 )
 
 func (t *SnmpType) String() string {
@@ -231,11 +233,7 @@ func (vbs *VariableBindings) Append(oid, value string) error {
 		}
 	}
 
-	if nil == vbs.values {
-		vbs.values = make([]VariableBinding, 0, 20)
-	}
-	vbs.values = append(vbs.values, VariableBinding{Oid: o, Value: v})
-	return nil
+	return vbs.AppendWith(o, v)
 }
 
 func (vbs *VariableBindings) AppendWith(oid SnmpOid, value SnmpValue) error {

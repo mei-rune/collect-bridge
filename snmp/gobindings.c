@@ -80,13 +80,11 @@ uint64_t snmp_value_get_uint64(snmp_values_t* value) {
   return value->counter64;
 }
 
-
-
 void snmp_value_put_uint64_str(snmp_values_t* value, char* s) {
   char* endptr;
   value->counter64 = strtoull(s, &endptr, 10);
-  printf("%s - %llu - %llu\n", s, value->counter64, strtoull(s, &endptr, 10));
 }
+
 int32_t snmp_value_get_uint64_str(snmp_values_t* value, char* s, int32_t len) {
   return snprintf(s, len, "%llu", value->counter64);
 }

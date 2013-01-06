@@ -34,6 +34,7 @@ var (
 	priv_passphrase = flag.String("priv", "", "the priv passphrase, default: \"\"")
 	started_oid     = flag.String("oid", "1.3.6", "the start oid, default: 1.3.6")
 	from_charset    = flag.String("charset", "GB18030", "the charset of octet string, default: GB18030")
+	columns         = flag.String("columns", "", "the columns of table, default: \"\"")
 	help            = flag.Bool("h", false, "print help")
 
 	decoder mahonia.Decoder
@@ -252,29 +253,39 @@ func walk() {
 	}
 }
 func table() {
-	var err error = nil
-	oid := *started_oid
-	for {
-		oid, err = invoke("next", oid)
-		if nil != err {
-			fmt.Println(err.Error())
-			break
-		}
 
-		if !strings.HasPrefix(oid, *started_oid) {
-			break
-		}
+	err := invokeTable("table", *started_oid)
+	if nil != err {
+		fmt.Println(err.Error())
 	}
+
+	// var err error = nil
+	// oid := *started_oid
+	// for {
+	//	oid, err = invoke("next", oid)
+	//	if nil != err {
+	//		fmt.Println(err.Error())
+	//		break
+	//	}
+
+	//	if !strings.HasPrefix(oid, *started_oid) {
+	//		break
+	//	}
+	// }
 }
 
 func createUrl(action, oid string) (string, error) {
 
+	var columns_s string = ""
+	if "" != *columns && "table" == action {
+		columns_s = "&columns=" + *columns
+	}
 	var url string
 	switch *version {
 	case "2", "2c", "v2", "v2c", "1", "v1":
-		url = fmt.Sprintf("http://%s/snmp/"+action+"/%s/%s?community=%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *community)
+		url = fmt.Sprintf("http://%s/snmp/"+action+"/%s/%s?community=%s%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *community, columns_s)
 	case "3", "v3":
-		url = fmt.Sprintf("http://%s/snmp/"+action+"/%s/%s?version=3&secmodel=usm&secname=%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *secret_name)
+		url = fmt.Sprintf("http://%s/snmp/"+action+"/%s/%s?version=3&secmodel=usm&secname=%s%s", *proxy, *target, strings.Replace(oid, ".", "_", -1), *secret_name, columns_s)
 		if "" != *auth_passphrase {
 			url = url + "&auth_pass=" + *auth_passphrase
 			if "" != *priv_passphrase {
@@ -337,4 +348,45 @@ func invoke(action, oid string) (string, error) {
 	}
 
 	return next_oid, nil
+}
+
+func invokeTable(action, oid string) error {
+	var err error
+
+	url, err := createUrl(action, oid)
+	if nil != err {
+		return err
+	}
+
+	fmt.Println("Get " + url)
+	resp, err := http.Get(url)
+	if nil != err {
+		return fmt.Errorf("get failed - " + err.Error())
+	}
+
+	bytes, err := ioutil.ReadAll(resp.Body)
+	if nil != err {
+		return fmt.Errorf("read body failed - " + err.Error())
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.New(string(bytes))
+	}
+
+	var vbs map[string]map[string]string
+	err = json.Unmarshal(bytes, &vbs)
+	if nil != err {
+		return errors.New("unmarshal failed - " + err.Error() + "\n" + string(bytes))
+	}
+	if 0 == len(vbs) {
+		return errors.New("result is empty." + "\n" + string(bytes))
+	}
+
+	bytes_indent, err := json.MarshalIndent(vbs, "", "  ")
+	if nil != err {
+		return errors.New("marshal failed - " + err.Error() + "\n" + string(bytes))
+	}
+
+	fmt.Println(string(bytes_indent))
+	return nil
 }

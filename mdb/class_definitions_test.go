@@ -201,38 +201,6 @@ func TestPropertyOverride(t *testing.T) {
 	a.Check(t, managerp.Restrictions[0], a.DeepEquals, &StringLengthValidator{MinLength: 4, MaxLength: 14}, a.Commentf("check the restrictions of manager"))
 }
 
-func TestHierarchicalTypeIsOk(t *testing.T) {
-	t.Errorf("not implemented")
-}
-
-func TestHierarchicalTypeIsInputError(t *testing.T) {
-	t.Errorf("not implemented")
-}
-
-func TestHierarchicalTypeWithParnetIsNilAndChildNotNil(t *testing.T) {
-	t.Errorf("not implemented")
-}
-
-func TestHierarchicalTypeWithParnetNotNilAndChildIsNil(t *testing.T) {
-	t.Errorf("not implemented")
-}
-
-func TestHierarchicalTypeWithChildMaxValueIsError(t *testing.T) {
-	t.Errorf("not implemented")
-}
-
-func TestHierarchicalTypeWithChildMinValueIsError(t *testing.T) {
-	t.Errorf("not implemented")
-}
-
-func TestHierarchicalTypeWithChildrenIsOverlappingAtLeft(t *testing.T) {
-	t.Errorf("not implemented")
-}
-
-func TestHierarchicalTypeWithChildrenIsOverlappingAtRight(t *testing.T) {
-	t.Errorf("not implemented")
-}
-
 func TestClassIsAleadyExists(t *testing.T) {
 	t.Errorf("not implemented")
 }

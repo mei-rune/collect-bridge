@@ -1,19 +1,15 @@
 package mdb
 
-import ()
-
+import (
 //"commons/stringutils"
-type CollectionType int
+)
+
 type AssocationType int
 
 const (
 	BELONGS_TO              AssocationType = 1
 	HAS_MANG                AssocationType = 2
 	HAS_AND_BELONGS_TO_MANY AssocationType = 3
-
-	COLLECTION_UNKNOWN CollectionType = 0
-	COLLECTION_ARRAY   CollectionType = 1
-	COLLECTION_SET     CollectionType = 2
 )
 
 type Assocation interface {
@@ -65,7 +61,6 @@ func (self *HasAndBelongsToMany) Target() *ClassDefinition {
 type PropertyDefinition struct {
 	Name         string
 	Type         TypeDefinition
-	Collection   CollectionType
 	IsRequired   bool
 	Restrictions []Validator
 	DefaultValue interface{}
@@ -84,31 +79,15 @@ func (self *MutiErrors) Errors() []error {
 }
 
 type ClassDefinition struct {
-	Super            *ClassDefinition
-	Name             string
-	collectionName   string
-	HierarchicalType *HierarchicalEnumeration
-	OwnProperties    map[string]*PropertyDefinition
-	Properties       map[string]*PropertyDefinition
-	Assocations      []Assocation
-	Children         []*ClassDefinition
-}
+	Super          *ClassDefinition
+	Name           string
+	collectionName string
 
-type HierarchicalEnumeration struct {
-	Value, MinValue, MaxValue int
+	OwnProperties map[string]*PropertyDefinition
+	Properties    map[string]*PropertyDefinition
+	Assocations   []Assocation
+	Children      []*ClassDefinition
 }
-
-// func (self *ClassDefinition) String() string {
-// 	return fmt.Sprintf(`class %s : %s {
-// 	CollectionName  %s
-// 	table  %s` 
-// 	self.Name, self.Super.Name, self.collectionName, self.CollectionName(),
-// 	self.HierarchicalType.Value, self.HierarchicalType.MinValue, self.HierarchicalType.MaxValue,
-// 	OwnProperties    map[string]*PropertyDefinition
-// 	Properties       map[string]*PropertyDefinition
-// 	Assocations      []Assocation
-// 	Children         []*ClassDefinition)
-// }
 
 func (self *ClassDefinition) CollectionName() string {
 	if nil == self.Super {

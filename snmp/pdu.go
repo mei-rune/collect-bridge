@@ -86,7 +86,7 @@ func (pdu *V2CPDU) String() string {
 	return buffer.String()
 }
 
-func (pdu *V2CPDU) encodePDU() ([]byte, SnmpCodeError) {
+func (pdu *V2CPDU) encodePDU(is_dump bool) ([]byte, SnmpCodeError) {
 	var internal C.snmp_pdu_t
 	C.snmp_pdu_init(&internal)
 	defer C.snmp_pdu_free(&internal)
@@ -106,13 +106,20 @@ func (pdu *V2CPDU) encodePDU() ([]byte, SnmpCodeError) {
 		return nil, newError(SNMP_CODE_FAILED, err, "encode bindings")
 	}
 
-	C.snmp_pdu_dump(&internal)
+	if is_test {
+		debug_init_secparams(&internal)
+	} else {
+		C.snmp_pdu_init_secparams(&internal)
+	}
+
+	if is_dump {
+		C.snmp_pdu_dump(&internal)
+	}
+
 	return encodeNativePdu(&internal)
 }
 
 func (pdu *V2CPDU) decodePDU(native *C.snmp_pdu_t) (bool, SnmpCodeError) {
-
-	C.snmp_pdu_dump(native)
 
 	native.community[MAX_COMMUNITY_LEN-1] = 0
 	pdu.community = C.GoString(&native.community[0])
@@ -248,7 +255,7 @@ func (pdu *V3PDU) String() string {
 	return buffer.String()
 }
 
-func (pdu *V3PDU) encodePDU() ([]byte, SnmpCodeError) {
+func (pdu *V3PDU) encodePDU(is_dump bool) ([]byte, SnmpCodeError) {
 	var internal C.snmp_pdu_t
 	C.snmp_pdu_init(&internal)
 	defer C.snmp_pdu_free(&internal)
@@ -303,13 +310,20 @@ func (pdu *V3PDU) encodePDU() ([]byte, SnmpCodeError) {
 		return nil, newError(SNMP_CODE_FAILED, err, "fill encode bindings failed")
 	}
 
-	C.snmp_pdu_dump(&internal)
+	if is_test {
+		debug_init_secparams(&internal)
+	} else {
+		C.snmp_pdu_init_secparams(&internal)
+	}
+
+	if is_dump {
+		C.snmp_pdu_dump(&internal)
+	}
 	return encodeNativePdu(&internal)
 }
 
 func (pdu *V3PDU) decodePDU(native *C.snmp_pdu_t) (bool, SnmpCodeError) {
 
-	C.snmp_pdu_dump(native)
 	pdu.requestId = int(native.request_id)
 	pdu.identifier = int(native.identifier)
 	pdu.op = SnmpType(native.pdu_type)
@@ -408,12 +422,7 @@ func encodeNativePdu(pdu *C.snmp_pdu_t) ([]byte, SnmpCodeError) {
 	var buffer C.asn_buf_t
 	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
 	buffer.asn_len = C.size_t(len(bytes))
-	if is_test {
-		debug_init_secparams(pdu)
-	} else {
-		C.snmp_pdu_init_secparams(pdu)
-	}
-	//C.snmp_pdu_dump(pdu)
+
 	ret_code := C.snmp_pdu_encode(pdu, &buffer)
 	if 0 != ret_code {
 		err := Error(SnmpResult(ret_code), C.GoString(C.snmp_pdu_get_error(pdu, ret_code)))
@@ -469,11 +478,11 @@ func encodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) SnmpCodeError
 		case SNMP_SYNTAX_TIMETICKS:
 			C.snmp_value_put_uint32(&internal.bindings[i].v, C.uint32_t(vb.Value.GetUint32()))
 		case SNMP_SYNTAX_COUNTER64:
-			s := strconv.FormatUint(vb.Value.GetUint64(), 10)
-			cs := C.CString(s)
-			defer C.free(unsafe.Pointer(cs))
-			C.snmp_value_put_uint64_str(&internal.bindings[i].v, cs)
-			//C.snmp_value_put_uint64(&internal.bindings[i].v, C.uint64_t())
+			// s := strconv.FormatUint(vb.Value.GetUint64(), 10)
+			// cs := C.CString(s)
+			// defer C.free(unsafe.Pointer(cs))
+			// C.snmp_value_put_uint64_str(&internal.bindings[i].v, cs)
+			C.snmp_value_put_uint64(&internal.bindings[i].v, C.uint64_t(vb.Value.GetUint64()))
 		default:
 			return Errorf(SNMP_CODE_FAILED, "unsupported type - %v", vb.Value)
 		}
@@ -514,15 +523,14 @@ func decodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) {
 		case SNMP_SYNTAX_TIMETICKS:
 			vbs.AppendWith(oid, NewSnmpTimeticks(uint32(C.snmp_value_get_uint32(&internal.bindings[i].v))))
 		case SNMP_SYNTAX_COUNTER64:
-			bytes := make([]byte, 100)
-			len := int(C.snmp_value_get_uint64_str(&internal.bindings[i].v, (*C.char)(unsafe.Pointer(&bytes[0])), 100))
-			u64, err := strconv.ParseUint(string(bytes[0:len]), 10, 64)
-			if nil != err {
-				panic("read uint64 failed, " + err.Error())
-			}
-			vbs.AppendWith(oid, NewSnmpCounter64(u64))
-
-			//vbs.AppendWith(oid, NewSnmpCounter64(uint64(C.snmp_value_get_uint64(&internal.bindings[i].v))))
+			// bytes := make([]byte, 100)
+			// len := int(C.snmp_value_get_uint64_str(&internal.bindings[i].v, (*C.char)(unsafe.Pointer(&bytes[0])), 100))
+			// u64, err := strconv.ParseUint(string(bytes[0:len]), 10, 64)
+			// if nil != err {
+			//	panic("read uint64 failed, " + err.Error())
+			// }
+			// vbs.AppendWith(oid, NewSnmpCounter64(u64))
+			vbs.AppendWith(oid, NewSnmpCounter64(uint64(C.snmp_value_get_uint64(&internal.bindings[i].v))))
 		default:
 			vbs.AppendWith(oid, NewSnmpError(uint(internal.bindings[i].syntax)))
 		}
@@ -587,7 +595,7 @@ func DecodePDUBody(buffer *C.asn_buf_t, pdu *C.snmp_pdu_t) SnmpCodeError {
 	return nil
 }
 
-func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, SnmpCodeError) {
+func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte, is_dump bool) (PDU, SnmpCodeError) {
 	var buffer C.asn_buf_t
 	var pdu C.snmp_pdu_t
 
@@ -609,6 +617,10 @@ func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, SnmpCode
 		return nil, err
 	}
 
+	if is_dump {
+		C.snmp_pdu_dump(&pdu)
+	}
+
 	var ok bool = false
 	if uint32(SNMP_V3) == pdu.version {
 		var v3 V3PDU
@@ -627,40 +639,9 @@ func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, SnmpCode
 	return nil, err
 }
 
-// func DecodePDU(bytes []byte, priv_type PrivType, priv_key []byte) (PDU, error) {
-//	var buffer C.asn_buf_t
-//	var pdu C.snmp_pdu_t
-//	var recv_len C.int32_t
-
-//	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))
-//	buffer.asn_len = C.size_t(len(bytes))
-
-//	C.snmp_pdu_init(&pdu)
-//	pdu.user.priv_proto = uint32(priv_type)
-//	err := memcpy(&pdu.user.priv_key[0], C.SNMP_PRIV_KEY_SIZ, priv_key)
-//	if nil != err {
-//		return nil, errors.New("set priv_key failed - " + err.Error())
-//	}
-//	pdu.user.priv_len = C.size_t(len(priv_key))
-
-//	ret_code := C.snmp_pdu_decode(&buffer, &pdu, &recv_len)
-//	if 0 != ret_code {
-//		err = errors.New(C.GoString(C.snmp_pdu_get_error(&pdu, ret_code)))
-//		return nil, err
-//	}
-//	defer C.snmp_pdu_free(&pdu)
-
-//	if uint32(SNMP_V3) == pdu.version {
-//		var v3 V3PDU
-//		return &v3, v3.decodePDU(&pdu)
-//	}
-//	var v2 V2CPDU
-//	return &v2, v2.decodePDU(&pdu)
-// }
-
-func EncodePDU(pdu PDU) ([]byte, SnmpCodeError) {
+func EncodePDU(pdu PDU, is_dump bool) ([]byte, SnmpCodeError) {
 	if pdu.GetVersion() != SNMP_V3 {
-		return pdu.(*V2CPDU).encodePDU()
+		return pdu.(*V2CPDU).encodePDU(is_dump)
 	}
-	return pdu.(*V3PDU).encodePDU()
+	return pdu.(*V3PDU).encodePDU(is_dump)
 }

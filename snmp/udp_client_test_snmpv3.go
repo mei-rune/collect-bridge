@@ -40,7 +40,7 @@ func TestDisconnectWhitv3Pdu(t *testing.T) {
 		listener.TrapWith(func(svr *snmpTestServer, count int, bytes []byte) {
 			var pdu PDU
 
-			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil)
+			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil, true)
 			switch count {
 			case 1:
 				if 0 != pdu.GetVariableBindings().Len() {
@@ -110,7 +110,7 @@ func TestDisconnectAndReconnectWhitv3Pdu(t *testing.T) {
 			var pdu PDU
 
 			trapCount = count
-			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil)
+			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil, true)
 			switch count {
 			case 1:
 				if 0 != pdu.GetVariableBindings().Len() {
@@ -215,7 +215,7 @@ func TestReadOkWhitv3Pdu(t *testing.T) {
 		listener.TrapWith(func(svr *snmpTestServer, count int, bytes []byte) {
 			var pdu PDU
 
-			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil)
+			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil, true)
 			switch count {
 			case 1:
 				if 0 != pdu.GetVariableBindings().Len() {
@@ -266,7 +266,7 @@ func TestAuthFailureWhitv3Pdu(t *testing.T) {
 		listener.TrapWith(func(svr *snmpTestServer, count int, bytes []byte) {
 			var pdu PDU
 
-			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil)
+			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil, true)
 			switch count {
 			case 1:
 				if 0 != pdu.GetVariableBindings().Len() {
@@ -315,7 +315,7 @@ func TestPrivFailureWhitv3Pdu(t *testing.T) {
 		listener.TrapWith(func(svr *snmpTestServer, count int, bytes []byte) {
 			var pdu PDU
 
-			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil)
+			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil, true)
 			switch count {
 			case 1:
 				if 0 != pdu.GetVariableBindings().Len() {
@@ -371,7 +371,7 @@ func TestAutoRedisconverWhitEngineIdTimeout(t *testing.T) {
 		listener.TrapWith(func(svr *snmpTestServer, count int, bytes []byte) {
 			var pdu PDU
 			sq_count = count
-			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil)
+			pdu, trapError = DecodePDU(bytes, SNMP_PRIV_NOPRIV, nil, true)
 			switch count {
 			case 1:
 				if 0 != pdu.GetVariableBindings().Len() {

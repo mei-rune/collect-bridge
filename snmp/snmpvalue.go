@@ -181,9 +181,39 @@ func (s *SnmpOid) GetUint64() uint64 {
 	return 0
 }
 
+func (s *SnmpOid) Concat(i ...int) SnmpOid {
+	result := make([]uint32, len(*s), len(*s)+len(i))
+	copy(result, *s)
+	for _, a := range i {
+		result = append(result, uint32(a))
+	}
+	return SnmpOid(result)
+}
+
 func (oid *SnmpOid) GetString() string {
-	if 0 == len(*oid) {
+	switch len(*oid) {
+	case 0:
 		return ""
+	case 1:
+		return strconv.FormatUint(uint64((*oid)[0]), 10)
+	case 2:
+		return strconv.FormatUint(uint64((*oid)[0]), 10) + "." +
+			strconv.FormatUint(uint64((*oid)[1]), 10)
+	case 3:
+		return strconv.FormatUint(uint64((*oid)[0]), 10) + "." +
+			strconv.FormatUint(uint64((*oid)[1]), 10) + "." +
+			strconv.FormatUint(uint64((*oid)[2]), 10)
+	case 4:
+		return strconv.FormatUint(uint64((*oid)[0]), 10) + "." +
+			strconv.FormatUint(uint64((*oid)[1]), 10) + "." +
+			strconv.FormatUint(uint64((*oid)[2]), 10) + "." +
+			strconv.FormatUint(uint64((*oid)[3]), 10)
+	case 5:
+		return strconv.FormatUint(uint64((*oid)[0]), 10) + "." +
+			strconv.FormatUint(uint64((*oid)[1]), 10) + "." +
+			strconv.FormatUint(uint64((*oid)[2]), 10) + "." +
+			strconv.FormatUint(uint64((*oid)[3]), 10) + "." +
+			strconv.FormatUint(uint64((*oid)[4]), 10)
 	}
 
 	var result bytes.Buffer

@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
+	"os"
 	"web"
 )
 
@@ -11,6 +13,17 @@ var (
 	cookies   = flag.String("cookies", "", "the static directory of http")
 )
 
+func mainHandle(rw *web.Context) {
+	errFile := "_log_/error.html"
+	_, err := os.Stat(errFile)
+	if err == nil || os.IsExist(err) {
+		content, _ := ioutil.ReadFile(errFile)
+		rw.WriteString(string(content))
+		return
+	}
+	rw.WriteString("Hello, World!")
+}
+
 func main() {
 	flag.Parse()
 	svr := web.NewServer()
@@ -18,6 +31,7 @@ func main() {
 	svr.Config.Address = *address
 	svr.Config.StaticDirectory = *directory
 	svr.Config.CookieSecret = *cookies
+	svr.Get("/", mainHandle)
 
 	registerSNMP(svr)
 

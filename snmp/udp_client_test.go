@@ -11,6 +11,69 @@ import (
 	"time"
 )
 
+func TestUdpClientTimeout(t *testing.T) {
+
+	var cl Client
+	var e error
+
+	defer func() {
+		if nil != cl && nil != cl.(commons.Startable) {
+			cl.(commons.Startable).Stop()
+		}
+	}()
+
+	cl, e = NewSnmpClient("127.0.0.1:161")
+	if nil != e {
+		t.Errorf("create snmp client failed - %s", e.Error())
+		return
+	}
+
+	client := cl.(*UdpClient)
+
+	e = client.Start()
+	if nil != e {
+		t.Errorf("start snmp client failed - %s", e.Error())
+		return
+	}
+
+	pdu, e := client.CreatePDU(SNMP_PDU_GET, SNMP_V1)
+	if nil != e {
+		t.Errorf("create pdu failed - %s", e.Error())
+		return
+	}
+
+	client.lastActive = time.Time{}
+
+	res, e := client.SendAndRecv(pdu, 2*time.Second)
+	if nil != e {
+		t.Logf("sendAndRecv pdu failed - %s", e.Error())
+	}
+
+	if nil == res {
+		t.Logf("sendAndRecv pdu failed - res is nil")
+	}
+
+	if client.lastActive.Add(2 * time.Second).After(time.Now()) {
+		t.Errorf("lastActive failed - expected is %s, actual is %s", time.Now().String(), client.lastActive.String())
+		return
+	}
+
+	e = client.Test()
+	if nil != e {
+		t.Errorf("test timeout failed - %s", e.Error())
+		return
+	}
+
+	client.lastActive = client.lastActive.Add(time.Duration(-1**deadTimeout*2) * time.Minute)
+
+	e = client.Test()
+	if nil == e {
+		t.Errorf("test timeout failed - expected return timeout - %s", client.lastActive.String())
+		return
+	}
+
+}
+
 func startServer(laddr, pdu_txt string) (net.PacketConn, net.Addr, *sync.WaitGroup, error) {
 	in, e := net.ListenPacket("udp", laddr)
 	if nil != e {

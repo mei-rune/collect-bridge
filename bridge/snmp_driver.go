@@ -165,11 +165,23 @@ func (bridge *SnmpDriver) Put(params map[string]string) (interface{}, error) {
 	return bridge.invoke(snmp.SNMP_PDU_SET, params)
 }
 
-func (bridge *SnmpDriver) Create(map[string]string) (bool, error) {
+func (bridge *SnmpDriver) Create(params map[string]string) (bool, error) {
 	return false, fmt.Errorf("not implemented")
 }
 
-func (bridge *SnmpDriver) Delete(map[string]string) (bool, error) {
+func (bridge *SnmpDriver) Delete(params map[string]string) (bool, error) {
+	v, ok := params["remove_clients"]
+	if ok && "true" == v {
+		host, _ := params["client"]
+		if "" != host {
+			bridge.RemoveClient(host)
+		} else {
+			bridge.RemoveAllClients()
+		}
+
+		return true, nil
+	}
+
 	return false, fmt.Errorf("not implemented")
 }
 

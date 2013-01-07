@@ -10,12 +10,16 @@ import (
 	"encoding/hex"
 	"errors"
 	"flag"
+	"fmt"
 	"net"
 	"time"
 	"unsafe"
 )
 
-var maxPDUSize = flag.Int("maxPDUSize", 10240, "set max size of pdu")
+var (
+	maxPDUSize  = flag.Int("maxPDUSize", 10240, "set max size of pdu")
+	deadTimeout = flag.Int("deadTimeout", 1, "set timeout(Minute) of client to dead")
+)
 
 type Request struct {
 	client *UdpClient
@@ -50,12 +54,37 @@ type UdpClient struct {
 	conn      *net.UDPConn
 	pendings  map[int]*Request
 	commons.Svc
+
+	lastActive time.Time
 }
 
 func NewSnmpClient(host string) (Client, SnmpCodeError) {
-	cl := &UdpClient{host: NormalizeAddress(host)}
+	cl := &UdpClient{host: NormalizeAddress(host), lastActive: time.Now()}
+	cl.Set(nil, func() { cl.safelyKillConnection() }, nil)
 	cl.pendings = make(map[int]*Request)
 	return cl, nil
+}
+
+func (client *UdpClient) Test() error {
+	values := client.SafelyCall(1*time.Minute, func() error {
+		if time.Now().After(client.lastActive.Add(time.Duration(*deadTimeout) * time.Minute)) {
+			return errors.New("time out")
+		}
+		return nil
+	})
+	switch len(values) {
+	case 0:
+		return errors.New("return empty.")
+	case 1:
+		if nil == values[0] {
+			return nil
+		} else if e, ok := values[0].(error); ok {
+			return e
+		} else {
+			return fmt.Errorf("call Test() and return a value, it is not error -[%T]%s.", values[0], values[0])
+		}
+	}
+	return fmt.Errorf("call Test() and return error - %v.", values)
 }
 
 func (client *UdpClient) CreatePDU(op SnmpType, version SnmpVersion) (PDU, SnmpCodeError) {
@@ -248,15 +277,23 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 		client.conn = nil
 		if err := recover(); nil != err {
 			client.WARN.Print(err)
+		} else {
+			client.WARN.Print("read connection complete, exit")
 		}
 		conn.Close()
 	}()
+
 	for {
 		var length int
 		var bytes []byte
 
 		bytes = make([]byte, *maxPDUSize)
 		length, err = conn.Read(bytes)
+
+		if !client.IsRunning() {
+			break
+		}
+
 		if nil != err {
 			client.WARN.Print(err)
 			break
@@ -272,7 +309,9 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 		}(bytes[:length])
 	}
 
-	client.Send(func() { client.handleDisConnection(err) })
+	if client.IsRunning() {
+		client.Send(func() { client.handleDisConnection(err) })
+	}
 }
 
 func (client *UdpClient) handleDisConnection(err error) {
@@ -366,6 +405,9 @@ complete:
 }
 
 func (client *UdpClient) handleSend(ctx commons.InvokedContext, pdu PDU) {
+
+	client.lastActive = time.Now()
+
 	var err error = nil
 	if nil == client.conn {
 		err = client.createConnect()

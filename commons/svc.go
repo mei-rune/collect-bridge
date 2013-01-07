@@ -12,6 +12,19 @@ import (
 	"time"
 )
 
+type TimeoutError struct {
+	message string
+}
+
+func (err *TimeoutError) Error() string {
+	return err.message
+}
+
+func IsTimeout(e error) bool {
+	_, ok := e.(*TimeoutError)
+	return ok
+}
+
 type PanicError struct {
 	message string
 	any     interface{}
@@ -53,6 +66,10 @@ const (
 type Startable interface {
 	Start() error
 	Stop()
+}
+
+type Testable interface {
+	Test() error
 }
 
 type InvokedContext interface {
@@ -139,6 +156,12 @@ func putCachedChannel(msg *message) {
 const (
 	status_inactive = 0
 	status_active   = 1
+
+	timeout_message = "time out"
+)
+
+var (
+	timeout_error = &TimeoutError{message: timeout_message}
 )
 
 type Svc struct {
@@ -201,6 +224,7 @@ func (svc *Svc) Start() (err error) {
 func (svc *Svc) IsRunning() bool {
 	return status_active == atomic.LoadInt32(&svc.status)
 }
+
 func (svc *Svc) Stop() {
 	if !atomic.CompareAndSwapInt32(&svc.status, status_active, status_inactive) {
 		svc.INFO.Printf("It is already exited\r\n")
@@ -222,7 +246,7 @@ func (svc *Svc) Stop() {
 	case <-msg.ch:
 		success = true
 	case <-time.After(5 * time.Minute):
-		panic(errors.New("time out"))
+		panic(timeout_message)
 	}
 	return
 }
@@ -252,7 +276,7 @@ end:
 
 func (svc *Svc) Send(function interface{}, args ...interface{}) {
 	if !svc.IsAlive() {
-		panic(errors.New("svc is stopped."))
+		panic("svc is stopped.")
 		return
 	}
 
@@ -271,20 +295,25 @@ func (svc *Svc) Send(function interface{}, args ...interface{}) {
 
 func panicArgumentsError(in, n int) {
 	if in < n {
-		panic(errors.New("call: Call with too few input arguments"))
+		panic("call: Call with too few input arguments")
 	}
-	panic(errors.New("call: Call with too many input arguments"))
+	panic("call: Call with too many input arguments")
 }
 
 func (svc *Svc) SafelyCall(timeout time.Duration, function interface{}, args ...interface{}) (results []interface{}) {
 
 	defer func() {
 		if recoverErr := recover(); nil != recoverErr {
-			err := NewPanicError("SafelyCall failed: ", recoverErr)
+			var err error
+			if recoverErr == timeout_message {
+				err = timeout_error
+			} else {
+				err = NewPanicError("SafelyCall failed: ", recoverErr)
+			}
 			switch {
 			case nil == results || 0 == len(results):
 				results = []interface{}{err}
-			case nil != results[len(results)].(error):
+			case nil != results[len(results)-1].(error):
 				results[len(results)-1] = NewTwinceError(results[len(results)-1].(error), err)
 			default:
 				results = append(results, err)
@@ -362,10 +391,10 @@ func (svc *Svc) innerCall(timeout time.Duration, function interface{}, args []in
 			success = true
 			results = resp.response.results
 		default:
-			panic(fmt.Errorf("unknown response type:", resp.response.responseType))
+			panic(fmt.Sprintf("unknown response type:", resp.response.responseType))
 		}
 	case <-time.After(timeout):
-		panic(errors.New("time out"))
+		panic(timeout_message)
 	}
 	return
 }
@@ -390,7 +419,7 @@ func serve(svc *Svc) {
 	}()
 
 	if 0 == svc.timeout {
-		svc.timeout = 10 * time.Second
+		svc.timeout = 5 * time.Second
 	}
 
 	if nil == svc.ch {

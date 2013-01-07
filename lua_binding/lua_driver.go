@@ -13,6 +13,7 @@ import (
 	"commons"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"runtime"
@@ -328,7 +329,7 @@ func NewLuaDriver() *LuaDriver {
 	driver.Name = "lua_driver"
 	driver.methods = make(map[string]*NativeMethod)
 	driver.Set(func() { driver.atStart() }, func() { driver.atStop() }, nil)
-	driver.CallbackWith(&NativeMethod{
+	err := driver.CallbackWith(&NativeMethod{
 		Name:  "get",
 		Read:  readCallArguments,
 		Write: writeCallResult,
@@ -399,7 +400,23 @@ func NewLuaDriver() *LuaDriver {
 			}
 			return 0, nil
 		},
-		Callback: nil})
+		Callback: nil}, &NativeMethod{
+		Name: "io_ext.enumerate_files",
+		Read: func(drv *LuaDriver, ctx *Continuous) {
+			ctx.StringValue, ctx.Error = ctx.ToStringParam(2)
+		},
+		Write: writeCallResult,
+		Callback: func(lua *LuaDriver, ctx *Continuous) {
+			if nil != ctx.Error {
+				ctx.Any = nil
+				return
+			}
+			ctx.Any, ctx.Error = commons.EnumerateFiles(ctx.StringValue)
+		}})
+
+	if nil != err {
+		log.Panicln(err)
+	}
 	return driver
 }
 
@@ -411,11 +428,16 @@ func (self *LuaDriver) CallbackWith(methods ...*NativeMethod) error {
 		if "" == m.Name {
 			return errors.New("'name' is empty.")
 		}
-		if nil == m.Callback {
+		if nil == m.Callback && nil == m.Write {
 			return errors.New("'callback' of '" + m.Name + "' is nil.")
 		}
 		if _, ok := self.methods[m.Name]; ok {
 			return errors.New("'" + m.Name + "' is already exists.")
+		}
+		if nil != self.DEBUG {
+			self.DEBUG.Printf("register function '%s'", m.Name)
+		} else {
+			log.Printf("register function '%s'\n", m.Name)
 		}
 		self.methods[m.Name] = m
 	}
@@ -674,7 +696,7 @@ func (self *LuaDriver) newContinuous(action string, params map[string]string) *C
 	switch ctx.status {
 	case LUA_EXECUTE_CONTINUE:
 		ctx.status = LUA_EXECUTE_FAILED
-		ctx.Error = errors.New("Synchronization call is prohibited while the process of creating thread.")
+		ctx.Error = errors.New("synchronization call is prohibited while the process of creating thread.")
 		return ctx
 	case LUA_EXECUTE_END:
 		ctx.status = LUA_EXECUTE_FAILED

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metric name="interface"  lastModified="2009-12-23T12:12:12" xmlns="http://schemas.meijing.com.cn/mdbs/1/metricDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/mdbs/1/metricDefinitions metric_definitions.xsd">
+	<property name="IfIndex">
+		<restriction base="integer">
+			<defaultValue>0</defaultValue>
+		</restriction>
+	</property>
+	<property name="Description">
+		<restriction base="string">
+			<defaultValue>mfk</defaultValue>
+			<minLength>3</minLength>
+			<maxLength>13</maxLength>
+		</restriction>
+	</property>
+</metric>

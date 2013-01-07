@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metric name="interface"  lastModified="2009-12-23T12:12:12" xmlns="http://schemas.meijing.com.cn/mdbs/1/metricDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/mdbs/1/metricDefinitions metric_definitions.xsd">
+	<switch name="sys.oid">
+		<case value="1.2.3.4.5.6">
+			<match name="">
+				<gt value="9">
+				<gt 
+				<gt value="6"
+			</match>
+		<case>
+		<else>
+			<action oid="1.2.3.4.5.6.7.7.6.7.2">
+				<property name="" 
+			</action>
+		</else
+	</switch>
+</metric>

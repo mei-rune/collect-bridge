@@ -26,9 +26,13 @@ function mj.log(level, msg)
   coroutine.yield("log", level, msg)
 end
 
+function mj.invoke_native(action, ...)
+  return coroutine.yield(action, ...)
+end
+
 function mj.execute(schema, action, params)
   if "table" ~= type(params) then
-    return nil, "'params' is not a table."
+     return nil, "'params' is not a table."
   end
   return coroutine.yield(action, schema, params)
 end
@@ -95,6 +99,9 @@ function mj.loop()
     ext = ".dll"
     sep = "\\"
   end
+
+  mj.path_separator = sep
+  mj.execute_ext = ext
 
   if nil ~= __mj_execute_directory then
     package.path = package.path .. ";" .. mj.execute_directory .. sep .. "modules"..sep.."?.lua" ..

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"unsafe"
 )
 
@@ -375,7 +376,38 @@ func pushAny(ls *C.lua_State, any interface{}) {
 	case map[string]interface{}:
 		pushMap(ls, v)
 	default:
-		log.Panicf("unsupported type - %v", any)
+		val := reflect.ValueOf(any)
+		switch val.Kind() {
+		case reflect.Slice:
+			fallthrough
+		case reflect.Array:
+			C.lua_createtable(ls, 0, 0)
+			for i, l := 0, val.Len(); i < l; i++ {
+				pushAny(ls, val.Index(i).Interface())
+				C.lua_rawseti(ls, -2, C.int(i+1))
+			}
+		//case reflect.Struct:
+		//case reflect.Chan:
+		//case reflect.Func:
+		//case reflect.Interface:
+		// case reflect.Map:
+
+		// 	C.lua_createtable(ls, 0, 0)
+		// 	for _, k := range val.MapKeys() {
+		// 		cs := C.CString(k)
+		// 		pushAny(ls, v)
+		// 		C.lua_setfield(ls, -2, cs)
+
+		// 		C.free(unsafe.Pointer(cs))
+		// 		cs = nil
+
+		// 	}
+
+		case reflect.Ptr:
+			pushAny(ls, val.Interface())
+		default:
+			log.Panicf("unsupported type - (%T) %v", any, any)
+		}
 	}
 }
 

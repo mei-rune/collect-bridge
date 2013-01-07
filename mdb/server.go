@@ -405,7 +405,7 @@ func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 			if nil == pr {
 				pos := strings.LastIndex(nm, ".")
 				if -1 != pos {
-					pr, _ := properties[nm[0:pos]]
+					pr, _ = properties[nm[0:pos]]
 				}
 
 				if nil == pr {
@@ -419,7 +419,7 @@ func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 
 					if nil == pr {
 						if -1 != pos {
-							pr, _ := properties[nm[0:pos]]
+							pr, _ = properties[nm[0:pos]]
 						}
 
 						if nil == pr {
@@ -432,7 +432,7 @@ func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 
 		var ss []string
 		if '[' == exp[0] {
-			ss := strings.SplitN(exp[1:], "]", 2)
+			ss = strings.SplitN(exp[1:], "]", 2)
 		} else {
 			ss = nil
 		}

@@ -331,6 +331,11 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 			client.WARN.Print(err.Error())
 			goto complete
 		}
+
+		if client.DEBUG.IsEnabled() {
+			C.snmp_pdu_dump(&pdu)
+		}
+
 		var v3 V3PDU
 		_, err = v3.decodePDU(&pdu)
 		result = &v3
@@ -345,6 +350,10 @@ func (client *UdpClient) handleRecv(bytes []byte) {
 		if !ok {
 			client.WARN.Printf("not found request with requestId = %d.\r\n", int(pdu.request_id))
 			return
+		}
+
+		if client.DEBUG.IsEnabled() {
+			C.snmp_pdu_dump(&pdu)
 		}
 
 		var v2 V2CPDU
@@ -422,7 +431,7 @@ func (client *UdpClient) sendPdu(pdu PDU, ctx commons.InvokedContext, callback f
 		goto failed
 	}
 
-	bytes, err = EncodePDU(pdu)
+	bytes, err = EncodePDU(pdu, client.DEBUG.IsEnabled())
 	if nil != err {
 		err = newError(err.Code(), err, "encode pdu failed")
 		goto failed
@@ -437,8 +446,8 @@ func (client *UdpClient) sendPdu(pdu PDU, ctx commons.InvokedContext, callback f
 		goto failed
 	}
 
-	if client.INFO.IsEnabled() {
-		client.INFO.Print("snmp - send success, " + pdu.String())
+	if client.DEBUG.IsEnabled() {
+		client.DEBUG.Print("snmp - send success, " + pdu.String())
 	}
 
 	return

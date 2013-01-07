@@ -178,13 +178,18 @@ func TestPropertyOverride(t *testing.T) {
 	bossp := boss.Properties["Job"]
 	managerp := manager.Properties["Job"]
 
+	t.Log(employee.Children)
+	a.Check(t, len(employee.Children), a.Equals, 2, a.Commentf("check the children of employee"))
+	a.Check(t, employee.Children[0], a.Equals, boss, a.Commentf("check the children[0] of employee is boss"))
+	a.Check(t, employee.Children[1], a.Equals, manager, a.Commentf("check the children[0] of employee is manager"))
+
 	a.Check(t, employeep, a.NotNil)
 	a.Check(t, bossp, a.NotNil)
 	a.Check(t, managerp, a.NotNil)
 
-	a.Check(t, employeep.DefaultValue, a.DeepEquals, SqlString("developer"), a.Commentf("check the defaultValue of employee"))
-	a.Check(t, bossp.DefaultValue, a.DeepEquals, SqlString("boss"), a.Commentf("check the defaultValue of boss"))
-	a.Check(t, managerp.DefaultValue, a.DeepEquals, SqlString("manager"), a.Commentf("check the defaultValue of manager"))
+	a.Check(t, employeep.DefaultValue, a.DeepEquals, "developer", a.Commentf("check the defaultValue of employee"))
+	a.Check(t, bossp.DefaultValue, a.DeepEquals, "boss", a.Commentf("check the defaultValue of boss"))
+	a.Check(t, managerp.DefaultValue, a.DeepEquals, "manager", a.Commentf("check the defaultValue of manager"))
 
 	if nil != employeep.Restrictions && 0 != len(employeep.Restrictions) {
 		t.Errorf("check the restrictions of employee")

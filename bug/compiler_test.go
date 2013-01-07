@@ -12,8 +12,8 @@ func TestCompiler(t *testing.T) {
 		s, ok := testSlice[0].(string)
 		fmt.Println(ok, s)
 	}
-	// for i, c := range testSlice {
-	//	s, ok := c.(string)
-	//	fmt.Println(i, ok, s)
-	// }
+	for i, c := range testSlice {
+		s, ok := c.(string)
+		fmt.Println(i, ok, s)
+	}
 }

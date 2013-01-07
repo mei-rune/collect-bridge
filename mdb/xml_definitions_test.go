@@ -280,7 +280,7 @@ func TestXML1(t *testing.T) {
 	assertProperty(&employee.Properties[0], &XMLPropertyDefinition{Name: "Job",
 		Restrictions: XMLRestrictionsDefinition{Type: "string",
 			Required: &XMLRequired{XMLName: xml.Name{Space: "http://schemas.meijing.com.cn/mdbs/1/typeDefinitions", Local: "required"}}}}, 0)
-	assertProperty(&employee.Properties[1], &XMLPropertyDefinition{Name: "company_id",
+	assertProperty(&employee.Properties[1], &XMLPropertyDefinition{Name: "company_test_id",
 		Restrictions: XMLRestrictionsDefinition{Type: "string"}}, 0)
 
 	a.Check(t, company.Name, a.Equals, "Company", a.Commentf("check Class company.name"))
@@ -295,7 +295,7 @@ func TestXML1(t *testing.T) {
 	// 	t.Errorf("", len(xmlDefinitions.Definitions))
 	// 	return
 	// }
-	assertBelongsTo(&employee.BelongsTo[0], &XMLBelongsTo{Target: "Company", Name: "company_id"}, 0)
+	assertBelongsTo(&employee.BelongsTo[0], &XMLBelongsTo{Target: "Company", Name: "company_test_id"}, 0)
 	assertHasMany(&company.HasMany[0], &XMLHasMany{Target: "Employee"}, 0)
 
 }

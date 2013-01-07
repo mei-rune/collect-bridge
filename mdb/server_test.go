@@ -1,7 +1,6 @@
 package mdb
 
 import (
-	a "commons/assert"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"reflect"
@@ -10,6 +9,9 @@ import (
 )
 
 var (
+	personName    = "persons"
+	personClsName = "Person"
+
 	person1_attributes = map[string]interface{}{"ID1": int64(12),
 		"Name":     "mmm",
 		"Name2":    "m22",
@@ -20,12 +22,12 @@ var (
 		"Sex":      "female",
 		"Password": "12344"}
 
-	person1_saved_attributes = map[string]interface{}{"ID1": SqlInteger64(12),
-		"Name":     SqlString("mmm"),
-		"Name2":    SqlString("m22"),
-		"Age":      SqlInteger64(23),
-		"Mony":     SqlDecimal(2.01),
-		"Sex":      SqlString("female"),
+	person1_saved_attributes = map[string]interface{}{"ID1": int64(12),
+		"Name":     string("mmm"),
+		"Name2":    string("m22"),
+		"Age":      int64(23),
+		"Mony":     float64(2.01),
+		"Sex":      string("female"),
 		"Password": SqlPassword("12344")}
 
 	person1_update_attributes = map[string]interface{}{"ID1": int64(22),
@@ -83,14 +85,17 @@ func newServer(t *testing.T) (*mgo.Session, *mgo.Database, *mdb_server) {
 
 	db := sess.DB("test")
 
-	return sess, db, &mdb_server{definitions: definitions, driver: &mgo_driver{session: db}}
+	return sess, db, &mdb_server{definitions: definitions, session: db}
 }
 
 func TestSimpleInsertByServer(t *testing.T) {
 
-	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
-		person := svr.definitions.Find("Person")
-		a.Assert(t, person, a.NotNil, a.Commentf("person class is not nil"))
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
+		person := svr.definitions.Find(personClsName)
+		if nil == person {
+			t.Error("Person is not defined")
+			return
+		}
 
 		id, err := svr.Create(person, person1_attributes)
 		if nil != err {
@@ -101,14 +106,16 @@ func TestSimpleInsertByServer(t *testing.T) {
 					t.Errorf(e.Error())
 				}
 			}
+			return
 		}
 		if "" == id {
 			t.Error("result.id of insert is nil")
+			return
 		}
 		t.Log("id=", id)
 
 		var result bson.M
-		err = db.C("Person").FindId(id).One(&result)
+		err = db.C(personName).FindId(id).One(&result)
 		if nil != err {
 			t.Error(err)
 		} else {
@@ -135,9 +142,12 @@ func TestSimpleInsertByServer(t *testing.T) {
 
 func TestSimpleUpdateByServer(t *testing.T) {
 
-	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
-		person := svr.definitions.Find("Person")
-		a.Assert(t, person, a.NotNil, a.Commentf("person class is not nil"))
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
+		person := svr.definitions.Find(personClsName)
+		if nil == person {
+			t.Error("Person is not defined")
+			return
+		}
 
 		id, err := svr.Create(person, person1_attributes)
 		if nil != err {
@@ -148,9 +158,11 @@ func TestSimpleUpdateByServer(t *testing.T) {
 					t.Errorf(e.Error())
 				}
 			}
+			return
 		}
 		if "" == id {
 			t.Error("result.id of insert is nil")
+			return
 		}
 		t.Log("id=", id)
 
@@ -163,10 +175,11 @@ func TestSimpleUpdateByServer(t *testing.T) {
 					t.Errorf(e.Error())
 				}
 			}
+			return
 		}
 
 		var result bson.M
-		err = db.C("Person").FindId(id).One(&result)
+		err = db.C(personName).FindId(id).One(&result)
 		if nil != err {
 			t.Error(err)
 		} else {
@@ -199,9 +212,12 @@ func TestSimpleUpdateByServer(t *testing.T) {
 }
 
 func TestSimpleFindByidByServer(t *testing.T) {
-	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
-		person := svr.definitions.Find("Person")
-		a.Assert(t, person, a.NotNil, a.Commentf("person class is not nil"))
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
+		person := svr.definitions.Find(personClsName)
+		if nil == person {
+			t.Error("Person is not defined")
+			return
+		}
 
 		id, err := svr.Create(person, person1_attributes)
 		if nil != err {
@@ -221,7 +237,7 @@ func TestSimpleFindByidByServer(t *testing.T) {
 		t.Log("id=", id)
 
 		var result bson.M
-		err = db.C("Person").FindId(id).One(&result)
+		err = db.C(personName).FindId(id).One(&result)
 		if nil != err {
 			t.Error(err)
 			return
@@ -254,12 +270,13 @@ func TestSimpleFindByidByServer(t *testing.T) {
 	})
 }
 
-func TestSimpleDeleteByidByServer(t *testing.T) {
-
-	simpleTest(t, []string{"Person"}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
-
-		person := svr.definitions.Find("Person")
-		a.Assert(t, person, a.NotNil, a.Commentf("person class is not nil"))
+func TestSimpleQueryByServer(t *testing.T) {
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
+		person := svr.definitions.Find(personClsName)
+		if nil == person {
+			t.Error("Person is not defined")
+			return
+		}
 
 		id, err := svr.Create(person, person1_attributes)
 		if nil != err {
@@ -279,7 +296,72 @@ func TestSimpleDeleteByidByServer(t *testing.T) {
 		t.Log("id=", id)
 
 		var result bson.M
-		err = db.C("Person").FindId(id).One(&result)
+		err = db.C(personName).FindId(id).One(&result)
+		if nil != err {
+			t.Error(err)
+			return
+		}
+		results, err := svr.FindBy(person, map[string]string{"_id": id.(bson.ObjectId).Hex()})
+		if nil != err {
+			t.Errorf(err.Error())
+			merr, _ := err.(*MutiErrors)
+			if nil != merr && nil != merr.errs {
+				for _, e := range merr.errs {
+					t.Errorf(e.Error())
+				}
+			}
+			return
+		}
+
+		if 1 != len(results) {
+			t.Errorf("result is empty")
+			return
+		}
+
+		db_attributes := results[0]
+		for k, v2 := range db_attributes {
+			if "_id" == k {
+				continue
+			}
+
+			v1, ok := person1_saved_attributes[k]
+			if !ok {
+				t.Error("'" + k + "' is not exists.")
+			} else if !reflect.DeepEqual(v1, v2) {
+				t.Errorf("'"+k+"' is not equals, excepted is [%T]%v, actual is [%T]%v.",
+					v1, v1, v2, v2)
+			}
+		}
+	})
+}
+
+func TestSimpleDeleteByidByServer(t *testing.T) {
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
+		person := svr.definitions.Find(personClsName)
+		if nil == person {
+			t.Error("Person is not defined")
+			return
+		}
+
+		id, err := svr.Create(person, person1_attributes)
+		if nil != err {
+			t.Errorf(err.Error())
+			merr, _ := err.(*MutiErrors)
+			if nil != merr && nil != merr.errs {
+				for _, e := range merr.errs {
+					t.Errorf(e.Error())
+				}
+			}
+			return
+		}
+		if "" == id {
+			t.Error("result.id of insert is nil")
+			return
+		}
+		t.Log("id=", id)
+
+		var result bson.M
+		err = db.C(personName).FindId(id).One(&result)
 		if nil != err {
 			t.Error(err)
 			return
@@ -291,7 +373,7 @@ func TestSimpleDeleteByidByServer(t *testing.T) {
 			return
 		}
 
-		err = db.C("Person").FindId(id).One(&result)
+		err = db.C(personName).FindId(id).One(&result)
 		if nil == err {
 			t.Error("remove failed")
 			return
@@ -311,9 +393,9 @@ func simpleTest(t *testing.T, params []string,
 		db.C(s).DropCollection()
 	}
 	defer func() {
-		for _, s := range params {
-			db.C(s).DropCollection()
-		}
+		//for _, s := range params {
+		//	db.C(s).DropCollection()
+		//}
 		sess.Close()
 	}()
 

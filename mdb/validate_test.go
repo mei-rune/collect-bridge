@@ -8,19 +8,19 @@ import (
 
 func TestDate(t *testing.T) {
 
-	v1, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:11")
-	v2, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:12")
-	v3, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:13")
-	v4, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:14")
-	v5, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:15")
-	v6, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:16")
+	value1, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:11")
+	value2, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:12")
+	value3, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:13")
+	value4, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:14")
+	value5, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:15")
+	value6, _ := time.Parse("2006-01-02 15:04:05", "2009-10-11 12:12:16")
 
-	value1 := SqlDateTime(v1)
-	value2 := SqlDateTime(v2)
-	value3 := SqlDateTime(v3)
-	value4 := SqlDateTime(v4)
-	value5 := SqlDateTime(v5)
-	value6 := SqlDateTime(v6)
+	// value1 := SqlDateTime(v1)
+	// value2 := SqlDateTime(v2)
+	// value3 := SqlDateTime(v3)
+	// value4 := SqlDateTime(v4)
+	// value5 := SqlDateTime(v5)
+	// value6 := SqlDateTime(v6)
 
 	var validator DateValidator
 
@@ -68,12 +68,12 @@ func TestDate(t *testing.T) {
 }
 
 func TestInteger(t *testing.T) {
-	var value1 SqlInteger64 = SqlInteger64(1)
-	var value2 SqlInteger64 = SqlInteger64(2)
-	var value3 SqlInteger64 = SqlInteger64(3)
-	var value4 SqlInteger64 = SqlInteger64(4)
-	var value5 SqlInteger64 = SqlInteger64(5)
-	var value6 SqlInteger64 = SqlInteger64(6)
+	var value1 int64 = int64(1)
+	var value2 int64 = int64(2)
+	var value3 int64 = int64(3)
+	var value4 int64 = int64(4)
+	var value5 int64 = int64(5)
+	var value6 int64 = int64(6)
 
 	var validator IntegerValidator
 
@@ -122,12 +122,12 @@ func TestInteger(t *testing.T) {
 
 func TestDouble(t *testing.T) {
 
-	var value1 SqlDecimal = 1.0
-	var value2 SqlDecimal = 2.0
-	var value3 SqlDecimal = 3.0
-	var value4 SqlDecimal = 4.0
-	var value5 SqlDecimal = 5.0
-	var value6 SqlDecimal = 6.0
+	var value1 float64 = 1.0
+	var value2 float64 = 2.0
+	var value3 float64 = 3.0
+	var value4 float64 = 4.0
+	var value5 float64 = 5.0
+	var value6 float64 = 6.0
 
 	var validator DecimalValidator
 
@@ -176,12 +176,12 @@ func TestDouble(t *testing.T) {
 
 func TestString(t *testing.T) {
 
-	var value1 SqlString = "aaa1"
-	var value2 SqlString = "aaaa2"
-	var value3 SqlString = "aaaaa3"
-	var value4 SqlString = "aaaaaa4"
-	var value5 SqlString = "aaaaaaa5"
-	var value6 SqlString = "aaaaaaaa6"
+	var value1 string = "aaa1"
+	var value2 string = "aaaa2"
+	var value3 string = "aaaaa3"
+	var value4 string = "aaaaaa4"
+	var value5 string = "aaaaaaa5"
+	var value6 string = "aaaaaaaa6"
 
 	var checker Validator
 	var validator StringLengthValidator

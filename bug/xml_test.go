@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/xml"
-	"fmt"
 	"testing"
 )
 
@@ -12,8 +11,8 @@ type XMLTest struct {
 }
 
 type XMLEntity struct {
-	XMLName xml.Name `xml:"test2"`
-	Value   string   `xml:value`
+	XMLName xml.Name `xml:"t"`
+	Value   string   `xml:"value"`
 }
 
 func TestXml(t *testing.T) {
@@ -22,12 +21,11 @@ func TestXml(t *testing.T) {
 	txt, _ := xml.Marshal(&t1)
 	err := xml.Unmarshal(txt, &t2)
 	if nil != err {
-		t.Error("read xml failed.")
+		t.Errorf("read xml failed - %v", err)
 	}
 
 	if nil == t2.Ts || 0 == len(t2.Ts) {
-		fmt.Print(xml.Header)
-		fmt.Println(string(txt))
+		t.Log(string(txt))
 		t.Error("test xml failed.")
 	}
 }

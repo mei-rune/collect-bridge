@@ -63,6 +63,25 @@ func objectFindById(ctx *web.Context, driver *mdb_server, objectType, id string)
 	ctx.Write(bytes)
 }
 
+func objectFindBy(ctx *web.Context, driver *mdb_server, objectType string) {
+
+	definition := driver.definitions.Find(objectType)
+	if nil == definition {
+		log.Panicln("class '" + objectType + "' is not found")
+	}
+
+	results, err := driver.FindBy(definition, ctx.QueryParams)
+	if err != nil {
+		log.Panicln("query result from db, " + err.Error())
+	}
+	bytes, err := json.Marshal(results)
+	if err != nil {
+		log.Panicln("convert result to json failed, " + err.Error())
+	}
+
+	ctx.Write(bytes)
+}
+
 func objectUpdateById(ctx *web.Context, driver *mdb_server, objectType, id string) {
 	var result map[string]interface{}
 	definition := driver.definitions.Find(objectType)
@@ -117,12 +136,13 @@ func main() {
 
 	sess.SetSafe(&mgo.Safe{W: 1, FSync: true, J: true})
 
-	driver := &mdb_server{driver: &mgo_driver{session: sess.DB(*mgoDB)}}
+	driver := &mdb_server{session: sess.DB(*mgoDB)}
 
 	svr.Get("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectFindById(ctx, driver, objectType, id) })
 	svr.Put("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectUpdateById(ctx, driver, objectType, id) })
 	svr.Delete("/mdb/(.*)/(.*)", func(ctx *web.Context, objectType, id string) { objectDeleteById(ctx, driver, objectType, id) })
 	svr.Post("/mdb/(.*)", func(ctx *web.Context, objectType string) { objectCreate(ctx, driver, objectType) })
+	svr.Get("/mdb/(.*)", func(ctx *web.Context, objectType string) { objectFindBy(ctx, driver, objectType) })
 
 	svr.Run()
 }

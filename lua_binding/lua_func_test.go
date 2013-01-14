@@ -6,6 +6,139 @@ import (
 	"testing"
 )
 
+func TestExistFile(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.Name = "TestExistFile"
+	drv.Start()
+	defer func() {
+		drv.Stop()
+	}()
+	params := map[string]string{"schema": "test_exist_file", "file": "a.txt"}
+	v, e := drv.Get(params)
+	if nil != e {
+		t.Error(e)
+		t.FailNow()
+	}
+
+	s, ok := v.(bool)
+	if !ok {
+		t.Log(v, e)
+		t.Errorf("return is not a bool, %T", v)
+		return
+	}
+
+	if !s {
+		t.Log(v, e)
+		t.Errorf("return != 'true', it is %s", s)
+		return
+	}
+
+	params = map[string]string{"schema": "test_exist_file", "file": "aaaaaaaaaaaaaaaaa.txt"}
+	v, e = drv.Get(params)
+	if nil != e {
+		t.Error(e)
+		t.FailNow()
+	}
+
+	s, ok = v.(bool)
+	if !ok {
+		t.Log(v, e)
+		t.Errorf("return is not a bool, %T", v)
+		return
+	}
+
+	if s {
+		t.Log(v, e)
+		t.Errorf("return != 'false', it is %s", s)
+		return
+	}
+}
+
+func TestExistDirectory(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.Name = "TestExistDirectory"
+	drv.Start()
+	defer func() {
+		drv.Stop()
+	}()
+	params := map[string]string{"schema": "test_exist_directory", "path": "enumerate_files"}
+	v, e := drv.Get(params)
+	if nil != e {
+		t.Error(e)
+		t.FailNow()
+	}
+
+	s, ok := v.(bool)
+	if !ok {
+		t.Log(v, e)
+		t.Errorf("return is not a bool, %T", v)
+		return
+	}
+
+	if !s {
+		t.Log(v, e)
+		t.Errorf("return != 'true', it is %s", s)
+		return
+	}
+
+	params = map[string]string{"schema": "test_exist_directory", "path": "aaaaaaaaaaaaaaaaa"}
+	v, e = drv.Get(params)
+	if nil != e {
+		t.Error(e)
+		t.FailNow()
+	}
+
+	s, ok = v.(bool)
+	if !ok {
+		t.Log(v, e)
+		t.Errorf("return is not a bool, %T", v)
+		return
+	}
+
+	if s {
+		t.Log(v, e)
+		t.Errorf("return != 'false', it is %s", s)
+		return
+	}
+}
+
+func TestCleanPath(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.Name = "TestCleanPath"
+	drv.Start()
+	defer func() {
+		drv.Stop()
+	}()
+	params := map[string]string{"schema": "test_clean_path", "path": "/../a/b/../././/c"}
+	v, e := drv.Get(params)
+	if nil != e {
+		t.Error(e)
+		t.FailNow()
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		t.Log(v, e)
+		t.Errorf("return is not a string, %T", v)
+		return
+	}
+
+	if "/a/c" != s {
+		t.Log(v, e)
+		t.Errorf("return != 'true', it is %s", s)
+		return
+	}
+}
+
 func TestEnumerateFiles(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 

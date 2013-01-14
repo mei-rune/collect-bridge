@@ -88,7 +88,7 @@ enum asn_err {
 
 /* type for the length field of encoded values. The length is restricted
  * to 65535, but using uint16_t would give conversion warnings on gcc */
-typedef uint32_t asn_len_t;	/* could be also uint16_t */
+typedef size_t asn_len_t;	/* could be also uint16_t */
 
 /* maximal length of a long length field without the length of the length */
 #define ASN_MAXLEN	65535
@@ -109,9 +109,9 @@ enum asn_err asn_get_integer_raw(asn_buf_t *, asn_len_t, int32_t *);
 enum asn_err asn_get_integer(asn_buf_t *, int32_t *);
 enum asn_err asn_put_integer(asn_buf_t *, int32_t);
 
-enum asn_err asn_get_octetstring_raw(asn_buf_t *, asn_len_t, u_char *, u_int *);
-enum asn_err asn_get_octetstring(asn_buf_t *, u_char *, u_int *);
-enum asn_err asn_put_octetstring(asn_buf_t *, const u_char *, u_int);
+enum asn_err asn_get_octetstring_raw(asn_buf_t *, asn_len_t, u_char *, asn_len_t *);
+enum asn_err asn_get_octetstring(asn_buf_t *, u_char *, asn_len_t *);
+enum asn_err asn_put_octetstring(asn_buf_t *, const u_char *, asn_len_t);
 
 enum asn_err asn_get_null_raw(asn_buf_t *b, asn_len_t);
 enum asn_err asn_get_null(asn_buf_t *);

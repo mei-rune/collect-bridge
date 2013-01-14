@@ -137,14 +137,20 @@ static const struct {
 };
 
 const char* snmp_get_error(enum snmp_code code) {
-	assert(code == error_strings[code].code);
+	if(code != error_strings[code].code) {
+            printf("%s\n", "sssssssssssssssssssssssssssssssssssssss - snmp_get_error");
+        return NULL;
+    }
 	return error_strings[code].str;
 }
 const char* snmp_pdu_get_error(snmp_pdu_t *pdu, enum snmp_code code) {
     if (SNMP_CODE_ERR_GOFUNCTION == code) {
         return pdu->error_message;
     }
-    assert(code == error_strings[code].code);
+    if(code != error_strings[code].code) {
+            printf("%s\n", "sssssssssssssssssssssssssssssssssssssss - snmp_pdu_get_error");
+        return NULL;
+    }
     return error_strings[code].str;
 }
 
@@ -541,7 +547,7 @@ enum snmp_code snmp_pdu_decode(asn_buf_t *b, snmp_pdu_t *pdu, int32_t *ip)
 enum snmp_code snmp_pdu_decode_header(asn_buf_t *b, snmp_pdu_t *pdu)
 {
     int32_t version;
-    u_int octs_len;
+    asn_len_t octs_len;
     asn_len_t len;
 
     pdu->outer_ptr = b->asn_ptr;

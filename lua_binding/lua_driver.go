@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -279,6 +280,42 @@ func NewLuaDriver() *LuaDriver {
 				return
 			}
 			ctx.Any, ctx.Error = commons.EnumerateFiles(ctx.StringValue)
+		}}, &NativeMethod{
+		Name: "io_ext.file_exists",
+		Read: func(drv *LuaDriver, ctx *Continuous) {
+			ctx.StringValue, ctx.Error = ctx.ToStringParam(2)
+		},
+		Write: writeCallResult,
+		Callback: func(lua *LuaDriver, ctx *Continuous) {
+			if nil != ctx.Error {
+				ctx.Any = nil
+				return
+			}
+			ctx.Any = commons.FileExists(ctx.StringValue)
+		}}, &NativeMethod{
+		Name: "io_ext.directory_exists",
+		Read: func(drv *LuaDriver, ctx *Continuous) {
+			ctx.StringValue, ctx.Error = ctx.ToStringParam(2)
+		},
+		Write: writeCallResult,
+		Callback: func(lua *LuaDriver, ctx *Continuous) {
+			if nil != ctx.Error {
+				ctx.Any = nil
+				return
+			}
+			ctx.Any = commons.DirExists(ctx.StringValue)
+		}}, &NativeMethod{
+		Name: "io_ext.clean",
+		Read: func(drv *LuaDriver, ctx *Continuous) {
+			ctx.StringValue, ctx.Error = ctx.ToStringParam(2)
+		},
+		Write: writeCallResult,
+		Callback: func(lua *LuaDriver, ctx *Continuous) {
+			if nil != ctx.Error {
+				ctx.Any = nil
+				return
+			}
+			ctx.Any = path.Clean(ctx.StringValue)
 		}})
 
 	if nil != err {
@@ -333,29 +370,35 @@ func (driver *LuaDriver) lua_init(ls *C.lua_State) C.int {
 	cs = nil
 
 	if len(os.Args) > 0 {
-		pa := path.Base(os.Args[0])
-		if fileExists(pa) {
-			pushString(ls, pa)
-			cs = C.CString("__mj_execute_directory")
-			C.lua_setglobal(ls, cs)
-			C.free(unsafe.Pointer(cs))
-			cs = nil
+		pa, e := filepath.Abs(os.Args[0])
+		if nil != e {
+			pa = os.Args[0]
 		}
+		pa = path.Clean(filepath.Dir(pa))
+		pushString(ls, pa)
+		cs = C.CString("__mj_execute_directory")
+		C.lua_setglobal(ls, cs)
+		C.free(unsafe.Pointer(cs))
+		cs = nil
 	}
 	wd, err := os.Getwd()
 	if nil == err {
-		pushString(ls, wd)
+		pa, e := filepath.Abs(wd)
+		if nil != e {
+			pa = wd
+		}
+		pushString(ls, path.Clean(pa))
 		cs = C.CString("__mj_work_directory")
 		C.lua_setglobal(ls, cs)
 		C.free(unsafe.Pointer(cs))
 		cs = nil
 
-		pa := path.Join(wd, driver.init_path)
-		if fileExists(pa) {
-			cs = C.CString(pa)
+		init_pa := path.Join(pa, driver.init_path)
+		if fileExists(init_pa) {
+			cs = C.CString(init_pa)
 			return C.luaL_loadfilex(ls, cs, nil)
 		}
-		driver.INFO.Printf("LuaDriver: '%s' is not exist.", pa)
+		driver.INFO.Printf("LuaDriver: '%s' is not exist.", init_pa)
 	}
 
 	if nil != cs {

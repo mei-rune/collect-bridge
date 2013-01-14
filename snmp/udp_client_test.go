@@ -159,6 +159,7 @@ func TestReturnNoSuchInstancePdu(t *testing.T) {
 
 		if nil == res {
 			t.Errorf("sendAndRecv pdu failed - res is nil")
+			return
 		}
 
 		if !res.GetVariableBindings().Get(0).Value.IsError() {

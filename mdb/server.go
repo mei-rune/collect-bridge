@@ -34,6 +34,8 @@ func init() {
 	operators["ne"] = op_ne
 	operators["lt"] = op_lt
 	operators["lte"] = op_lte
+
+	errors.New("")
 }
 
 func op_exist(pr *PropertyDefinition, s string) (interface{}, error) {

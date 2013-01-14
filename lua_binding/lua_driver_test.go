@@ -459,3 +459,34 @@ func TestDefer(t *testing.T) {
 
 	doFunc(false, t)
 }
+
+func TestInitFiles(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.Name = "TestInitFiles"
+	drv.Start()
+	defer func() {
+		drv.Stop()
+	}()
+	params := map[string]string{"schema": "test_init_ok"}
+	v, e := drv.Get(params)
+	if nil != e {
+		t.Error(e)
+		t.FailNow()
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		t.Log(v, e)
+		t.Errorf("return is not a string, %T", v)
+		t.FailNow()
+	}
+
+	if "test init ok" != s {
+		t.Log(v, e)
+		t.Error("return != 'test init ok', it is %s", s)
+		t.FailNow()
+	}
+}

@@ -68,7 +68,7 @@ enum snmp_syntax {
 typedef union snmp_values {
 	int32_t		integer;	/* also integer32 */
 	struct {
-	u_int		len;
+	size_t		len;
 	u_char		*octets;
 	}			octetstring;
 	asn_oid_t	oid;

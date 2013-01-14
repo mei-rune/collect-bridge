@@ -193,7 +193,10 @@ asn_put_temp_header(asn_buf_t *b, u_char type, u_char **ptr)
 		return (ASN_ERR_EOBUF);
 	*ptr = b->asn_ptr;
 	if ((ret = asn_put_header(b, type, ASN_MAXLEN)) == ASN_ERR_OK)
-		assert(b->asn_ptr == *ptr + TEMP_LEN);
+		if(b->asn_ptr != *ptr + TEMP_LEN) {
+			printf("%s - %d - %d\n", "sssssssssssssssssssssssssssssssssssssss - asn_put_temp_header", (size_t)b->asn_ptr,  (size_t)(*ptr + TEMP_LEN));
+			return (ASN_ERR_EOBUF);
+		}
 	return (ret);
 }
 enum asn_err
@@ -445,7 +448,7 @@ asn_put_integer(asn_buf_t *b, int32_t val)
  */
 enum asn_err
 asn_get_octetstring_raw(asn_buf_t *b, asn_len_t len, u_char *octets,
-    u_int *noctets)
+    asn_len_t *noctets)
 {
 	enum asn_err err = ASN_ERR_OK;
 
@@ -468,7 +471,7 @@ asn_get_octetstring_raw(asn_buf_t *b, asn_len_t len, u_char *octets,
 }
 
 enum asn_err
-asn_get_octetstring(asn_buf_t *b, u_char *octets, u_int *noctets)
+asn_get_octetstring(asn_buf_t *b, u_char *octets, asn_len_t *noctets)
 {
 	enum asn_err err;
 	u_char type;
@@ -484,7 +487,7 @@ asn_get_octetstring(asn_buf_t *b, u_char *octets, u_int *noctets)
 }
 
 enum asn_err
-asn_put_octetstring(asn_buf_t *b, const u_char *octets, u_int noctets)
+asn_put_octetstring(asn_buf_t *b, const u_char *octets, asn_len_t noctets)
 {
 	enum asn_err ret;
 

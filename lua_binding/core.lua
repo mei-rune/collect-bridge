@@ -166,27 +166,6 @@ function mj.execute_task(action, params)
 end
 
 function mj.loop()
-
-  local sep = mj.path_separator
-  local ext = mj.execute_ext
-
-  if nil ~= __mj_execute_directory then
-    package.path = package.path .. ";" .. mj.execute_directory .. sep .. "modules"..sep.."?.lua" ..
-       ";" .. mj.execute_directory .. sep .. "modules" .. sep .. "?" .. sep .. "init.lua"
-
-    package.cpath = package.cpath .. ";" .. mj.execute_directory .. sep .."modules" .. sep .. "?" .. ext ..
-        ";" .. mj.execute_directory .. sep .. "modules" .. sep .. "?" .. sep .. "loadall" .. ext
-  end
-
-  if nil ~= __mj_work_directory then
-    package.path = package.path .. ";" .. mj.work_directory .. sep .. "modules" .. sep .. "?.lua" ..
-       ";" .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. sep .. "init.lua"
-
-    package.cpath = package.cpath .. ";" .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. ext ..
-        ";" .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. sep .. "loadall" .. ext
-  end
-
-
   mj.log(mj.SYSTEM, "lua enter looping")
   local action, params = mj.receive()  -- get new value
   while "__exit__" ~= action do
@@ -210,6 +189,32 @@ mj.log(mj.SYSTEM, "welcome to lua vm on " .. mj.os .. "(" .. mj.arch .. ")")
 mj.log(mj.SYSTEM, "work_directory is '" .. mj.work_directory .. "'")
 mj.log(mj.SYSTEM, "execute_directory is '" .. mj.execute_directory .. "'")
 mj.log(mj.SYSTEM, "load init script file")
+
+do 
+  local sep = mj.path_separator
+  local ext = mj.execute_ext
+  local paths_sep = ":"
+
+  if mj.os == "windows" then
+    paths_sep = ";"
+  end
+
+  if nil ~= mj.execute_directory then
+    package.path = package.path .. paths_sep .. mj.execute_directory .. sep .. "modules"..sep.."?.lua" ..
+        paths_sep .. mj.execute_directory .. sep .. "modules" .. sep .. "?" .. sep .. "init.lua"
+
+    package.cpath = package.cpath .. paths_sep .. mj.execute_directory .. sep .."modules" .. sep .. "?" .. ext ..
+        paths_sep .. mj.execute_directory .. sep .. "modules" .. sep .. "?" .. sep .. "loadall" .. ext
+  end
+
+  if nil ~= mj.work_directory then
+    package.path = package.path .. paths_sep .. mj.work_directory .. sep .. "modules" .. sep .. "?.lua" ..
+        paths_sep .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. sep .. "init.lua"
+
+    package.cpath = package.cpath .. paths_sep .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. ext ..
+        paths_sep .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. sep .. "loadall" .. ext
+  end
+end
 
 for i, x in ipairs(mj.enumerate_scripts(".*_init%.lua$")) do
     mj.log(mj.SYSTEM, "load '" .. x .. "'")

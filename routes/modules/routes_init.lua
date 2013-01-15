@@ -1,11 +1,18 @@
-module("routes",  package.seeall)
+module("routes_init",  package.seeall)
 
-local route = ml.class()
-function route.equal(key, value)
+print(package.path)
+print(package.cpath)
 
+require 'routes'
+
+function filename(name)
+  pa = ml.splitpath(name)
+  return ml.splitext(pa)
 end
 
-local init_files = ml.Array(mj.enumerate_files(mj.join_path(mj.execute_directory, "modules")))
-if(mj.work_directory ~= mj.execute_directory) then
-  init_files = init_files .. mj.enumerate_files(mj.join_path(mj.work_directory, "modules"))
+for i, file in ipairs(mj.enumerate_scripts(".*_route%.lua$")) do
+  mj.log(mj.SYSTEM, "load route file -- '" .. file .. "'")
+  mj.routes[filename(file)] = routes.load_routefile(file)
 end
+
+mj.log(mj.SYSTEM, "load route file finished.")

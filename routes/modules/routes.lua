@@ -33,17 +33,25 @@ function route:and_with(f)
   return self
 end
 
-local get  = function(opts)
-  return opts
+local actions = {get= true, put=true, create=true, delete=true}
+function check_table_params_of_action(opts)
+  method = opts["method"]
+  if nil == method or not actions[method] then
+    error("please use 'get, put, create, delete' to create the action object")
+  end
+  schema = opts["schema"]
+  if nil == schema then
+    error("'schema' is required.")
+  end
 end
-local put  = function(opts)
-  error("put is not implemented")
-end
-local create  = function(opts)
-  error("create is not implemented")
-end
-local delete  = function(opts)
-  error("delete is not implemented")
+
+function check_action_options(opts)
+  if type(opts) ~= "table" then
+    error("argument must is a table[string,string]")
+  end
+  if nil ~= opts["method"] then
+    error("'method' is remain, user can`t use it.")
+  end
 end
 
 function load_routefile(file)
@@ -51,10 +59,26 @@ function load_routefile(file)
   rt.__index = _G
   ml.update(rt, _G)
   rt.route= route
-  rt.get = get
-  rt.put = put
-  rt.create = create
-  rt.delete = delete
+  rt.get = function(opts)
+    check_action_options(opts)
+    opts["method"] = "get"
+    return opts
+  end
+  rt.put = function(opts)
+    check_action_options(opts)
+    opts["method"] = "put"
+    return opts
+  end
+  rt.create = function(opts)
+    check_action_options(opts)
+    opts["method"] = "create"
+    return opts
+  end
+  rt.delete = function(opts)
+    check_action_options(opts)
+    opts["method"] = "delete"
+    return opts
+  end
 
 
 
@@ -90,6 +114,14 @@ function load_routefile(file)
   end
   if nil == action or "" == action then
     error("load '" .. file .."' failed, action is required")
+  end
+
+  if type(action) == "table" then
+    check_table_params_of_action(action)
+  elseif type(action) == "function" then
+    error("oooooops, I`m sorry, it is not implemented.")
+  else
+    error("argument must is a table[string,string] or function.")
   end
   
   return rt

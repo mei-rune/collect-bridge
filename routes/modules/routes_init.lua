@@ -1,8 +1,5 @@
 module("routes_init",  package.seeall)
 
-print(package.path)
-print(package.cpath)
-
 require 'routes'
 
 function filename(name)

@@ -1,16 +1,21 @@
 
--- name = 'interface'
+
+mj.log(mj.SYSTEM, "dump _ENV")
+for i, s in pairs(_ENV) do
+  if type(s) == "function" then
+  	mj.log(mj.SYSTEM, i .. "= function " .. table.concat(debug.getinfo(s), ", "))
+  elseif type(s) == "table" then
+  	mj.log(mj.SYSTEM, i .. "=" .. table.concat(s, "," ))
+  else
+  	mj.log(mj.SYSTEM, i .. "=" .. s)
+  end
+end
+
+
+name = 'interface'
 
 description = [[ xxxxxxx
 ]]
-
-for i, s in pairs(_ENV) do
-  if type(s) == "function" then
-  print(i .. "=" .. s())
-  else
-  print(i .. "=" .. s)
-  end
-end
 
 author = "Diman Todorov"
 
@@ -28,9 +33,9 @@ end)
 
 
 
-action = table {
-  
+action = get {  
 }
+
 -- or 
 -- action = function(param) {
 -- }

@@ -470,7 +470,7 @@ func TestInitFiles(t *testing.T) {
 	defer func() {
 		drv.Stop()
 	}()
-	params := map[string]string{"schema": "test_init_ok"}
+	params := map[string]string{"schema": "test_ok_init"}
 	v, e := drv.Get(params)
 	if nil != e {
 		t.Error(e)

@@ -4,14 +4,12 @@ const (
 	lua_init_script string = `
 local mj = {}
 
-
 mj.DEBUG = 9000
 mj.INFO = 6000
 mj.WARN = 4000
 mj.ERROR = 2000
 mj.FATAL = 1000
 mj.SYSTEM = 0
-
 
 mj.os = __mj_os or "unknown"  -- 386, amd64, or arm.
 mj.arch = __mj_arch or "unknown" -- darwin, freebsd, linux or windows
@@ -26,25 +24,35 @@ if mj.os == "windows" then
   mj.execute_ext = ".dll"
 end
 
-local ml_path1 = mj.work_directory .. mj.path_separator .. 'microlight' .. mj.path_separator .. 'ml.lua'
-local ml_path2 = mj.execute_directory .. mj.path_separator .. 'microlight' .. mj.path_separator .. 'ml.lua'
-local ml_path3 = mj.execute_directory .. mj.path_separator .. '../lua_binding/microlight' .. mj.path_separator .. 'ml.lua' -- for test
+local join_path_with_sep = function(pa, sep, ...)
+    for i = 1,select('#',...) do
+        pa = pa .. sep .. select(i,...)
+    end
+    return pa
+end
 
-local e1, e2, e3 = nil, nil, nil
-local ok, ml = pcall(dofile, ml_path1)
-if (not ok) or nil == ml then
-  e1 = ml
-  ok, ml = pcall(dofile, ml_path2)
+local ml_paths = { join_path_with_sep(mj.work_directory, mj.path_separator, 'microlight', 'ml.lua'),
+    join_path_with_sep(mj.work_directory, mj.path_separator, '..', 'lua_binding', 'microlight', 'ml.lua'),
+    join_path_with_sep(mj.execute_directory, mj.path_separator, 'microlight', 'ml.lua'),
+    join_path_with_sep(mj.execute_directory, mj.path_separator, '..', 'lua_binding', 'microlight', 'ml.lua') }
+
+local buffer = { '"microlight" load failed' }
+local ok, ml = nil, nil
+for i, pa in ipairs(ml_paths) do
+  ok, ml = pcall(dofile, pa)
+  if ok and nil ~= ml then
+    break
+  end
+
+  if nil ~= ml then
+    table.insert(buffer, "load '".. pa .. "' failed -- " .. ml)
+  else
+    table.insert(buffer, "load '".. pa .. "' failed")
+  end
 end
 
 if (not ok) or nil == ml then
-  e2 = ml
-  ok, ml = pcall(dofile, ml_path3)
-end
-
-if (not ok) or nil == ml then
-  e3 = ml
-  error('"' .. ml_path1 .. '" or "' .. ml_path2 .. '" load failed\n' .. (e1 or "")  .. "\n" .. (e2 or "") .. "\n" .. (e2 or "") )
+  error(table.concat(buffer, "\n"))
 end
 
 function mj.receive ()
@@ -74,14 +82,27 @@ function mj.clean_path(pa)
 end
 
 function mj.join_path(pa,...)
-    for i = 1,select('#',...) do
-        pa = pa .. mj.path_separator .. select(i,...)
-    end
-    return mj.clean_path(pa)
+  return mj.clean_path(join_path_with_sep(pa, mj.path_separator, ...))
 end
 
 function mj.enumerate_files(pa)
   return mj.invoke_native("io_ext.enumerate_files", pa)
+end
+
+
+function mj.enumerate_scripts(pat)
+  local modules_files = mj.enumerate_files(mj.join_path(mj.execute_directory, "modules"))
+  if(mj.work_directory ~= mj.execute_directory) then
+    local files = mj.enumerate_files(mj.join_path(mj.work_directory, "modules"))
+    modules_files = ml.extend(modules_files, files)
+  end
+  if nil == pat then
+    return modules_files
+  end
+
+  return ml.ifilter(modules_files, function(v)
+    return nil ~= string.match(v, pat)
+  end)
 end
 
 function mj.file_exists(pa)
@@ -169,43 +190,36 @@ function mj.loop()
   end
 
 
-  mj.log(SYSTEM, "lua enter looping")
+  mj.log(mj.SYSTEM, "lua enter looping")
   local action, params = mj.receive()  -- get new value
   while "__exit__" ~= action do
-    mj.log(SYSTEM, "lua vm receive - '"..action.."'")
+    mj.log(mj.SYSTEM, "lua vm receive - '"..action.."'")
 
     co = mj.execute_task(action, params)
     action, params = mj.send_and_recv(co)
   end
-  mj.log(SYSTEM, "lua exit looping")
+  mj.log(mj.SYSTEM, "lua exit looping")
 end
 
 _G["mj"] = mj
 package.loaded["mj"] = mj
 package.preload["mj"] = mj
 
-
 _G["ml"] = ml
 package.loaded["ml"] = ml
 package.preload["ml"] = ml
 
+mj.log(mj.SYSTEM, "welcome to lua vm on " .. mj.os .. "(" .. mj.arch .. ")")
+mj.log(mj.SYSTEM, "work_directory is '" .. mj.work_directory .. "'")
+mj.log(mj.SYSTEM, "execute_directory is '" .. mj.execute_directory .. "'")
+mj.log(mj.SYSTEM, "load init script file")
 
-
-
-mj.log(SYSTEM, "welcome to lua vm")
-mj.log(SYSTEM, "work_directory is '" .. mj.work_directory .. "'")
-mj.log(SYSTEM, "execute_directory is '" .. mj.execute_directory .. "'")
-
-mj.log(SYSTEM, "load init path")
-
-local init_files = ml.Array(mj.enumerate_files(mj.join_path(mj.execute_directory, "init")))
-if(mj.work_directory ~= mj.execute_directory) then
-  init_files = init_files .. mj.enumerate_files(mj.join_path(mj.work_directory, "init"))
+for i, x in ipairs(mj.enumerate_scripts(".*_init%.lua$")) do
+    mj.log(mj.SYSTEM, "load '" .. x .. "'")
+    dofile(x)
 end
-init_files:foreach(function(x)
-  return dofile(x)
-end)
-mj.log(SYSTEM, "==================================")
+
+mj.log(mj.SYSTEM, "==================================")
 
 mj.loop ()`
 )

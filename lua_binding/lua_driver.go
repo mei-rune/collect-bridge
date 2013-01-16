@@ -316,6 +316,23 @@ func NewLuaDriver() *LuaDriver {
 				return
 			}
 			ctx.Any = path.Clean(ctx.StringValue)
+		}}, &NativeMethod{
+		Name: "arguments_test",
+		Read: func(drv *LuaDriver, ctx *Continuous) {
+			for i := 2; i < 21; i++ {
+				ctx.StringValue, ctx.Error = ctx.ToStringParam(i)
+				fmt.Printf("%d = [%v][%v]\n", i, ctx.StringValue, ctx.Error)
+			}
+		},
+		Write: func(drv *LuaDriver, ctx *Continuous) (int, error) {
+			for i := 0; i < 10; i++ {
+				ctx.PushAnyParam(i)
+				ctx.PushAnyParam(nil)
+			}
+			return 20, nil
+		},
+		Callback: func(lua *LuaDriver, ctx *Continuous) {
+			fmt.Println("arguments_test")
 		}})
 
 	if nil != err {
@@ -323,6 +340,29 @@ func NewLuaDriver() *LuaDriver {
 	}
 	return driver
 }
+
+// func (self *LuaDriver) CallbackWith2(nm string, method interface{}) error {
+// 	m := &NativeMethod{Name: nm}
+// 	if "" == m.Name {
+// 		return errors.New("'name' is empty.")
+// 	}
+// 	if nil == method {
+// 		return errors.New("'callback' of '" + m.Name + "' is nil.")
+// 	}
+
+// 	t := TypeOf(method)
+// 	if 
+// 	if _, ok := self.methods[m.Name]; ok {
+// 		return errors.New("'" + m.Name + "' is already exists.")
+// 	}
+// 	if nil != self.DEBUG {
+// 		self.DEBUG.Printf("register function '%s'", m.Name)
+// 	} else {
+// 		log.Printf("register function '%s'\n", m.Name)
+// 	}
+// 	self.methods[m.Name] = m
+// 	return nil
+// }
 
 func (self *LuaDriver) CallbackWith(methods ...*NativeMethod) error {
 	for _, m := range methods {

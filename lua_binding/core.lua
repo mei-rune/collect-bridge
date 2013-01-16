@@ -190,7 +190,7 @@ mj.log(mj.SYSTEM, "work_directory is '" .. mj.work_directory .. "'")
 mj.log(mj.SYSTEM, "execute_directory is '" .. mj.execute_directory .. "'")
 mj.log(mj.SYSTEM, "load init script file")
 
-do 
+
   local sep = mj.path_separator
   local ext = mj.execute_ext
   local paths_sep = ":"
@@ -198,22 +198,19 @@ do
   if mj.os == "windows" then
     paths_sep = ";"
   end
+local search_directories = {mj.execute_directory, mj.execute_directory .. sep .. ".." .. sep .. "lua_binding"}
 
-  if nil ~= mj.execute_directory then
-    package.path = package.path .. paths_sep .. mj.execute_directory .. sep .. "modules"..sep.."?.lua" ..
-        paths_sep .. mj.execute_directory .. sep .. "modules" .. sep .. "?" .. sep .. "init.lua"
+if mj.execute_directory ~= mj.work_directory then
+  table.insert(search_directories, mj.work_directory)
+  table.insert(search_directories, mj.work_directory .. sep .. ".." .. sep .. "lua_binding")
+end
 
-    package.cpath = package.cpath .. paths_sep .. mj.execute_directory .. sep .."modules" .. sep .. "?" .. ext ..
-        paths_sep .. mj.execute_directory .. sep .. "modules" .. sep .. "?" .. sep .. "loadall" .. ext
-  end
+for i, directory in ipairs(search_directories) do
+  package.path = package.path .. paths_sep .. directory .. sep .. "modules" .. sep .. "?.lua" ..
+      paths_sep .. directory .. sep .. "modules" .. sep .. "?" .. sep .. "init.lua"
 
-  if nil ~= mj.work_directory then
-    package.path = package.path .. paths_sep .. mj.work_directory .. sep .. "modules" .. sep .. "?.lua" ..
-        paths_sep .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. sep .. "init.lua"
-
-    package.cpath = package.cpath .. paths_sep .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. ext ..
-        paths_sep .. mj.work_directory .. sep .. "modules" .. sep .. "?" .. sep .. "loadall" .. ext
-  end
+  package.cpath = package.cpath .. paths_sep .. directory .. sep .. "modules" .. sep .. "?" .. ext ..
+      paths_sep .. directory .. sep .. "modules" .. sep .. "?" .. sep .. "loadall" .. ext
 end
 
 for i, x in ipairs(mj.enumerate_scripts(".*_init%.lua$")) do

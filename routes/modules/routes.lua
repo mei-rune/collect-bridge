@@ -112,6 +112,7 @@ function load_routefile(file)
   if not route.classof(match) then
     error("load '" .. file .."' failed, match must is a route object")
   end
+  rt.match = match.filters
   if nil == action or "" == action then
     error("load '" .. file .."' failed, action is required")
   end
@@ -124,5 +125,6 @@ function load_routefile(file)
     error("argument must is a table[string,string] or function.")
   end
   
-  return rt
+
+  return {name = rt.name, level = rt.level, categories = rt.categories, match = rt.match, action = rt.action }
 end

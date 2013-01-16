@@ -1,3 +1,6 @@
 [submodule "lua_binding/microlight"]
 	path = lua_binding/microlight
 	url = https://github.com/stevedonovan/Microlight.git
+[submodule "lua_binding/lua-cjson"]
+	path = lua_binding/lua-cjson
+	url = https://github.com/mpx/lua-cjson.git

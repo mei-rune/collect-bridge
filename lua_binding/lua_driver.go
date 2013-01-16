@@ -265,6 +265,9 @@ func NewLuaDriver() *LuaDriver {
 				drv.FATAL.Print(ctx.StringValue)
 			case 0 >= ctx.IntValue:
 				drv.INFO.Print(ctx.StringValue)
+			default:
+				drv.INFO.Print("[UNKNOWN LEVEL] " + ctx.StringValue)
+
 			}
 			return 0, nil
 		},
@@ -340,29 +343,6 @@ func NewLuaDriver() *LuaDriver {
 	}
 	return driver
 }
-
-// func (self *LuaDriver) CallbackWith2(nm string, method interface{}) error {
-// 	m := &NativeMethod{Name: nm}
-// 	if "" == m.Name {
-// 		return errors.New("'name' is empty.")
-// 	}
-// 	if nil == method {
-// 		return errors.New("'callback' of '" + m.Name + "' is nil.")
-// 	}
-
-// 	t := TypeOf(method)
-// 	if 
-// 	if _, ok := self.methods[m.Name]; ok {
-// 		return errors.New("'" + m.Name + "' is already exists.")
-// 	}
-// 	if nil != self.DEBUG {
-// 		self.DEBUG.Printf("register function '%s'", m.Name)
-// 	} else {
-// 		log.Printf("register function '%s'\n", m.Name)
-// 	}
-// 	self.methods[m.Name] = m
-// 	return nil
-// }
 
 func (self *LuaDriver) CallbackWith(methods ...*NativeMethod) error {
 	for _, m := range methods {

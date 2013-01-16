@@ -3,6 +3,7 @@ package lua_binding
 import (
 	"commons"
 	c "commons/as"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -480,6 +481,71 @@ func TestInvokeModuleAndCallbackFailed(t *testing.T) {
 	testResult(t, drv, false, "", v, e)
 	v, e = drv.Delete(params)
 	testResult(t, drv, false, "", v, e)
+}
+
+func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.Name = "TestInvokeModuleAndCallbackFailed"
+	drv.Start()
+
+	td := &TestDriver{get: map[string]interface{}{"i8": int8(8), "i16": int16(16), "int32": int32(32), "int64": int64(64), "int": 128,
+		"ui8": uint8(8), "ui16": uint16(16), "uint32": uint32(32), "uint64": uint64(64), "uint": uint(128),
+		"string":       "string_value",
+		"int_array":    []int{1, 2, 3, 4, 5},
+		"string_array": []string{"1", "2", "3", "4", "5"},
+		"object": map[string]interface{}{"i8": int8(8), "i16": int16(16), "int32": int32(32), "int64": int64(64), "int": 128,
+			"ui8": uint8(8), "ui16": uint16(16), "uint32": uint32(32), "uint64": uint64(64), "uint": uint(128),
+			"string":       "string_value",
+			"int_array":    []int{1, 2, 3, 4, 5},
+			"string_array": []string{"1", "2", "3", "4", "5"}}}}
+
+	commons.Register("test_dumy_TestInvokeModuleAndCallback", td)
+
+	defer func() {
+		drv.Stop()
+		commons.Unregister("test_dumy_TestInvokeModuleAndCallback")
+	}()
+
+	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}
+	v, e := drv.Get(params)
+	if nil != e {
+		t.Errorf("execute failed - %s", e.Error())
+		return
+	}
+	bytes1, e := json.Marshal(td.get)
+	if nil != e {
+		t.Errorf("excepted to json failed - %s", e.Error())
+		return
+	}
+	j1 := make(map[string]interface{})
+	e = json.Unmarshal(bytes1, &j1)
+	if nil != e {
+		t.Errorf("excepted parse json failed - %s", e.Error())
+		return
+	}
+	bytes2, e := json.Marshal(v)
+	if nil != e {
+		t.Errorf("actual to json failed - %s", e.Error())
+		return
+	}
+	j2 := make(map[string]interface{})
+	e = json.Unmarshal(bytes2, &j2)
+	if nil != e {
+		t.Errorf("actual parse json failed - %s", e.Error())
+		return
+	}
+
+	if !reflect.DeepEqual(j1, j2) {
+		t.Log(string(bytes1))
+		t.Log(string(bytes2))
+		t.Error("j1 != j2")
+	}
+
+	fmt.Println(string(bytes1))
+	fmt.Println(string(bytes2))
 }
 
 func TestInitScriptWithErrorSyntex(t *testing.T) {

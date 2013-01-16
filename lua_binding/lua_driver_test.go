@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -307,25 +308,27 @@ func TestInvokeScriptFailed(t *testing.T) {
 }
 
 type TestDriver struct {
-	get, put               string
-	create, delete         bool
-	create_msg, delete_msg string
+	get, put             interface{}
+	get_error, put_error error
+
+	create, delete             bool
+	create_error, delete_error error
 }
 
 func (bridge *TestDriver) Get(params map[string]string) (interface{}, error) {
-	return bridge.get, nil
+	return bridge.get, bridge.get_error
 }
 
 func (bridge *TestDriver) Put(params map[string]string) (interface{}, error) {
-	return bridge.put, nil
+	return bridge.put, bridge.put_error
 }
 
 func (bridge *TestDriver) Create(map[string]string) (bool, error) {
-	return bridge.create, errors.New(bridge.create_msg)
+	return bridge.create, bridge.create_error
 }
 
 func (bridge *TestDriver) Delete(map[string]string) (bool, error) {
-	return bridge.delete, errors.New(bridge.delete_msg)
+	return bridge.delete, bridge.delete_error
 }
 
 func TestInvokeAndCallback(t *testing.T) {
@@ -360,23 +363,21 @@ func TestInvokeAndCallback(t *testing.T) {
 	}
 }
 
-func checkResult(t *testing.T, drv *LuaDriver, excepted string, actual interface{}, e error) {
-	if nil != e {
-		t.Errorf("execute failed, " + e.Error())
-	} else if s, _ := c.AsString(actual); excepted != s {
-		t.Errorf("execute failed, excepted value is '%s', actual is %v", excepted, s)
-	} else {
-		t.Log("execute ok")
+func testResult(t *testing.T, drv *LuaDriver, excepted_value interface{}, excepted_error string, actual_value interface{}, actual_error error) {
+	if nil == actual_error {
+		if "" != excepted_error {
+			t.Errorf("execute failed, excepted error is %v, actual error is nil", excepted_error)
+		}
+	} else if actual_error.Error() != excepted_error {
+		t.Errorf("execute failed, excepted error is %v, actual error is %v", excepted_error, actual_error.Error())
 	}
-}
 
-func checkErrorResult(t *testing.T, drv *LuaDriver, excepted bool, actual interface{}, msg string, e error) {
-	if nil == e {
-		t.Errorf("execute failed, err is nil")
-	} else if s, _ := c.AsBool(actual); excepted != s {
-		t.Errorf("execute failed, excepted value is '%v', actual is %v", excepted, s)
-	} else if !strings.Contains(e.Error(), msg) {
-		t.Errorf("execute failed, excepted value contains '%v', actual is %v", msg, e.Error())
+	if nil == actual_value {
+		if nil != excepted_value {
+			t.Errorf("execute failed, excepted value is %v, actual value is nil", excepted_value)
+		}
+	} else if !reflect.DeepEqual(actual_value, excepted_value) {
+		t.Errorf("execute failed, excepted value is '%v', actual value is %v", excepted_value, actual_value)
 	} else {
 		t.Log("execute ok")
 	}
@@ -394,13 +395,34 @@ func TestInvokeModule(t *testing.T) {
 	}()
 	params := map[string]string{"schema": "test_invoke_module"}
 	v, e := drv.Get(params)
-	checkResult(t, drv, "get test ok test1whj23", v, e)
+	testResult(t, drv, "get test ok test1whj23", "", v, e)
 	v, e = drv.Put(params)
-	checkResult(t, drv, "put test ok test1whj23", v, e)
+	testResult(t, drv, "put test ok test1whj23", "", v, e)
 	v, e = drv.Create(params)
-	checkErrorResult(t, drv, false, v, "create test ok test1whj23", e)
+	testResult(t, drv, false, "create test ok test1whj23", v, e)
 	v, e = drv.Delete(params)
-	checkErrorResult(t, drv, false, v, "delete test ok test1whj23", e)
+	testResult(t, drv, false, "delete test ok test1whj23", v, e)
+}
+
+func TestInvokeModuleFailed(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.Name = "TestInvokeModuleFailed"
+	drv.Start()
+	defer func() {
+		drv.Stop()
+	}()
+	params := map[string]string{"schema": "test_invoke_module_failed"}
+	v, e := drv.Get(params)
+	testResult(t, drv, nil, "get error for test_invoke_module_failed", v, e)
+	v, e = drv.Put(params)
+	testResult(t, drv, nil, "put error for test_invoke_module_failed", v, e)
+	v, e = drv.Create(params)
+	testResult(t, drv, true, "", v, e)
+	v, e = drv.Delete(params)
+	testResult(t, drv, true, "", v, e)
 }
 
 func TestInvokeModuleAndCallback(t *testing.T) {
@@ -412,8 +434,8 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	drv.Start()
 
 	td := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
-		create: false, delete: false, create_msg: "create test cb ok test1whj23",
-		delete_msg: "delete test cb ok test1whj23"}
+		create: false, delete: false, create_error: errors.New("create test cb ok test1whj23"),
+		delete_error: errors.New("delete test cb ok test1whj23")}
 	commons.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {
@@ -423,13 +445,41 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 
 	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}
 	v, e := drv.Get(params)
-	checkResult(t, drv, "get test cb ok test1whj23", v, e)
+	testResult(t, drv, "get test cb ok test1whj23", "", v, e)
 	v, e = drv.Put(params)
-	checkResult(t, drv, "put test cb ok test1whj23", v, e)
+	testResult(t, drv, "put test cb ok test1whj23", "", v, e)
 	v, e = drv.Create(params)
-	checkErrorResult(t, drv, false, v, "create test cb ok test1whj23", e)
+	testResult(t, drv, false, "create test cb ok test1whj23", v, e)
 	v, e = drv.Delete(params)
-	checkErrorResult(t, drv, false, v, "delete test cb ok test1whj23", e)
+	testResult(t, drv, false, "delete test cb ok test1whj23", v, e)
+}
+
+func TestInvokeModuleAndCallbackFailed(t *testing.T) {
+	log.SetFlags(log.Flags() | log.Lshortfile)
+
+	drv := NewLuaDriver()
+	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.Name = "TestInvokeModuleAndCallbackFailed"
+	drv.Start()
+
+	td := &TestDriver{get_error: errors.New("get test cb ok test1whj23"), put_error: errors.New("put test cb ok test1whj23"),
+		create: false, delete: false}
+	commons.Register("test_dumy_TestInvokeModuleAndCallback", td)
+
+	defer func() {
+		drv.Stop()
+		commons.Unregister("test_dumy_TestInvokeModuleAndCallback")
+	}()
+
+	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}
+	v, e := drv.Get(params)
+	testResult(t, drv, nil, "get test cb ok test1whj23", v, e)
+	v, e = drv.Put(params)
+	testResult(t, drv, nil, "put test cb ok test1whj23", v, e)
+	v, e = drv.Create(params)
+	testResult(t, drv, false, "", v, e)
+	v, e = drv.Delete(params)
+	testResult(t, drv, false, "", v, e)
 }
 
 func TestInitScriptWithErrorSyntex(t *testing.T) {

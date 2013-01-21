@@ -1,4 +1,4 @@
-module("route_tests",  package.seeall)
+module("metric_tests",  package.seeall)
 
 
 local test_suites= {["test"]= function( ... )

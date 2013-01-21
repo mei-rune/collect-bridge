@@ -1,2 +1,2 @@
 1. refactor callback of lua_binding with reflect.
-2. 
+2. refactor routes, imporve performance

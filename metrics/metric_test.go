@@ -1,4 +1,4 @@
-package routes
+package metrics
 
 import (
 	"log"
@@ -16,7 +16,7 @@ func TestRoutes(t *testing.T) {
 	defer func() {
 		drv.Stop()
 	}()
-	params := map[string]string{"schema": "route_tests", "target": "unit_test"}
+	params := map[string]string{"schema": "metric_tests", "target": "unit_test"}
 	v, e := drv.Get(params)
 	if nil != e {
 		t.Error(e)

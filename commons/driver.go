@@ -4,24 +4,41 @@ import (
 	"fmt"
 )
 
-var (
-	drivers = make(map[string]Driver)
-)
+type DriverManager map[string]Driver
 
-func Register(name string, driver Driver) {
+func NewDriverManager() DriverManager {
+	return make(map[string]Driver)
+}
+
+func (self DriverManager) Register(name string, driver Driver) {
 	_, ok := drivers[name]
 	if ok {
 		panic(fmt.Errorf("'%s' always registred.", name))
 	}
 	drivers[name] = driver
 }
-func Unregister(name string) {
+func (self DriverManager) Unregister(name string) {
 	delete(drivers, name)
 }
 
-func Connect(name string) (Driver, bool) {
+func (self DriverManager) Connect(name string) (Driver, bool) {
 	driver, ok := drivers[name]
 	return driver, ok
+}
+
+var (
+	drivers = NewDriverManager()
+)
+
+func Register(name string, driver Driver) {
+	drivers.Register(name, driver)
+}
+func Unregister(name string) {
+	drivers.Unregister(name)
+}
+
+func Connect(name string) (Driver, bool) {
+	return drivers.Connect(name)
 }
 
 type Driver interface {

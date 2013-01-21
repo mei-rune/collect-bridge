@@ -11,15 +11,15 @@
 --   end
 -- end
 
-
+method = "get"
 name = 'interface'
 
 description = [[ xxxxxxx
 ]]
 
-author = "Diman Todorov"
+author = "Mfk"
 
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "xxxxxxx"
 
 level = {"system", "12"}
 

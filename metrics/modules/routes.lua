@@ -24,7 +24,7 @@ function route:equal(key, value, ignoreCase)
   table.insert(self.filters, {method= m, arguments={key, value}})
   return self
 end
-function route:in(key, ...)
+function route:in_with(key, ...)
   table.insert(self.filters, {method= "in", arguments={key, {...}}})
   return self
 end
@@ -108,11 +108,18 @@ function load_routefile(file)
   f()
 
   local name = rt.name
+  local method = rt.method
   local level = rt.level
   local categories = rt.categories
   local match = rt.match
   local action = rt.action
 
+  if nil == method or "" == method then
+    error("load '" .. file .."' failed, method is required")
+  end
+  if not actions[method] then
+    error("please use 'get, put, create, delete' to set method var")
+  end
   if nil == name or "" == name then
     error("load '" .. file .."' failed, name is required")
   end
@@ -142,5 +149,5 @@ function load_routefile(file)
   end
   
 
-  return {name = rt.name, level = rt.level, categories = rt.categories, match = rt.match, action = rt.action }
+  return {name = rt.name, method= rt.method, level = rt.level, categories = rt.categories, match = rt.match, action = rt.action }
 end

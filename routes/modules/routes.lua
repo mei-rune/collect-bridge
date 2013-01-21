@@ -8,24 +8,40 @@ function route:_init()
   self.filters = {}
   return self
 end
-function route:equal(key, value)
-  table.insert(self.filters, {type= "equal", key= key, value= value})
+function route:equal(key, value, ignoreCase)
+
+  local m = "equal"
+  if nil ~= ignoreCase then
+    if type(ignoreCase) ~= "boolean"  then
+      error("ignoreCase must is a boolean value")
+    end
+
+    if ignoreCase then
+      m = "equal_with_ignore_case"
+    end
+  end
+
+  table.insert(self.filters, {method= m, arguments={key, value}})
+  return self
+end
+function route:in(key, ...)
+  table.insert(self.filters, {method= "in", arguments={key, {...}}})
   return self
 end
 function route:start_with(key, prefix)
-  table.insert(self.filters, {type= "start_with", key= key, value= prefix})
+  table.insert(self.filters, {method= "start_with", arguments={key, prefix}})
   return self
 end
 function route:end_with(key, suffix)
-  table.insert(self.filters, {type= "end_with", key= key, value= suffix})
+  table.insert(self.filters, {method= "end_with", arguments={key, suffix}})
   return self
 end
 function route:contains(key, sub)
-  table.insert(self.filters, {type= "contains", key= key, value= sub})
+  table.insert(self.filters, {method= "contains", arguments={key, sub}})
   return self
 end
 function route:match(key, pat)
-  table.insert(self.filters, {type= "match", key= key, value= pat})
+  table.insert(self.filters, {method= "match", arguments={key, pat}})
   return self
 end
 function route:and_with(f)

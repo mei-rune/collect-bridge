@@ -30,14 +30,21 @@ func main() {
 	defer icmp.Close()
 
 	fmt.Println("ping ", targets[0])
+	go func() {
+		for i := 1; ; i++ {
+			err = icmp.Send(targets[0], nil)
+			if nil != err {
+				fmt.Println(err)
+				break
+			}
 
-	for i := 1; i < 100; i++ {
-		err = icmp.Send(fmt.Sprintf("20.0.8.%d", i), nil)
-		if nil != err {
-			fmt.Println(err)
-			return
+			if i >= 5 {
+				break
+			}
+			time.Second(5 * time.Millisecond)
 		}
-	}
+	}()
+
 	for {
 		ra, _, err := icmp.Recv(time.Second)
 		if nil != err {

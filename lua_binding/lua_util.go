@@ -26,6 +26,41 @@ func fileExists(dir string) bool {
 	return !info.IsDir()
 }
 
+func ToString(drv *LuaDriver, index int) (string, error) {
+	if nil == drv.LS {
+		return "", errors.New("lua_State is nil")
+	}
+
+	if 0 == C.lua_isstring(drv.LS, C.int(index)) {
+		return "", fmt.Errorf("stack[%d] is not a string.", index)
+	}
+
+	var length C.size_t
+	cs := C.lua_tolstring(drv.LS, C.int(index), &length)
+	if nil == cs {
+		return "", errors.New("lua_State is not string?")
+	}
+	return C.GoStringN(cs, C.int(length)), nil
+}
+
+func ToAny(drv *LuaDriver, index int) (interface{}, error) {
+	return toAny(drv.LS, C.int(index))
+}
+
+func PushAny(drv *LuaDriver, any interface{}) {
+	pushAny(drv.LS, any)
+}
+
+func PushParams(drv *LuaDriver, params map[string]string) {
+	pushParams(drv.LS, params)
+}
+
+func PushString(drv *LuaDriver, s string) {
+	cs := C.CString(s)
+	defer C.free(unsafe.Pointer(cs))
+	C.lua_pushstring(drv.LS, cs)
+}
+
 func ResumeLuaFiber(drv *LuaDriver, argc int) {
 	ret := C.lua_resume(drv.LS, nil, C.int(argc))
 	if C.LUA_YIELD != ret {

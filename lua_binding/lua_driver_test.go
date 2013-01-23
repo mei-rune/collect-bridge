@@ -15,7 +15,7 @@ import (
 func TestSpawn(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.Start()
 	drv.Stop()
 }
@@ -96,7 +96,7 @@ func TestParams(t *testing.T) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestParams"
 	drv.init_path = "test/lua_init_test_pushAny.lua"
@@ -137,7 +137,7 @@ func TestPushAny(t *testing.T) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestPushAny"
 	drv.init_path = "test/lua_init_test_pushAny.lua"
@@ -237,7 +237,7 @@ func TestPushAny(t *testing.T) {
 func TestInvoke(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "test_invoke"
 	drv.init_path = "test/lua_init_test.lua"
@@ -251,7 +251,7 @@ func TestInvoke(t *testing.T) {
 	v, e := drv.Get(nil)
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
-	} else if s, _ := c.AsString(v); "test ok" != s {
+	} else if s, _ := c.AsString(v["value"]); "test ok" != s {
 		t.Errorf("execute get failed, excepted value is 'ok', actual is %v", v)
 	} else {
 		t.Log("execute get ok")
@@ -262,7 +262,7 @@ func TestInvoke(t *testing.T) {
 func TestInvokeScript(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeScript"
 	drv.Start()
@@ -272,11 +272,11 @@ func TestInvokeScript(t *testing.T) {
 		return
 	}
 
-	params := map[string]string{"schema": "script", "script": "return action..' ok', nil"}
+	params := map[string]string{"schema": "script", "script": "return {value= action..' ok'}, nil"}
 	v, e := drv.Get(params)
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
-	} else if s, _ := c.AsString(v); "get ok" != s {
+	} else if s, _ := c.AsString(v["value"]); "get ok" != s {
 		t.Errorf("execute get failed, excepted value is 'ok', actual is %v", v)
 	} else {
 		t.Log("execute get ok")
@@ -287,7 +287,7 @@ func TestInvokeScript(t *testing.T) {
 func TestInvokeScriptFailed(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(commons.NewDriverManager())
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeScriptFailed"
 	drv.Start()
@@ -305,7 +305,7 @@ func TestInvokeScriptFailed(t *testing.T) {
 		t.Errorf("execute get failed, except error contains 'syntax error near <eof>', actual return - " + e.Error())
 	}
 	drv.Stop()
-	commons.Unregister("test")
+	drv.drvMgr.Unregister("test")
 }
 
 type TestDriver struct {
@@ -316,12 +316,12 @@ type TestDriver struct {
 	create_error, delete_error error
 }
 
-func (bridge *TestDriver) Get(params map[string]string) (interface{}, error) {
-	return bridge.get, bridge.get_error
+func (bridge *TestDriver) Get(params map[string]string) (map[string]interface{}, error) {
+	return map[string]interface{}{"value": bridge.get}, bridge.get_error
 }
 
-func (bridge *TestDriver) Put(params map[string]string) (interface{}, error) {
-	return bridge.put, bridge.put_error
+func (bridge *TestDriver) Put(params map[string]string) (map[string]interface{}, error) {
+	return map[string]interface{}{"value": bridge.put}, bridge.put_error
 }
 
 func (bridge *TestDriver) Create(map[string]string) (bool, error) {
@@ -335,7 +335,7 @@ func (bridge *TestDriver) Delete(map[string]string) (bool, error) {
 func TestInvokeAndCallback(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(commons.NewDriverManager())
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeAndCallback"
 	drv.Start()
@@ -346,18 +346,18 @@ func TestInvokeAndCallback(t *testing.T) {
 	}
 
 	td := &TestDriver{get: "get12", put: "put12", create: true, delete: true}
-	commons.Register("test_dumy", td)
+	drv.drvMgr.Register("test_dumy", td)
 
 	defer func() {
 		drv.Stop()
-		commons.Unregister("test_dumy")
+		drv.drvMgr.Unregister("test_dumy")
 	}()
 
 	params := map[string]string{"schema": "script", "script": "mj.log(mj.DEBUG, 'log a test log.')\nreturn mj.execute('test_dumy', action, params)"}
 	v, e := drv.Get(params)
 	if nil != e {
 		t.Errorf("execute get failed, " + e.Error())
-	} else if s, _ := c.AsString(v); "get12" != s {
+	} else if s, _ := c.AsString(v["value"]); "get12" != s {
 		t.Errorf("execute get failed, excepted value is 'ok', actual is %v", v)
 	} else {
 		t.Log("execute get ok")
@@ -387,7 +387,7 @@ func testResult(t *testing.T, drv *LuaDriver, excepted_value interface{}, except
 func TestInvokeModule(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeModule"
 	drv.Start()
@@ -396,19 +396,19 @@ func TestInvokeModule(t *testing.T) {
 	}()
 	params := map[string]string{"schema": "test_invoke_module"}
 	v, e := drv.Get(params)
-	testResult(t, drv, "get test ok test1whj23", "", v, e)
+	testResult(t, drv, map[string]interface{}{"value": "get test ok test1whj23"}, "", v, e)
 	v, e = drv.Put(params)
-	testResult(t, drv, "put test ok test1whj23", "", v, e)
-	v, e = drv.Create(params)
-	testResult(t, drv, false, "create test ok test1whj23", v, e)
-	v, e = drv.Delete(params)
-	testResult(t, drv, false, "delete test ok test1whj23", v, e)
+	testResult(t, drv, map[string]interface{}{"value": "put test ok test1whj23"}, "", v, e)
+	b, e := drv.Create(params)
+	testResult(t, drv, false, "create test ok test1whj23", b, e)
+	b, e = drv.Delete(params)
+	testResult(t, drv, false, "delete test ok test1whj23", b, e)
 }
 
 func TestInvokeModuleFailed(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeModuleFailed"
 	drv.Start()
@@ -417,19 +417,27 @@ func TestInvokeModuleFailed(t *testing.T) {
 	}()
 	params := map[string]string{"schema": "test_invoke_module_failed"}
 	v, e := drv.Get(params)
-	testResult(t, drv, nil, "get error for test_invoke_module_failed", v, e)
+	if nil == v {
+		testResult(t, drv, nil, "get error for test_invoke_module_failed", nil, e)
+	} else {
+		testResult(t, drv, nil, "get error for test_invoke_module_failed", v, e)
+	}
 	v, e = drv.Put(params)
-	testResult(t, drv, nil, "put error for test_invoke_module_failed", v, e)
-	v, e = drv.Create(params)
-	testResult(t, drv, true, "", v, e)
-	v, e = drv.Delete(params)
-	testResult(t, drv, true, "", v, e)
+	if nil == v {
+		testResult(t, drv, nil, "put error for test_invoke_module_failed", nil, e)
+	} else {
+		testResult(t, drv, nil, "put error for test_invoke_module_failed", v, e)
+	}
+	b, e := drv.Create(params)
+	testResult(t, drv, true, "", b, e)
+	b, e = drv.Delete(params)
+	testResult(t, drv, true, "", b, e)
 }
 
 func TestInvokeModuleAndCallback(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(commons.NewDriverManager())
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeModuleAndCallback"
 	drv.Start()
@@ -437,56 +445,65 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	td := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
 		create: false, delete: false, create_error: errors.New("create test cb ok test1whj23"),
 		delete_error: errors.New("delete test cb ok test1whj23")}
-	commons.Register("test_dumy_TestInvokeModuleAndCallback", td)
+	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {
 		drv.Stop()
-		commons.Unregister("test_dumy_TestInvokeModuleAndCallback")
+		drv.drvMgr.Unregister("test_dumy_TestInvokeModuleAndCallback")
 	}()
 
 	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}
 	v, e := drv.Get(params)
-	testResult(t, drv, "get test cb ok test1whj23", "", v, e)
+	testResult(t, drv, map[string]interface{}{"value": "get test cb ok test1whj23"}, "", v, e)
 	v, e = drv.Put(params)
-	testResult(t, drv, "put test cb ok test1whj23", "", v, e)
-	v, e = drv.Create(params)
-	testResult(t, drv, false, "create test cb ok test1whj23", v, e)
-	v, e = drv.Delete(params)
-	testResult(t, drv, false, "delete test cb ok test1whj23", v, e)
+	testResult(t, drv, map[string]interface{}{"value": "put test cb ok test1whj23"}, "", v, e)
+	b, e := drv.Create(params)
+	testResult(t, drv, false, "create test cb ok test1whj23", b, e)
+	b, e = drv.Delete(params)
+	testResult(t, drv, false, "delete test cb ok test1whj23", b, e)
 }
 
 func TestInvokeModuleAndCallbackFailed(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(commons.NewDriverManager())
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeModuleAndCallbackFailed"
 	drv.Start()
 
 	td := &TestDriver{get_error: errors.New("get test cb ok test1whj23"), put_error: errors.New("put test cb ok test1whj23"),
 		create: false, delete: false}
-	commons.Register("test_dumy_TestInvokeModuleAndCallback", td)
+	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {
 		drv.Stop()
-		commons.Unregister("test_dumy_TestInvokeModuleAndCallback")
+		drv.drvMgr.Unregister("test_dumy_TestInvokeModuleAndCallback")
 	}()
 
 	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}
 	v, e := drv.Get(params)
-	testResult(t, drv, nil, "get test cb ok test1whj23", v, e)
+	if nil == v {
+		testResult(t, drv, nil, "get test cb ok test1whj23", nil, e)
+	} else {
+		testResult(t, drv, nil, "get test cb ok test1whj23", v, e)
+	}
+
 	v, e = drv.Put(params)
-	testResult(t, drv, nil, "put test cb ok test1whj23", v, e)
-	v, e = drv.Create(params)
-	testResult(t, drv, false, "", v, e)
-	v, e = drv.Delete(params)
-	testResult(t, drv, false, "", v, e)
+	if nil == v {
+		testResult(t, drv, nil, "put test cb ok test1whj23", nil, e)
+	} else {
+		testResult(t, drv, nil, "put test cb ok test1whj23", v, e)
+	}
+	b, e := drv.Create(params)
+	testResult(t, drv, false, "", b, e)
+	b, e = drv.Delete(params)
+	testResult(t, drv, false, "", b, e)
 }
 
 func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(commons.NewDriverManager())
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInvokeModuleAndCallbackFailed"
 	drv.Start()
@@ -502,11 +519,11 @@ func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
 			"int_array":    []int{1, 2, 3, 4, 5},
 			"string_array": []string{"1", "2", "3", "4", "5"}}}}
 
-	commons.Register("test_dumy_TestInvokeModuleAndCallback", td)
+	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {
 		drv.Stop()
-		commons.Unregister("test_dumy_TestInvokeModuleAndCallback")
+		drv.drvMgr.Unregister("test_dumy_TestInvokeModuleAndCallback")
 	}()
 
 	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}
@@ -515,7 +532,7 @@ func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
 		t.Errorf("execute failed - %s", e.Error())
 		return
 	}
-	bytes1, e := json.Marshal(td.get)
+	bytes1, e := json.Marshal(map[string]interface{}{"value": td.get})
 	if nil != e {
 		t.Errorf("excepted to json failed - %s", e.Error())
 		return
@@ -551,7 +568,7 @@ func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
 func TestInitScriptWithErrorSyntex(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.init_path = "test/lua_error_script.lua"
 	err := drv.Start()
@@ -579,7 +596,7 @@ func TestDefer(t *testing.T) {
 func TestInitFiles(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestInitFiles"
 	drv.Start()
@@ -593,7 +610,7 @@ func TestInitFiles(t *testing.T) {
 		t.FailNow()
 	}
 
-	s, ok := v.(string)
+	s, ok := v["value"].(string)
 	if !ok {
 		t.Log(v, e)
 		t.Errorf("return is not a string, %T", v)

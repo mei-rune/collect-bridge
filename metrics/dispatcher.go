@@ -1,7 +1,13 @@
 package metrics
 
 import (
+	"errors"
+	"flag"
 	"fmt"
+)
+
+var (
+	route_debuging = flag.Bool("route.debuging", 10240, "set max size of pdu")
 )
 
 func NewMetricSpec(rd *MetricDefinition) (*MetricSpec, error) {
@@ -35,30 +41,119 @@ type MetricSpec struct {
 }
 
 type Dispatcher struct {
-	metrics map[string]*Metric
+	instances map[string]*Metric
 }
 
 func NewDispatcher() *Dispatcher {
-	return &Dispatcher{metrics: make(map[string]*Metric)}
+	return &Dispatcher{instances: make(map[string]*Metric)}
 }
 
-func (self *Dispatcher) Clear() {
-	self.metrics = make(map[string]*Metric)
+func (self *Dispatcher) registerSpec(rs *MetricSpec) error {
+	metric, _ := self.instances[rs.name]
+	if nil == metric {
+		metric = &Metric{metric_get: make([]*MetricSpec, 0),
+			metric_put:    make([]*MetricSpec, 0),
+			metric_create: make([]*MetricSpec, 0),
+			metric_delete: make([]*MetricSpec, 0)}
+		self.instances[rs.name] = metric
+	}
+
+	switch rs.definition.Method {
+	case "get":
+		metric.metric_get = append(metric.metric_get, rs)
+	case "put":
+		metric.metric_put = append(metric.metric_put, rs)
+	case "create":
+		metric.metric_create = append(metric.metric_create, rs)
+	case "delete":
+		metric.metric_delete = append(metric.metric_delete, rs)
+	default:
+		return errors.New("Unsupported method - " + rs.definition.Method)
+	}
+	return nil
 }
 
-func (self *Dispatcher) GetMetric(name string) (*Metric, bool) {
-	m, ok := self.metrics[name]
-	return m, ok
+func deleteSpecFromSlice(specs []*MetricSpec, id string) []*MetricSpec {
+	for i, s := range specs {
+		if nil == s {
+			continue
+		}
+
+		if s.id == id {
+			copy(specs[i:], specs[i+1:])
+			return specs[:len(specs)-1]
+		}
+	}
+
+	return specs
 }
 
-func (self *Dispatcher) Metrics() map[string]*Metric {
-	return self.metrics
+func deleteSpec(metric *Metric, id string) {
+	if nil != metric.metric_get {
+		metric.metric_get = deleteSpecFromSlice(metric.metric_get, id)
+	}
+
+	if nil != metric.metric_put {
+		metric.metric_put = deleteSpecFromSlice(metric.metric_put, id)
+	}
+
+	if nil != metric.metric_create {
+		metric.metric_create = deleteSpecFromSlice(metric.metric_create, id)
+	}
+
+	if nil != metric.metric_delete {
+		metric.metric_delete = deleteSpecFromSlice(metric.metric_delete, id)
+	}
 }
 
-func (self *Dispatcher) Register(name string, metric *Metric) {
-	self.metrics[name] = metric
+func (self *Dispatcher) unregisterSpec(name, id string) {
+	if "" == name {
+		for _, metric := range self.instances {
+			deleteSpec(metric, id)
+		}
+	} else {
+		metric, _ := self.instances[name]
+		if nil == metric {
+			return
+		}
+		deleteSpec(metric, id)
+	}
 }
 
-func (self *Dispatcher) Unregister(name string) {
-	delete(self.metrics, name)
+func (self *Dispatcher) clear() {
+	self.instances = make(map[string]*Metric)
+}
+
+func (self *Dispatcher) Get(params map[string]string) (interface{}, error) {
+	id, ok := params["id"]
+	if ok {
+		return nil, errors.New("'id' is required.")
+	}
+	metric, ok := self.instances[id]
+	if nil == metric || nil == metric.metric_get || 0 == len(metric.metric_get) {
+		return nil, errors.New("metric is undefined.")
+	}
+
+	error := make([]string, 0)
+	for _, spec := range metric.metric_get {
+		value, e := spec.Invoke(params)
+		if nil != e {
+			error = append(error, e.Error())
+		} else if nil != value {
+			return value, nil
+		}
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (self *Dispatcher) Put(params map[string]string) (interface{}, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (self *MetricManager) Create(params map[string]string) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (self *MetricManager) Delete(params map[string]string) (bool, error) {
+	return false, errors.New("not implemented")
 }

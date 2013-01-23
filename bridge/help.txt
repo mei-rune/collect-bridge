@@ -1,0 +1,48 @@
+1. 运行 bridge.exe, 这个是服务端
+2.  snmptools 为客户端, 可以加 -h 查看帮助
+
+
+snmptools 使用方法如下:
+ snmptools -target=远程主机名  -community=共体名 -action=指标名
+
+指标名暂时只有
+system
+interface
+ip
+cdp
+
+这几个一期会用到的, 以后要新增一个指标的话, 也很简单, 只要写一个如下的脚本就可以了
+
+method = "get" 
+name = 'xx' -- 指标名
+
+description = [[ xxxxxxx
+]]
+
+author = "Mfk"
+
+license = "xxxxxxx"
+
+level = {"system", "12"}
+
+categories = {"default", "safe"}
+
+
+-- 1. 调试模式下, 会输出每一个插件为什么不匹配
+-- 2. 系统会调整匹配条件次序, 如 equal 可能将先于其它操作执行, 每个插件的匹配执行顺序是不确定的.
+match = route():equal("ss", "equal(ss)"):start_with("tt","start_with(tt)"):end_with("aa", "end_with(aa)"):contains("cc", "contains(cc)"):match("aa", "match(aa{0, 3})") 
+
+-- :and_with(function(param)
+-- end)
+
+
+
+action = get {
+	schema= "snmp",
+	action= "table",
+	oid= "1.3.6.7",
+}
+
+-- or 
+-- action = function(param) {
+-- }

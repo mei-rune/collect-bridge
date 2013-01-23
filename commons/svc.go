@@ -161,7 +161,7 @@ const (
 )
 
 var (
-	timeout_error = &TimeoutError{message: timeout_message}
+	TimeoutErr = &TimeoutError{message: timeout_message}
 )
 
 type Svc struct {
@@ -306,7 +306,7 @@ func (svc *Svc) SafelyCall(timeout time.Duration, function interface{}, args ...
 		if recoverErr := recover(); nil != recoverErr {
 			var err error
 			if recoverErr == timeout_message {
-				err = timeout_error
+				err = TimeoutErr
 			} else {
 				err = NewPanicError("SafelyCall failed: ", recoverErr)
 			}

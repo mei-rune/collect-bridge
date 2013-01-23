@@ -9,7 +9,7 @@ import (
 func TestArguments(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestArguments"
 	drv.Start()
@@ -23,7 +23,7 @@ func TestArguments(t *testing.T) {
 		return
 	}
 
-	s, ok := v.(string)
+	s, ok := v["value"].(string)
 	if !ok {
 		t.Log(v, e)
 		t.Errorf("return is not a string, %T", v)
@@ -40,7 +40,7 @@ func TestArguments(t *testing.T) {
 func TestExistFile(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestExistFile"
 	drv.Start()
@@ -54,7 +54,7 @@ func TestExistFile(t *testing.T) {
 		t.FailNow()
 	}
 
-	s, ok := v.(bool)
+	s, ok := v["value"].(bool)
 	if !ok {
 		t.Log(v, e)
 		t.Errorf("return is not a bool, %T", v)
@@ -74,7 +74,7 @@ func TestExistFile(t *testing.T) {
 		t.FailNow()
 	}
 
-	s, ok = v.(bool)
+	s, ok = v["value"].(bool)
 	if !ok {
 		t.Log(v, e)
 		t.Errorf("return is not a bool, %T", v)
@@ -91,7 +91,7 @@ func TestExistFile(t *testing.T) {
 func TestExistDirectory(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestExistDirectory"
 	drv.Start()
@@ -105,7 +105,7 @@ func TestExistDirectory(t *testing.T) {
 		t.FailNow()
 	}
 
-	s, ok := v.(bool)
+	s, ok := v["value"].(bool)
 	if !ok {
 		t.Log(v, e)
 		t.Errorf("return is not a bool, %T", v)
@@ -125,7 +125,7 @@ func TestExistDirectory(t *testing.T) {
 		t.FailNow()
 	}
 
-	s, ok = v.(bool)
+	s, ok = v["value"].(bool)
 	if !ok {
 		t.Log(v, e)
 		t.Errorf("return is not a bool, %T", v)
@@ -142,7 +142,7 @@ func TestExistDirectory(t *testing.T) {
 func TestCleanPath(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestCleanPath"
 	drv.Start()
@@ -156,7 +156,7 @@ func TestCleanPath(t *testing.T) {
 		t.FailNow()
 	}
 
-	s, ok := v.(string)
+	s, ok := v["value"].(string)
 	if !ok {
 		t.Log(v, e)
 		t.Errorf("return is not a string, %T", v)
@@ -173,7 +173,7 @@ func TestCleanPath(t *testing.T) {
 func TestEnumerateFiles(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver()
+	drv := NewLuaDriver(nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestEnumerateFiles"
 	drv.Start()
@@ -187,7 +187,7 @@ func TestEnumerateFiles(t *testing.T) {
 		t.FailNow()
 	}
 
-	ss, ok := v.([]interface{})
+	ss, ok := v["value"].([]interface{})
 	if !ok {
 		t.Log(v, e)
 		t.Errorf("return is not a []string, %T", v)

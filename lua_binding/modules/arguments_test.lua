@@ -32,5 +32,5 @@ function get(params)
 	for idx, value in pairs(ff) do
 		mj.log(mj.SYSTEM, "ff=" .. (value or "nil"))
 	end
-	return "ok", nil
+	return {value= "ok"}, nil
 end

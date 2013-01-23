@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	snmpTimeout = flag.Int("snmp.timeout", 5*60, "maximun duration (second) of send/recv pdu timeout")
+	snmpTimeout = flag.Int("snmp.timeout", 60, "maximun duration (second) of send/recv pdu timeout")
 )
 
 type SnmpDriver struct {
@@ -75,7 +75,7 @@ func internalError(msg string, err error) error {
 	return fmt.Errorf(msg + "-" + err.Error())
 }
 
-func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string) (interface{}, error) {
+func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string) (map[string]interface{}, error) {
 	host, ok := params["host"]
 	if !ok {
 		return nil, errors.New("'host' is required.")
@@ -150,10 +150,10 @@ func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string)
 	for _, vb := range resp.GetVariableBindings().All() {
 		results[vb.Oid.GetString()] = vb.Value.String()
 	}
-	return results, nil
+	return map[string]interface{}{"value": results}, nil
 }
 
-func (bridge *SnmpDriver) Get(params map[string]string) (interface{}, error) {
+func (bridge *SnmpDriver) Get(params map[string]string) (map[string]interface{}, error) {
 	action, err := getAction(params)
 	if nil != err {
 		return nil, internalError("get action failed", err)
@@ -161,7 +161,7 @@ func (bridge *SnmpDriver) Get(params map[string]string) (interface{}, error) {
 	return bridge.invoke(action, params)
 }
 
-func (bridge *SnmpDriver) Put(params map[string]string) (interface{}, error) {
+func (bridge *SnmpDriver) Put(params map[string]string) (map[string]interface{}, error) {
 	return bridge.invoke(snmp.SNMP_PDU_SET, params)
 }
 
@@ -221,7 +221,7 @@ func (bridge *SnmpDriver) getNext(params map[string]string, client snmp.Client, 
 }
 
 func (bridge *SnmpDriver) tableGet(params map[string]string, client snmp.Client,
-	oid string) (map[string]map[string]string, error) {
+	oid string) (map[string]interface{}, error) {
 
 	start_oid, err := snmp.ParseOidFromString(oid)
 	if nil != err {
@@ -260,11 +260,11 @@ func (bridge *SnmpDriver) tableGet(params map[string]string, client snmp.Client,
 		next_oid = vb.Oid
 	}
 
-	return results, nil
+	return map[string]interface{}{"value": results}, nil
 }
 
 func (bridge *SnmpDriver) tableGetByColumns(params map[string]string, client snmp.Client,
-	oid string) (map[string]map[string]string, error) {
+	oid string) (map[string]interface{}, error) {
 
 	start_oid, err := snmp.ParseOidFromString(oid)
 	if nil != err {
@@ -348,5 +348,5 @@ func (bridge *SnmpDriver) tableGetByColumns(params map[string]string, client snm
 		}
 		next_oids = next_oids[0:offset]
 	}
-	return results, nil
+	return map[string]interface{}{"value": results}, nil
 }

@@ -79,6 +79,7 @@ type LuaDriver struct {
 	LS        *C.lua_State
 	waitG     sync.WaitGroup
 
+	drvMgr         *commons.DriverManager
 	methods        map[string]*NativeMethod
 	method_missing *NativeMethod
 }
@@ -192,8 +193,9 @@ func writeActionArguments(drv *LuaDriver, ctx *Continuous) (int, error) {
 //	svc.onStop = onStop
 //	svc.onTimeout = onTimeout
 // }
-func NewLuaDriver() *LuaDriver {
+func NewLuaDriver(drvMgr *commons.DriverManager) *LuaDriver {
 	driver := &LuaDriver{}
+	driver.drvMgr = drvMgr
 	driver.Name = "lua_driver"
 	driver.methods = make(map[string]*NativeMethod)
 	driver.Set(func() { driver.atStart() }, func() { driver.atStop() }, nil)
@@ -202,7 +204,7 @@ func NewLuaDriver() *LuaDriver {
 		Read:  readCallArguments,
 		Write: writeCallResult,
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
-			drv, ok := commons.Connect(ctx.StringValue)
+			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
 				ctx.Error = fmt.Errorf("driver '%s' is not exists.", ctx.StringValue)
 				return
@@ -214,7 +216,7 @@ func NewLuaDriver() *LuaDriver {
 		Read:  readCallArguments,
 		Write: writeCallResult,
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
-			drv, ok := commons.Connect(ctx.StringValue)
+			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
 				ctx.Error = fmt.Errorf("driver '%s' is not exists.", ctx.StringValue)
 				return
@@ -226,7 +228,7 @@ func NewLuaDriver() *LuaDriver {
 		Read:  readCallArguments,
 		Write: writeCallResult,
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
-			drv, ok := commons.Connect(ctx.StringValue)
+			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
 				ctx.Error = fmt.Errorf("driver '%s' is not exists.", ctx.StringValue)
 				return
@@ -238,7 +240,7 @@ func NewLuaDriver() *LuaDriver {
 		Read:  readCallArguments,
 		Write: writeCallResult,
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
-			drv, ok := commons.Connect(ctx.StringValue)
+			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
 				ctx.Error = fmt.Errorf("driver '%s' is not exists.", ctx.StringValue)
 				return
@@ -358,11 +360,11 @@ func (self *LuaDriver) CallbackWith(methods ...*NativeMethod) error {
 		if _, ok := self.methods[m.Name]; ok {
 			return errors.New("'" + m.Name + "' is already exists.")
 		}
-		if nil != self.DEBUG {
-			self.DEBUG.Printf("register function '%s'", m.Name)
-		} else {
-			log.Printf("register function '%s'\n", m.Name)
-		}
+		//if nil != self.DEBUG {
+		//	self.DEBUG.Printf("register function '%s'", m.Name)
+		//} else {
+		//	log.Printf("register function '%s'\n", m.Name)
+		//}
 		self.methods[m.Name] = m
 	}
 	return nil
@@ -711,17 +713,31 @@ func (driver *LuaDriver) invokeAndReturnBool(action string, params map[string]st
 	}
 	b, ok := ret.(bool)
 	if !ok {
-		panic(fmt.Sprintf("type of result is not bool type - %v", b))
+		panic(fmt.Sprintf("type of result is not bool type - [%T]%v", ret))
 	}
 
 	return b, err
 }
-func (driver *LuaDriver) Get(params map[string]string) (interface{}, error) {
-	return driver.invoke("get", params)
+
+func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]string) (map[string]interface{}, error) {
+	ret, err := driver.invoke(action, params)
+	if nil == ret {
+		return nil, err
+	}
+	b, ok := ret.(map[string]interface{})
+	if !ok {
+		panic(fmt.Sprintf("type of result is not map[string]interface{} type - [%T]%v - %v", ret, ret, driver.Name))
+	}
+
+	return b, err
 }
 
-func (driver *LuaDriver) Put(params map[string]string) (interface{}, error) {
-	return driver.invoke("put", params)
+func (driver *LuaDriver) Get(params map[string]string) (map[string]interface{}, error) {
+	return driver.invokeAndReturnMap("get", params)
+}
+
+func (driver *LuaDriver) Put(params map[string]string) (map[string]interface{}, error) {
+	return driver.invokeAndReturnMap("put", params)
 }
 
 func (driver *LuaDriver) Create(params map[string]string) (bool, error) {

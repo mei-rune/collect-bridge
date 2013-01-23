@@ -1,9 +1,21 @@
 package as
 
 import (
+	"reflect"
 	"testing"
 )
 
+func testAsMap(t *testing.T, v interface{}, excepted map[string]interface{}) {
+
+	i8, err := AsMap(v)
+	if nil != err {
+		t.Errorf("%v to int8 failed, excepted is %d", v, excepted)
+	}
+
+	if !reflect.DeepEqual(excepted, i8) {
+		t.Errorf("%v to int8 failed, excepted is %v, actual is %v", v, excepted, i8)
+	}
+}
 func testAsInt8(t *testing.T, v interface{}, excepted int8) {
 
 	i8, err := AsInt8(v)
@@ -169,6 +181,8 @@ func testAsString(t *testing.T, v interface{}, excepted string) {
 }
 
 func TestAs(t *testing.T) {
+	testAsMap(t, "12", nil)
+
 	testAsInt8(t, "12", 12)
 	testAsInt8(t, int64(12), 12)
 	testAsInt8(t, int32(12), 12)

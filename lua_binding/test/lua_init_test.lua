@@ -29,7 +29,7 @@ function execute_task (action, params)
   --end
 
   return coroutine.create(function()
-      return 'test ok', nil
+      return {value= 'test ok'}, nil
     end)
 end
 

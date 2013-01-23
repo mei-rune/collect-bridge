@@ -7,15 +7,15 @@ import (
 	"web"
 )
 
-func registerDriverBridge(svr *web.Server) {
-	svr.Get("/driver/(.*)", func(ctx *web.Context, name string) { driverGet(ctx, name) })
-	svr.Put("/driver/(.*)", func(ctx *web.Context, name string) { driverPut(ctx, name) })
-	svr.Delete("/driver/(.*)", func(ctx *web.Context, name string) { driverDelete(ctx, name) })
-	svr.Post("/driver/(.*)", func(ctx *web.Context, name string) { driverCreate(ctx, name) })
+func registerDriverBridge(svr *web.Server, drvMgr *commons.DriverManager) {
+	svr.Get("/driver/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name string) { driverGet(ctx, drvMgr, name) })
+	svr.Put("/driver/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name string) { driverPut(ctx, drvMgr, name) })
+	svr.Delete("/driver/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name string) { driverDelete(ctx, drvMgr, name) })
+	svr.Post("/driver/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name string) { driverCreate(ctx, drvMgr, name) })
 }
 
-func driverGet(ctx *web.Context, name string) {
-	driver, ok := commons.Connect(name)
+func driverGet(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
+	driver, ok := drvMgr.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return
@@ -29,8 +29,8 @@ func driverGet(ctx *web.Context, name string) {
 	json.NewEncoder(ctx).Encode(obj)
 }
 
-func driverPut(ctx *web.Context, name string) {
-	driver, ok := commons.Connect(name)
+func driverPut(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
+	driver, ok := drvMgr.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return
@@ -50,8 +50,8 @@ func driverPut(ctx *web.Context, name string) {
 	json.NewEncoder(ctx).Encode(obj)
 }
 
-func driverDelete(ctx *web.Context, name string) {
-	driver, ok := commons.Connect(name)
+func driverDelete(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
+	driver, ok := drvMgr.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return
@@ -69,8 +69,8 @@ func driverDelete(ctx *web.Context, name string) {
 	}
 }
 
-func driverCreate(ctx *web.Context, name string) {
-	driver, ok := commons.Connect(name)
+func driverCreate(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
+	driver, ok := drvMgr.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return

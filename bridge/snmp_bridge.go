@@ -7,7 +7,7 @@ import (
 	"web"
 )
 
-func registerSNMP(svr *web.Server) {
+func registerSNMP(svr *web.Server, drvMgr *commons.DriverManager) {
 	driver := &SnmpDriver{}
 	driver.Init()
 	driver.Start()

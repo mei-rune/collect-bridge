@@ -7,90 +7,17 @@ import (
 	"strings"
 )
 
-type MetricDefinitionDriver struct {
+type MetricManager struct {
 	js         string
 	dispatcher *Dispatcher
 }
 
-func (self *MetricDefinitionDriver) Clear() {
+func (self *MetricManager) clear() {
 	self.js = ""
-	self.dispatcher.Clear()
+	self.dispatcher.clear()
 }
 
-func (self *MetricDefinitionDriver) Register(rs *MetricSpec) error {
-	metric, _ := self.dispatcher.GetMetric(rs.name)
-	if nil == metric {
-		metric = &Metric{metric_get: make([]*MetricSpec, 0),
-			metric_put:    make([]*MetricSpec, 0),
-			metric_create: make([]*MetricSpec, 0),
-			metric_delete: make([]*MetricSpec, 0)}
-
-		self.dispatcher.Register(rs.name, metric)
-	}
-
-	switch rs.definition.Method {
-	case "get":
-		metric.metric_get = append(metric.metric_get, rs)
-	case "put":
-		metric.metric_put = append(metric.metric_put, rs)
-	case "create":
-		metric.metric_create = append(metric.metric_create, rs)
-	case "delete":
-		metric.metric_delete = append(metric.metric_delete, rs)
-	default:
-		return errors.New("Unsupported method - " + rs.definition.Method)
-	}
-	return nil
-}
-
-func deleteSpecFromSlice(specs []*MetricSpec, id string) []*MetricSpec {
-	for i, s := range specs {
-		if nil == s {
-			continue
-		}
-
-		if s.id == id {
-			copy(specs[i:], specs[i+1:])
-			return specs[:len(specs)-1]
-		}
-	}
-
-	return specs
-}
-
-func (self *MetricDefinitionDriver) Unregister(name, id string) {
-	if "" == name {
-		for _, metric := range self.dispatcher.Metrics() {
-			self.unregisterMetric(metric, id)
-		}
-	} else {
-		metric, _ := self.dispatcher.GetMetric(name)
-		if nil == metric {
-			return
-		}
-		self.unregisterMetric(metric, id)
-	}
-}
-
-func (self *MetricDefinitionDriver) unregisterMetric(metric *Metric, id string) {
-	if nil != metric.metric_get {
-		metric.metric_get = deleteSpecFromSlice(metric.metric_get, id)
-	}
-
-	if nil != metric.metric_put {
-		metric.metric_put = deleteSpecFromSlice(metric.metric_put, id)
-	}
-
-	if nil != metric.metric_create {
-		metric.metric_create = deleteSpecFromSlice(metric.metric_create, id)
-	}
-
-	if nil != metric.metric_delete {
-		metric.metric_delete = deleteSpecFromSlice(metric.metric_delete, id)
-	}
-}
-
-func (self *MetricDefinitionDriver) Get(params map[string]string) (interface{}, error) {
+func (self *MetricManager) Get(params map[string]string) (interface{}, error) {
 	t, ok := params["id"]
 	if !ok {
 		t = "definitions"
@@ -102,7 +29,7 @@ func (self *MetricDefinitionDriver) Get(params map[string]string) (interface{}, 
 	return nil, errors.New("not implemented")
 }
 
-func (self *MetricDefinitionDriver) Put(params map[string]string) (interface{}, error) {
+func (self *MetricManager) Put(params map[string]string) (interface{}, error) {
 
 	j, ok := params["body"]
 	if !ok {
@@ -123,12 +50,12 @@ func (self *MetricDefinitionDriver) Put(params map[string]string) (interface{}, 
 		return nil, errors.New("parse route definitions failed.\n" + e.Error())
 	}
 
-	self.Register(rs)
+	self.dispatcher.registerSpec(rs)
 
 	return "ok", nil
 }
 
-func (self *MetricDefinitionDriver) Create(params map[string]string) (bool, error) {
+func (self *MetricManager) Create(params map[string]string) (bool, error) {
 	j, ok := params["body"]
 	if !ok {
 		return false, errors.New("'body' is required.")
@@ -148,23 +75,23 @@ func (self *MetricDefinitionDriver) Create(params map[string]string) (bool, erro
 		if nil != e {
 			ss = append(ss, e.Error())
 		} else {
-			self.Register(rs)
+			self.dispatcher.registerSpec(rs)
 		}
 	}
 
 	if 0 != len(ss) {
-		self.Clear()
+		self.clear()
 		return false, errors.New("parse route definitions failed.\n" + strings.Join(ss, "\n"))
 	}
 
 	return true, nil
 }
 
-func (self *MetricDefinitionDriver) Delete(params map[string]string) (bool, error) {
+func (self *MetricManager) Delete(params map[string]string) (bool, error) {
 	id, ok := params["id"]
 	if !ok {
 		return false, errors.New("id is required")
 	}
-	self.Unregister("", id)
+	self.dispatcher.unregisterSpec("", id)
 	return true, nil
 }

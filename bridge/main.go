@@ -1,6 +1,7 @@
 package main
 
 import (
+	"commons"
 	"flag"
 	"io/ioutil"
 	"os"
@@ -32,8 +33,10 @@ func main() {
 	svr.Config.StaticDirectory = *directory
 	svr.Config.CookieSecret = *cookies
 	svr.Get("/", mainHandle)
+	drvMgr := commons.NewDriverManager()
 
-	registerSNMP(svr)
+	registerSNMP(svr, drvMgr)
+	registerDriverBridge(svr, drvMgr)
 
 	svr.Run()
 }

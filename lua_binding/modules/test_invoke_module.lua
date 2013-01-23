@@ -2,11 +2,11 @@ local mj = require 'mj'
 module("test_invoke_module",  package.seeall)
 
 function get(params)
-	return "get test ok test1whj23", nil
+	return {value= "get test ok test1whj23"}, nil
 end
 
 function put(params)
-	return "put test ok test1whj23", nil
+	return {value= "put test ok test1whj23"}, nil
 end
 
 function create(params)

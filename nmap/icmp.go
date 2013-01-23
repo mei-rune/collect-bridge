@@ -6,11 +6,14 @@ package nmap
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"os"
+	"sync"
 	"syscall"
 	"time"
+	//"time"
 )
 
 func family(a *net.IPAddr) int {
@@ -23,36 +26,51 @@ func family(a *net.IPAddr) int {
 	return syscall.AF_INET6
 }
 
-type ICMP struct {
-	family  int
-	network string
-	seqnum  int
-	id      int
-	echo    []byte
-	conn    net.PacketConn
+type pingResult struct {
+	addr  net.Addr
+	bytes []byte
+	err   error
+}
 
+type ICMP struct {
+	family     int
+	network    string
+	seqnum     int
+	id         int
+	echo       []byte
+	conn       net.PacketConn
+	wait       sync.WaitGroup
+	ch         chan *pingResult
 	newRequest func(id, seqnum, msglen int, filler []byte) []byte
 }
 
 func newICMP(family int, network, laddr string, echo []byte) (*ICMP, error) {
-	fmt.Printf("network=%s\n", network)
-	fmt.Printf("laddr=%s\n", laddr)
-
 	c, err := net.ListenPacket(network, laddr)
 	if err != nil {
 		return nil, fmt.Errorf("ListenPacket(%q, %q) failed: %v", network, laddr, err)
 	}
-	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
-	//defer c.Close()
 
-	seqnum := 61455
-	id := os.Getpid() & 0xffff
-
-	if family == syscall.AF_INET6 {
-		return &ICMP{family: family, network: network, seqnum: seqnum, id: id, echo: echo, conn: c, newRequest: newICMPv6EchoRequest}, nil
+	if nil == echo {
+		echo = []byte("gogogogo")
 	}
 
-	return &ICMP{family: family, network: network, seqnum: seqnum, id: id, echo: echo, conn: c, newRequest: newICMPv4EchoRequest}, nil
+	newRequest := newICMPv4EchoRequest
+	if family == syscall.AF_INET6 {
+		newRequest = newICMPv6EchoRequest
+	}
+
+	icmp := &ICMP{family: family,
+		network:    network,
+		seqnum:     61455,
+		id:         os.Getpid() & 0xffff,
+		echo:       echo,
+		conn:       c,
+		ch:         make(chan *pingResult, 100),
+		newRequest: newRequest}
+	icmp.Send("127.0.0.1", nil)
+	go icmp.serve()
+	icmp.wait.Add(1)
+	return icmp, nil
 }
 
 func NewICMP(netwwork, laddr string, echo []byte) (*ICMP, error) {
@@ -65,6 +83,12 @@ func NewICMP(netwwork, laddr string, echo []byte) (*ICMP, error) {
 	return nil, fmt.Errorf("Unsupported network - %s", netwwork)
 }
 
+func (self *ICMP) Close() {
+	self.conn.Close()
+	self.wait.Wait()
+	defer close(self.ch)
+}
+
 func (self *ICMP) Send(raddr string, echo []byte) error {
 	self.seqnum++
 	filler := echo
@@ -72,7 +96,12 @@ func (self *ICMP) Send(raddr string, echo []byte) error {
 		filler = self.echo
 	}
 
-	bytes := self.newRequest(self.family, self.id, self.seqnum, filler)
+	msglen := len(filler) + 8
+	if msglen > 1024 {
+		msglen = 2039
+	}
+
+	bytes := self.newRequest(self.id, self.seqnum, msglen, filler)
 
 	ra, err := net.ResolveIPAddr(self.network, raddr)
 	if err != nil {
@@ -86,12 +115,27 @@ func (self *ICMP) Send(raddr string, echo []byte) error {
 	return nil
 }
 
-func (self *ICMP) Recv() (net.Addr, []byte, error) {
-	reply := make([]byte, 2048)
-	for {
-		_, ra, err := self.conn.ReadFrom(reply)
+var timeout_error = errors.New("recv icmp packet time out")
+
+func (self *ICMP) Recv(timeout time.Duration) (net.Addr, []byte, error) {
+	select {
+	case res := <-self.ch:
+		return res.addr, res.bytes, res.err
+	case <-time.After(timeout):
+		return nil, nil, timeout_error
+	}
+	return nil, nil, timeout_error
+}
+
+func (self *ICMP) serve() {
+	defer self.wait.Done()
+
+	for nil != self.conn {
+		reply := make([]byte, 2048)
+		l, ra, err := self.conn.ReadFrom(reply)
 		if err != nil {
-			return nil, nil, fmt.Errorf("ReadFrom failed: %v", err)
+			self.ch <- &pingResult{err: fmt.Errorf("ReadFrom failed: %v", err)}
+			break
 		}
 
 		switch self.family {
@@ -104,10 +148,9 @@ func (self *ICMP) Recv() (net.Addr, []byte, error) {
 				continue
 			}
 		}
-		_, _, _, _, bytes := parseICMPEchoReply(reply)
-		return ra, bytes, nil
+		_, _, _, _, bytes := parseICMPEchoReply(reply[:l])
+		self.ch <- &pingResult{addr: ra, bytes: bytes}
 	}
-	return nil, nil, fmt.Errorf("ReadFrom failed")
 }
 
 // func icmpEchoTransponder(t *testing.T, network, raddr string, waitForReady chan bool) {

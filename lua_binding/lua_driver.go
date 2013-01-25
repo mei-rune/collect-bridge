@@ -193,8 +193,9 @@ func writeActionArguments(drv *LuaDriver, ctx *Continuous) (int, error) {
 //	svc.onStop = onStop
 //	svc.onTimeout = onTimeout
 // }
-func NewLuaDriver(drvMgr *commons.DriverManager) *LuaDriver {
+func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriver {
 	driver := &LuaDriver{}
+	driver.SetTimeout(timeout)
 	driver.drvMgr = drvMgr
 	driver.Name = "lua_driver"
 	driver.methods = make(map[string]*NativeMethod)

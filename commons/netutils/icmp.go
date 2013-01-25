@@ -1,19 +1,14 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-package nmap
+package netutils
 
 import (
 	"bytes"
-	"errors"
+	"commons"
 	"fmt"
 	"net"
 	"os"
 	"sync"
 	"syscall"
 	"time"
-	//"time"
 )
 
 func family(a *net.IPAddr) int {
@@ -26,13 +21,20 @@ func family(a *net.IPAddr) int {
 	return syscall.AF_INET6
 }
 
+const (
+	ICMP4_ECHO_REQUEST = 8
+	ICMP4_ECHO_REPLY   = 0
+	ICMP6_ECHO_REQUEST = 128
+	ICMP6_ECHO_REPLY   = 129
+)
+
 type pingResult struct {
 	addr  net.Addr
 	bytes []byte
 	err   error
 }
 
-type ICMP struct {
+type Pinger struct {
 	family     int
 	network    string
 	seqnum     int
@@ -44,7 +46,7 @@ type ICMP struct {
 	newRequest func(id, seqnum, msglen int, filler []byte) []byte
 }
 
-func newICMP(family int, network, laddr string, echo []byte) (*ICMP, error) {
+func newPinger(family int, network, laddr string, echo []byte) (*Pinger, error) {
 	c, err := net.ListenPacket(network, laddr)
 	if err != nil {
 		return nil, fmt.Errorf("ListenPacket(%q, %q) failed: %v", network, laddr, err)
@@ -59,7 +61,7 @@ func newICMP(family int, network, laddr string, echo []byte) (*ICMP, error) {
 		newRequest = newICMPv6EchoRequest
 	}
 
-	icmp := &ICMP{family: family,
+	icmp := &Pinger{family: family,
 		network:    network,
 		seqnum:     61455,
 		id:         os.Getpid() & 0xffff,
@@ -73,23 +75,23 @@ func newICMP(family int, network, laddr string, echo []byte) (*ICMP, error) {
 	return icmp, nil
 }
 
-func NewICMP(netwwork, laddr string, echo []byte) (*ICMP, error) {
+func NewPinger(netwwork, laddr string, echo []byte) (*Pinger, error) {
 	if netwwork == "ip4:icmp" {
-		return newICMP(syscall.AF_INET, netwwork, laddr, echo)
+		return newPinger(syscall.AF_INET, netwwork, laddr, echo)
 	}
 	if netwwork == "ip6:icmp" {
-		return newICMP(syscall.AF_INET6, netwwork, laddr, echo)
+		return newPinger(syscall.AF_INET6, netwwork, laddr, echo)
 	}
 	return nil, fmt.Errorf("Unsupported network - %s", netwwork)
 }
 
-func (self *ICMP) Close() {
+func (self *Pinger) Close() {
 	self.conn.Close()
 	self.wait.Wait()
 	defer close(self.ch)
 }
 
-func (self *ICMP) Send(raddr string, echo []byte) error {
+func (self *Pinger) Send(raddr string, echo []byte) error {
 	self.seqnum++
 	filler := echo
 	if nil == filler {
@@ -115,19 +117,17 @@ func (self *ICMP) Send(raddr string, echo []byte) error {
 	return nil
 }
 
-var timeout_error = errors.New("recv icmp packet time out")
-
-func (self *ICMP) Recv(timeout time.Duration) (net.Addr, []byte, error) {
+func (self *Pinger) Recv(timeout time.Duration) (net.Addr, []byte, error) {
 	select {
 	case res := <-self.ch:
 		return res.addr, res.bytes, res.err
 	case <-time.After(timeout):
-		return nil, nil, timeout_error
+		return nil, nil, commons.TimeoutErr
 	}
-	return nil, nil, timeout_error
+	return nil, nil, commons.TimeoutErr
 }
 
-func (self *ICMP) serve() {
+func (self *Pinger) serve() {
 	defer self.wait.Done()
 
 	for nil != self.conn {
@@ -153,59 +153,6 @@ func (self *ICMP) serve() {
 	}
 }
 
-// func icmpEchoTransponder(t *testing.T, network, raddr string, waitForReady chan bool) {
-// 	c, err := net.Dial(network, raddr)
-// 	if err != nil {
-// 		waitForReady <- true
-// 		t.Errorf("Dial(%q, %q) failed: %v", network, raddr, err)
-// 		return
-// 	}
-// 	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
-// 	defer c.Close()
-// 	waitForReady <- true
-
-// 	echo := make([]byte, 256)
-// 	var nr int
-// 	for {
-// 		nr, err = c.Read(echo)
-// 		if err != nil {
-// 			t.Errorf("Read failed: %v", err)
-// 			return
-// 		}
-// 		switch family(nil) {
-// 		case syscall.AF_INET:
-// 			if echo[0] != ICMP4_ECHO_REQUEST {
-// 				continue
-// 			}
-// 		case syscall.AF_INET6:
-// 			if echo[0] != ICMP6_ECHO_REQUEST {
-// 				continue
-// 			}
-// 		}
-// 		break
-// 	}
-
-// 	switch family(c.RemoteAddr()) {
-// 	case syscall.AF_INET:
-// 		echo[0] = ICMP4_ECHO_REPLY
-// 	case syscall.AF_INET6:
-// 		echo[0] = ICMP6_ECHO_REPLY
-// 	}
-
-// 	_, err = c.Write(echo[:nr])
-// 	if err != nil {
-// 		t.Errorf("Write failed: %v", err)
-// 		return
-// 	}
-// }
-
-const (
-	ICMP4_ECHO_REQUEST = 8
-	ICMP4_ECHO_REPLY   = 0
-	ICMP6_ECHO_REQUEST = 128
-	ICMP6_ECHO_REPLY   = 129
-)
-
 func newICMPEchoRequest(family, id, seqnum, msglen int, filler []byte) []byte {
 	if family == syscall.AF_INET6 {
 		return newICMPv6EchoRequest(id, seqnum, msglen, filler)
@@ -217,7 +164,7 @@ func newICMPv4EchoRequest(id, seqnum, msglen int, filler []byte) []byte {
 	b := newICMPInfoMessage(id, seqnum, msglen, filler)
 	b[0] = ICMP4_ECHO_REQUEST
 
-	// calculate ICMP checksum
+	// calculate Pinger checksum
 	cklen := len(b)
 	s := uint32(0)
 	for i := 0; i < cklen-1; i += 2 {

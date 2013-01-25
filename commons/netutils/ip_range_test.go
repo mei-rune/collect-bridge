@@ -1,4 +1,4 @@
-package commons
+package netutils
 
 import (
 	"reflect"

@@ -2,11 +2,13 @@ package commons
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func GetIntList(params map[string]string, key string) ([]int, error) {
@@ -93,4 +95,41 @@ func EnumerateFiles(pa string) ([]string, error) {
 		}
 	}
 	return paths, nil
+}
+
+const time_format = "time format error with valuw is '%s', excepted format is 'xxx[unit]', xxx is a number, unit must is in (ms, s, m)."
+
+func ParseTime(s string) (time.Duration, error) {
+	idx := strings.IndexFunc(s, func(r rune) bool {
+		switch r {
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			return false
+		}
+		return true
+	})
+
+	if idx == 0 {
+		return 0, fmt.Errorf(time_format, s)
+	}
+
+	unit := time.Second
+	if -1 != idx {
+		switch s[idx:] {
+		case "ms", "MS":
+			unit = time.Millisecond
+		case "s", "S":
+			unit = time.Second
+		case "m", "M":
+			unit = time.Minute
+		default:
+			return 0, fmt.Errorf(time_format, s)
+		}
+		s = s[:idx]
+	}
+
+	i, err := strconv.ParseInt(s, 10, 0)
+	if nil != err {
+		return 0, fmt.Errorf(time_format, s, err.Error())
+	}
+	return time.Duration(i) * unit, nil
 }

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"commons"
+	"commons/netutils"
 	"flag"
 	"fmt"
-	"nmap"
+	"sync/atomic"
 	"time"
 )
 
@@ -22,32 +24,44 @@ func main() {
 		return
 	}
 
-	icmp, err := nmap.NewICMP(*network, *laddr, []byte(*msg))
+	icmp, err := netutils.NewPinger(*network, *laddr, []byte(*msg))
 	if nil != err {
 		fmt.Println(err)
 		return
 	}
-	defer icmp.Close()
+	defer func() {
+		fmt.Println("exit")
+		icmp.Close()
+	}()
 
-	fmt.Println("ping ", targets[0])
+	ip_range, err := netutils.ParseIPRange(targets[0])
+	if nil != err {
+		fmt.Println(err)
+		return
+	}
+
+	var is_stopped int32 = 0
 	go func() {
-		for i := 1; ; i++ {
-			err = icmp.Send(targets[0], nil)
+		for ip_range.HasNext() {
+			err = icmp.Send(ip_range.Current().String(), nil)
 			if nil != err {
 				fmt.Println(err)
 				break
 			}
 
-			if i >= 5 {
-				break
-			}
-			time.Second(5 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
+		atomic.StoreInt32(&is_stopped, 1)
 	}()
 
 	for {
 		ra, _, err := icmp.Recv(time.Second)
 		if nil != err {
+			if !commons.IsTimeout(err) {
+				fmt.Println(err)
+			} else if 0 == atomic.LoadInt32(&is_stopped) {
+				continue
+			}
 			return
 		}
 		fmt.Println(ra)

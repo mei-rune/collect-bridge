@@ -1,51 +1,50 @@
 package commons
 
 import (
+	"errors"
 	"fmt"
 )
 
-// const (
-//	MGR_STATUS_STANDBY  = 0
-//	MGR_STATUS_STARTING = 1
-//	MGR_STATUS_RUNNING  = 2
-//	MGR_STATUS_STOPPING = 3
-// )
+type TimeoutError struct {
+	message string
+}
 
-// type Error struct {
-//	message string
-// }
+func (err *TimeoutError) Error() string {
+	return err.message
+}
 
-// func NewError(s string) error {
-//	return &Error{s}
-// }
+func IsTimeout(e error) bool {
+	_, ok := e.(*TimeoutError)
+	return ok
+}
 
-// func (err *Error) Error() string {
-//	return err.message
-// }
+type PanicError struct {
+	message string
+	any     interface{}
+}
 
-// type StatusError struct {
-//	status int32
-//	Error
-// }
+func (err *PanicError) Error() string {
+	return err.message
+}
 
-// func (err *StatusError) Status() int {
-//	return err.status
-// }
+func NewPanicError(s string, any interface{}) error {
+	return &PanicError{message: fmt.Sprintf("%s%v", s, any), any: any}
+}
 
-// func NewStatusError(code int) *StatusError {
-//	switch code {
-//	case MGR_STATUS_STANDBY:
-//		return &StatusError(code, "mgr.status is standby")
-//	case MGR_STATUS_STARTING:
-//		return &StatusError(code, "mgr.status is starting")
-//	case MGR_STATUS_RUNNING:
-//		return &StatusError(code, "mgr.status is running")
-//	case MGR_STATUS_STOPPING:
-//		return &StatusError(code, "mgr.status is stopping")
-//	default:
-//		return &StatusError(code, "mgr.status is unknown")
-//	}
-// }
+type TwinceError struct {
+	message       string
+	first, second error
+}
+
+func (err *TwinceError) Error() string {
+	return err.message
+}
+
+func NewTwinceError(first, second error) error {
+	msg := fmt.Sprintf("return two error, first is {%s}, second is {%s}",
+		first.Error(), second.Error())
+	return &TwinceError{message: msg, first: first, second: second}
+}
 
 func NewError(v interface{}) error {
 	err, _ := v.(error)
@@ -54,3 +53,14 @@ func NewError(v interface{}) error {
 	}
 	return fmt.Errorf("%v", v)
 }
+
+const (
+	timeout_message = "time out"
+)
+
+var (
+	NotImplemented = fmt.Errorf("not implemented")
+	TimeoutErr     = &TimeoutError{message: timeout_message}
+	DieError       = errors.New("die.")
+	IdNotFound     = errors.New("'id' is required.")
+)

@@ -14,7 +14,7 @@ func BenchmarkInvokeArgumentsByStack(b *testing.B) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(commons.NewDriverManager())
+	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
 	drv.InitLoggers(nil, func(s string) error { b.Log(s); return nil }, "", 0)
 	drv.Name = "BenchmarkInvokeArgumentsByStack"
 
@@ -51,7 +51,7 @@ func BenchmarkInvokeArgumentsByJSON(b *testing.B) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(commons.NewDriverManager())
+	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
 	drv.InitLoggers(nil, func(s string) error { b.Log(s); return nil }, "", 0)
 	drv.Name = "BenchmarkInvokeArgumentsByJSON"
 
@@ -100,7 +100,7 @@ func BenchmarkGet(b *testing.B) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(commons.NewDriverManager())
+	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
 	drv.InitLoggers(nil, func(s string) error { b.Log(s); return nil }, "", 0)
 	drv.Name = "BenchmarkGet"
 	drv.Start()
@@ -130,7 +130,7 @@ func BenchmarkGetWithCallback(b *testing.B) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(commons.NewDriverManager())
+	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
 	drv.InitLoggers(nil, func(s string) error { b.Log(s); return nil }, "", 0)
 	drv.Name = "BenchmarkGetWithCallback"
 	drv.Start()
@@ -160,7 +160,7 @@ func BenchmarkDirectGet(b *testing.B) {
 
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(commons.NewDriverManager())
+	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
 	drv.InitLoggers(nil, func(s string) error { b.Log(s); return nil }, "", 0)
 	drv.Name = "BenchmarkDirectGet"
 	drv.Start()

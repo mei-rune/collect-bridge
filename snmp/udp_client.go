@@ -94,9 +94,9 @@ func (client *UdpClient) CreatePDU(op SnmpType, version SnmpVersion) (PDU, SnmpC
 
 	switch version {
 	case SNMP_V1, SNMP_V2C:
-		return &V2CPDU{op: op, client: client, version: version}, nil
+		return &V2CPDU{op: op, version: version, target: client.host}, nil
 	case SNMP_V3:
-		return &V3PDU{op: op, client: client}, nil
+		return &V3PDU{op: op, target: client.host}, nil
 	}
 	return nil, Errorf(SNMP_CODE_FAILED, "unsupported version: %d", version)
 }

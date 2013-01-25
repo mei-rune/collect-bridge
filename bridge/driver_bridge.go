@@ -8,19 +8,28 @@ import (
 )
 
 func registerDriverBridge(svr *web.Server, drvMgr *commons.DriverManager) {
-	svr.Get("/driver/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name string) { driverGet(ctx, drvMgr, name) })
-	svr.Put("/driver/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name string) { driverPut(ctx, drvMgr, name) })
-	svr.Delete("/driver/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name string) { driverDelete(ctx, drvMgr, name) })
-	svr.Post("/driver/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name string) { driverCreate(ctx, drvMgr, name) })
+	svr.Get("/bridge/(.*)/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name, id string) {
+		driverGet(ctx, drvMgr, name, id)
+	})
+	svr.Put("/bridge/(.*)/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name, id string) {
+		driverPut(ctx, drvMgr, name, id)
+	})
+	svr.Delete("/bridge/(.*)/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name, id string) {
+		driverDelete(ctx, drvMgr, name, id)
+	})
+	svr.Post("/bridge/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
+		driverCreate(ctx, drvMgr, name)
+	})
 }
 
-func driverGet(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
+func driverGet(ctx *web.Context, drvMgr *commons.DriverManager, name, id string) {
 	driver, ok := drvMgr.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return
 	}
 
+	ctx.Params["id"] = id
 	obj, err := driver.Get(ctx.Params)
 	if nil != err {
 		ctx.Abort(500, err.Error())
@@ -29,19 +38,20 @@ func driverGet(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
 	json.NewEncoder(ctx).Encode(obj)
 }
 
-func driverPut(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
+func driverPut(ctx *web.Context, drvMgr *commons.DriverManager, name, id string) {
 	driver, ok := drvMgr.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return
 	}
 	txt, err := ioutil.ReadAll(ctx.Request.Body)
-	ctx.Params["body"] = string(txt)
 	if nil != err {
 		ctx.Abort(500, "read body failed - "+err.Error())
 		return
 	}
 
+	ctx.Params["id"] = id
+	ctx.Params["body"] = string(txt)
 	obj, err := driver.Put(ctx.Params)
 	if nil != err {
 		ctx.Abort(500, err.Error())
@@ -50,13 +60,13 @@ func driverPut(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
 	json.NewEncoder(ctx).Encode(obj)
 }
 
-func driverDelete(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
+func driverDelete(ctx *web.Context, drvMgr *commons.DriverManager, name, id string) {
 	driver, ok := drvMgr.Connect(name)
 	if !ok {
 		ctx.Abort(404, "'"+name+"' is not found.")
 		return
 	}
-
+	ctx.Params["id"] = id
 	obj, err := driver.Delete(ctx.Params)
 	if nil != err {
 		ctx.Abort(500, err.Error())

@@ -4,12 +4,13 @@ import (
 	"log"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestArguments(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(nil)
+	drv := NewLuaDriver(1*time.Second, nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestArguments"
 	drv.Start()
@@ -40,7 +41,7 @@ func TestArguments(t *testing.T) {
 func TestExistFile(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(nil)
+	drv := NewLuaDriver(1*time.Second, nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestExistFile"
 	drv.Start()
@@ -91,7 +92,7 @@ func TestExistFile(t *testing.T) {
 func TestExistDirectory(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(nil)
+	drv := NewLuaDriver(1*time.Second, nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestExistDirectory"
 	drv.Start()
@@ -142,7 +143,7 @@ func TestExistDirectory(t *testing.T) {
 func TestCleanPath(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(nil)
+	drv := NewLuaDriver(1*time.Second, nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestCleanPath"
 	drv.Start()
@@ -173,7 +174,7 @@ func TestCleanPath(t *testing.T) {
 func TestEnumerateFiles(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := NewLuaDriver(nil)
+	drv := NewLuaDriver(1*time.Second, nil)
 	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
 	drv.Name = "TestEnumerateFiles"
 	drv.Start()

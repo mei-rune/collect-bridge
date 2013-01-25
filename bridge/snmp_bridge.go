@@ -4,25 +4,33 @@ import (
 	"commons"
 	"encoding/json"
 	"io/ioutil"
+	"snmp"
+	"time"
 	"web"
 )
 
-func registerSNMP(svr *web.Server, drvMgr *commons.DriverManager) {
-	driver := &SnmpDriver{}
-	driver.Init()
-	driver.Start()
-	svr.Get("/snmp/get/(.*)/(.*)", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "get") })
-	svr.Put("/snmp/set/(.*)/(.*)", func(ctx *web.Context, host, oid string) { snmpPut(driver, ctx, host, oid, "set") })
-	svr.Get("/snmp/next/(.*)/(.*)", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "next") })
-	svr.Get("/snmp/bulk/(.*)/(.*)", func(ctx *web.Context, host, oids string) { snmpGet(driver, ctx, host, oids, "bulk") })
-	svr.Get("/snmp/table/(.*)/(.*)", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "table") })
-	svr.Delete("/snmp/reset/(.*)", func(ctx *web.Context, host string) { snmpReset(driver, ctx, host) })
-	svr.Delete("/snmp/reset", func(ctx *web.Context) { snmpReset(driver, ctx, "") })
+func registerSNMP(svr *web.Server, timeout time.Duration, drvMgr *commons.DriverManager) error {
+	driver := snmp.NewSnmpDriver(timeout, drvMgr)
+	drvMgr.Register("snmp", driver)
+
+	svr.Get("/snmp/(.*)/(.*)/get", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "get") })
+	svr.Put("/snmp/(.*)/(.*)/put", func(ctx *web.Context, host, oid string) { snmpPut(driver, ctx, host, oid, "set") })
+
+	svr.Get("/snmp/(.*)/(.*)", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "get") })
+	svr.Put("/snmp/(.*)/(.*)", func(ctx *web.Context, host, oid string) { snmpPut(driver, ctx, host, oid, "set") })
+
+	svr.Get("/snmp/(.*)/(.*)/next", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "next") })
+	svr.Get("/snmp/(.*)/(.*)/bulk", func(ctx *web.Context, host, oids string) { snmpGet(driver, ctx, host, oids, "bulk") })
+	svr.Get("/snmp/(.*)/(.*)/table", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "table") })
+	svr.Delete("/snmp/(.*)/reset", func(ctx *web.Context, host string) { snmpReset(driver, ctx, host) })
+	svr.Delete("/snmp/reset", func(ctx *web.Context) { snmpReset(driver, ctx, "all") })
+
+	return driver.Start()
 }
 
 func snmpReset(driver commons.Driver, ctx *web.Context, host string) {
-	ctx.Params["remove_clients"] = "true"
-	ctx.Params["client"] = host
+	ctx.Params["action"] = "remove_client"
+	ctx.Params["id"] = host
 
 	ok, err := driver.Delete(ctx.Params)
 	if nil != err {
@@ -38,9 +46,7 @@ func snmpReset(driver commons.Driver, ctx *web.Context, host string) {
 }
 
 func snmpGet(driver commons.Driver, ctx *web.Context, host, oid, action string) {
-	//params := make(map[string]string, len(ctx.Params)*3)
-	ctx.Params["host"] = host
-	ctx.Params["oid"] = oid
+	ctx.Params["id"] = host + "/" + oid
 	ctx.Params["action"] = action
 
 	obj, err := driver.Get(ctx.Params)
@@ -53,9 +59,7 @@ func snmpGet(driver commons.Driver, ctx *web.Context, host, oid, action string) 
 }
 
 func snmpPut(driver commons.Driver, ctx *web.Context, host, oid, action string) {
-	//params := make(map[string]string, len(ctx.Params)*3)
-	ctx.Params["host"] = host
-	ctx.Params["oid"] = oid
+	ctx.Params["id"] = host + "/" + oid
 	ctx.Params["action"] = action
 	txt, err := ioutil.ReadAll(ctx.Request.Body)
 	ctx.Params["body"] = string(txt)

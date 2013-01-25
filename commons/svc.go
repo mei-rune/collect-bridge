@@ -12,47 +12,6 @@ import (
 	"time"
 )
 
-type TimeoutError struct {
-	message string
-}
-
-func (err *TimeoutError) Error() string {
-	return err.message
-}
-
-func IsTimeout(e error) bool {
-	_, ok := e.(*TimeoutError)
-	return ok
-}
-
-type PanicError struct {
-	message string
-	any     interface{}
-}
-
-func (err *PanicError) Error() string {
-	return err.message
-}
-
-func NewPanicError(s string, any interface{}) error {
-	return &PanicError{message: fmt.Sprintf("%s%v", s, any), any: any}
-}
-
-type TwinceError struct {
-	message       string
-	first, second error
-}
-
-func (err *TwinceError) Error() string {
-	return err.message
-}
-
-func NewTwinceError(first, second error) error {
-	msg := fmt.Sprintf("return two error, first is {%s}, second is {%s}",
-		first.Error(), second.Error())
-	return &TwinceError{message: msg, first: first, second: second}
-}
-
 const (
 	MESSAGE_RET_PANIC = 0
 	MESSAGE_RET_OK    = 1
@@ -66,6 +25,10 @@ const (
 type Startable interface {
 	Start() error
 	Stop()
+}
+
+type Idleable interface {
+	OnIdle()
 }
 
 type Testable interface {
@@ -156,12 +119,6 @@ func putCachedChannel(msg *message) {
 const (
 	status_inactive = 0
 	status_active   = 1
-
-	timeout_message = "time out"
-)
-
-var (
-	TimeoutErr = &TimeoutError{message: timeout_message}
 )
 
 type Svc struct {
@@ -172,6 +129,10 @@ type Svc struct {
 	ch                      chan *message
 	timeout                 time.Duration
 	onStart, onStop, onIdle func()
+}
+
+func (svc *Svc) SetTimeout(timeout time.Duration) {
+	svc.timeout = timeout
 }
 
 func (svc *Svc) Set(onStart, onStop, onIdle func()) {

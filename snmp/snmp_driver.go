@@ -1,71 +1,71 @@
-package main
+package snmp
 
 import (
 	"commons"
 	"errors"
-	"flag"
 	"fmt"
-	"snmp"
 	"strconv"
 	"strings"
 	"time"
 )
 
-var (
-	snmpTimeout = flag.Int("snmp.timeout", 60, "maximun duration (second) of send/recv pdu timeout")
-)
-
 type SnmpDriver struct {
-	snmp.ClientManager
+	ClientManager
+	drvMgr  *commons.DriverManager
+	timeout time.Duration
 }
 
-func getTimeout(params map[string]string) time.Duration {
+func NewSnmpDriver(timeout time.Duration, drvMgr *commons.DriverManager) *SnmpDriver {
+	return &SnmpDriver{drvMgr: drvMgr, timeout: timeout}
+}
+
+func getTimeout(params map[string]string, timeout time.Duration) time.Duration {
 	v, ok := params["timeout"]
 	if !ok {
-		return time.Duration(*snmpTimeout) * time.Second
+		return timeout
 	}
-	ret, err := snmp.ParseTime(v)
+
+	ret, err := commons.ParseTime(v)
 	if nil != err {
 		panic(err)
 	}
 	return ret
 }
 
-func getVersion(params map[string]string) snmp.SnmpVersion {
+func getVersion(params map[string]string) (SnmpVersion, error) {
 	v, ok := params["version"]
 	if !ok {
-		return snmp.SNMP_V2C
+		return SNMP_V2C, nil
 	}
 	switch v {
 	case "v1", "V1", "1":
-		return snmp.SNMP_V1
+		return SNMP_V1, nil
 	case "v2", "V2", "v2c", "V2C", "2", "2c", "2C":
-		return snmp.SNMP_V2C
+		return SNMP_V2C, nil
 	case "v3", "V3", "3":
-		return snmp.SNMP_V3
+		return SNMP_V3, nil
 	}
-	panic(fmt.Sprintf("error version: %s", v))
-	return 0
+	return SNMP_Verr, errors.New("Unsupported version - " + v)
 }
 
-func getAction(params map[string]string) (snmp.SnmpType, error) {
+func getAction(params map[string]string) (SnmpType, error) {
 	v, ok := params["action"]
 	if !ok {
-		return snmp.SNMP_PDU_GET, nil
+		return SNMP_PDU_GET, nil
 	}
 	switch v {
 	case "table", "Table", "TABLE":
-		return snmp.SNMP_PDU_TABLE, nil
+		return SNMP_PDU_TABLE, nil
 	case "get", "Get", "GET":
-		return snmp.SNMP_PDU_GET, nil
+		return SNMP_PDU_GET, nil
 	case "next", "Next", "NEXT", "getnext", "Getnext", "GETNEXT":
-		return snmp.SNMP_PDU_GETNEXT, nil
+		return SNMP_PDU_GETNEXT, nil
 	case "bulk", "Bulk", "BULK", "getbuld", "Getbuld", "GETBULD":
-		return snmp.SNMP_PDU_GETBULK, nil
+		return SNMP_PDU_GETBULK, nil
 	case "set", "Set", "SET", "put", "Put", "PUT":
-		return snmp.SNMP_PDU_SET, nil
+		return SNMP_PDU_SET, nil
 	}
-	return snmp.SNMP_PDU_GET, fmt.Errorf("error pdu type: %s", v)
+	return SNMP_PDU_GET, fmt.Errorf("error pdu type: %s", v)
 }
 
 func internalError(msg string, err error) error {
@@ -75,33 +75,42 @@ func internalError(msg string, err error) error {
 	return fmt.Errorf(msg + "-" + err.Error())
 }
 
-func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string) (map[string]interface{}, error) {
-	host, ok := params["host"]
+var HostAndOidIsRequired = errors.New("'host' and 'oid' is required.")
+var OidIsRequired = errors.New("'oid' is required.")
+
+func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[string]interface{}, error) {
+
+	id, ok := params["id"]
 	if !ok {
-		return nil, errors.New("'host' is required.")
+		return nil, HostAndOidIsRequired
+	}
+	ss := strings.SplitN(id, "/", 2)
+	if 2 != len(ss) {
+		return nil, OidIsRequired
 	}
 
-	oid, ok := params["oid"]
-	if !ok {
-		return nil, errors.New("'oid' is required.")
-	}
-
-	client, err := bridge.GetClient(host)
+	host, oid := ss[0], ss[1]
+	client, err := self.GetClient(host)
 	if nil != err {
 		return nil, internalError("create client failed", err)
 	}
 
-	if snmp.SNMP_PDU_TABLE == action {
+	if SNMP_PDU_TABLE == action {
 		_, contains := params["columns"]
 
 		if contains {
-			return bridge.tableGetByColumns(params, client, oid)
+			return self.tableGetByColumns(params, client, oid)
 		}
 
-		return bridge.tableGet(params, client, oid)
+		return self.tableGet(params, client, oid)
 	}
 
-	req, err := client.CreatePDU(action, getVersion(params))
+	version, e := getVersion(params)
+	if SNMP_Verr == version {
+		return nil, e
+	}
+
+	req, err := client.CreatePDU(action, version)
 	if nil != err {
 		return nil, internalError("create pdu failed", err)
 	}
@@ -112,9 +121,9 @@ func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string)
 	}
 
 	switch action {
-	case snmp.SNMP_PDU_GET, snmp.SNMP_PDU_GETNEXT:
+	case SNMP_PDU_GET, SNMP_PDU_GETNEXT:
 		err = req.GetVariableBindings().Append(oid, "")
-	case snmp.SNMP_PDU_GETBULK:
+	case SNMP_PDU_GETBULK:
 		vbs := req.GetVariableBindings()
 		for _, oi := range strings.Split(oid, "|") {
 			err = vbs.Append(oi, "")
@@ -122,7 +131,7 @@ func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string)
 				break
 			}
 		}
-	case snmp.SNMP_PDU_SET:
+	case SNMP_PDU_SET:
 		txt, ok := params["body"]
 		if !ok {
 			err = errors.New("'body' is required in the set action.")
@@ -137,7 +146,7 @@ func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string)
 		return nil, internalError("append vb failed", err)
 	}
 
-	resp, err := client.SendAndRecv(req, getTimeout(params))
+	resp, err := client.SendAndRecv(req, getTimeout(params, self.timeout))
 	if nil != err {
 		return nil, internalError("snmp failed", err)
 	}
@@ -153,30 +162,30 @@ func (bridge *SnmpDriver) invoke(action snmp.SnmpType, params map[string]string)
 	return map[string]interface{}{"value": results}, nil
 }
 
-func (bridge *SnmpDriver) Get(params map[string]string) (map[string]interface{}, error) {
+func (self *SnmpDriver) Get(params map[string]string) (map[string]interface{}, error) {
 	action, err := getAction(params)
 	if nil != err {
 		return nil, internalError("get action failed", err)
 	}
-	return bridge.invoke(action, params)
+	return self.invoke(action, params)
 }
 
-func (bridge *SnmpDriver) Put(params map[string]string) (map[string]interface{}, error) {
-	return bridge.invoke(snmp.SNMP_PDU_SET, params)
+func (self *SnmpDriver) Put(params map[string]string) (map[string]interface{}, error) {
+	return self.invoke(SNMP_PDU_SET, params)
 }
 
-func (bridge *SnmpDriver) Create(params map[string]string) (bool, error) {
+func (self *SnmpDriver) Create(params map[string]string) (bool, error) {
 	return false, fmt.Errorf("not implemented")
 }
 
-func (bridge *SnmpDriver) Delete(params map[string]string) (bool, error) {
-	v, ok := params["remove_clients"]
-	if ok && "true" == v {
-		host, _ := params["client"]
-		if "" != host {
-			bridge.RemoveClient(host)
+func (self *SnmpDriver) Delete(params map[string]string) (bool, error) {
+	action, ok := params["action"]
+	if ok && "remove_client" == action {
+		host, _ := params["id"]
+		if "" != host && "all" != host {
+			self.RemoveClient(host)
 		} else {
-			bridge.RemoveAllClients()
+			self.RemoveAllClients()
 		}
 
 		return true, nil
@@ -186,14 +195,14 @@ func (bridge *SnmpDriver) Delete(params map[string]string) (bool, error) {
 }
 
 var (
-	NilVariableBinding = snmp.VariableBinding{Oid: *snmp.NewOid([]uint32{}), Value: snmp.NewSnmpNil()}
+	NilVariableBinding = VariableBinding{Oid: *NewOid([]uint32{}), Value: NewSnmpNil()}
 )
 
-func (bridge *SnmpDriver) getNext(params map[string]string, client snmp.Client, next_oid snmp.SnmpOid,
-	version snmp.SnmpVersion, timeout time.Duration) (snmp.VariableBinding, error) {
+func (self *SnmpDriver) getNext(params map[string]string, client Client, next_oid SnmpOid,
+	version SnmpVersion, timeout time.Duration) (VariableBinding, error) {
 	var err error
 
-	req, err := client.CreatePDU(snmp.SNMP_PDU_GETNEXT, version)
+	req, err := client.CreatePDU(SNMP_PDU_GETNEXT, version)
 	if nil != err {
 		return NilVariableBinding, internalError("create pdu failed", err)
 	}
@@ -203,7 +212,7 @@ func (bridge *SnmpDriver) getNext(params map[string]string, client snmp.Client, 
 		return NilVariableBinding, internalError("init pdu failed", err)
 	}
 
-	err = req.GetVariableBindings().AppendWith(next_oid, snmp.NewSnmpNil())
+	err = req.GetVariableBindings().AppendWith(next_oid, NewSnmpNil())
 	if nil != err {
 		return NilVariableBinding, internalError("append vb failed", err)
 	}
@@ -220,20 +229,24 @@ func (bridge *SnmpDriver) getNext(params map[string]string, client snmp.Client, 
 	return resp.GetVariableBindings().Get(0), nil
 }
 
-func (bridge *SnmpDriver) tableGet(params map[string]string, client snmp.Client,
+func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 	oid string) (map[string]interface{}, error) {
 
-	start_oid, err := snmp.ParseOidFromString(oid)
+	start_oid, err := ParseOidFromString(oid)
 	if nil != err {
 		return nil, internalError("param 'oid' is error", err)
 	}
 	oid_s := start_oid.GetString()
-	version := getVersion(params)
-	timeout := getTimeout(params)
+	version, e := getVersion(params)
+	if SNMP_Verr == version {
+		return nil, e
+	}
+
+	timeout := getTimeout(params, self.timeout)
 	next_oid := start_oid
 	results := make(map[string]map[string]string)
 	for {
-		vb, err := bridge.getNext(params, client, next_oid, version, timeout)
+		vb, err := self.getNext(params, client, next_oid, version, timeout)
 		if nil != err {
 			return nil, err
 		}
@@ -248,7 +261,7 @@ func (bridge *SnmpDriver) tableGet(params map[string]string, client snmp.Client,
 		}
 
 		idx := strconv.FormatUint(uint64(sub[0]), 10)
-		keys := snmp.NewOid(sub[1:]).GetString()
+		keys := NewOid(sub[1:]).GetString()
 
 		row, _ := results[keys]
 		if nil == row {
@@ -263,10 +276,10 @@ func (bridge *SnmpDriver) tableGet(params map[string]string, client snmp.Client,
 	return map[string]interface{}{"value": results}, nil
 }
 
-func (bridge *SnmpDriver) tableGetByColumns(params map[string]string, client snmp.Client,
+func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Client,
 	oid string) (map[string]interface{}, error) {
 
-	start_oid, err := snmp.ParseOidFromString(oid)
+	start_oid, err := ParseOidFromString(oid)
 	if nil != err {
 		return nil, internalError("param 'oid' is error", err)
 	}
@@ -275,9 +288,13 @@ func (bridge *SnmpDriver) tableGetByColumns(params map[string]string, client snm
 		return nil, internalError("param 'columns' is error", err)
 	}
 
-	version := getVersion(params)
-	timeout := getTimeout(params)
-	next_oids := make([]snmp.SnmpOid, 0, len(columns))
+	version, e := getVersion(params)
+	if SNMP_Verr == version {
+		return nil, e
+	}
+
+	timeout := getTimeout(params, self.timeout)
+	next_oids := make([]SnmpOid, 0, len(columns))
 	next_oids_s := make([]string, 0, len(columns))
 	for _, i := range columns {
 		o := start_oid.Concat(i)
@@ -288,8 +305,8 @@ func (bridge *SnmpDriver) tableGetByColumns(params map[string]string, client snm
 	results := make(map[string]map[string]string)
 
 	for {
-		var req snmp.PDU
-		req, err = client.CreatePDU(snmp.SNMP_PDU_GETNEXT, version)
+		var req PDU
+		req, err = client.CreatePDU(SNMP_PDU_GETNEXT, version)
 		if nil != err {
 			return nil, internalError("create pdu failed", err)
 		}
@@ -300,7 +317,7 @@ func (bridge *SnmpDriver) tableGetByColumns(params map[string]string, client snm
 		}
 
 		for _, next_oid := range next_oids {
-			err = req.GetVariableBindings().AppendWith(next_oid, snmp.NewSnmpNil())
+			err = req.GetVariableBindings().AppendWith(next_oid, NewSnmpNil())
 			if nil != err {
 				return nil, internalError("append vb failed", err)
 			}
@@ -330,7 +347,7 @@ func (bridge *SnmpDriver) tableGetByColumns(params map[string]string, client snm
 				return nil, fmt.Errorf("read '%s' return '%s', it is incorrect", start_oid, vb.Oid.GetString())
 			}
 
-			keys := snmp.NewOid(sub).GetString()
+			keys := NewOid(sub).GetString()
 
 			row, _ := results[keys]
 			if nil == row {

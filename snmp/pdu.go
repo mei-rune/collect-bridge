@@ -33,7 +33,6 @@ type V2CPDU struct {
 	target           string
 	community        string
 	variableBindings VariableBindings
-	client           Client
 }
 
 func (pdu *V2CPDU) Init(params map[string]string) SnmpCodeError {
@@ -146,7 +145,6 @@ type V3PDU struct {
 	target           string
 	securityModel    securityModelWithCopy
 	variableBindings VariableBindings
-	client           Client
 	maxMsgSize       uint
 	contextName      string
 	contextEngine    []byte

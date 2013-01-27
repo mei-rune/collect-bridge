@@ -2,7 +2,7 @@ package snmp
 
 import (
 	"commons"
-	"errors"
+	"commons/errutils"
 	"fmt"
 	"strconv"
 	"strings"
@@ -32,7 +32,7 @@ func getTimeout(params map[string]string, timeout time.Duration) time.Duration {
 	return ret
 }
 
-func getVersion(params map[string]string) (SnmpVersion, error) {
+func getVersion(params map[string]string) (SnmpVersion, commons.RuntimeError) {
 	v, ok := params["version"]
 	if !ok {
 		return SNMP_V2C, nil
@@ -45,10 +45,10 @@ func getVersion(params map[string]string) (SnmpVersion, error) {
 	case "v3", "V3", "3":
 		return SNMP_V3, nil
 	}
-	return SNMP_Verr, errors.New("Unsupported version - " + v)
+	return SNMP_Verr, errutils.BadRequest("Unsupported version - " + v)
 }
 
-func getAction(params map[string]string) (SnmpType, error) {
+func getAction(params map[string]string) (SnmpType, commons.RuntimeError) {
 	v, ok := params["action"]
 	if !ok {
 		return SNMP_PDU_GET, nil
@@ -65,20 +65,20 @@ func getAction(params map[string]string) (SnmpType, error) {
 	case "set", "Set", "SET", "put", "Put", "PUT":
 		return SNMP_PDU_SET, nil
 	}
-	return SNMP_PDU_GET, fmt.Errorf("error pdu type: %s", v)
+	return SNMP_PDU_GET, errutils.BadRequest(fmt.Sprintf("error pdu type: %s", v))
 }
 
-func internalError(msg string, err error) error {
+func internalError(msg string, err error) commons.RuntimeError {
 	if nil == err {
-		return errors.New(msg)
+		return commons.NewRuntimeError(500, msg)
 	}
-	return fmt.Errorf(msg + "-" + err.Error())
+	return commons.NewRuntimeError(500, msg+"-"+err.Error())
 }
 
-var HostAndOidIsRequired = errors.New("'host' and 'oid' is required.")
-var OidIsRequired = errors.New("'oid' is required.")
+var HostAndOidIsRequired = errutils.IsRequired("host' and 'oid")
+var OidIsRequired = errutils.IsRequired("oid")
 
-func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[string]interface{}, error) {
+func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 
 	id, ok := params["id"]
 	if !ok {
@@ -134,7 +134,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 	case SNMP_PDU_SET:
 		txt, ok := params["body"]
 		if !ok {
-			err = errors.New("'body' is required in the set action.")
+			err = commons.BodyNotExists
 		} else {
 			err = req.GetVariableBindings().Append(oid, txt)
 		}
@@ -162,7 +162,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 	return map[string]interface{}{"value": results}, nil
 }
 
-func (self *SnmpDriver) Get(params map[string]string) (map[string]interface{}, error) {
+func (self *SnmpDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	action, err := getAction(params)
 	if nil != err {
 		return nil, internalError("get action failed", err)
@@ -170,15 +170,15 @@ func (self *SnmpDriver) Get(params map[string]string) (map[string]interface{}, e
 	return self.invoke(action, params)
 }
 
-func (self *SnmpDriver) Put(params map[string]string) (map[string]interface{}, error) {
+func (self *SnmpDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	return self.invoke(SNMP_PDU_SET, params)
 }
 
-func (self *SnmpDriver) Create(params map[string]string) (bool, error) {
-	return false, fmt.Errorf("not implemented")
+func (self *SnmpDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	return nil, commons.NotImplemented
 }
 
-func (self *SnmpDriver) Delete(params map[string]string) (bool, error) {
+func (self *SnmpDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {
 	action, ok := params["action"]
 	if ok && "remove_client" == action {
 		host, _ := params["id"]
@@ -191,7 +191,7 @@ func (self *SnmpDriver) Delete(params map[string]string) (bool, error) {
 		return true, nil
 	}
 
-	return false, fmt.Errorf("not implemented")
+	return false, commons.NotImplemented
 }
 
 var (
@@ -199,7 +199,7 @@ var (
 )
 
 func (self *SnmpDriver) getNext(params map[string]string, client Client, next_oid SnmpOid,
-	version SnmpVersion, timeout time.Duration) (VariableBinding, error) {
+	version SnmpVersion, timeout time.Duration) (VariableBinding, commons.RuntimeError) {
 	var err error
 
 	req, err := client.CreatePDU(SNMP_PDU_GETNEXT, version)
@@ -230,7 +230,7 @@ func (self *SnmpDriver) getNext(params map[string]string, client Client, next_oi
 }
 
 func (self *SnmpDriver) tableGet(params map[string]string, client Client,
-	oid string) (map[string]interface{}, error) {
+	oid string) (map[string]interface{}, commons.RuntimeError) {
 
 	start_oid, err := ParseOidFromString(oid)
 	if nil != err {
@@ -257,7 +257,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 
 		sub := vb.Oid.GetUint32s()[len(start_oid):]
 		if 2 > len(sub) {
-			return nil, fmt.Errorf("read '%s' return '%s', it is incorrect", next_oid.GetString(), vb.Oid.GetString())
+			return nil, errutils.InternalError(fmt.Sprintf("read '%s' return '%s', it is incorrect", next_oid.GetString(), vb.Oid.GetString()))
 		}
 
 		idx := strconv.FormatUint(uint64(sub[0]), 10)
@@ -277,7 +277,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 }
 
 func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Client,
-	oid string) (map[string]interface{}, error) {
+	oid string) (map[string]interface{}, commons.RuntimeError) {
 
 	start_oid, err := ParseOidFromString(oid)
 	if nil != err {
@@ -344,7 +344,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 
 			sub := vb.Oid.GetUint32s()[len(start_oid)+1:]
 			if 1 > len(sub) {
-				return nil, fmt.Errorf("read '%s' return '%s', it is incorrect", start_oid, vb.Oid.GetString())
+				return nil, internalError(fmt.Sprintf("read '%s' return '%s', it is incorrect", start_oid, vb.Oid.GetString()), nil)
 			}
 
 			keys := NewOid(sub).GetString()

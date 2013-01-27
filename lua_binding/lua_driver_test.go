@@ -3,8 +3,8 @@ package lua_binding
 import (
 	"commons"
 	c "commons/as"
+	"commons/errutils"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -310,26 +310,26 @@ func TestInvokeScriptFailed(t *testing.T) {
 }
 
 type TestDriver struct {
-	get, put             interface{}
-	get_error, put_error error
+	create, get, put     interface{}
+	get_error, put_error commons.RuntimeError
 
-	create, delete             bool
-	create_error, delete_error error
+	delete                     bool
+	create_error, delete_error commons.RuntimeError
 }
 
-func (bridge *TestDriver) Get(params map[string]string) (map[string]interface{}, error) {
+func (bridge *TestDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	return map[string]interface{}{"value": bridge.get}, bridge.get_error
 }
 
-func (bridge *TestDriver) Put(params map[string]string) (map[string]interface{}, error) {
+func (bridge *TestDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	return map[string]interface{}{"value": bridge.put}, bridge.put_error
 }
 
-func (bridge *TestDriver) Create(map[string]string) (bool, error) {
-	return bridge.create, bridge.create_error
+func (bridge *TestDriver) Create(map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	return map[string]interface{}{"value": bridge.create}, bridge.create_error
 }
 
-func (bridge *TestDriver) Delete(map[string]string) (bool, error) {
+func (bridge *TestDriver) Delete(map[string]string) (bool, commons.RuntimeError) {
 	return bridge.delete, bridge.delete_error
 }
 
@@ -365,7 +365,7 @@ func TestInvokeAndCallback(t *testing.T) {
 	}
 }
 
-func testResult(t *testing.T, drv *LuaDriver, excepted_value interface{}, excepted_error string, actual_value interface{}, actual_error error) {
+func testResult(t *testing.T, drv *LuaDriver, excepted_value interface{}, excepted_error string, actual_value interface{}, actual_error commons.RuntimeError) {
 	if nil == actual_error {
 		if "" != excepted_error {
 			t.Errorf("execute failed, excepted error is %v, actual error is nil", excepted_error)
@@ -400,9 +400,9 @@ func TestInvokeModule(t *testing.T) {
 	testResult(t, drv, map[string]interface{}{"value": "get test ok test1whj23"}, "", v, e)
 	v, e = drv.Put(params)
 	testResult(t, drv, map[string]interface{}{"value": "put test ok test1whj23"}, "", v, e)
-	b, e := drv.Create(params)
-	testResult(t, drv, false, "create test ok test1whj23", b, e)
-	b, e = drv.Delete(params)
+	v, e = drv.Create(params)
+	testResult(t, drv, map[string]interface{}{"id": "2328"}, "create test ok test1whj23", v, e)
+	b, e := drv.Delete(params)
 	testResult(t, drv, false, "delete test ok test1whj23", b, e)
 }
 
@@ -429,9 +429,14 @@ func TestInvokeModuleFailed(t *testing.T) {
 	} else {
 		testResult(t, drv, nil, "put error for test_invoke_module_failed", v, e)
 	}
-	b, e := drv.Create(params)
-	testResult(t, drv, true, "", b, e)
-	b, e = drv.Delete(params)
+	v, e = drv.Create(params)
+	if nil == v {
+		testResult(t, drv, nil, "record not found", nil, e)
+	} else {
+		testResult(t, drv, nil, "record not found", v, e)
+	}
+
+	b, e := drv.Delete(params)
 	testResult(t, drv, true, "", b, e)
 }
 
@@ -444,8 +449,8 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	drv.Start()
 
 	td := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
-		create: false, delete: false, create_error: errors.New("create test cb ok test1whj23"),
-		delete_error: errors.New("delete test cb ok test1whj23")}
+		create: false, delete: false, create_error: errutils.InternalError("create test cb ok test1whj23"),
+		delete_error: errutils.InternalError("delete test cb ok test1whj23")}
 	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {
@@ -458,9 +463,9 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	testResult(t, drv, map[string]interface{}{"value": "get test cb ok test1whj23"}, "", v, e)
 	v, e = drv.Put(params)
 	testResult(t, drv, map[string]interface{}{"value": "put test cb ok test1whj23"}, "", v, e)
-	b, e := drv.Create(params)
-	testResult(t, drv, false, "create test cb ok test1whj23", b, e)
-	b, e = drv.Delete(params)
+	v, e = drv.Create(params)
+	testResult(t, drv, map[string]interface{}{"value": false}, "create test cb ok test1whj23", v, e)
+	b, e := drv.Delete(params)
 	testResult(t, drv, false, "delete test cb ok test1whj23", b, e)
 }
 
@@ -472,7 +477,7 @@ func TestInvokeModuleAndCallbackFailed(t *testing.T) {
 	drv.Name = "TestInvokeModuleAndCallbackFailed"
 	drv.Start()
 
-	td := &TestDriver{get_error: errors.New("get test cb ok test1whj23"), put_error: errors.New("put test cb ok test1whj23"),
+	td := &TestDriver{get_error: errutils.InternalError("get test cb ok test1whj23"), put_error: errutils.InternalError("put test cb ok test1whj23"),
 		create: false, delete: false}
 	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
@@ -495,9 +500,9 @@ func TestInvokeModuleAndCallbackFailed(t *testing.T) {
 	} else {
 		testResult(t, drv, nil, "put test cb ok test1whj23", v, e)
 	}
-	b, e := drv.Create(params)
-	testResult(t, drv, false, "", b, e)
-	b, e = drv.Delete(params)
+	v, e = drv.Create(params)
+	testResult(t, drv, map[string]interface{}{"value": false}, "", v, e)
+	b, e := drv.Delete(params)
 	testResult(t, drv, false, "", b, e)
 }
 
@@ -533,26 +538,26 @@ func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
 		t.Errorf("execute failed - %s", e.Error())
 		return
 	}
-	bytes1, e := json.Marshal(map[string]interface{}{"value": td.get})
-	if nil != e {
-		t.Errorf("excepted to json failed - %s", e.Error())
+	bytes1, err := json.Marshal(map[string]interface{}{"value": td.get})
+	if nil != err {
+		t.Errorf("excepted to json failed - %s", err.Error())
 		return
 	}
 	j1 := make(map[string]interface{})
-	e = json.Unmarshal(bytes1, &j1)
-	if nil != e {
-		t.Errorf("excepted parse json failed - %s", e.Error())
+	err = json.Unmarshal(bytes1, &j1)
+	if nil != err {
+		t.Errorf("excepted parse json failed - %s", err.Error())
 		return
 	}
-	bytes2, e := json.Marshal(v)
-	if nil != e {
-		t.Errorf("actual to json failed - %s", e.Error())
+	bytes2, err := json.Marshal(v)
+	if nil != err {
+		t.Errorf("actual to json failed - %s", err.Error())
 		return
 	}
 	j2 := make(map[string]interface{})
-	e = json.Unmarshal(bytes2, &j2)
-	if nil != e {
-		t.Errorf("actual parse json failed - %s", e.Error())
+	err = json.Unmarshal(bytes2, &j2)
+	if nil != err {
+		t.Errorf("actual parse json failed - %s", err.Error())
 		return
 	}
 

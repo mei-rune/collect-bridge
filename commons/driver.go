@@ -43,8 +43,8 @@ func (self *DriverManager) Connect(name string) (Driver, bool) {
 // }
 
 type Driver interface {
-	Get(map[string]string) (map[string]interface{}, error)
-	Put(map[string]string) (map[string]interface{}, error)
-	Create(map[string]string) (bool, error)
-	Delete(map[string]string) (bool, error)
+	Get(map[string]string) (map[string]interface{}, RuntimeError)
+	Put(map[string]string) (map[string]interface{}, RuntimeError)
+	Create(map[string]string) (map[string]interface{}, RuntimeError)
+	Delete(map[string]string) (bool, RuntimeError)
 }

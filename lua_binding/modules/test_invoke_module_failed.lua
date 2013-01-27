@@ -9,7 +9,7 @@ function put(params)
 end
 
 function create(params)
-	return true, nil
+	return nil, "record not found"
 end
 
 function delete(params)

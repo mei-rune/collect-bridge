@@ -50,6 +50,10 @@ func (ctx *Context) Redirect(status int, url_ string) {
 	ctx.Writer.Write([]byte("Redirecting to: " + url_))
 }
 
+func (ctx *Context) Status(status int) {
+	ctx.Writer.WriteHeader(status)
+}
+
 func (ctx *Context) NotModified() {
 	ctx.Writer.WriteHeader(304)
 }

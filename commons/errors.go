@@ -5,45 +5,52 @@ import (
 	"fmt"
 )
 
-type TimeoutError struct {
+type RuntimeError interface {
+	Error() string
+	Code() int
+}
+
+type ApplicationError struct {
+	code    int
 	message string
 }
 
-func (err *TimeoutError) Error() string {
+func (err *ApplicationError) Code() int {
+	return err.code
+}
+
+func (err *ApplicationError) Error() string {
 	return err.message
+}
+
+func NewRuntimeError(code int, message string) RuntimeError {
+	return &ApplicationError{code: code, message: message}
+}
+
+func GetCode(e error, default_code int) int {
+	a, ok := e.(RuntimeError)
+	if !ok {
+		return default_code
+	}
+	return a.Code()
 }
 
 func IsTimeout(e error) bool {
-	_, ok := e.(*TimeoutError)
+	a, ok := e.(RuntimeError)
+	if ok {
+		return a.Code() == TimeoutErr.Code()
+	}
 	return ok
 }
 
-type PanicError struct {
-	message string
-	any     interface{}
-}
-
-func (err *PanicError) Error() string {
-	return err.message
-}
-
 func NewPanicError(s string, any interface{}) error {
-	return &PanicError{message: fmt.Sprintf("%s%v", s, any), any: any}
-}
-
-type TwinceError struct {
-	message       string
-	first, second error
-}
-
-func (err *TwinceError) Error() string {
-	return err.message
+	return errors.New(fmt.Sprintf("%s%v", s, any))
 }
 
 func NewTwinceError(first, second error) error {
 	msg := fmt.Sprintf("return two error, first is {%s}, second is {%s}",
 		first.Error(), second.Error())
-	return &TwinceError{message: msg, first: first, second: second}
+	return errors.New(msg)
 }
 
 func NewError(v interface{}) error {
@@ -59,8 +66,9 @@ const (
 )
 
 var (
-	NotImplemented = fmt.Errorf("not implemented")
-	TimeoutErr     = &TimeoutError{message: timeout_message}
-	DieError       = errors.New("die.")
-	IdNotFound     = errors.New("'id' is required.")
+	NotImplemented = NewRuntimeError(501, "not implemented")
+	TimeoutErr     = NewRuntimeError(504, timeout_message)
+	DieError       = NewRuntimeError(500, "die.")
+	IdNotExists    = NewRuntimeError(400, "'id' is required.")
+	BodyNotExists  = NewRuntimeError(400, "'body' is required.")
 )

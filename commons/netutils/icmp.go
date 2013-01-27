@@ -3,6 +3,7 @@ package netutils
 import (
 	"bytes"
 	"commons"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -52,7 +53,7 @@ func newPinger(family int, network, laddr string, echo []byte) (*Pinger, error) 
 		return nil, fmt.Errorf("ListenPacket(%q, %q) failed: %v", network, laddr, err)
 	}
 
-	if nil == echo {
+	if nil == echo || 0 == len(echo) {
 		echo = []byte("gogogogo")
 	}
 
@@ -82,7 +83,7 @@ func NewPinger(netwwork, laddr string, echo []byte) (*Pinger, error) {
 	if netwwork == "ip6:icmp" {
 		return newPinger(syscall.AF_INET6, netwwork, laddr, echo)
 	}
-	return nil, fmt.Errorf("Unsupported network - %s", netwwork)
+	return nil, errors.New("Unsupported network - " + netwwork)
 }
 
 func (self *Pinger) Close() {

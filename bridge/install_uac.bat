@@ -1,0 +1,1 @@
+mt.exe -manifest "bridge.exe.manifest" -outputresource:"bridge.exe;#1"

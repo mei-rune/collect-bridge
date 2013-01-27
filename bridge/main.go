@@ -39,16 +39,21 @@ func main() {
 	drvMgr := commons.NewDriverManager()
 
 	e := registerSNMP(svr, time.Duration(*timeout)*time.Second, drvMgr)
-	if nil == e {
-		fmt.Println(e)
+	if nil != e {
+		fmt.Println("snmp", e)
 		return
 	}
 	e = registerLua(svr, time.Duration(*timeout)*time.Second, drvMgr)
-	if nil == e {
-		fmt.Println(e)
+	if nil != e {
+		fmt.Println("lua", e)
 		return
 	}
-	registerDriverBridge(svr, drvMgr)
+	e = registerICMP(svr, drvMgr)
+	if nil != e {
+		fmt.Println("icmp", e)
+		return
+	}
+	registerDrivers(svr, drvMgr)
 
 	svr.Run()
 }

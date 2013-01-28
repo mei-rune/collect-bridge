@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"commons"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,20 +30,19 @@ func (self *MetricManager) Get(params map[string]string) (interface{}, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (self *MetricManager) Put(params map[string]string) (interface{}, error) {
-
+func (self *MetricManager) Put(params map[string]string) (map[string]interface{}, error) {
 	j, ok := params["body"]
 	if !ok {
-		return false, errors.New("'body' is required.")
+		return nil, commons.BodyNotExists
 	}
 	if "" == j {
-		return false, errors.New("'body' is empty.")
+		return nil, commons.BodyIsEmpty
 	}
 
 	var definition MetricDefinition
 	e := json.Unmarshal([]byte(j), &definition)
 	if nil != e {
-		return false, fmt.Errorf("Unmarshal body to route_definitions failed -- %s\n%s", e.Error(), j)
+		return nil, fmt.Errorf("Unmarshal body to route_definitions failed -- %s\n%s", e.Error(), j)
 	}
 
 	rs, e := NewMetricSpec(&definition)
@@ -52,22 +52,22 @@ func (self *MetricManager) Put(params map[string]string) (interface{}, error) {
 
 	self.dispatcher.registerSpec(rs)
 
-	return "ok", nil
+	return commons.ReturnOK(), nil
 }
 
 func (self *MetricManager) Create(params map[string]string) (bool, error) {
 	j, ok := params["body"]
 	if !ok {
-		return false, errors.New("'body' is required.")
+		return nil, commons.BodyNotExists
 	}
 	if "" == j {
-		return false, errors.New("'body' is empty.")
+		return nil, commons.BodyIsEmpty
 	}
 
 	routes_definitions := make([]MetricDefinition, 0)
 	e := json.Unmarshal([]byte(j), &routes_definitions)
 	if nil != e {
-		return false, fmt.Errorf("Unmarshal body to route_definitions failed -- %s\n%s", e.Error(), j)
+		return nil, fmt.Errorf("Unmarshal body to route_definitions failed -- %s\n%s", e.Error(), j)
 	}
 	ss := make([]string, 0, 10)
 	for _, rd := range routes_definitions {
@@ -81,16 +81,16 @@ func (self *MetricManager) Create(params map[string]string) (bool, error) {
 
 	if 0 != len(ss) {
 		self.clear()
-		return false, errors.New("parse route definitions failed.\n" + strings.Join(ss, "\n"))
+		return nil, errors.New("parse route definitions failed.\n" + strings.Join(ss, "\n"))
 	}
 
-	return true, nil
+	return commons.ReturnOK(), nil
 }
 
 func (self *MetricManager) Delete(params map[string]string) (bool, error) {
 	id, ok := params["id"]
 	if !ok {
-		return false, errors.New("id is required")
+		return false, commons.IdNotExists
 	}
 	self.dispatcher.unregisterSpec("", id)
 	return true, nil

@@ -11,6 +11,50 @@ func NewDriverManager() *DriverManager {
 	return &drv
 }
 
+func (self *DriverManager) Stop(name string) {
+	drv, ok := (*self)[name]
+	if !ok {
+		return
+	}
+	startable, ok := drv.(Startable)
+	if ok && nil != startable {
+		startable.Stop()
+	}
+}
+
+func (self *DriverManager) Start(name string) error {
+	drv, ok := (*self)[name]
+	if !ok {
+		return NotFound(name)
+	}
+
+	startable, ok := drv.(Startable)
+	if ok && nil != startable {
+		err := startable.Start()
+		if nil != err {
+			return err
+		}
+	}
+	return nil
+}
+
+func (self *DriverManager) Reset(name string) error {
+	drv, ok := (*self)[name]
+	if !ok {
+		return NotFound(name)
+	}
+
+	startable, ok := drv.(Startable)
+	if ok && nil != startable {
+		startable.Stop()
+		err := startable.Start()
+		if nil != err {
+			return err
+		}
+	}
+	return nil
+}
+
 func (self *DriverManager) Register(name string, driver Driver) {
 	_, ok := (*self)[name]
 	if ok {
@@ -18,6 +62,7 @@ func (self *DriverManager) Register(name string, driver Driver) {
 	}
 	(*self)[name] = driver
 }
+
 func (self *DriverManager) Unregister(name string) {
 	delete(*self, name)
 }
@@ -27,9 +72,17 @@ func (self *DriverManager) Connect(name string) (Driver, bool) {
 	return driver, ok
 }
 
-// var (
-//	drivers = NewDriverManager()
-// )
+func (self *DriverManager) Names() []string {
+	names := make([]string, 0, 10)
+	for k, _ := range *self {
+		names = append(names, k)
+	}
+	return names
+}
+
+var (
+	METRIC_DRVS = map[string]func(params map[string]string, drvMgr *DriverManager) Driver{}
+)
 
 // func Register(name string, driver Driver) {
 //	drivers.Register(name, driver)
@@ -41,6 +94,11 @@ func (self *DriverManager) Connect(name string) (Driver, bool) {
 // func Connect(name string) (Driver, bool) {
 //	return drivers.Connect(name)
 // }
+
+type Startable interface {
+	Start() error
+	Stop()
+}
 
 type Driver interface {
 	Get(map[string]string) (map[string]interface{}, RuntimeError)

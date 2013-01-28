@@ -133,3 +133,19 @@ func ParseTime(s string) (time.Duration, error) {
 	}
 	return time.Duration(i) * unit, nil
 }
+
+func Return(value interface{}) map[string]interface{} {
+	return map[string]interface{}{"value": value}
+}
+
+func ReturnWith(key string, value interface{}) map[string]interface{} {
+	return map[string]interface{}{key: value}
+}
+
+func ReturnOK() map[string]interface{} {
+	return map[string]interface{}{"value": "ok"}
+}
+
+func ReturnFailed() map[string]interface{} {
+	return map[string]interface{}{"value": "ok"}
+}

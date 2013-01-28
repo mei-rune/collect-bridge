@@ -46,11 +46,11 @@ func (self *ICMPDriver) Get(params map[string]string) (map[string]interface{}, c
 			if commons.IsTimeout(e) {
 				break
 			}
-			return map[string]interface{}{"value": values}, commons.NewRuntimeError(500, e.Error())
+			return commons.Return(values), commons.NewRuntimeError(500, e.Error())
 		}
 		values = append(values, addr.String())
 	}
-	return map[string]interface{}{"value": values}, nil
+	return commons.Return(values), nil
 }
 
 func (self *ICMPDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
@@ -67,10 +67,13 @@ func (self *ICMPDriver) Put(params map[string]string) (map[string]interface{}, c
 	if !ok {
 		return nil, commons.BodyNotExists
 	}
+	if "" == body {
+		return nil, errutils.IsRequired("body")
+	}
 	ipList := make([]string, 0, 100)
 	e := json.Unmarshal([]byte(body), &ipList)
 	if nil != e {
-		return nil, errutils.BadRequest("read body failed, it is not []string of json - " + e.Error())
+		return nil, errutils.BadRequest("read body failed, it is not []string of json - " + e.Error() + body)
 	}
 
 	for _, ip_raw := range ipList {
@@ -87,7 +90,7 @@ func (self *ICMPDriver) Put(params map[string]string) (map[string]interface{}, c
 			}
 		}
 	}
-	return map[string]interface{}{"value": "ok"}, nil
+	return commons.ReturnOK(), nil
 }
 
 func (self *ICMPDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
@@ -133,7 +136,7 @@ func (self *ICMPDriver) Create(params map[string]string) (map[string]interface{}
 		return nil, commons.NewRuntimeError(500, err.Error())
 	}
 	self.pingers[id] = icmp
-	return map[string]interface{}{"value": "ok", "id": id}, nil
+	return commons.ReturnWith("id", id), nil
 }
 
 func (self *ICMPDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {

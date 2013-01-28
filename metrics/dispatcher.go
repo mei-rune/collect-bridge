@@ -6,9 +6,7 @@ import (
 	"fmt"
 )
 
-var (
-	route_debuging = flag.Bool("route.debuging", 10240, "set max size of pdu")
-)
+var route_debuging = flag.Bool("route.debugging", 10240, "set max size of pdu")
 
 func NewMetricSpec(rd *MetricDefinition) (*MetricSpec, error) {
 	rs := &MetricSpec{definition: rd,

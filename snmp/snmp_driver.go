@@ -159,7 +159,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 	for _, vb := range resp.GetVariableBindings().All() {
 		results[vb.Oid.GetString()] = vb.Value.String()
 	}
-	return map[string]interface{}{"value": results}, nil
+	return commons.Return(results), nil
 }
 
 func (self *SnmpDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
@@ -273,7 +273,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 		next_oid = vb.Oid
 	}
 
-	return map[string]interface{}{"value": results}, nil
+	return commons.Return(results), nil
 }
 
 func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Client,
@@ -365,5 +365,5 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 		}
 		next_oids = next_oids[0:offset]
 	}
-	return map[string]interface{}{"value": results}, nil
+	return commons.Return(results), nil
 }

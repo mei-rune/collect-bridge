@@ -44,7 +44,7 @@ func assertTrue(t *testing.T, cond bool, msg string) {
 	}
 }
 
-func checkReturn(t *testing.T, excepted, old, actual interface{}, err error, msg string) {
+func checkResult(t *testing.T, excepted, old, actual interface{}, err error, msg string) {
 	if nil != err {
 		t.Errorf(msg+err.Error()+" - %v", old)
 	} else if excepted != actual {
@@ -61,13 +61,13 @@ func checkArray(t *testing.T, old interface{}) {
 		t.Errorf("test array - "+err.Error()+" - %v", old)
 	} else {
 		res, err = c.AsInt(array[0])
-		checkReturn(t, int(1), array[0], res, err, "test int in array - ")
+		checkResult(t, int(1), array[0], res, err, "test int in array - ")
 
 		res, err = c.AsUint(array[1])
-		checkReturn(t, uint(2), array[1], res, err, "test uint in array - ")
+		checkResult(t, uint(2), array[1], res, err, "test uint in array - ")
 
 		res, err = c.AsString(array[2])
-		checkReturn(t, "s1", array[2], res, err, "test string in array - ")
+		checkResult(t, "s1", array[2], res, err, "test string in array - ")
 	}
 }
 
@@ -83,13 +83,13 @@ func checkMap(t *testing.T, old interface{}) {
 		fmt.Print(assoc)
 
 		res, err = c.AsInt(assoc["a1"])
-		checkReturn(t, int(1), assoc["a1"], res, err, "test int in map - ")
+		checkResult(t, int(1), assoc["a1"], res, err, "test int in map - ")
 
 		res, err = c.AsUint(assoc["a2"])
-		checkReturn(t, uint(2), assoc["a2"], res, err, "test uint in map - ")
+		checkResult(t, uint(2), assoc["a2"], res, err, "test uint in map - ")
 
 		res, err = c.AsString(assoc["a3"])
-		checkReturn(t, "s3", assoc["a3"], res, err, "test string in array - ")
+		checkResult(t, "s3", assoc["a3"], res, err, "test string in array - ")
 	}
 }
 
@@ -153,58 +153,58 @@ func TestPushAny(t *testing.T) {
 	var err error
 
 	old = pushAnyTest(drv, nil)
-	checkReturn(t, nil, old, old, nil, "test nil - ")
+	checkResult(t, nil, old, old, nil, "test nil - ")
 
 	old = pushAnyTest(drv, true)
 	if nil == old {
 		panic("nil == old")
 	}
 	res, err = c.AsBool(old)
-	checkReturn(t, true, old, res, err, "test bool - ")
+	checkResult(t, true, old, res, err, "test bool - ")
 
 	old = pushAnyTest(drv, int8(8))
 	res, err = c.AsInt8(old)
-	checkReturn(t, int8(8), old, res, err, "test int8 - ")
+	checkResult(t, int8(8), old, res, err, "test int8 - ")
 
 	old = pushAnyTest(drv, int16(16))
 	res, err = c.AsInt16(old)
-	checkReturn(t, int16(16), old, res, err, "test int16 - ")
+	checkResult(t, int16(16), old, res, err, "test int16 - ")
 
 	old = pushAnyTest(drv, int32(32))
 	res, err = c.AsInt32(old)
-	checkReturn(t, int32(32), old, res, err, "test int32 - ")
+	checkResult(t, int32(32), old, res, err, "test int32 - ")
 
 	old = pushAnyTest(drv, int64(64))
 	res, err = c.AsInt64(old)
-	checkReturn(t, int64(64), old, res, err, "test int64 - ")
+	checkResult(t, int64(64), old, res, err, "test int64 - ")
 
 	old = pushAnyTest(drv, uint8(98))
 	res, err = c.AsUint8(old)
-	checkReturn(t, uint8(98), old, res, err, "test uint8 - ")
+	checkResult(t, uint8(98), old, res, err, "test uint8 - ")
 
 	old = pushAnyTest(drv, uint16(916))
 	res, err = c.AsUint16(old)
-	checkReturn(t, uint16(916), old, res, err, "test uint16 - ")
+	checkResult(t, uint16(916), old, res, err, "test uint16 - ")
 
 	old = pushAnyTest(drv, uint32(932))
 	res, err = c.AsUint32(old)
-	checkReturn(t, uint32(932), old, res, err, "test uint32 - ")
+	checkResult(t, uint32(932), old, res, err, "test uint32 - ")
 
 	old = pushAnyTest(drv, uint64(964))
 	res, err = c.AsUint64(old)
-	checkReturn(t, uint64(964), old, res, err, "test uint64 - ")
+	checkResult(t, uint64(964), old, res, err, "test uint64 - ")
 
 	old = pushAnyTest(drv, uint(123))
 	res, err = c.AsUint(old)
-	checkReturn(t, uint(123), old, res, err, "test uint - ")
+	checkResult(t, uint(123), old, res, err, "test uint - ")
 
 	old = pushAnyTest(drv, int(223))
 	res, err = c.AsInt(old)
-	checkReturn(t, int(223), old, res, err, "test int - ")
+	checkResult(t, int(223), old, res, err, "test int - ")
 
 	old = pushAnyTest(drv, "aa")
 	res, err = c.AsString(old)
-	checkReturn(t, "aa", old, res, err, "test string - ")
+	checkResult(t, "aa", old, res, err, "test string - ")
 
 	old = pushAnyTest(drv, []interface{}{int8(1), uint8(2), "s1"})
 	checkArray(t, old)
@@ -318,15 +318,15 @@ type TestDriver struct {
 }
 
 func (bridge *TestDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
-	return map[string]interface{}{"value": bridge.get}, bridge.get_error
+	return commons.Return(bridge.get), bridge.get_error
 }
 
 func (bridge *TestDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
-	return map[string]interface{}{"value": bridge.put}, bridge.put_error
+	return commons.Return(bridge.put), bridge.put_error
 }
 
 func (bridge *TestDriver) Create(map[string]string) (map[string]interface{}, commons.RuntimeError) {
-	return map[string]interface{}{"value": bridge.create}, bridge.create_error
+	return commons.Return(bridge.create), bridge.create_error
 }
 
 func (bridge *TestDriver) Delete(map[string]string) (bool, commons.RuntimeError) {
@@ -397,11 +397,11 @@ func TestInvokeModule(t *testing.T) {
 	}()
 	params := map[string]string{"schema": "test_invoke_module"}
 	v, e := drv.Get(params)
-	testResult(t, drv, map[string]interface{}{"value": "get test ok test1whj23"}, "", v, e)
+	testResult(t, drv, commons.Return("get test ok test1whj23"), "", v, e)
 	v, e = drv.Put(params)
-	testResult(t, drv, map[string]interface{}{"value": "put test ok test1whj23"}, "", v, e)
+	testResult(t, drv, commons.Return("put test ok test1whj23"), "", v, e)
 	v, e = drv.Create(params)
-	testResult(t, drv, map[string]interface{}{"id": "2328"}, "create test ok test1whj23", v, e)
+	testResult(t, drv, commons.ReturnWith("id", "2328"), "create test ok test1whj23", v, e)
 	b, e := drv.Delete(params)
 	testResult(t, drv, false, "delete test ok test1whj23", b, e)
 }
@@ -460,11 +460,11 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 
 	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}
 	v, e := drv.Get(params)
-	testResult(t, drv, map[string]interface{}{"value": "get test cb ok test1whj23"}, "", v, e)
+	testResult(t, drv, commons.Return("get test cb ok test1whj23"), "", v, e)
 	v, e = drv.Put(params)
-	testResult(t, drv, map[string]interface{}{"value": "put test cb ok test1whj23"}, "", v, e)
+	testResult(t, drv, commons.Return("put test cb ok test1whj23"), "", v, e)
 	v, e = drv.Create(params)
-	testResult(t, drv, map[string]interface{}{"value": false}, "create test cb ok test1whj23", v, e)
+	testResult(t, drv, commons.Return(false), "create test cb ok test1whj23", v, e)
 	b, e := drv.Delete(params)
 	testResult(t, drv, false, "delete test cb ok test1whj23", b, e)
 }
@@ -501,7 +501,7 @@ func TestInvokeModuleAndCallbackFailed(t *testing.T) {
 		testResult(t, drv, nil, "put test cb ok test1whj23", v, e)
 	}
 	v, e = drv.Create(params)
-	testResult(t, drv, map[string]interface{}{"value": false}, "", v, e)
+	testResult(t, drv, commons.Return(false), "", v, e)
 	b, e := drv.Delete(params)
 	testResult(t, drv, false, "", b, e)
 }

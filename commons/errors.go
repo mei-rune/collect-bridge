@@ -35,14 +35,6 @@ func GetCode(e error, default_code int) int {
 	return a.Code()
 }
 
-func IsTimeout(e error) bool {
-	a, ok := e.(RuntimeError)
-	if ok {
-		return a.Code() == TimeoutErr.Code()
-	}
-	return ok
-}
-
 func NewPanicError(s string, any interface{}) error {
 	return errors.New(fmt.Sprintf("%s%v", s, any))
 }
@@ -61,14 +53,36 @@ func NewError(v interface{}) error {
 	return fmt.Errorf("%v", v)
 }
 
+func NotFound(id string) RuntimeError {
+	return NewRuntimeError(404, "'"+id+"' is not found.")
+}
+
+func IsTimeout(e error) bool {
+	a, ok := e.(RuntimeError)
+	if ok {
+		return a.Code() == TimeoutErr.Code()
+	}
+	return ok
+}
+
+func IsNotFound(e error) bool {
+	a, ok := e.(RuntimeError)
+	if ok {
+		return a.Code() == 404
+	}
+	return ok
+}
+
 const (
 	timeout_message = "time out"
 )
 
 var (
-	NotImplemented = NewRuntimeError(501, "not implemented")
-	TimeoutErr     = NewRuntimeError(504, timeout_message)
-	DieError       = NewRuntimeError(500, "die.")
-	IdNotExists    = NewRuntimeError(400, "'id' is required.")
-	BodyNotExists  = NewRuntimeError(400, "'body' is required.")
+	NotImplemented     = NewRuntimeError(501, "not implemented")
+	TimeoutErr         = NewRuntimeError(504, timeout_message)
+	DieError           = NewRuntimeError(500, "die.")
+	IdNotExists        = NewRuntimeError(400, "'id' is required.")
+	BodyNotExists      = NewRuntimeError(400, "'body' is required.")
+	BodyIsEmpty        = NewRuntimeError(400, "'body' is empty.")
+	ServiceUnavailable = NewRuntimeError(503, "service temporary unavailable, try again later")
 )

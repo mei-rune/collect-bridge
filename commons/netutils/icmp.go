@@ -211,3 +211,15 @@ func parseICMPEchoReply(b []byte) (t, code, id, seqnum int, body []byte) {
 	seqnum = int(b[6])<<8 | int(b[7])
 	return t, code, id, seqnum, b[8:]
 }
+
+type Pingers struct {
+	*Pinger
+}
+
+func NewPingers(echo []byte) (*Pingers, error) {
+	v4, e := NewPinger("ip4:icmp", "", echo)
+	if nil != e {
+		return nil, e
+	}
+	return &Pingers{v4}, nil
+}

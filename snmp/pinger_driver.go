@@ -14,8 +14,8 @@ type PingerDriver struct {
 	pingers map[string]*Pinger
 }
 
-func NewPingerDriver(drvMgr *commons.DriverManager, network, laddr string) *PingerDriver {
-	return &PingerDriver{drvMgr: drvMgr}
+func NewPingerDriver(drvMgr *commons.DriverManager) *PingerDriver {
+	return &PingerDriver{drvMgr: drvMgr, pingers: make(map[string]*Pinger)}
 }
 
 // func (self *PingerDriver) Start(*Pinger) (err error) {
@@ -58,7 +58,7 @@ func (self *PingerDriver) Get(params map[string]string) (map[string]interface{},
 		}
 		values = append(values, [2]string{addr.String(), version.String()})
 	}
-	return map[string]interface{}{"value": values}, nil
+	return commons.Return(values), nil
 }
 
 func (self *PingerDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
@@ -77,30 +77,46 @@ func (self *PingerDriver) Put(params map[string]string) (map[string]interface{},
 		port = "161"
 	}
 
-	ip_range, e := netutils.ParseIPRange(id)
-	if nil != e {
-		return nil, errutils.InternalError(e.Error())
+	body, ok := params["body"]
+	if !ok {
+		return nil, commons.BodyNotExists
 	}
+	if "" == body {
+		return nil, errutils.IsRequired("body")
+	}
+	ipList := make([]string, 0, 100)
+	e := json.Unmarshal([]byte(body), &ipList)
+	if nil != e {
+		return nil, errutils.BadRequest("read body failed, it is not []string of json - " + e.Error() + body)
+	}
+
 	versions := []SnmpVersion{SNMP_V2C, SNMP_V3}
 	version, e := getVersion(params)
 	if SNMP_Verr != version {
 		versions = []SnmpVersion{version}
 	}
 
-	for i, v := range versions {
-		if i != 0 {
-			time.Sleep(500 * time.Millisecond)
-			ip_range.Reset()
+	for _, ip_raw := range ipList {
+		ip_range, e := netutils.ParseIPRange(ip_raw)
+		if nil != e {
+			return nil, errutils.InternalError(e.Error())
 		}
 
-		for ip_range.HasNext() {
-			e = pinger.Send(net.JoinHostPort(ip_range.Current().String(), port), v)
-			if nil != e {
-				return nil, errutils.InternalError(e.Error())
+		for i, v := range versions {
+			if i != 0 {
+				time.Sleep(500 * time.Millisecond)
+				ip_range.Reset()
+			}
+
+			for ip_range.HasNext() {
+				e = pinger.Send(net.JoinHostPort(ip_range.Current().String(), port), v)
+				if nil != e {
+					return nil, errutils.InternalError(e.Error())
+				}
 			}
 		}
 	}
-	return map[string]interface{}{"value": "OK"}, nil
+	return commons.ReturnOK(), nil
 }
 
 func (self *PingerDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
@@ -138,7 +154,7 @@ func (self *PingerDriver) Create(params map[string]string) (map[string]interface
 		return nil, commons.NewRuntimeError(500, err.Error())
 	}
 	self.pingers[id] = pinger
-	return map[string]interface{}{"id": id}, nil
+	return commons.ReturnWith("id", id), nil
 }
 
 func (self *PingerDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {

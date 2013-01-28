@@ -21,7 +21,7 @@ func IsRequired(name string) commons.RuntimeError {
 }
 
 func RecordNotFound(id string) commons.RuntimeError {
-	return commons.NewRuntimeError(404, "'"+id+"' is not found.")
+	return commons.NotFound(id)
 }
 
 func RecordAlreadyExists(id string) commons.RuntimeError {

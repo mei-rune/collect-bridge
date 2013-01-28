@@ -22,11 +22,6 @@ const (
 	MESSAGE_EXIT = 0
 )
 
-type Startable interface {
-	Start() error
-	Stop()
-}
-
 type Idleable interface {
 	OnIdle()
 }

@@ -53,7 +53,17 @@ func main() {
 		fmt.Println("icmp", e)
 		return
 	}
-	registerDrivers(svr, drvMgr)
+	e = registerSNMPScanner(svr, drvMgr)
+	if nil != e {
+		fmt.Println("snmp-ping", e)
+		return
+	}
+	e = registerMetrics(svr, map[string]string{}, drvMgr)
+	if nil != e {
+		fmt.Println("metrics", e)
+		return
+	}
+	registerBridge(svr, drvMgr)
 
 	svr.Run()
 }

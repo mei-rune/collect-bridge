@@ -21,8 +21,8 @@ func getTimeout(params map[string]string, timeout time.Duration) time.Duration {
 }
 
 type DiscoveryDriver struct {
-	drvMgr    *commons.DriverManager
-	discovers map[string]*Discoverer
+	drvMgr      *commons.DriverManager
+	discoverers map[string]*Discoverer
 }
 
 func NewDiscoveryDriver(timeout time.Duration, drvMgr *commons.DriverManager) *DiscoveryDriver {
@@ -93,7 +93,7 @@ func (self *DiscoveryDriver) Put(params map[string]string) (map[string]interface
 func (self *DiscoveryDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	body, _ := params["body"]
 	if "" == body {
-		body = commons.BodyIsEmpty
+		return nil, commons.BodyIsEmpty
 	}
 
 	discovery_params := &DiscoveryParams{}
@@ -102,12 +102,12 @@ func (self *DiscoveryDriver) Create(params map[string]string) (map[string]interf
 		return nil, errutils.BadRequest("read body failed, it is not DiscoveryParams - " + e.Error())
 	}
 
-	discoverer, err := NewDiscoverer(discovery_params)
+	discoverer, err := NewDiscoverer(discovery_params, self.drvMgr)
 	if nil != err {
 		return nil, commons.NewRuntimeError(500, err.Error())
 	}
 	id := time.Now().UTC().String()
-	if _, ok := self.discovers[id]; ok {
+	if _, ok := self.discoverers[id]; ok {
 		return nil, commons.ServiceUnavailable
 	}
 	self.discoverers[id] = discoverer

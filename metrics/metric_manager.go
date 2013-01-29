@@ -55,7 +55,7 @@ func (self *MetricManager) Put(params map[string]string) (map[string]interface{}
 	return commons.ReturnOK(), nil
 }
 
-func (self *MetricManager) Create(params map[string]string) (bool, error) {
+func (self *MetricManager) Create(params map[string]string) (map[string]interface{}, error) {
 	j, ok := params["body"]
 	if !ok {
 		return nil, commons.BodyNotExists

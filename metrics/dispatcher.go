@@ -1,12 +1,13 @@
 package metrics
 
 import (
+	"commons"
 	"errors"
 	"flag"
 	"fmt"
 )
 
-var route_debuging = flag.Bool("route.debugging", 10240, "set max size of pdu")
+var route_debuging = flag.Bool("route.debugging", false, "set max size of pdu")
 
 func NewMetricSpec(rd *MetricDefinition) (*MetricSpec, error) {
 	rs := &MetricSpec{definition: rd,
@@ -122,36 +123,38 @@ func (self *Dispatcher) clear() {
 	self.instances = make(map[string]*Metric)
 }
 
-func (self *Dispatcher) Get(params map[string]string) (interface{}, error) {
-	id, ok := params["id"]
-	if ok {
-		return nil, errors.New("'id' is required.")
-	}
-	metric, ok := self.instances[id]
-	if nil == metric || nil == metric.metric_get || 0 == len(metric.metric_get) {
-		return nil, errors.New("metric is undefined.")
-	}
+func (self *Dispatcher) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	// id, ok := params["id"]
+	// if ok {
+	//	return nil, commons.IdNotExists
+	// }
+	// metric, ok := self.instances[id]
+	// if nil == metric || nil == metric.metric_get || 0 == len(metric.metric_get) {
+	//	return nil, errutils.NotAcceptable(id)
+	// }
 
-	error := make([]string, 0)
-	for _, spec := range metric.metric_get {
-		value, e := spec.Invoke(params)
-		if nil != e {
-			error = append(error, e.Error())
-		} else if nil != value {
-			return value, nil
-		}
-	}
-	return nil, errors.New("not implemented")
+	// error := make([]string, 0)
+	// for _, spec := range metric.metric_get {
+	//	value, e := spec.Invoke(params)
+	//	if nil != e {
+	//		error = append(error, e.Error())
+	//	} else if nil != value {
+	//		return value, nil
+	//	}
+	// }
+	// return nil, errutils.InternalError("get failed.\n" + strings.Join(error, "\n"))
+
+	return nil, commons.NotImplemented
 }
 
-func (self *Dispatcher) Put(params map[string]string) (interface{}, error) {
-	return nil, errors.New("not implemented")
+func (self *Dispatcher) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	return nil, commons.NotImplemented
 }
 
-func (self *MetricManager) Create(params map[string]string) (bool, error) {
-	return false, errors.New("not implemented")
+func (self *Dispatcher) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	return nil, commons.NotImplemented
 }
 
-func (self *MetricManager) Delete(params map[string]string) (bool, error) {
-	return false, errors.New("not implemented")
+func (self *Dispatcher) Delete(params map[string]string) (bool, commons.RuntimeError) {
+	return false, commons.NotImplemented
 }

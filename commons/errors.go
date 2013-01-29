@@ -78,6 +78,9 @@ const (
 )
 
 var (
+	NotFoundCode   = 404
+	BadRequestCode = 400
+
 	NotImplemented     = NewRuntimeError(501, "not implemented")
 	TimeoutErr         = NewRuntimeError(504, timeout_message)
 	DieError           = NewRuntimeError(500, "die.")

@@ -47,7 +47,7 @@ type Pinger struct {
 	newRequest func(id, seqnum, msglen int, filler []byte) []byte
 }
 
-func newPinger(family int, network, laddr string, echo []byte) (*Pinger, error) {
+func newPinger(family int, network, laddr string, echo []byte, capacity int) (*Pinger, error) {
 	c, err := net.ListenPacket(network, laddr)
 	if err != nil {
 		return nil, fmt.Errorf("ListenPacket(%q, %q) failed: %v", network, laddr, err)
@@ -68,7 +68,7 @@ func newPinger(family int, network, laddr string, echo []byte) (*Pinger, error) 
 		id:         os.Getpid() & 0xffff,
 		echo:       echo,
 		conn:       c,
-		ch:         make(chan *pingResult, 100),
+		ch:         make(chan *pingResult, capacity),
 		newRequest: newRequest}
 	icmp.Send("127.0.0.1", nil)
 	go icmp.serve()
@@ -76,12 +76,12 @@ func newPinger(family int, network, laddr string, echo []byte) (*Pinger, error) 
 	return icmp, nil
 }
 
-func NewPinger(netwwork, laddr string, echo []byte) (*Pinger, error) {
+func NewPinger(netwwork, laddr string, echo []byte, capacity int) (*Pinger, error) {
 	if netwwork == "ip4:icmp" {
-		return newPinger(syscall.AF_INET, netwwork, laddr, echo)
+		return newPinger(syscall.AF_INET, netwwork, laddr, echo, capacity)
 	}
 	if netwwork == "ip6:icmp" {
-		return newPinger(syscall.AF_INET6, netwwork, laddr, echo)
+		return newPinger(syscall.AF_INET6, netwwork, laddr, echo, capacity)
 	}
 	return nil, errors.New("Unsupported network - " + netwwork)
 }
@@ -216,8 +216,8 @@ type Pingers struct {
 	*Pinger
 }
 
-func NewPingers(echo []byte) (*Pingers, error) {
-	v4, e := NewPinger("ip4:icmp", "", echo)
+func NewPingers(echo []byte, capacity int) (*Pingers, error) {
+	v4, e := NewPinger("ip4:icmp", "", echo, capacity)
 	if nil != e {
 		return nil, e
 	}

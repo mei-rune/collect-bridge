@@ -26,7 +26,7 @@ func main() {
 		return
 	}
 
-	scanner, err := snmp.NewPinger(*network, *laddr)
+	scanner, err := snmp.NewPinger(*network, *laddr, 256)
 	if nil != err {
 		fmt.Println(err)
 		return

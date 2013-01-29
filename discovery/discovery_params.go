@@ -12,7 +12,7 @@ type SnmpV3Params struct {
 }
 
 type DiscoveryParams struct {
-	Network      []string `json:"network"`
+	IP_Range     []string `json:"ip-range"`
 	Communities  []string `json:"communities"`
 	SnmpV3Params []string `json:"snmpv3_params"`
 	Depth        int      `json:"discovery_depth"`

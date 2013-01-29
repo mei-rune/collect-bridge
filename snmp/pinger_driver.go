@@ -149,7 +149,7 @@ func (self *PingerDriver) Create(params map[string]string) (map[string]interface
 		return nil, errutils.RecordAlreadyExists(id)
 	}
 
-	pinger, err := NewPinger(network, address)
+	pinger, err := NewPinger(network, address, 256)
 	if nil != err {
 		return nil, commons.NewRuntimeError(500, err.Error())
 	}

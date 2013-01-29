@@ -32,14 +32,14 @@ type Pinger struct {
 	ch      chan *pingResult
 }
 
-func NewPinger(network, laddr string) (*Pinger, error) {
+func NewPinger(network, laddr string, capacity int) (*Pinger, error) {
 	c, err := net.ListenPacket(network, laddr)
 	if err != nil {
 		return nil, fmt.Errorf("ListenPacket(%q, %q) failed: %v", network, laddr, err)
 	}
 
 	pinger := &Pinger{network: network, id: 1, conn: c,
-		ch: make(chan *pingResult, 100)}
+		ch: make(chan *pingResult, capacity)}
 
 	go pinger.serve()
 	pinger.wait.Add(1)

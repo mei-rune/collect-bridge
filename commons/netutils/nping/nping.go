@@ -24,7 +24,7 @@ func main() {
 		return
 	}
 
-	icmp, err := netutils.NewPinger(*network, *laddr, []byte(*msg))
+	icmp, err := netutils.NewPinger(*network, *laddr, []byte(*msg), 256)
 	if nil != err {
 		fmt.Println(err)
 		return

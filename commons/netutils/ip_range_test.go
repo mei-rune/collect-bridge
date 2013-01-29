@@ -14,6 +14,7 @@ var ip_test = []struct {
 	{"192.168.1.1-192.168.1.1", []string{"192.168.1.1"}, "", ""},
 	{"192.168.1.1-192.168.1.2", []string{"192.168.1.1", "192.168.1.2"}, "", ""},
 	{"192.168.1.1-192.168.1.3", []string{"192.168.1.1", "192.168.1.2", "192.168.1.3"}, "", ""},
+	{"192.168.1.1/30", []string{"192.168.1.0", "192.168.1.1", "192.168.1.2", "192.168.1.3", "192.168.1.4"}, "", "192.168.1.4-192.168.1.4"},
 	{"192.168.1.5-192.168.1.3", nil, "start address geater than end address - '192.168.1.5-192.168.1.3'", ""},
 	{"192.168.1.a-192.168.1.3", nil, "start address is syntex error - '192.168.1.a-192.168.1.3'", ""},
 	{"192.168.1.5-192.168.1.a", nil, "end address is syntex error - '192.168.1.5-192.168.1.a'", ""},
@@ -40,10 +41,10 @@ func TestIPRanage(t *testing.T) {
 
 		if raw.expr2 == "" {
 			if raw.expr != r.String() {
-				t.Error("expr != r.String(), %s, %s", raw.expr, r.String())
+				t.Errorf("expr != r.String(), %s, %s", raw.expr, r.String())
 			}
 		} else if raw.expr2 != r.String() {
-			t.Error("expr != r.String(), %s, %s", raw.expr2, r.String())
+			t.Errorf("expr != r.String(), %s, %s", raw.expr2, r.String())
 		}
 	}
 }

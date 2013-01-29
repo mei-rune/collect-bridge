@@ -131,7 +131,7 @@ func (self *ICMPDriver) Create(params map[string]string) (map[string]interface{}
 		}
 	}
 
-	icmp, err := NewPinger(network, address, []byte(echo))
+	icmp, err := NewPinger(network, address, []byte(echo), 256)
 	if nil != err {
 		return nil, commons.NewRuntimeError(500, err.Error())
 	}

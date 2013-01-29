@@ -43,17 +43,25 @@ func parseIPV4(s string) uint32 {
 
 // Parses a string IP address range into an IPRange
 func ParseIPRange(raw string) (*IPRange, error) {
+	start, end := uint32(0), uint32(0)
+
 	fields := strings.Split(raw, "-")
 	if 2 != len(fields) {
 		ip := parseIPV4(raw)
-		if 0 == ip {
+		if 0 != ip {
+			return &IPRange{start: ip, end: ip, cur: ip - 1}, nil
+		}
+		_, ipNet, e := net.ParseCIDR(raw)
+		if nil != e {
 			return nil, errors.New("syntex error: please input corrent sytex, such 'xxx.xxx.xxx.xxx-yyy.yyy.yyy.yyy - '" + raw + "'")
 		}
-		return &IPRange{start: ip, end: ip, cur: ip - 1}, nil
+		start = binary.BigEndian.Uint32(ipNet.IP.To4())
+		ones, bits := ipNet.Mask.Size()
+		end = start | (uint32(1) << uint32(bits-ones))
+	} else {
+		start = parseIPV4(fields[0])
+		end = parseIPV4(fields[1])
 	}
-
-	start := parseIPV4(fields[0])
-	end := parseIPV4(fields[1])
 	if 0 == start {
 		return nil, errors.New("start address is syntex error - '" + raw + "'")
 	}

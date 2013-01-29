@@ -134,6 +134,22 @@ func ParseTime(s string) (time.Duration, error) {
 	return time.Duration(i) * unit, nil
 }
 
+func IsReturnOk(params map[string]interface{}) bool {
+	v, ok := params["value"]
+	if ok {
+		return v == "ok"
+	}
+	return false
+}
+
+func GetReturn(params map[string]interface{}) interface{} {
+	v, ok := params["value"]
+	if ok {
+		return v
+	}
+	return nil
+}
+
 func Return(value interface{}) map[string]interface{} {
 	return map[string]interface{}{"value": value}
 }

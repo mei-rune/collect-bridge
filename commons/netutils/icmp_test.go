@@ -6,7 +6,7 @@ import (
 )
 
 func TestICMP2(t *testing.T) {
-	icmp, err := NewPinger("ip4:icmp", "", []byte("gogogogogogogogo"))
+	icmp, err := NewPinger("ip4:icmp", "", []byte("gogogogogogogogo"), 100)
 	if nil != err {
 		t.Error(err)
 		return

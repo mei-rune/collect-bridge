@@ -9,10 +9,10 @@ func IsInvalidAddress(addr string) bool {
 }
 
 func IsInvalid(ip net.IP) bool {
-	return ip.IsInterfaceLocalMulticast() ||
+	return ip.IsUnspecified() ||
+		ip.IsLoopback() ||
+		ip.IsInterfaceLocalMulticast() ||
 		ip.IsLinkLocalMulticast() ||
 		ip.IsLinkLocalUnicast() ||
-		ip.IsLoopback() ||
-		ip.IsMulticast() ||
-		ip.IsUnspecified()
+		ip.IsMulticast()
 }

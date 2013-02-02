@@ -1,10 +1,12 @@
 package commons
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -62,7 +64,7 @@ func putCachedCh(msg *driver_message) {
 }
 
 type DriverWrapper struct {
-	Loggers
+	Logger
 	drv         Driver
 	Name        string
 	initialized sync.Once
@@ -87,7 +89,7 @@ func (self *DriverWrapper) Start() (err error) {
 		}
 
 		if !self.LogInitialized() {
-			self.InitLoggers(os.Stdout, nil, self.Name, log.LstdFlags|log.Lshortfile)
+			self.InitLoggerWithWriter(os.Stdout, self.Name, log.LstdFlags|log.Lshortfile)
 		}
 
 		if "" == self.LogPrefix() {
@@ -248,8 +250,19 @@ func (self *DriverWrapper) safelyCall(msg *driver_message) *driver_message {
 
 	defer func() {
 		if err := recover(); nil != err {
+			var buffer bytes.Buffer
+			buffer.WriteString(fmt.Sprint(err))
+			buffer.WriteString("\r\n")
+			for i := 1; ; i += 1 {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+			}
+
 			msg.command = DRV_MESSAGE_RET_PANIC
-			msg.returnError = NewRuntimeError(500, fmt.Sprint(err))
+			msg.returnError = NewRuntimeError(500, buffer.String())
 		}
 	}()
 

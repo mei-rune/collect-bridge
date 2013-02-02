@@ -265,7 +265,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 			case 2000 >= ctx.IntValue:
 				drv.ERROR.Print(ctx.StringValue)
 			case 1000 >= ctx.IntValue:
-				drv.FATAL.Print(ctx.StringValue)
+				drv.FATAL.Panic(ctx.StringValue)
 			case 0 >= ctx.IntValue:
 				drv.INFO.Print(ctx.StringValue)
 			default:
@@ -451,9 +451,9 @@ func (driver *LuaDriver) atStart() {
 	ret := driver.lua_init(ls)
 
 	if LUA_ERRFILE == ret {
-		driver.FATAL.Print("'" + driver.init_path + "' read fail")
+		driver.FATAL.Panic("'" + driver.init_path + "' read fail")
 	} else if 0 != ret {
-		driver.FATAL.Print(getError(ls, ret, "load '"+driver.init_path+"' failed").Error())
+		driver.FATAL.Panic(getError(ls, ret, "load '"+driver.init_path+"' failed").Error())
 	}
 
 	ctx := &Continuous{LS: ls, method: method_init_lua}
@@ -467,7 +467,7 @@ func (driver *LuaDriver) atStart() {
 	}
 
 	if LUA_EXECUTE_YIELD != ctx.status {
-		driver.FATAL.Print("launch main fiber failed, " + ctx.Error.Error())
+		driver.FATAL.Panic("launch main fiber failed, " + ctx.Error.Error())
 	}
 
 	driver.LS = ls
@@ -482,7 +482,7 @@ func (driver *LuaDriver) atStop() {
 
 	ret := C.lua_status(driver.LS)
 	if C.LUA_YIELD != ret {
-		driver.FATAL.Print(getError(driver.LS, ret, "stop main fiber failed, status is error").Error())
+		driver.FATAL.Panic(getError(driver.LS, ret, "stop main fiber failed, status is error").Error())
 	}
 
 	ctx := &Continuous{LS: driver.LS, method: method_exit_lua}
@@ -496,7 +496,7 @@ func (driver *LuaDriver) atStop() {
 	}
 
 	if LUA_EXECUTE_END != ctx.status {
-		driver.FATAL.Print("stop main fiber failed," + ctx.Error.Error())
+		driver.FATAL.Panic("stop main fiber failed," + ctx.Error.Error())
 	}
 
 	driver.INFO.Print("wait for all fibers to exit!")

@@ -11,7 +11,7 @@ func TestArguments(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestArguments"
 	drv.Start()
 	defer func() {
@@ -42,7 +42,7 @@ func TestExistFile(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestExistFile"
 	drv.Start()
 	defer func() {
@@ -93,7 +93,7 @@ func TestExistDirectory(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestExistDirectory"
 	drv.Start()
 	defer func() {
@@ -144,7 +144,7 @@ func TestCleanPath(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestCleanPath"
 	drv.Start()
 	defer func() {
@@ -175,7 +175,7 @@ func TestEnumerateFiles(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestEnumerateFiles"
 	drv.Start()
 	defer func() {

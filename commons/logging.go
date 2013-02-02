@@ -9,103 +9,57 @@ import (
 	"time"
 )
 
-type LogCallback func(s string) error
+type LogCallback func(bytes []byte)
 
-type Logger interface {
+type Writer interface {
 	IsEnabled() bool
-	Output(calldepth int, s string) error
+	Output(calldepth int, s string)
 	Printf(format string, v ...interface{})
 	Print(v ...interface{})
-	Flags() int
-	SetFlags(flag int)
-	Prefix() string
-	SetPrefix(prefix string)
 }
 
-type Loggers struct {
-	DEBUG Logger
-	INFO  Logger
-	ERROR Logger
-	WARN  Logger
-	FATAL Logger
+type Logger struct {
+	DEBUG Writer
+	INFO  Writer
+	ERROR Writer
+	WARN  Writer
+	FATAL PanicWriter
 
-	logFlags  int
-	logPrefix string
+	mu     sync.Mutex // ensures atomic writes; protects the following fields
+	prefix string     // prefix to write at beginning of each line
+	flag   int        // properties
+	out    io.Writer  // destination for output
+	log    LogCallback
+	buf    []byte // for accumulating text to write
 }
 
-func (self *Loggers) InitLoggers(out io.Writer, cb LogCallback, prefix string, flag int) error {
-	self.logFlags = flag
-	self.logPrefix = prefix
-	self.DEBUG = &InternalLogger{out: out, log: cb, prefix: prefix + " - DEBUG ", flag: flag}
-	self.INFO = &InternalLogger{out: out, log: cb, prefix: prefix + " - INFO ", flag: flag}
-	self.WARN = &InternalLogger{out: out, log: cb, prefix: prefix + " - WARN ", flag: flag}
-	self.ERROR = &InternalLogger{out: out, log: cb, prefix: prefix + " - ERROR ", flag: flag}
-	self.FATAL = &InternalLogger{out: out, log: cb, prefix: prefix + " - FATAL ", flag: flag, is_panic: true}
-	return nil
+func (self *Logger) InitLoggerWithCallback(cb LogCallback, prefix string, flag int) {
+	self.initLogger(nil, cb, prefix, flag)
 }
 
-func (self *Loggers) LogInitialized() bool {
-	return self.DEBUG != nil
+func (self *Logger) InitLoggerWithWriter(wr io.Writer, prefix string, flag int) {
+	self.initLogger(wr, nil, prefix, flag)
 }
 
-func (self *Loggers) LogFlags() int {
-	return self.logFlags
+func (self *Logger) initLogger(wr io.Writer, cb LogCallback, prefix string, flag int) {
+	self.DEBUG = &nullWriter{super: self, level: "DEBUG"}
+	self.INFO = &internalWriter{super: self, level: "INFO"}
+	self.WARN = &internalWriter{super: self, level: "WARN"}
+	self.ERROR = &internalWriter{super: self, level: "ERROR"}
+	self.FATAL.super = self
+	self.FATAL.level = "FATAL"
+
+	self.prefix = prefix
+	self.flag = flag
+	self.log = cb
+	self.out = wr
 }
 
-func (self *Loggers) LogPrefix() string {
-	return self.logPrefix
-}
-
-func (self *Loggers) SetLogFlags(flag int) {
-	self.logFlags = flag
-	self.DEBUG.SetFlags(flag)
-	self.INFO.SetFlags(flag)
-	self.WARN.SetFlags(flag)
-	self.ERROR.SetFlags(flag)
-	self.FATAL.SetFlags(flag)
-}
-
-func (self *Loggers) SetLogPrefix(prefix string) {
-	self.logPrefix = prefix
-	self.DEBUG.SetPrefix(prefix + " - DEBUG ")
-	self.INFO.SetPrefix(prefix + " - INFO ")
-	self.WARN.SetPrefix(prefix + " - WARN ")
-	self.ERROR.SetPrefix(prefix + " - ERROR ")
-	self.FATAL.SetPrefix(prefix + " - FATAL ")
-}
-
-type InternalLogger struct {
-	mu       sync.Mutex // ensures atomic writes; protects the following fields
-	prefix   string     // prefix to write at beginning of each line
-	flag     int        // properties
-	out      io.Writer  // destination for output
-	log      LogCallback
-	buf      []byte // for accumulating text to write
-	is_panic bool
-}
-
-// Cheap integer to fixed-width decimal ASCII.  Give a negative width to avoid zero-padding.
-// Knows the buffer has capacity.
-func itoa(buf *[]byte, i int, wid int) {
-	var u uint = uint(i)
-	if u == 0 && wid <= 1 {
-		*buf = append(*buf, '0')
-		return
-	}
-
-	// Assemble decimal in reverse order.
-	var b [32]byte
-	bp := len(b)
-	for ; u > 0 || wid > 0; u /= 10 {
-		bp--
-		wid--
-		b[bp] = byte(u%10) + '0'
-	}
-	*buf = append(*buf, b[bp:]...)
-}
-
-func (l *InternalLogger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
+func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int, level string) {
 	*buf = append(*buf, l.prefix...)
+	*buf = append(*buf, ' ')
+	*buf = append(*buf, level...)
+	*buf = append(*buf, ' ')
 	if l.flag&(log.Ldate|log.Ltime|log.Lmicroseconds) != 0 {
 		if l.flag&log.Ldate != 0 {
 			year, month, day := t.Date()
@@ -150,11 +104,11 @@ func (l *InternalLogger) formatHeader(buf *[]byte, t time.Time, file string, lin
 
 // Output writes the output for a logging event.  The string s contains
 // the text to print after the prefix specified by the flags of the
-// Logger.  A newline is appended if the last character of s is not
+// Writer.  A newline is appended if the last character of s is not
 // already a newline.  Calldepth is used to recover the PC and is
 // provided for generality, although at the moment on all pre-defined
 // paths it will be 2.
-func (l *InternalLogger) Output(calldepth int, s string) error {
+func (l *Logger) Output(calldepth int, level, s string) {
 	now := time.Now() // get this early.
 	var file string
 	var line int
@@ -172,62 +126,124 @@ func (l *InternalLogger) Output(calldepth int, s string) error {
 		l.mu.Lock()
 	}
 	l.buf = l.buf[:0]
-	l.formatHeader(&l.buf, now, file, line)
+	l.formatHeader(&l.buf, now, file, line, level)
 	l.buf = append(l.buf, s...)
 	if len(s) > 0 && s[len(s)-1] != '\n' {
 		l.buf = append(l.buf, '\n')
 	}
 	if nil != l.out {
-		_, err := l.out.Write(l.buf)
-		if l.is_panic {
-			panic(string(l.buf))
-		}
-		return err
+		l.out.Write(l.buf)
 	} else if nil != l.log {
-		s := string(l.buf)
-		err := l.log(s)
-		if l.is_panic {
-			panic(s)
-		}
-		return err
-	} else if l.is_panic {
-		panic(string(l.buf))
+		l.log(l.buf)
 	}
-	return nil
 }
 
-func (l *InternalLogger) IsEnabled() bool { return true }
+func (self *Logger) LogInitialized() bool {
+	return self.DEBUG != nil
+}
 
-func (l *InternalLogger) Printf(format string, v ...interface{}) {
+func (self *Logger) LogFlags() int {
+	return self.flag
+}
+
+func (self *Logger) LogPrefix() string {
+	return self.prefix
+}
+
+func (self *Logger) SetLogFlags(flag int) {
+	self.flag = flag
+}
+
+func (self *Logger) SetLogPrefix(prefix string) {
+	self.prefix = prefix
+}
+
+func (self *Logger) switchWriter(wr Writer, new_wr Writer) {
+	if self.DEBUG == wr {
+		self.DEBUG = new_wr
+	}
+	if self.INFO == wr {
+		self.INFO = new_wr
+	}
+	if self.ERROR == wr {
+		self.ERROR = new_wr
+	}
+	if self.WARN == wr {
+		self.WARN = new_wr
+	}
+}
+
+type internalWriter struct {
+	super *Logger
+	level string
+}
+
+// Cheap integer to fixed-width decimal ASCII.  Give a negative width to avoid zero-padding.
+// Knows the buffer has capacity.
+func itoa(buf *[]byte, i int, wid int) {
+	var u uint = uint(i)
+	if u == 0 && wid <= 1 {
+		*buf = append(*buf, '0')
+		return
+	}
+
+	// Assemble decimal in reverse order.
+	var b [32]byte
+	bp := len(b)
+	for ; u > 0 || wid > 0; u /= 10 {
+		bp--
+		wid--
+		b[bp] = byte(u%10) + '0'
+	}
+	*buf = append(*buf, b[bp:]...)
+}
+
+func (l *internalWriter) IsEnabled() bool { return true }
+
+func (l *internalWriter) Switch() {
+	l.super.switchWriter(l, &nullWriter{super: l.super, level: l.level})
+}
+
+func (l *internalWriter) Output(calldepth int, s string) {
+	l.super.Output(calldepth+1, l.level, s)
+}
+
+func (l *internalWriter) Printf(format string, v ...interface{}) {
 	l.Output(2, fmt.Sprintf(format, v...))
 }
 
-func (l *InternalLogger) Print(v ...interface{}) {
+func (l *internalWriter) Print(v ...interface{}) {
 	l.Output(2, fmt.Sprint(v...))
 }
 
-func (l *InternalLogger) Flags() int { return l.flag }
+type nullWriter struct {
+	super *Logger
+	level string
+}
 
-func (l *InternalLogger) SetFlags(flag int) { l.flag = flag }
+func (l *nullWriter) IsEnabled() bool { return false }
 
-func (l *InternalLogger) Prefix() string { return l.prefix }
+func (l *nullWriter) Switch() {
+	l.super.switchWriter(l, &internalWriter{super: l.super, level: l.level})
+}
 
-func (l *InternalLogger) SetPrefix(prefix string) { l.prefix = prefix }
+func (l *nullWriter) Output(calldepth int, s string) {}
 
-type NullLogger struct{}
+func (l *nullWriter) Printf(format string, v ...interface{}) {}
 
-func (l *NullLogger) IsEnabled() bool { return false }
+func (l *nullWriter) Print(v ...interface{}) {}
 
-func (l *NullLogger) Output(calldepth int, s string) error { return nil }
+type PanicWriter struct {
+	super *Logger
+	level string
+}
 
-func (l *NullLogger) Printf(format string, v ...interface{}) {}
+func (l *PanicWriter) IsEnabled() bool { return true }
 
-func (l *NullLogger) Print(v ...interface{}) {}
+func (l *PanicWriter) Panicf(format string, v ...interface{}) {
+	l.super.Output(2, l.level, fmt.Sprintf(format, v...))
+}
 
-func (l *NullLogger) Flags() int { return 0 }
-
-func (l *NullLogger) SetFlags(flag int) {}
-
-func (l *NullLogger) Prefix() string { return "null - logger" }
-
-func (l *NullLogger) SetPrefix(prefix string) {}
+func (l *PanicWriter) Panic(v ...interface{}) {
+	l.super.Output(2, l.level, fmt.Sprint(v...))
+}

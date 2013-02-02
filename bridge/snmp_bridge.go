@@ -13,16 +13,16 @@ func registerSNMP(svr *web.Server, timeout time.Duration, drvMgr *commons.Driver
 	driver := snmp.NewSnmpDriver(timeout, drvMgr)
 	drvMgr.Register("snmp", driver)
 
-	svr.Get("/snmp/(.*)/(.*)/get", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "get") })
-	svr.Put("/snmp/(.*)/(.*)/put", func(ctx *web.Context, host, oid string) { snmpPut(driver, ctx, host, oid, "set") })
+	svr.Get("/snmp/([^/]*)/([^/]*)/get", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "get") })
+	svr.Put("/snmp/([^/]*)/([^/]*)/put", func(ctx *web.Context, host, oid string) { snmpPut(driver, ctx, host, oid, "set") })
 
-	svr.Get("/snmp/(.*)/(.*)", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "get") })
-	svr.Put("/snmp/(.*)/(.*)", func(ctx *web.Context, host, oid string) { snmpPut(driver, ctx, host, oid, "set") })
+	svr.Get("/snmp/([^/]*)/([^/]*)", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "get") })
+	svr.Put("/snmp/([^/]*)/([^/]*)", func(ctx *web.Context, host, oid string) { snmpPut(driver, ctx, host, oid, "set") })
 
-	svr.Get("/snmp/(.*)/(.*)/next", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "next") })
-	svr.Get("/snmp/(.*)/(.*)/bulk", func(ctx *web.Context, host, oids string) { snmpGet(driver, ctx, host, oids, "bulk") })
-	svr.Get("/snmp/(.*)/(.*)/table", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "table") })
-	svr.Delete("/snmp/(.*)/reset", func(ctx *web.Context, host string) { snmpReset(driver, ctx, host) })
+	svr.Get("/snmp/([^/]*)/([^/]*)/next", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "next") })
+	svr.Get("/snmp/([^/]*)/([^/]*)/bulk", func(ctx *web.Context, host, oids string) { snmpGet(driver, ctx, host, oids, "bulk") })
+	svr.Get("/snmp/([^/]*)/([^/]*)/table", func(ctx *web.Context, host, oid string) { snmpGet(driver, ctx, host, oid, "table") })
+	svr.Delete("/snmp/([^/]*)/reset", func(ctx *web.Context, host string) { snmpReset(driver, ctx, host) })
 	svr.Delete("/snmp/reset", func(ctx *web.Context) { snmpReset(driver, ctx, "all") })
 
 	return driver.Start()

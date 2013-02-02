@@ -173,7 +173,7 @@ func (client *UdpClient) sendV3PDU(ctx commons.InvokedContext, pdu *V3PDU, autoD
 	if !pdu.securityModel.IsLocalize() {
 		if nil == pdu.engine {
 			if client.DEBUG.IsEnabled() {
-				client.DEBUG.Printf("snmp - send failed, " + pdu.String())
+				client.DEBUG.Printf("snmp - send failed, nil == pdu.engine, " + pdu.String())
 			}
 			ctx.Reply(nil, Error(SNMP_CODE_FAILED, "nil == pdu.engine"))
 			return
@@ -432,7 +432,7 @@ func (client *UdpClient) handleSend(ctx commons.InvokedContext, pdu PDU) {
 failed:
 
 	if client.ERROR.IsEnabled() {
-		client.ERROR.Print("snmp - send failed, " + pdu.String())
+		client.ERROR.Print("snmp - send failed, " + err.Error() + " " + pdu.String())
 	}
 
 	ctx.Reply(nil, err)
@@ -496,7 +496,7 @@ func (client *UdpClient) sendPdu(pdu PDU, ctx commons.InvokedContext, callback f
 failed:
 
 	if client.ERROR.IsEnabled() {
-		client.ERROR.Print("snmp - send failed, " + pdu.String())
+		client.ERROR.Print("snmp - send failed, " + err.Error() + ", " + pdu.String())
 	}
 
 	if nil != callback {

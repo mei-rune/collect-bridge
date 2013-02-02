@@ -37,7 +37,7 @@ func NormalizeAddress(s string) string {
 	if -1 == idx {
 		idx = strings.IndexRune(s, ',')
 		if -1 == idx {
-			return NormalizeIP(s)
+			return NormalizeIP(s) + ":161"
 		}
 	}
 	return NormalizeIP(s[0:idx]) + ":" + NormalizePort(s[idx+1:])

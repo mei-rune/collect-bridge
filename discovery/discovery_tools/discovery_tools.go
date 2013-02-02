@@ -7,11 +7,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"lua_binding"
 	"metrics"
+	"os"
 	"snmp"
 	"strings"
 	"time"
+	"web"
 )
 
 var (
@@ -19,7 +22,22 @@ var (
 	timeout     = flag.Int("timeout", 5, "the timeout")
 	network     = flag.String("ip-range", "", "the ip range")
 	communities = flag.String("communities", "public", "the community")
+
+	address   = flag.String("http", ":7070", "the address of http")
+	directory = flag.String("directory", ".", "the static directory of http")
+	cookies   = flag.String("cookies", "", "the static directory of http")
 )
+
+func mainHandle(rw *web.Context) {
+	errFile := "_log_/error.html"
+	_, err := os.Stat(errFile)
+	if err == nil || os.IsExist(err) {
+		content, _ := ioutil.ReadFile(errFile)
+		rw.WriteString(string(content))
+		return
+	}
+	rw.WriteString("Hello, World!")
+}
 
 func main() {
 
@@ -29,6 +47,14 @@ func main() {
 		flag.Usage()
 		return
 	}
+
+	svr := web.NewServer()
+	svr.Config.Name = "meijing-bridge v1.0"
+	svr.Config.Address = *address
+	svr.Config.StaticDirectory = *directory
+	svr.Config.CookieSecret = *cookies
+	svr.Get("/", mainHandle)
+
 	params := map[string]interface{}{}
 
 	communities2 := strings.Split(*communities, ";")
@@ -48,8 +74,21 @@ func main() {
 	}
 
 	drvMgr := commons.NewDriverManager()
-	drvMgr.Register("snmp", snmp.NewSnmpDriver(time.Duration(*timeout)*time.Second, drvMgr))
-	drvMgr.Register("lua", lua_binding.NewLuaDriver(time.Duration(*timeout)*time.Second, drvMgr))
+	snmp_drv := snmp.NewSnmpDriver(time.Duration(*timeout)*time.Second, drvMgr)
+	if err = snmp_drv.Start(); nil != err {
+		fmt.Println(err)
+		return
+	}
+
+	drvMgr.Register("snmp", snmp_drv)
+
+	lua_drv := lua_binding.NewLuaDriver(time.Duration(*timeout)*time.Second, drvMgr)
+	if err = lua_drv.Start(); nil != err {
+		fmt.Println(err)
+		return
+	}
+	drvMgr.Register("lua", lua_drv)
+
 	ms, err := metrics.NewMetrics(map[string]string{}, drvMgr)
 	if nil != err {
 		fmt.Println(err)
@@ -69,6 +108,7 @@ func main() {
 		return
 	}
 
+	go svr.Run()
 	for {
 		res, err := drv.Get(map[string]string{"id": id, "dst": "message"})
 		if nil != err {

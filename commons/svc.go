@@ -1,11 +1,13 @@
 package commons
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -117,7 +119,7 @@ const (
 )
 
 type Svc struct {
-	Loggers
+	Logger
 	Name                    string
 	initialized             sync.Once
 	status                  int32
@@ -154,7 +156,7 @@ func (svc *Svc) Start() (err error) {
 		}
 
 		if !svc.LogInitialized() {
-			svc.InitLoggers(os.Stdout, nil, svc.Name, log.LstdFlags|log.Lshortfile)
+			svc.InitLoggerWithWriter(os.Stdout, svc.Name, log.LstdFlags|log.Lshortfile)
 		}
 
 		if "" == svc.LogPrefix() {
@@ -487,8 +489,17 @@ func (svc *Svc) callMessage(msg *message) (reply *message) {
 	reply.response.responseType = MESSAGE_RET_OK
 	defer func() {
 		if err := recover(); nil != err {
+			var buffer bytes.Buffer
+			buffer.WriteString(fmt.Sprintf("%v\r\n", err))
+			for i := 1; ; i += 1 {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+			}
 			reply.response.responseType = MESSAGE_RET_PANIC
-			reply.response.panicResult = err
+			reply.response.panicResult = buffer.String()
 		}
 	}()
 

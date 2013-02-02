@@ -72,7 +72,7 @@ func TestDriverWrapperStartFailed(t *testing.T) {
 func TestDriverWrapperStartedAndStopped(t *testing.T) {
 	mock := &mock_driver{}
 	wrap := Wrap(mock, 5*time.Second)
-	wrap.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	wrap.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	wrap.Start()
 	wrap.Stop()
 
@@ -86,7 +86,7 @@ func TestDriverWrapperStartedAndStopped(t *testing.T) {
 
 	mock = &mock_driver{stop_panic: "throw a error"}
 	wrap = Wrap(mock, 5*time.Second)
-	wrap.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	wrap.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	wrap.Start()
 	wrap.Stop()
 
@@ -101,6 +101,7 @@ func TestDriverWrapperStartedAndStopped(t *testing.T) {
 
 func TestDriverWrapper(t *testing.T) {
 	mock := Wrap(&mock_driver{}, 5*time.Second)
+	mock.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 
 	mock.Start()
 	defer mock.Stop()

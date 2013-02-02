@@ -10,7 +10,7 @@ func TestRoutes(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := lua_binding.NewLuaDriver()
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestRoutes"
 	drv.Start()
 	defer func() {

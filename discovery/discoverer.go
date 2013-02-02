@@ -29,13 +29,14 @@ type replyResult struct {
 }
 type Discoverer struct {
 	ch          chan string
+	drv_ch      chan *Device
 	command_ch  chan map[string]interface{}
 	result_ch   chan commons.RuntimeError
 	isCompleted bool
 
 	params *DiscoveryParams
 
-	icmp_pinger *netutils.Pingers
+	//icmp_pinger *netutils.Pingers
 	snmp_pinger *snmp.Pinger
 	snmp_drv    commons.Driver
 	metrics_drv commons.Driver
@@ -65,10 +66,10 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 		}
 	}
 
-	icmp_pinger, err := netutils.NewPingers(nil, 10000)
-	if nil != err {
-		return nil, errutils.InternalError("icmp failed, " + err.Error())
-	}
+	// icmp_pinger, err := netutils.NewPingers(nil, 10000)
+	// if nil != err {
+	//	return nil, errutils.InternalError("icmp failed, " + err.Error())
+	// }
 
 	snmp_pinger, err := snmp.NewPinger("udp4", "0.0.0.0:0", 10000)
 	if nil != err {
@@ -86,9 +87,10 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 	}
 
 	discoverer := &Discoverer{ch: make(chan string, 1000),
-		command_ch:  make(chan map[string]interface{}),
-		result_ch:   make(chan commons.RuntimeError),
-		icmp_pinger: icmp_pinger,
+		drv_ch:     make(chan *Device),
+		command_ch: make(chan map[string]interface{}),
+		result_ch:  make(chan commons.RuntimeError),
+		//icmp_pinger: icmp_pinger,
 		snmp_pinger: snmp_pinger,
 		snmp_drv:    snmp_drv,
 		metrics_drv: metrics_drv,
@@ -125,29 +127,35 @@ func (self *Discoverer) guessCommunities(ip string) []string {
 
 	for _, c := range self.params.Communities {
 		go func(h chan string, cm string, params map[string]string) {
-
 			defer func() {
 				if err := recover(); nil != err {
 					log.Printf("guess community - %s, %v", cm, err)
 				}
 			}()
 			_, e := self.snmp_drv.Get(params)
-			if nil != e {
+			if nil == e {
 				h <- cm
+			} else {
+				h <- ""
 			}
 		}(ch, c, map[string]string{"id": ip + "/1.3.6.1.2.1.1.2.0", "action": "get", "community": c, "timeout": "30"})
 	}
 
 	self.log(DEBUG, "guess password for "+ip)
-	for len(valid) != len(self.params.Communities) {
+
+	tries := len(self.params.Communities)
+	for 0 != tries {
 		select {
 		case c := <-ch:
-			valid = append(valid, c)
+			if "" != c {
+				valid = append(valid, c)
+			}
+			tries--
 		case <-time.After(1 * time.Minute):
-			break
+			goto End
 		}
 	}
-
+End:
 	self.log(DEBUG, "guess password for "+ip+", result is "+strings.Join(valid, ","))
 	return valid
 }
@@ -195,7 +203,7 @@ func (self *Discoverer) readLocal() (*Device, error) {
 	return drv, nil
 }
 
-func (self *Discoverer) discoverDevice(ip string) (*Device, error) {
+func (self *Discoverer) discoverDevice(ip, port string) (*Device, error) {
 	if "" == ip {
 		return nil, errors.New("managed ip of local host is empty.")
 	}
@@ -213,14 +221,14 @@ func (self *Discoverer) initDevice(drv *Device) error {
 	// read basic attributes
 	drv.Attributes = map[string]interface{}{}
 	for _, name := range []string{"system.oid", "system.descr"} {
-		self.logf(DEBUG, "read '%s' for ip", name, drv.ManagedIP)
+		self.logf(DEBUG, "read '%s' for '%s", name, drv.ManagedIP)
 		metric, e := self.readMetric(drv, name)
 		if nil != e {
 			self.logf(ERROR, "read %s of '%s' failed, %v.", name, drv.ManagedIP, e)
 		} else if nil == metric {
 			self.logf(ERROR, "read %s of '%s' failed, result is nil.", name, drv.ManagedIP)
 		} else {
-			self.logf(DEBUG, "read '%s' for ip, result is %v", name, drv.ManagedIP, metric)
+			self.logf(DEBUG, "read '%s' for '%s', result is %v", name, drv.ManagedIP, metric)
 			drv.Attributes[name] = metric
 		}
 	}
@@ -246,24 +254,25 @@ func (self *Discoverer) addDevice(drv *Device) {
 	}
 }
 
-func (self *Discoverer) scanIPRange(drv *Device) {
-
+func (self *Discoverer) detectIPRange(drv *Device) {
 	for _, ifs := range drv.Interfaces {
 
 		ip_range, err := netutils.ParseIPRange(ifs.Address + "/24")
 		if nil != err {
-			self.log(DEBUG, "scan ip range failed, "+err.Error())
+			self.log(DEBUG, "scan ip range '"+ifs.Address+"/24' failed, "+err.Error())
 			continue
 		}
 
+		self.log(DEBUG, "scan ip range '"+ifs.Address+"/24' success")
+
 		for ip_range.HasNext() {
 			addr := ip_range.Current().String()
-			err = self.icmp_pinger.Send(addr, nil)
-			if nil != err {
-				self.log(DEBUG, "send icmp to '"+addr+"'' failed, "+err.Error())
-			}
+			// err = self.icmp_pinger.Send(addr, nil)
+			// if nil != err {
+			//	self.log(DEBUG, "send icmp to '"+addr+"'' failed, "+err.Error())
+			// }
 
-			err = self.snmp_pinger.Send(addr, snmp.SNMP_V2C)
+			err = self.snmp_pinger.Send(addr+":161", snmp.SNMP_V2C)
 			if nil != err {
 				self.log(DEBUG, "send snmp to '"+addr+"'' failed, "+err.Error())
 			}
@@ -271,7 +280,7 @@ func (self *Discoverer) scanIPRange(drv *Device) {
 	}
 }
 
-func (self *Discoverer) isNewDevice(ip string) bool {
+func (self *Discoverer) isExists(ip string) bool {
 	_, ok := self.devices[ip]
 	if ok {
 		return false
@@ -294,42 +303,69 @@ func (self *Discoverer) serve() {
 		return
 	}
 
-	self.addDevice(local)
 	self.log(INFO, "discover device '"+local.ManagedIP+"'")
+	self.addDevice(local)
+	self.detectIPRange(local)
 
-	for {
-		ra, _, err := self.icmp_pinger.Recv(1 * time.Minute)
-		if nil == ra {
-			if nil != err && !commons.IsTimeout(err) {
-				self.log(DEBUG, "recv icmp failed - "+err.Error())
-			}
-			ra, _, err = self.snmp_pinger.Recv(1 * time.Minute)
-			if nil == ra {
-				if nil != err && !commons.IsTimeout(err) {
-					self.log(DEBUG, "recv icmp failed - "+err.Error())
+	for d := 0; d < self.params.Depth; d++ {
+		pending_drvs := make([]*Device, 0, 10)
+		goroutes := 0
+		running := true
+		for running {
+
+			select {
+			case reply := <-self.snmp_pinger.GetChannel():
+				if nil != reply.Error {
+					self.log(ERROR, "recv icmp failed - "+reply.Error.Error())
+					running = false
+					break
 				}
-				break
+
+				addr := reply.Addr.String()
+				port := "161"
+				idx := strings.IndexRune(addr, ':')
+				if -1 != idx {
+					port = addr[idx+1:]
+					addr = addr[0:idx]
+				}
+
+				if netutils.IsInvalidAddress(addr) {
+					self.log(DEBUG, "skip invalid address - "+addr)
+					break
+				}
+
+				if !self.isExists(addr) {
+					self.log(DEBUG, "skip old address - "+addr)
+					break
+				}
+
+				go func() {
+					drv, e := self.discoverDevice(addr, port)
+					if nil != e {
+						self.log(ERROR, "discover device '"+addr+"' failed, "+e.Error())
+					} else {
+						self.log(INFO, "discover device '"+addr+"'")
+					}
+					self.drv_ch <- drv
+				}()
+			case drv := <-self.drv_ch:
+				if nil != drv {
+					self.addDevice(drv)
+				}
+			case <-time.After(1 * time.Minute):
+				if 0 == goroutes {
+					running = false
+				}
 			}
 		}
 
-		if netutils.IsInvalidAddress(ra.String()) {
-			self.log(DEBUG, "skip invalid address - "+ra.String())
-			continue
+		if 0 == len(pending_drvs) {
+			break
 		}
 
-		if !self.isNewDevice(ra.String()) {
-			self.log(DEBUG, "skip old address - "+ra.String())
-			continue
+		for _, drv := range pending_drvs {
+			self.detectIPRange(drv)
 		}
-
-		drv, e := self.discoverDevice(ra.String())
-		if nil != e {
-			self.log(ERROR, "discover device '"+ra.String()+"' failed, "+e.Error())
-			continue
-		}
-		self.log(INFO, "discover device '"+ra.String()+"'")
-		self.addDevice(drv)
-		self.scanIPRange(drv)
 	}
 }
 
@@ -364,6 +400,6 @@ func (self *Discoverer) Read(timeout time.Duration) string {
 }
 
 func (self *Discoverer) Close() {
-	self.icmp_pinger.Close()
+	//self.icmp_pinger.Close()
 	self.snmp_pinger.Close()
 }

@@ -98,7 +98,7 @@ func TestParams(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestParams"
 	drv.init_path = "test/lua_init_test_pushAny.lua"
 	drv.Start()
@@ -139,7 +139,7 @@ func TestPushAny(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestPushAny"
 	drv.init_path = "test/lua_init_test_pushAny.lua"
 	drv.Start()
@@ -239,7 +239,7 @@ func TestInvoke(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "test_invoke"
 	drv.init_path = "test/lua_init_test.lua"
 	drv.Start()
@@ -264,7 +264,7 @@ func TestInvokeScript(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestInvokeScript"
 	drv.Start()
 
@@ -289,7 +289,7 @@ func TestInvokeScriptFailed(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestInvokeScriptFailed"
 	drv.Start()
 
@@ -337,7 +337,7 @@ func TestInvokeAndCallback(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestInvokeAndCallback"
 	drv.Start()
 
@@ -389,7 +389,7 @@ func TestInvokeModule(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestInvokeModule"
 	drv.Start()
 	defer func() {
@@ -410,7 +410,7 @@ func TestInvokeModuleFailed(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestInvokeModuleFailed"
 	drv.Start()
 	defer func() {
@@ -444,7 +444,7 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestInvokeModuleAndCallback"
 	drv.Start()
 
@@ -473,7 +473,7 @@ func TestInvokeModuleAndCallbackFailed(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestInvokeModuleAndCallbackFailed"
 	drv.Start()
 
@@ -510,7 +510,7 @@ func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestInvokeModuleAndCallbackFailed"
 	drv.Start()
 
@@ -575,7 +575,7 @@ func TestInitScriptWithErrorSyntex(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.init_path = "test/lua_error_script.lua"
 	err := drv.Start()
 	if nil == err {
@@ -603,7 +603,7 @@ func TestInitFiles(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, nil)
-	drv.InitLoggers(nil, func(s string) error { t.Log(s); return nil }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestInitFiles"
 	drv.Start()
 	defer func() {

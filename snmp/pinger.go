@@ -18,10 +18,10 @@ import (
 	"unsafe"
 )
 
-type pingResult struct {
-	addr    net.Addr
-	version SnmpVersion
-	err     error
+type PingResult struct {
+	Addr    net.Addr
+	Version SnmpVersion
+	Error   error
 }
 
 type Pinger struct {
@@ -29,7 +29,7 @@ type Pinger struct {
 	id      int
 	conn    net.PacketConn
 	wait    sync.WaitGroup
-	ch      chan *pingResult
+	ch      chan *PingResult
 }
 
 func NewPinger(network, laddr string, capacity int) (*Pinger, error) {
@@ -39,7 +39,7 @@ func NewPinger(network, laddr string, capacity int) (*Pinger, error) {
 	}
 
 	pinger := &Pinger{network: network, id: 1, conn: c,
-		ch: make(chan *pingResult, capacity)}
+		ch: make(chan *PingResult, capacity)}
 
 	go pinger.serve()
 	pinger.wait.Add(1)
@@ -54,6 +54,10 @@ func (self *Pinger) Close() {
 	self.conn = nil
 	self.wait.Wait()
 	close(self.ch)
+}
+
+func (self *Pinger) GetChannel() <-chan *PingResult {
+	return self.ch
 }
 
 func (self *Pinger) Send(raddr string, version SnmpVersion) error {
@@ -96,7 +100,7 @@ func (self *Pinger) Send(raddr string, version SnmpVersion) error {
 func (self *Pinger) Recv(timeout time.Duration) (net.Addr, SnmpVersion, error) {
 	select {
 	case res := <-self.ch:
-		return res.addr, res.version, res.err
+		return res.Addr, res.Version, res.Error
 	case <-time.After(timeout):
 		return nil, SNMP_Verr, commons.TimeoutErr
 	}
@@ -113,7 +117,7 @@ func (self *Pinger) serve() {
 	for nil != self.conn {
 		l, ra, err := self.conn.ReadFrom(reply)
 		if err != nil {
-			self.ch <- &pingResult{err: fmt.Errorf("ReadFrom failed: %v", err)}
+			self.ch <- &PingResult{Error: fmt.Errorf("ReadFrom failed: %v", err)}
 			break
 		}
 
@@ -122,7 +126,7 @@ func (self *Pinger) serve() {
 
 		err = DecodePDUHeader(&buffer, &pdu)
 		if nil != err {
-			self.ch <- &pingResult{err: fmt.Errorf("Parse Data failed: %s %v", ra.String(), err)}
+			self.ch <- &PingResult{Error: fmt.Errorf("Parse Data failed: %s %v", ra.String(), err)}
 			continue
 		}
 		ver := SNMP_Verr
@@ -134,7 +138,7 @@ func (self *Pinger) serve() {
 		case uint32(SNMP_V1):
 			ver = SNMP_V1
 		}
-		self.ch <- &pingResult{addr: ra, version: ver}
+		self.ch <- &PingResult{Addr: ra, Version: ver}
 		C.snmp_pdu_free(&pdu)
 	}
 }

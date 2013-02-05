@@ -46,7 +46,8 @@ func snmpReset(driver commons.Driver, ctx *web.Context, host string) {
 }
 
 func snmpGet(driver commons.Driver, ctx *web.Context, host, oid, action string) {
-	ctx.Params["id"] = host + "/" + oid
+	ctx.Params["id"] = host
+	ctx.Params["oid"] = oid
 	ctx.Params["action"] = action
 
 	obj, e := driver.Get(ctx.Params)
@@ -59,8 +60,9 @@ func snmpGet(driver commons.Driver, ctx *web.Context, host, oid, action string) 
 }
 
 func snmpPut(driver commons.Driver, ctx *web.Context, host, oid, action string) {
-	ctx.Params["id"] = host + "/" + oid
-	ctx.Params["action"] = action
+	ctx.Params["id"] = host
+	ctx.Params["oid"] = oid
+
 	txt, err := ioutil.ReadAll(ctx.Request.Body)
 	ctx.Params["body"] = string(txt)
 	if nil != err {

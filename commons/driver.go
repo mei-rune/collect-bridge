@@ -81,7 +81,7 @@ func (self *DriverManager) Names() []string {
 }
 
 var (
-	METRIC_DRVS = map[string]func(params map[string]string, drvMgr *DriverManager) Driver{}
+	METRIC_DRVS = map[string]func(params map[string]string, drvMgr *DriverManager) (Driver, RuntimeError){}
 )
 
 // func Register(name string, driver Driver) {

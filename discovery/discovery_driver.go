@@ -111,7 +111,7 @@ func (self *DiscoveryDriver) Create(params map[string]string) (map[string]interf
 		return nil, commons.ServiceUnavailable
 	}
 	self.discoverers[id] = discoverer
-	return commons.ReturnWith("id", id), nil
+	return commons.ReturnWithKV(map[string]interface{}{}, "id", id), nil
 }
 
 func (self *DiscoveryDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {

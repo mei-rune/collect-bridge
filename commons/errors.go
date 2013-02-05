@@ -78,8 +78,9 @@ const (
 )
 
 var (
-	NotFoundCode   = 404
-	BadRequestCode = 400
+	NotFoundCode      = 404
+	BadRequestCode    = 400
+	InternalErrorCode = 500
 
 	NotImplemented     = NewRuntimeError(501, "not implemented")
 	TimeoutErr         = NewRuntimeError(504, timeout_message)

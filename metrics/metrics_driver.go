@@ -19,7 +19,10 @@ func NewMetrics(params map[string]string, drvMgr *commons.DriverManager) (*Metri
 	metrics := &Metrics{commons.NewDriverManager(), drvMgr}
 
 	for k, f := range commons.METRIC_DRVS {
-		drv := f(params, drvMgr)
+		drv, err := f(params, drvMgr)
+		if nil != err {
+			return nil, err
+		}
 		metrics.Register(k, drv)
 	}
 

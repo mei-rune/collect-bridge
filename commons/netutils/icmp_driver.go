@@ -136,7 +136,7 @@ func (self *ICMPDriver) Create(params map[string]string) (map[string]interface{}
 		return nil, commons.NewRuntimeError(500, err.Error())
 	}
 	self.pingers[id] = icmp
-	return commons.ReturnWith("id", id), nil
+	return commons.ReturnWithKV(map[string]interface{}{}, "id", id), nil
 }
 
 func (self *ICMPDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {

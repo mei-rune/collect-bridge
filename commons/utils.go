@@ -154,8 +154,14 @@ func Return(value interface{}) map[string]interface{} {
 	return map[string]interface{}{"value": value}
 }
 
-func ReturnWith(key string, value interface{}) map[string]interface{} {
-	return map[string]interface{}{key: value}
+func ReturnWithKV(params map[string]interface{}, key string, value interface{}) map[string]interface{} {
+	params[key] = value
+	return params
+}
+
+func ReturnWithValue(params map[string]interface{}, value interface{}) map[string]interface{} {
+	params["value"] = value
+	return params
 }
 
 func ReturnOK() map[string]interface{} {

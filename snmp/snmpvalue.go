@@ -103,6 +103,10 @@ func NewSnmpNil() SnmpValue {
 	return snmpNil
 }
 
+func (s *SnmpNil) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + s.String() + "\""), nil
+}
+
 func (oid *SnmpNil) String() string {
 	return "[null]"
 }
@@ -148,6 +152,10 @@ func (s *SnmpNil) Error() string {
 }
 
 type SnmpOid []uint32
+
+func (s *SnmpOid) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + s.String() + "\""), nil
+}
 
 func (oid *SnmpOid) String() string {
 	return "[oid]" + oid.GetString()
@@ -272,6 +280,10 @@ func newSnmpOidFromString(s string) (SnmpValue, error) {
 
 type SnmpInt32 int32
 
+func (s *SnmpInt32) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + s.String() + "\""), nil
+}
+
 func (v *SnmpInt32) String() string {
 	return "[int32]" + v.GetString()
 }
@@ -332,6 +344,10 @@ func newSnmpInt32FromString(s string) (SnmpValue, error) {
 
 type SnmpUint32 uint32
 
+func (s *SnmpUint32) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + s.String() + "\""), nil
+}
+
 func (v *SnmpUint32) String() string {
 	return "[gauge]" + v.GetString()
 }
@@ -391,6 +407,10 @@ func newSnmpUint32FromString(s string) (SnmpValue, error) {
 }
 
 type SnmpCounter32 uint32
+
+func (s *SnmpCounter32) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + s.String() + "\""), nil
+}
 
 func (v *SnmpCounter32) String() string {
 	return "[counter32]" + v.GetString()
@@ -456,6 +476,10 @@ func (v *SnmpCounter64) String() string {
 	return "[counter64]" + v.GetString()
 }
 
+func (s *SnmpCounter64) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + s.String() + "\""), nil
+}
+
 func (s *SnmpCounter64) IsNil() bool {
 	return false
 }
@@ -511,6 +535,11 @@ func newSnmpCounter64FromString(s string) (SnmpValue, error) {
 }
 
 type SnmpTimeticks uint32
+
+func (s *SnmpTimeticks) MarshalJSON() ([]byte, error) {
+
+	return []byte("\"" + s.String() + "\""), nil
+}
 
 func (v *SnmpTimeticks) String() string {
 	return "[timeticks]" + v.GetString()
@@ -571,6 +600,10 @@ func newSnmpTimeticksFromString(s string) (SnmpValue, error) {
 }
 
 type SnmpOctetString []byte
+
+func (s *SnmpOctetString) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + s.String() + "\""), nil
+}
 
 func (v *SnmpOctetString) String() string {
 	return "[octets]" + v.GetString()
@@ -730,6 +763,10 @@ func newSnmpOctetStringFromString(s string) (SnmpValue, error) {
 
 type SnmpAddress net.IP
 
+func (s *SnmpAddress) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + s.String() + "\""), nil
+}
+
 func (v *SnmpAddress) String() string {
 	return "[ip]" + v.GetString()
 }
@@ -796,6 +833,10 @@ func newSnmpAddressFromString(s string) (SnmpValue, error) {
 type SnmpError struct {
 	value   SnmpSyntax
 	message string
+}
+
+func (s *SnmpError) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + s.String() + "\""), nil
 }
 
 func (v *SnmpError) String() string {

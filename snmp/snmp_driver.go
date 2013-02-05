@@ -77,21 +77,19 @@ func internalError(msg string, err error) commons.RuntimeError {
 	return commons.NewRuntimeError(500, msg+"-"+err.Error())
 }
 
-var HostAndOidIsRequired = errutils.IsRequired("host' and 'oid")
+var HostIsRequired = errutils.IsRequired("host")
 var OidIsRequired = errutils.IsRequired("oid")
 
 func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[string]interface{}, commons.RuntimeError) {
-
-	id, ok := params["id"]
+	host, ok := params["id"]
 	if !ok {
-		return nil, HostAndOidIsRequired
+		return nil, HostIsRequired
 	}
-	ss := strings.SplitN(id, "/", 2)
-	if 2 != len(ss) {
+	oid, ok := params["oid"]
+	if !ok {
 		return nil, OidIsRequired
 	}
 
-	host, oid := ss[0], ss[1]
 	client, err := self.GetClient(host)
 	if nil != err {
 		return nil, internalError("create client failed", err)
@@ -156,10 +154,9 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 	if 0 == resp.GetVariableBindings().Len() {
 		return nil, internalError("result is empty", nil)
 	}
-
-	results := make(map[string]string)
+	results := make(map[string]SnmpValue)
 	for _, vb := range resp.GetVariableBindings().All() {
-		results[vb.Oid.GetString()] = vb.Value.String()
+		results[vb.Oid.GetString()] = vb.Value
 	}
 	return commons.Return(results), nil
 }

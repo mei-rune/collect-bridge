@@ -138,7 +138,7 @@ func (self *Discoverer) guessCommunities(ip string) []string {
 			} else {
 				h <- ""
 			}
-		}(ch, c, map[string]string{"id": ip + "/1.3.6.1.2.1.1.2.0", "action": "get", "community": c, "timeout": "30"})
+		}(ch, c, map[string]string{"id": ip, "oid": "1.3.6.1.2.1.1.2.0", "action": "get", "community": c, "timeout": "30"})
 	}
 
 	self.log(DEBUG, "guess password for "+ip)
@@ -189,7 +189,8 @@ func (self *Discoverer) readLocal() (*Device, error) {
 	}
 
 	if "" == managed_ip {
-		return nil, errors.New("managed ip of local host is empty.")
+		managed_ip = "127.0.0.1"
+		//return nil, errors.New("managed ip of local host is empty.")
 	}
 
 	communities := self.guessCommunities(managed_ip)
@@ -220,7 +221,7 @@ func (self *Discoverer) discoverDevice(ip, port string) (*Device, error) {
 func (self *Discoverer) initDevice(drv *Device) error {
 	// read basic attributes
 	drv.Attributes = map[string]interface{}{}
-	for _, name := range []string{"system.oid", "system.descr"} {
+	for _, name := range []string{"sys.oid", "sys.descr"} {
 		self.logf(DEBUG, "read '%s' for '%s", name, drv.ManagedIP)
 		metric, e := self.readMetric(drv, name)
 		if nil != e {

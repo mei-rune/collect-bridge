@@ -2,6 +2,7 @@ package as
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 )
 
@@ -280,5 +281,5 @@ func AsString(value interface{}) (string, error) {
 	case float64:
 		return strconv.FormatFloat(float64(v), 'e', -1, 64), nil
 	}
-	return "", errors.New("type AsString to string failed")
+	return "", fmt.Errorf("[%T]`%v` to string failed", value, value)
 }

@@ -89,4 +89,5 @@ var (
 	BodyNotExists      = NewRuntimeError(400, "'body' is required.")
 	BodyIsEmpty        = NewRuntimeError(400, "'body' is empty.")
 	ServiceUnavailable = NewRuntimeError(503, "service temporary unavailable, try again later")
+	ValueIsNil         = NewRuntimeError(InternalErrorCode, "value is nil.")
 )

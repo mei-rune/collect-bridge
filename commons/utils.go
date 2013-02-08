@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -108,6 +109,28 @@ func EnumerateFiles(pa string) ([]string, error) {
 		}
 	}
 	return paths, nil
+}
+
+func SearchFile(pattern string) string {
+	ed, e := filepath.Abs(os.Args[0])
+	if nil == e {
+		pa := path.Join(filepath.Dir(ed), pattern)
+		if FileExists(pa) {
+			return pa
+		}
+	}
+
+	wd, e := os.Getwd()
+	if nil == e {
+		pa, e := filepath.Abs(wd)
+		if nil == e {
+			pa = path.Join(pa, pattern)
+			if FileExists(pa) {
+				return pa
+			}
+		}
+	}
+	return ""
 }
 
 const time_format = "time format error with valuw is '%s', excepted format is 'xxx[unit]', xxx is a number, unit must is in (ms, s, m)."

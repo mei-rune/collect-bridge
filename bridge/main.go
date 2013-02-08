@@ -58,7 +58,7 @@ func main() {
 		fmt.Println("snmp-ping", e)
 		return
 	}
-	e = registerMetrics(svr, map[string]string{}, drvMgr)
+	e = registerMetrics(svr, map[string]interface{}{"drvMgr": drvMgr})
 	if nil != e {
 		fmt.Println("metrics", e)
 		return

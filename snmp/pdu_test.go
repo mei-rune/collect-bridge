@@ -199,7 +199,7 @@ func checkPdu(vbs *VariableBindings, t *testing.T, s string) {
 
 func TestEncodePDU(t *testing.T) {
 	pdu := &V2CPDU{version: SNMP_V1, requestId: 234}
-	pdu.Init(map[string]string{"community": "123987"})
+	pdu.Init(map[string]string{"snmp.community": "123987"})
 	fillPdu(pdu.GetVariableBindings())
 	bytes, e := pdu.encodePDU(true)
 	if nil != e {
@@ -212,7 +212,7 @@ func TestEncodePDU(t *testing.T) {
 	}
 
 	pdu = &V2CPDU{version: SNMP_V2C, requestId: 234}
-	pdu.Init(map[string]string{"community": "123987"})
+	pdu.Init(map[string]string{"snmp.community": "123987"})
 	fillPdu(pdu.GetVariableBindings())
 	bytes, e = pdu.encodePDU(true)
 	if nil != e {
@@ -227,15 +227,15 @@ func TestEncodePDU(t *testing.T) {
 
 func TestEncodeV3PDU(t *testing.T) {
 	testEncodeV3PDU(t, map[string]string{"community": "123987",
-		"identifier":     "0",
-		"context_name":   "testcontextname",
-		"context_engine": "74657374636f6e74657874656e67696e65",
-		"engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
-		"engine_boots":   "3",
-		"engine_time":    "1234",
-		"max_msg_size":   "10007",
-		"secname":        "meijing",
-		"secmodel":       "usm"}, snmpv3_noauth_txt, "test noauth - ")
+		"snmp.identifier":     "0",
+		"snmp.context_name":   "testcontextname",
+		"snmp.context_engine": "74657374636f6e74657874656e67696e65",
+		"snmp.engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
+		"snmp.engine_boots":   "3",
+		"snmp.engine_time":    "1234",
+		"snmp.max_msg_size":   "10007",
+		"snmp.secname":        "meijing",
+		"snmp.secmodel":       "usm"}, snmpv3_noauth_txt, "test noauth - ")
 
 	//  msg_salt 8: 03 00 00 00 29 00 00 00
 	debug_test_enable()
@@ -243,58 +243,58 @@ func TestEncodeV3PDU(t *testing.T) {
 	debug_salt[4] = 2*16 + 9
 
 	testEncodeV3PDU(t, map[string]string{"community": "123987",
-		"identifier":     "0",
-		"context_name":   "testcontextname",
-		"context_engine": "74657374636f6e74657874656e67696e65",
-		"engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
-		"engine_boots":   "3",
-		"engine_time":    "1234",
-		"max_msg_size":   "10007",
-		"secname":        "meijing",
-		"secmodel":       "usm",
-		"auth_pass":      "md5-mfk1234"}, snmpv3_md5_txt, "test auth=md5 - ")
+		"snmp.identifier":     "0",
+		"snmp.context_name":   "testcontextname",
+		"snmp.context_engine": "74657374636f6e74657874656e67696e65",
+		"snmp.engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
+		"snmp.engine_boots":   "3",
+		"snmp.engine_time":    "1234",
+		"snmp.max_msg_size":   "10007",
+		"snmp.secname":        "meijing",
+		"snmp.secmodel":       "usm",
+		"snmp.auth_pass":      "md5-mfk1234"}, snmpv3_md5_txt, "test auth=md5 - ")
 
 	testEncodeV3PDU(t, map[string]string{"community": "123987",
-		"identifier":     "0",
-		"context_name":   "testcontextname",
-		"context_engine": "74657374636f6e74657874656e67696e65",
-		"engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
-		"engine_boots":   "3",
-		"engine_time":    "1234",
-		"max_msg_size":   "10007",
-		"secname":        "meijing",
-		"secmodel":       "usm",
-		"auth_pass":      "md5-mfk1234",
-		"priv_pass":      "des-mj1234"}, snmpv3_md5_des_txt, "test auth=md5 and priv=des - ")
+		"snmp.identifier":     "0",
+		"snmp.context_name":   "testcontextname",
+		"snmp.context_engine": "74657374636f6e74657874656e67696e65",
+		"snmp.engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
+		"snmp.engine_boots":   "3",
+		"snmp.engine_time":    "1234",
+		"snmp.max_msg_size":   "10007",
+		"snmp.secname":        "meijing",
+		"snmp.secmodel":       "usm",
+		"snmp.auth_pass":      "md5-mfk1234",
+		"snmp.priv_pass":      "des-mj1234"}, snmpv3_md5_des_txt, "test auth=md5 and priv=des - ")
 
 	debug_test_enable()
 	bs, _ := hex.DecodeString("23480000be180000")
 	copy(debug_salt, bs)
 
 	testEncodeV3PDU(t, map[string]string{"community": "123987",
-		"identifier":     "0",
-		"context_name":   "testcontextname",
-		"context_engine": "74657374636f6e74657874656e67696e65",
-		"engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
-		"engine_boots":   "3",
-		"engine_time":    "1234",
-		"max_msg_size":   "10007",
-		"secname":        "meijing",
-		"secmodel":       "usm",
-		"auth_pass":      "sha-mfk1234"}, snmpv3_sha_txt, "test auth=sha - ")
+		"snmp.identifier":     "0",
+		"snmp.context_name":   "testcontextname",
+		"snmp.context_engine": "74657374636f6e74657874656e67696e65",
+		"snmp.engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
+		"snmp.engine_boots":   "3",
+		"snmp.engine_time":    "1234",
+		"snmp.max_msg_size":   "10007",
+		"snmp.secname":        "meijing",
+		"snmp.secmodel":       "usm",
+		"snmp.auth_pass":      "sha-mfk1234"}, snmpv3_sha_txt, "test auth=sha - ")
 
 	testEncodeV3PDU(t, map[string]string{"community": "123987",
-		"identifier":     "0",
-		"context_name":   "testcontextname",
-		"context_engine": "74657374636f6e74657874656e67696e65",
-		"engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
-		"engine_boots":   "3",
-		"engine_time":    "1234",
-		"max_msg_size":   "10007",
-		"secname":        "meijing",
-		"secmodel":       "usm",
-		"auth_pass":      "sha-mfk1234",
-		"priv_pass":      "aes-mj1234"}, snmpv3_sha_aes_txt, "test auth=sha and priv=aes - ")
+		"snmp.identifier":     "0",
+		"snmp.context_name":   "testcontextname",
+		"snmp.context_engine": "74657374636f6e74657874656e67696e65",
+		"snmp.engine_id":      "3031323334353637383930313233343536373839303132333435363738393031",
+		"snmp.engine_boots":   "3",
+		"snmp.engine_time":    "1234",
+		"snmp.max_msg_size":   "10007",
+		"snmp.secname":        "meijing",
+		"snmp.secmodel":       "usm",
+		"snmp.auth_pass":      "sha-mfk1234",
+		"snmp.priv_pass":      "aes-mj1234"}, snmpv3_sha_aes_txt, "test auth=sha and priv=aes - ")
 
 	debug_test_disable()
 }

@@ -34,9 +34,11 @@ func BenchmarkInvokeArgumentsByStack(b *testing.B) {
 	now := time.Now()
 	b.ResetTimer()
 	for i := 0; i < 10000; i++ {
+		//PushString(drv, "test_invoke_module2")
+		//PushString(drv, "test_invoke_module2")
 		PushString(drv, "test_invoke_module2")
 		PushParams(drv, params)
-		ResumeLuaFiber(drv, 2)
+		ResumeLuaFiber(drv, 0)
 		_, err := ToAny(drv, -1)
 		if nil != err {
 			b.Error(err)
@@ -165,9 +167,10 @@ func BenchmarkDirectGet(b *testing.B) {
 	drv.Name = "BenchmarkDirectGet"
 	drv.Start()
 
-	td := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
+	dd := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
 		create: false, delete: false, create_error: errutils.InternalError("create test cb ok test1whj23"),
 		delete_error: errutils.InternalError("delete test cb ok test1whj23")}
+	td := commons.Wrap(dd, 1*time.Second)
 	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {

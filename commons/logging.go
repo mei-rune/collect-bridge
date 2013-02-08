@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -241,9 +242,21 @@ type PanicWriter struct {
 func (l *PanicWriter) IsEnabled() bool { return true }
 
 func (l *PanicWriter) Panicf(format string, v ...interface{}) {
-	l.super.Output(2, l.level, fmt.Sprintf(format, v...))
+	s := fmt.Sprintf(format, v...)
+	l.super.Output(2, l.level, s)
+	panic(s)
 }
 
 func (l *PanicWriter) Panic(v ...interface{}) {
-	l.super.Output(2, l.level, fmt.Sprint(v...))
+	s := fmt.Sprint(v...)
+	l.super.Output(2, l.level, s)
+	panic(s)
+}
+
+var (
+	Log = &Logger{}
+)
+
+func init() {
+	Log.InitLoggerWithWriter(os.Stdout, "", log.Ltime)
 }

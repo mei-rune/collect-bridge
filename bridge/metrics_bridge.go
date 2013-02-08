@@ -6,13 +6,12 @@ import (
 	"web"
 )
 
-func registerMetrics(srv *web.Server, params map[string]string, drvMgr *commons.DriverManager) error {
-	driver, e := metrics.NewMetrics(params, drvMgr)
+func registerMetrics(srv *web.Server, params map[string]interface{}) error {
+	driver, e := metrics.NewMetrics(params)
 	if nil != e {
 		return e
 	}
 	registerDrivers(srv, "metric", driver.DriverManager)
-
-	drvMgr.Register("metrics", driver)
+	params["drvMgr"].(*commons.DriverManager).Register("metrics", driver)
 	return nil
 }

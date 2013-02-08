@@ -265,10 +265,10 @@ func main() {
 	}
 
 	switch started_oid {
-	case "sys", "system":
+	case "system":
 		started_oid = "1.3.6.1.2.1.1"
 		*action = "table"
-	case "sys.descr", "sys.description", "system.descr", "system.description":
+	case "system.descr", "system.description":
 		started_oid = "1.3.6.1.2.1.1.1.0"
 		*action = "get"
 	}
@@ -418,12 +418,15 @@ func metric_invoke() error {
 		return errors.New("unmarshal failed - " + err.Error() + "\n" + string(bytes))
 	}
 	value := commons.GetReturn(returnObject)
-	vbs := value.(map[string]interface{})
-	if 0 == len(vbs) {
-		return errors.New("result is empty." + "\n" + string(bytes))
+	if nil == value {
+		return errors.New("result is empty.\n" + string(bytes))
 	}
+	// vbs := value.(map[string]interface{})
+	// if 0 == len(vbs) {
+	// 	return errors.New("result is empty." + "\n" + string(bytes))
+	// }
 
-	bs, err := json.MarshalIndent(vbs, "", "  ")
+	bs, err := json.MarshalIndent(value, "", "  ")
 	if nil != err {
 		return errors.New("marshal failed - " + err.Error() + "\n" + string(bytes))
 	}

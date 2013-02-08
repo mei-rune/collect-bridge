@@ -36,7 +36,7 @@ type V2CPDU struct {
 }
 
 func (pdu *V2CPDU) Init(params map[string]string) SnmpCodeError {
-	community, ok := params["community"]
+	community, ok := params["snmp.community"]
 	if ok && "" != community {
 		pdu.community = community
 		return nil
@@ -156,15 +156,15 @@ func (pdu *V3PDU) Init(params map[string]string) (err SnmpCodeError) {
 
 	pdu.maxMsgSize = 10000
 
-	if v, ok := params["max_msg_size"]; ok {
+	if v, ok := params["snmp.max_msg_size"]; ok {
 		if num, e := strconv.ParseUint(v, 10, 0); nil == e {
 			pdu.maxMsgSize = uint(num)
 		}
 	}
 
-	if s, ok := params["context_name"]; ok {
+	if s, ok := params["snmp.context_name"]; ok {
 		pdu.contextName = s
-		if s, ok = params["context_engine"]; ok {
+		if s, ok = params["snmp.context_engine"]; ok {
 			pdu.contextEngine, e = hex.DecodeString(s)
 			if nil != e {
 				return newError(SNMP_CODE_FAILED, e, "'context_engine' decode failed")
@@ -173,27 +173,27 @@ func (pdu *V3PDU) Init(params map[string]string) (err SnmpCodeError) {
 	}
 
 	pdu.identifier = -1
-	if s, ok := params["identifier"]; ok {
+	if s, ok := params["snmp.identifier"]; ok {
 		pdu.identifier, e = strconv.Atoi(s)
 		if nil != e {
 			return newError(SNMP_CODE_FAILED, e, "'identifier' decode failed")
 		}
 	}
 
-	if s, ok := params["engine_id"]; ok {
+	if s, ok := params["snmp.engine_id"]; ok {
 		pdu.engine = new(snmpEngine)
 		pdu.engine.engine_id, e = hex.DecodeString(s)
 		if nil != e {
 			return newError(SNMP_CODE_FAILED, e, "'engine_id' decode failed")
 		}
 
-		if s, ok = params["engine_boots"]; ok {
+		if s, ok = params["snmp.engine_boots"]; ok {
 			pdu.engine.engine_boots, e = strconv.Atoi(s)
 			if nil != e {
 				return newError(SNMP_CODE_FAILED, e, "'engine_boots' decode failed")
 			}
 		}
-		if s, ok = params["engine_time"]; ok {
+		if s, ok = params["snmp.engine_time"]; ok {
 			pdu.engine.engine_time, e = strconv.Atoi(s)
 			if nil != e {
 				return newError(SNMP_CODE_FAILED, e, "'engine_time' decode failed")

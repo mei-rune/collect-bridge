@@ -401,7 +401,7 @@ func TestInvokeModule(t *testing.T) {
 	v, e = drv.Put(params)
 	testResult(t, drv, commons.Return("put test ok test1whj23"), "", v, e)
 	v, e = drv.Create(params)
-	testResult(t, drv, commons.ReturnWith("id", "2328"), "create test ok test1whj23", v, e)
+	testResult(t, drv, commons.ReturnWithKV(map[string]interface{}{}, "id", "2328"), "create test ok test1whj23", v, e)
 	b, e := drv.Delete(params)
 	testResult(t, drv, false, "delete test ok test1whj23", b, e)
 }

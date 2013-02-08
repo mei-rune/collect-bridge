@@ -11,7 +11,7 @@ func AsMap(value interface{}) (map[string]interface{}, error) {
 	if m, ok := value.(map[string]interface{}); ok {
 		return m, nil
 	}
-	return nil, errors.New("type AsSertion to map[string]interface{} failed")
+	return nil, errors.New("type Assertion to map[string]interface{} failed")
 }
 
 // Array type AsSerts to an `array`
@@ -19,7 +19,7 @@ func AsArray(value interface{}) ([]interface{}, error) {
 	if a, ok := value.([]interface{}); ok {
 		return a, nil
 	}
-	return nil, errors.New("type AsSertion to []interface{} failed")
+	return nil, errors.New("type Assertion to []interface{} failed")
 }
 
 // Bool type AsSerts to `bool`
@@ -35,7 +35,23 @@ func AsBool(value interface{}) (bool, error) {
 			return false, nil
 		}
 	}
-	return false, errors.New("type AsSertion to bool failed")
+	return false, errors.New("type Assertion to bool failed")
+}
+
+// Bool type AsSerts to `bool`
+func AsBoolWithDefaultValue(value interface{}, defaultValue bool) bool {
+	if b, ok := value.(bool); ok {
+		return b
+	}
+	if s, ok := value.(string); ok {
+		switch s {
+		case "TRUE", "True", "true", "YES", "Yes", "yes":
+			return true
+		case "FALSE", "False", "false", "NO", "No", "no":
+			return false
+		}
+	}
+	return defaultValue
 }
 
 func AsInt(value interface{}) (int, error) {
@@ -86,16 +102,16 @@ func AsInt64(value interface{}) (int64, error) {
 			return i64, nil
 		}
 	}
-	return 0, errors.New("type AsSertion to int64 failed")
+	return 0, errors.New("type Assertion to int64 failed")
 }
 
 func AsInt32(value interface{}) (int32, error) {
 	i64, err := AsInt64(value)
 	if nil != err {
-		return 0, errors.New("type AsSertion to int32 failed")
+		return 0, errors.New("type Assertion to int32 failed")
 	}
 	if -2147483648 > i64 || 2147483647 < i64 {
-		return 0, errors.New("type AsSertion to int32 failed, it is too big.")
+		return 0, errors.New("type Assertion to int32 failed, it is too big.")
 	}
 	return int32(i64), nil
 }
@@ -103,10 +119,10 @@ func AsInt32(value interface{}) (int32, error) {
 func AsInt16(value interface{}) (int16, error) {
 	i64, err := AsInt64(value)
 	if nil != err {
-		return 0, errors.New("type AsSertion to int16 failed")
+		return 0, errors.New("type Assertion to int16 failed")
 	}
 	if -32768 > i64 || 32767 < i64 {
-		return 0, errors.New("type AsSertion to int16 failed, it is too big.")
+		return 0, errors.New("type Assertion to int16 failed, it is too big.")
 	}
 	return int16(i64), nil
 }
@@ -114,10 +130,10 @@ func AsInt16(value interface{}) (int16, error) {
 func AsInt8(value interface{}) (int8, error) {
 	i64, err := AsInt64(value)
 	if nil != err {
-		return 0, errors.New("type AsSertion to int8 failed")
+		return 0, errors.New("type Assertion to int8 failed")
 	}
 	if -128 > i64 || 127 < i64 {
-		return 0, errors.New("type AsSertion to int8 failed, it is too big.")
+		return 0, errors.New("type Assertion to int8 failed, it is too big.")
 	}
 	return int8(i64), nil
 }

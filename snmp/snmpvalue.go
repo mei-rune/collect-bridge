@@ -40,6 +40,7 @@ type SnmpValue interface {
 	GetUint32s() []uint32
 	GetBytes() []byte
 	GetInt32() int32
+	GetInt64() int64
 	GetUint32() uint32
 	GetUint64() uint64
 	GetString() string
@@ -131,6 +132,10 @@ func (s *SnmpNil) GetInt32() int32 {
 	return 0
 }
 
+func (s *SnmpNil) GetInt64() int64 {
+	return 0
+}
+
 func (s *SnmpNil) GetUint32() uint32 {
 	return 0
 }
@@ -178,6 +183,10 @@ func (s *SnmpOid) GetBytes() []byte {
 }
 
 func (s *SnmpOid) GetInt32() int32 {
+	return 0
+}
+
+func (s *SnmpOid) GetInt64() int64 {
 	return 0
 }
 
@@ -308,6 +317,10 @@ func (v *SnmpInt32) GetInt32() int32 {
 	return int32(*v)
 }
 
+func (v *SnmpInt32) GetInt64() int64 {
+	return int64(*v)
+}
+
 func (v *SnmpInt32) GetUint32() uint32 {
 	return uint32(*v)
 }
@@ -320,11 +333,11 @@ func (v *SnmpInt32) GetString() string {
 	return strconv.FormatInt(int64(*v), 10)
 }
 
-func (s *SnmpInt32) IsError() bool {
+func (v *SnmpInt32) IsError() bool {
 	return false
 }
 
-func (s *SnmpInt32) Error() string {
+func (v *SnmpInt32) Error() string {
 	return notError
 }
 
@@ -344,19 +357,19 @@ func newSnmpInt32FromString(s string) (SnmpValue, error) {
 
 type SnmpUint32 uint32
 
-func (s *SnmpUint32) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + s.String() + "\""), nil
+func (v *SnmpUint32) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + v.String() + "\""), nil
 }
 
 func (v *SnmpUint32) String() string {
 	return "[gauge]" + v.GetString()
 }
 
-func (s *SnmpUint32) IsNil() bool {
+func (v *SnmpUint32) IsNil() bool {
 	return false
 }
 
-func (s *SnmpUint32) GetSyntax() SnmpSyntax {
+func (v *SnmpUint32) GetSyntax() SnmpSyntax {
 	return SNMP_SYNTAX_GAUGE
 }
 
@@ -370,6 +383,10 @@ func (v *SnmpUint32) GetBytes() []byte {
 
 func (v *SnmpUint32) GetInt32() int32 {
 	return int32(*v)
+}
+
+func (v *SnmpUint32) GetInt64() int64 {
+	return int64(*v)
 }
 
 func (v *SnmpUint32) GetUint32() uint32 {
@@ -408,19 +425,19 @@ func newSnmpUint32FromString(s string) (SnmpValue, error) {
 
 type SnmpCounter32 uint32
 
-func (s *SnmpCounter32) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + s.String() + "\""), nil
+func (v *SnmpCounter32) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + v.String() + "\""), nil
 }
 
 func (v *SnmpCounter32) String() string {
 	return "[counter32]" + v.GetString()
 }
 
-func (s *SnmpCounter32) IsNil() bool {
+func (v *SnmpCounter32) IsNil() bool {
 	return false
 }
 
-func (s *SnmpCounter32) GetSyntax() SnmpSyntax {
+func (v *SnmpCounter32) GetSyntax() SnmpSyntax {
 	return SNMP_SYNTAX_COUNTER
 }
 
@@ -436,6 +453,10 @@ func (v *SnmpCounter32) GetInt32() int32 {
 	return int32(*v)
 }
 
+func (v *SnmpCounter32) GetInt64() int64 {
+	return int64(*v)
+}
+
 func (v *SnmpCounter32) GetUint32() uint32 {
 	return uint32(*v)
 }
@@ -448,11 +469,11 @@ func (v *SnmpCounter32) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
 }
 
-func (s *SnmpCounter32) IsError() bool {
+func (v *SnmpCounter32) IsError() bool {
 	return false
 }
 
-func (s *SnmpCounter32) Error() string {
+func (v *SnmpCounter32) Error() string {
 	return notError
 }
 
@@ -476,15 +497,15 @@ func (v *SnmpCounter64) String() string {
 	return "[counter64]" + v.GetString()
 }
 
-func (s *SnmpCounter64) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + s.String() + "\""), nil
+func (v *SnmpCounter64) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + v.String() + "\""), nil
 }
 
-func (s *SnmpCounter64) IsNil() bool {
+func (v *SnmpCounter64) IsNil() bool {
 	return false
 }
 
-func (s *SnmpCounter64) GetSyntax() SnmpSyntax {
+func (v *SnmpCounter64) GetSyntax() SnmpSyntax {
 	return SNMP_SYNTAX_COUNTER64
 }
 
@@ -500,6 +521,10 @@ func (v *SnmpCounter64) GetInt32() int32 {
 	return int32(*v)
 }
 
+func (v *SnmpCounter64) GetInt64() int64 {
+	return int64(*v)
+}
+
 func (v *SnmpCounter64) GetUint32() uint32 {
 	return uint32(*v)
 }
@@ -512,11 +537,11 @@ func (v *SnmpCounter64) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
 }
 
-func (s *SnmpCounter64) IsError() bool {
+func (v *SnmpCounter64) IsError() bool {
 	return false
 }
 
-func (s *SnmpCounter64) Error() string {
+func (v *SnmpCounter64) Error() string {
 	return notError
 }
 
@@ -536,20 +561,19 @@ func newSnmpCounter64FromString(s string) (SnmpValue, error) {
 
 type SnmpTimeticks uint32
 
-func (s *SnmpTimeticks) MarshalJSON() ([]byte, error) {
-
-	return []byte("\"" + s.String() + "\""), nil
+func (v *SnmpTimeticks) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + v.String() + "\""), nil
 }
 
 func (v *SnmpTimeticks) String() string {
 	return "[timeticks]" + v.GetString()
 }
 
-func (s *SnmpTimeticks) IsNil() bool {
+func (v *SnmpTimeticks) IsNil() bool {
 	return false
 }
 
-func (s *SnmpTimeticks) GetSyntax() SnmpSyntax {
+func (v *SnmpTimeticks) GetSyntax() SnmpSyntax {
 	return SNMP_SYNTAX_TIMETICKS
 }
 
@@ -565,6 +589,10 @@ func (v *SnmpTimeticks) GetInt32() int32 {
 	return int32(*v)
 }
 
+func (v *SnmpTimeticks) GetInt64() int64 {
+	return int64(*v)
+}
+
 func (v *SnmpTimeticks) GetUint32() uint32 {
 	return uint32(*v)
 }
@@ -577,11 +605,11 @@ func (v *SnmpTimeticks) GetString() string {
 	return strconv.FormatUint(uint64(*v), 10)
 }
 
-func (s *SnmpTimeticks) IsError() bool {
+func (v *SnmpTimeticks) IsError() bool {
 	return false
 }
 
-func (s *SnmpTimeticks) Error() string {
+func (v *SnmpTimeticks) Error() string {
 	return notError
 }
 
@@ -601,19 +629,19 @@ func newSnmpTimeticksFromString(s string) (SnmpValue, error) {
 
 type SnmpOctetString []byte
 
-func (s *SnmpOctetString) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + s.String() + "\""), nil
+func (v *SnmpOctetString) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + v.String() + "\""), nil
 }
 
 func (v *SnmpOctetString) String() string {
 	return "[octets]" + v.GetString()
 }
 
-func (s *SnmpOctetString) IsNil() bool {
+func (v *SnmpOctetString) IsNil() bool {
 	return false
 }
 
-func (s *SnmpOctetString) GetSyntax() SnmpSyntax {
+func (v *SnmpOctetString) GetSyntax() SnmpSyntax {
 	return SNMP_SYNTAX_OCTETSTRING
 }
 
@@ -631,6 +659,14 @@ func (v *SnmpOctetString) GetInt32() int32 {
 		return 0
 	}
 	return int32(r)
+}
+
+func (v *SnmpOctetString) GetInt64() int64 {
+	r, e := strconv.ParseInt(string(*v), 10, 64)
+	if nil != e {
+		return 0
+	}
+	return int64(r)
 }
 
 func (v *SnmpOctetString) GetUint32() uint32 {
@@ -739,11 +775,11 @@ func (v *SnmpOctetString) GetString() string {
 	return hex.EncodeToString([]byte(*v))
 }
 
-func (s *SnmpOctetString) IsError() bool {
+func (v *SnmpOctetString) IsError() bool {
 	return false
 }
 
-func (s *SnmpOctetString) Error() string {
+func (v *SnmpOctetString) Error() string {
 	return notError
 }
 
@@ -763,19 +799,19 @@ func newSnmpOctetStringFromString(s string) (SnmpValue, error) {
 
 type SnmpAddress net.IP
 
-func (s *SnmpAddress) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + s.String() + "\""), nil
+func (v *SnmpAddress) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + v.String() + "\""), nil
 }
 
 func (v *SnmpAddress) String() string {
 	return "[ip]" + v.GetString()
 }
 
-func (s *SnmpAddress) IsNil() bool {
+func (v *SnmpAddress) IsNil() bool {
 	return false
 }
 
-func (s *SnmpAddress) GetSyntax() SnmpSyntax {
+func (v *SnmpAddress) GetSyntax() SnmpSyntax {
 	return SNMP_SYNTAX_IPADDRESS
 }
 
@@ -796,6 +832,10 @@ func (v *SnmpAddress) GetInt32() int32 {
 	return 0
 }
 
+func (v *SnmpAddress) GetInt64() int64 {
+	return 0
+}
+
 func (v *SnmpAddress) GetUint32() uint32 {
 	return 0
 }
@@ -808,11 +848,11 @@ func (v *SnmpAddress) GetString() string {
 	return net.IP(*v).String()
 }
 
-func (s *SnmpAddress) IsError() bool {
+func (v *SnmpAddress) IsError() bool {
 	return false
 }
 
-func (s *SnmpAddress) Error() string {
+func (v *SnmpAddress) Error() string {
 	return notError
 }
 
@@ -835,20 +875,20 @@ type SnmpError struct {
 	message string
 }
 
-func (s *SnmpError) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + s.String() + "\""), nil
+func (v *SnmpError) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + v.String() + "\""), nil
 }
 
 func (v *SnmpError) String() string {
 	return "[error:" + strconv.Itoa(int(v.value)) + "]" + v.message
 }
 
-func (s *SnmpError) IsNil() bool {
+func (v *SnmpError) IsNil() bool {
 	return false
 }
 
-func (s *SnmpError) GetSyntax() SnmpSyntax {
-	return s.value
+func (v *SnmpError) GetSyntax() SnmpSyntax {
+	return v.value
 }
 
 func (v *SnmpError) GetUint32s() []uint32 {
@@ -860,6 +900,10 @@ func (v *SnmpError) GetBytes() []byte {
 }
 
 func (v *SnmpError) GetInt32() int32 {
+	return 0
+}
+
+func (v *SnmpError) GetInt64() int64 {
 	return 0
 }
 
@@ -875,12 +919,12 @@ func (v *SnmpError) GetString() string {
 	return ""
 }
 
-func (s *SnmpError) IsError() bool {
+func (v *SnmpError) IsError() bool {
 	return true
 }
 
-func (s *SnmpError) Error() string {
-	return s.message
+func (v *SnmpError) Error() string {
+	return v.message
 }
 
 func errorToMessage(value uint) string {

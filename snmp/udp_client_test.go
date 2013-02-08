@@ -190,7 +190,8 @@ func TestSendFailed(t *testing.T) {
 			return
 		}
 
-		if !strings.Contains(err.Error(), "time out") {
+		if !strings.Contains(err.Error(), "time out") &&
+			!strings.Contains(err.Error(), "unreachable host") {
 			t.Errorf("except throw an timeout error, actual return %s", err.Error())
 			return
 		}

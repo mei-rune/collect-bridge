@@ -20,7 +20,7 @@ type securityModelWithCopy interface {
 }
 
 func getAuth(params map[string]string) (crypto.Hash, AuthType, string, SnmpCodeError) {
-	auth, ok := params["auth_pass"]
+	auth, ok := params["snmp.auth_pass"]
 
 	if !ok {
 		return 0, SNMP_AUTH_NOAUTH, "", nil
@@ -42,7 +42,7 @@ func getAuth(params map[string]string) (crypto.Hash, AuthType, string, SnmpCodeE
 }
 
 func getPriv(params map[string]string) (PrivType, string, SnmpCodeError) {
-	priv, ok := params["priv_pass"]
+	priv, ok := params["snmp.priv_pass"]
 
 	if !ok {
 		return SNMP_PRIV_NOPRIV, "", nil
@@ -65,7 +65,7 @@ func getPriv(params map[string]string) (PrivType, string, SnmpCodeError) {
 }
 
 func NewSecurityModel(params map[string]string) (sm securityModelWithCopy, err SnmpCodeError) {
-	switch params["secmodel"] {
+	switch params["snmp.secmodel"] {
 	case "usm", "Usm", "USM":
 		securityModel := new(USM)
 		securityModel.InitString(params)
@@ -96,7 +96,7 @@ type USM struct {
 }
 
 func (usm *USM) InitHash(params map[string]string) SnmpCodeError {
-	name, ok := params["secname"]
+	name, ok := params["snmp.secname"]
 	if !ok {
 		return Error(SNMP_CODE_BADENC, "secname is required.")
 	}
@@ -121,7 +121,7 @@ func (usm *USM) InitHash(params map[string]string) SnmpCodeError {
 }
 
 func (usm *USM) InitString(params map[string]string) SnmpCodeError {
-	name, ok := params["secname"]
+	name, ok := params["snmp.secname"]
 	if !ok {
 		return Error(SNMP_CODE_BADENC, "secname is required.")
 	}

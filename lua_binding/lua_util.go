@@ -203,8 +203,8 @@ func toTable(ls *C.lua_State, index C.int) (interface{}, commons.RuntimeError) {
 		return nil, errutils.InternalError(fmt.Sprintf("stack[%d] is not a table.", index))
 	}
 
-	res1 := make(map[int]interface{})
-	res2 := make(map[string]interface{})
+	res1 := make(map[int]interface{}, 10)
+	res2 := make(map[string]interface{}, 10)
 
 	if 0 > index {
 		index = C.lua_gettop(ls) + index + C.int(1)
@@ -271,7 +271,7 @@ func toParams(ls *C.lua_State, index C.int) (map[string]string, commons.RuntimeE
 		return nil, errutils.InternalError(fmt.Sprintf("stack[%d] is not a table.", index))
 	}
 
-	res := make(map[string]string)
+	res := make(map[string]string, 10)
 
 	if 0 > index {
 		index = C.lua_gettop(ls) + index + C.int(1)
@@ -421,7 +421,7 @@ func pushAny(ls *C.lua_State, any interface{}) {
 		case reflect.Slice:
 			fallthrough
 		case reflect.Array:
-			C.lua_createtable(ls, 0, 0)
+			C.lua_createtable(ls, 10, 10)
 			for i, l := 0, val.Len(); i < l; i++ {
 				pushAny(ls, val.Index(i).Interface())
 				C.lua_rawseti(ls, -2, C.int(i+1))
@@ -468,7 +468,7 @@ func pushMap(ls *C.lua_State, params map[string]interface{}) {
 		}
 	}()
 
-	C.lua_createtable(ls, 0, 0)
+	C.lua_createtable(ls, 10, 10)
 	for k, v := range params {
 		cs := C.CString(k)
 		pushAny(ls, v)
@@ -489,7 +489,7 @@ func pushArray(ls *C.lua_State, params []interface{}) {
 		return
 	}
 
-	C.lua_createtable(ls, 0, 0)
+	C.lua_createtable(ls, 10, 10)
 	for k, v := range params {
 		pushAny(ls, v)
 		C.lua_rawseti(ls, -2, C.int(k+1))
@@ -519,7 +519,7 @@ func pushParams(ls *C.lua_State, params map[string]string) {
 		}
 	}()
 
-	C.lua_createtable(ls, 0, 0)
+	C.lua_createtable(ls, 10, 10)
 	for k, v := range params {
 		cs = C.CString(k)
 		pushString(ls, v)

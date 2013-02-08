@@ -4,6 +4,40 @@ import (
 	"errors"
 )
 
+// func bytesToString(bs []byte, charset string) string {
+// 	charset, _ := params["charset"]
+// 	decoder := mahonia.NewDecoder(charset)
+// 	if nil == decoder {
+// 		return string(bs), nil
+// 	}
+
+// 	var buffer bytes.Buffer
+// 	for 0 != len(bs) {
+// 		c, length, status := decoder(bs)
+// 		switch status {
+// 		case mahonia.SUCCESS:
+// 			buffer.WriteRune(c)
+// 			bs = bs[length:]
+// 		case mahonia.INVALID_CHAR:
+// 			buffer.Write([]byte{'.'})
+// 			bs = bs[1:]
+// 		case mahonia.NO_ROOM:
+// 			buffer.Write([]byte{'.'})
+// 			bs = bs[0:0]
+// 		case mahonia.STATE_ONLY:
+// 			bs = bs[length:]
+// 		}
+// 	}
+// 	return buffer.String()
+// }
+
+// func AsString(value SnmpValue, charset string) (string, error) {
+// 	if SNMP_SYNTAX_OCTETSTRING == value.GetSyntax() {
+// 		return bytesToString(params, v.GetBytes())
+// 	}
+// 	return "", errors.New("value is not string - '" + value.String() + "'.")
+// }
+
 func AsInt(value SnmpValue) (int, error) {
 	a, err := AsInt32(value)
 	return int(a), err
@@ -18,9 +52,9 @@ func AsUint(value SnmpValue) (uint, error) {
 func AsInt64(value SnmpValue) (int64, error) {
 	switch value.GetSyntax() {
 	case SNMP_SYNTAX_INTEGER:
-		return int64(value.GetInt32()), nil
+		return value.GetInt64(), nil
 	case SNMP_SYNTAX_GAUGE, SNMP_SYNTAX_COUNTER, SNMP_SYNTAX_TIMETICKS:
-		return int64(value.GetUint32()), nil
+		return value.GetInt64(), nil
 	case SNMP_SYNTAX_COUNTER64:
 		if 9223372036854775807 >= value.GetUint64() {
 			return int64(value.GetUint64()), nil

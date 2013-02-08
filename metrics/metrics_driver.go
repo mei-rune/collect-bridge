@@ -15,11 +15,12 @@ type Metrics struct {
 	drvMgr *commons.DriverManager
 }
 
-func NewMetrics(params map[string]string, drvMgr *commons.DriverManager) (*Metrics, error) {
-	metrics := &Metrics{commons.NewDriverManager(), drvMgr}
+func NewMetrics(ctx map[string]interface{}) (*Metrics, error) {
+	metrics := &Metrics{commons.NewDriverManager(), ctx["drvMgr"].(*commons.DriverManager)}
+	ctx["metrics"] = metrics.DriverManager
 
 	for k, f := range commons.METRIC_DRVS {
-		drv, err := f(params, drvMgr)
+		drv, err := f(ctx)
 		if nil != err {
 			return nil, err
 		}

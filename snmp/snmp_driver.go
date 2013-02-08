@@ -35,7 +35,7 @@ func getTimeout(params map[string]string, timeout time.Duration) time.Duration {
 }
 
 func getVersion(params map[string]string) (SnmpVersion, commons.RuntimeError) {
-	v, ok := params["version"]
+	v, ok := params["snmp.version"]
 	if !ok {
 		return SNMP_V2C, nil
 	}
@@ -51,7 +51,7 @@ func getVersion(params map[string]string) (SnmpVersion, commons.RuntimeError) {
 }
 
 func getAction(params map[string]string) (SnmpType, commons.RuntimeError) {
-	v, ok := params["action"]
+	v, ok := params["snmp.action"]
 	if !ok {
 		return SNMP_PDU_GET, nil
 	}
@@ -77,15 +77,18 @@ func internalError(msg string, err error) commons.RuntimeError {
 	return commons.NewRuntimeError(500, msg+"-"+err.Error())
 }
 
-var HostIsRequired = errutils.IsRequired("host")
-var OidIsRequired = errutils.IsRequired("oid")
+var HostIsRequired = errutils.IsRequired("snmp.host")
+var OidIsRequired = errutils.IsRequired("snmp.oid")
 
 func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[string]interface{}, commons.RuntimeError) {
-	host, ok := params["id"]
+	host, ok := params["snmp.host"]
 	if !ok {
-		return nil, HostIsRequired
+		host, ok = params["id"]
+		if !ok {
+			return nil, HostIsRequired
+		}
 	}
-	oid, ok := params["oid"]
+	oid, ok := params["snmp.oid"]
 	if !ok {
 		return nil, OidIsRequired
 	}
@@ -96,10 +99,10 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 	}
 
 	if SNMP_PDU_TABLE == action {
-		_, contains := params["columns"]
+		columns, contains := params["snmp.columns"]
 
-		if contains {
-			return self.tableGetByColumns(params, client, oid)
+		if contains && "" != columns {
+			return self.tableGetByColumns(params, client, oid, columns)
 		}
 
 		return self.tableGet(params, client, oid)
@@ -178,9 +181,12 @@ func (self *SnmpDriver) Create(params map[string]string) (map[string]interface{}
 }
 
 func (self *SnmpDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {
-	action, ok := params["action"]
+	action, ok := params["snmp.action"]
 	if ok && "remove_client" == action {
-		host, _ := params["id"]
+		host, _ := params["snmp.host"]
+		if "" == host {
+			host, _ = params["id"]
+		}
 		if "" != host && "all" != host {
 			self.RemoveClient(host)
 		} else {
@@ -276,13 +282,13 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 }
 
 func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Client,
-	oid string) (map[string]interface{}, commons.RuntimeError) {
+	oid, columns_str string) (map[string]interface{}, commons.RuntimeError) {
 
 	start_oid, err := ParseOidFromString(oid)
 	if nil != err {
 		return nil, internalError("param 'oid' is error", err)
 	}
-	columns, err := commons.GetIntList(params, "columns")
+	columns, err := commons.ConvertToIntList(columns_str, ",")
 	if nil != err {
 		return nil, internalError("param 'columns' is error", err)
 	}

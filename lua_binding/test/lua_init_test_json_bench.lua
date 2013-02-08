@@ -149,7 +149,12 @@ function mj.execute_task(action, params)
   --if nil == task then
   --  print("params = nil")
   --end
+
+  co = coroutine.create(function()
   return cjson.encode(cjson.decode(params))
+    end)
+  return coroutine.resume(co)
+  
 end
 
 function mj.loop()

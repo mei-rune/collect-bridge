@@ -11,6 +11,19 @@ import (
 	"time"
 )
 
+func ConvertToIntList(value, sep string) ([]int, error) {
+
+	ss := strings.Split(value, sep)
+	results := make([]int, 0, len(ss))
+	for _, s := range ss {
+		i, e := strconv.ParseInt(s, 10, 32)
+		if nil != e {
+			return nil, errors.New("'" + value + "' contains nonnumber.")
+		}
+		results = append(results, int(i))
+	}
+	return results, nil
+}
 func GetIntList(params map[string]string, key string) ([]int, error) {
 	v, ok := params[key]
 	if !ok {

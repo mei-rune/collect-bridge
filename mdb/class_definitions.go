@@ -335,6 +335,24 @@ func loadAssocations(self *ClassDefinitions, cls *ClassDefinition, xmlDefinition
 			cls.Assocations = append(cls.Assocations, &HasMany{TargetClass: target, ForeignKey: foreignKey})
 		}
 	}
+	if nil != xmlDefinition.HasOne && 0 != len(xmlDefinition.HasOne) {
+		for _, hasOne := range xmlDefinition.HasOne {
+			target, ok := self.clsDefinitions[hasOne.Target]
+			if !ok {
+				errs = append(errs, errors.New("Target '"+hasOne.Target+
+					"' of has_one is not found."))
+				continue
+			}
+			if nil == cls.Assocations {
+				cls.Assocations = make([]Assocation, 0, 4)
+			}
+			attributeName := hasOne.AttributeName
+			if "" == attributeName {
+				attributeName = stringutils.Underscore(cls.Name)
+			}
+			cls.Assocations = append(cls.Assocations, &HasOne{TargetClass: target, AttributeName: attributeName})
+		}
+	}
 	if nil != xmlDefinition.HasAndBelongsToMany && 0 != len(xmlDefinition.HasAndBelongsToMany) {
 		for _, habtm := range xmlDefinition.HasAndBelongsToMany {
 			target, ok := self.clsDefinitions[habtm.Target]

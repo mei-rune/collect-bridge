@@ -24,15 +24,17 @@ func TestLoadXml(t *testing.T) {
 		t.Errorf("unmarshal xml 'test/test1.xml' error, classDefinition is nil")
 		return
 	}
-	if 3 != len(definitions.clsDefinitions) {
+	if 4 != len(definitions.clsDefinitions) {
 		t.Errorf("unmarshal xml 'test/test1.xml' error, len of classDefinitions is not 2", len(definitions.clsDefinitions))
 		return
 	}
 
 	employee := definitions.Find("Employee")
+	boss := definitions.Find("Boss")
 	person := definitions.Find("Person")
 	company := definitions.Find("Company")
 
+	a.Check(t, boss.Super, a.Equals, employee, a.Commentf("check super of Class employee"))
 	a.Check(t, employee.Super, a.Equals, person, a.Commentf("check super of Class employee"))
 	a.Check(t, person.Super, a.IsNil, a.Commentf("check super of Class person"))
 	a.Check(t, company.Super, a.IsNil, a.Commentf("check super of Class company"))
@@ -68,8 +70,15 @@ func TestLoadXml(t *testing.T) {
 
 	assertHasMany := func(p1 Assocation, p2 *HasMany, comment int) {
 		a1 := p1.(*HasMany)
-		a.Check(t, a1, a.NotNil, a.Commentf("check Name of belongs_to[%d]", comment))
+		a.Check(t, a1, a.NotNil, a.Commentf("check Name of has_many[%d]", comment))
+		a.Check(t, a1.ForeignKey, a.Equals, p2.ForeignKey, a.Commentf("check ForeignKey of has_many[%d]", comment))
 		a.Check(t, p1.Target(), a.Equals, p2.TargetClass, a.Commentf("check Target of has_many[%d]", comment))
+	}
+	assertHasOne := func(p1 Assocation, p2 *HasOne, comment int) {
+		a1 := p1.(*HasOne)
+		a.Check(t, a1, a.NotNil, a.Commentf("check Name of has_one[%d]", comment))
+		a.Check(t, a1.AttributeName, a.Equals, p2.AttributeName, a.Commentf("check AttributeName of has_one[%d]", comment))
+		a.Check(t, p1.Target(), a.Equals, p2.TargetClass, a.Commentf("check Target of has_one[%d]", comment))
 	}
 
 	assertProperty(person.Properties["ID1"], &PropertyDefinition{Name: "ID1",
@@ -141,6 +150,7 @@ func TestLoadXml(t *testing.T) {
 	// }
 	assertBelongsTo(employee.Assocations[0], &BelongsTo{TargetClass: company, Name: employee.Properties["company_test_id"]}, 0)
 	assertHasMany(company.Assocations[0], &HasMany{TargetClass: employee, ForeignKey: "company_test_id"}, 0)
+	assertHasOne(company.Assocations[1], &HasOne{TargetClass: boss, AttributeName: "boss"}, 0)
 }
 
 func TestPropertyOverride(t *testing.T) {

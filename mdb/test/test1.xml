@@ -12,6 +12,16 @@
 		<belongs_to name="company_test_id">Company</belongs_to>
 	  <designFor></designFor>
 	</class>
+	<class name="Boss" base="Employee">
+		<property name="Job">
+				<restriction base="string">
+					<defaultValue>boss</defaultValue>
+					<minLength>3</minLength>
+					<maxLength>13</maxLength>
+				</restriction>
+		</property>
+	</class>
+
 	<class name="Person" displayName="人员" >
 	        	<property name="ID1" displayName="cc">
 	        		<restriction base="integer">
@@ -84,6 +94,7 @@
 				</restriction>
 		</property>
 		<has_many foreignKey="company_test_id" >Employee</has_many>
+		<has_one attributeName="boss" >Boss</has_one>
 	    <designFor></designFor>
 	</class>	
 	<designFor/>

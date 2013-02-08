@@ -30,7 +30,7 @@ func registerBridge(srv *web.Server, drvMgr *commons.DriverManager) {
 
 func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManager) {
 
-	svr.Get("/"+schema+"/(.*)/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name, id string) {
+	svr.Get("/"+schema+"/(.*)/(.*)", func(ctx *web.Context, name, id string) {
 		driver, ok := drvMgr.Connect(name)
 		if !ok {
 			ctx.Abort(404, notDefined(name))
@@ -38,15 +38,18 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 		}
 
 		ctx.Params["id"] = id
-		obj, err := driver.Get(ctx.Params)
-		if nil != err {
-			ctx.Abort(err.Code(), err.Error())
+		obj, e := driver.Get(ctx.Params)
+		if nil != e {
+			ctx.Abort(e.Code(), e.Error())
 			return
 		}
 		ctx.Status(getStatus(obj, 200))
-		json.NewEncoder(ctx).Encode(obj)
+		err := json.NewEncoder(ctx).Encode(obj)
+		if nil != err {
+			ctx.Abort(500, "encode failed, "+err.Error())
+		}
 	})
-	svr.Put("/"+schema+"/(.*)/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name, id string) {
+	svr.Put("/"+schema+"/(.*)/(.*)", func(ctx *web.Context, name, id string) {
 		driver, ok := drvMgr.Connect(name)
 		if !ok {
 			ctx.Abort(404, notDefined(name))
@@ -66,9 +69,12 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 			return
 		}
 		ctx.Status(getStatus(obj, 200))
-		json.NewEncoder(ctx).Encode(obj)
+		err = json.NewEncoder(ctx).Encode(obj)
+		if nil != err {
+			ctx.Abort(500, "encode failed, "+err.Error())
+		}
 	})
-	svr.Delete("/"+schema+"/(.*)/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name, id string) {
+	svr.Delete("/"+schema+"/(.*)/(.*)", func(ctx *web.Context, name, id string) {
 
 		driver, ok := drvMgr.Connect(name)
 		if !ok {
@@ -90,7 +96,7 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 			ctx.Abort(500, "FAILED")
 		}
 	})
-	svr.Post("/"+schema+"/(.*)", func(ctx *web.Context, drvMgr *commons.DriverManager, name string) {
+	svr.Post("/"+schema+"/(.*)", func(ctx *web.Context, name string) {
 		driver, ok := drvMgr.Connect(name)
 		if !ok {
 			ctx.Abort(404, notDefined(name))
@@ -111,7 +117,10 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 		}
 
 		ctx.Status(getStatus(obj, 201))
-		json.NewEncoder(ctx).Encode(obj)
+		err = json.NewEncoder(ctx).Encode(obj)
+		if nil != err {
+			ctx.Abort(500, "encode failed, "+err.Error())
+		}
 	})
 }
 
@@ -126,13 +135,16 @@ func registerDriver(svr *web.Server, drvMgr *commons.DriverManager, schema strin
 func drvGet(driver commons.Driver, ctx *web.Context, id string) {
 	ctx.Params["id"] = id
 
-	obj, err := driver.Get(ctx.Params)
-	if nil != err {
-		ctx.Abort(err.Code(), err.Error())
+	obj, e := driver.Get(ctx.Params)
+	if nil != e {
+		ctx.Abort(e.Code(), e.Error())
 		return
 	}
 	ctx.Status(getStatus(obj, 200))
-	json.NewEncoder(ctx).Encode(obj)
+	err := json.NewEncoder(ctx).Encode(obj)
+	if nil != err {
+		ctx.Abort(500, "encode failed, "+err.Error())
+	}
 }
 
 func drvPut(driver commons.Driver, ctx *web.Context, id string) {
@@ -151,7 +163,10 @@ func drvPut(driver commons.Driver, ctx *web.Context, id string) {
 		return
 	}
 	ctx.Status(getStatus(obj, 200))
-	json.NewEncoder(ctx).Encode(obj)
+	err = json.NewEncoder(ctx).Encode(obj)
+	if nil != err {
+		ctx.Abort(500, "encode failed, "+err.Error())
+	}
 }
 
 func drvDelete(driver commons.Driver, ctx *web.Context, id string) {
@@ -186,5 +201,8 @@ func drvCreate(driver commons.Driver, ctx *web.Context) {
 	}
 
 	ctx.Status(getStatus(obj, 201))
-	json.NewEncoder(ctx).Encode(obj)
+	err = json.NewEncoder(ctx).Encode(obj)
+	if nil != err {
+		ctx.Abort(500, "encode failed, "+err.Error())
+	}
 }

@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	assocationOps = make([]*assocationOp, 4)
+	assocationOps = make([]*assocationOp, 5)
 	operators     = make(map[string]func(pr *PropertyDefinition, s string) (interface{}, error))
 )
 
@@ -22,6 +22,7 @@ type assocationOp struct {
 
 func init() {
 	assocationOps[BELONGS_TO] = &assocationOp{}
+	assocationOps[HAS_ONE] = &assocationOp{}
 	assocationOps[HAS_MANG] = &assocationOp{deleteOp: deleteChildren}
 	assocationOps[HAS_AND_BELONGS_TO_MANY] = &assocationOp{deleteOp: deleteMany2Many}
 

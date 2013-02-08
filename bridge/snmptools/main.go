@@ -60,7 +60,7 @@ var (
 	tables = []Table{
 		Table{Name: "system",
 			Oid: "1.3.6.1.2.1.1"},
-		Table{Name: "interface",
+		Table{Name: "interface_snmp",
 			Oid: "1.3.6.1.2.1.2.2.1"},
 		Table{Name: "arp",
 			Oid: "1.3.6.1.2.1.4.22.1"},
@@ -272,18 +272,30 @@ func main() {
 		started_oid = "1.3.6.1.2.1.1.1.0"
 		*action = "get"
 	}
+	_, e := commons.ConvertToIntList(started_oid, ".")
+	if nil == e {
+		switch *action {
+		case "walk":
+			walk()
+		case "next":
+			next()
+		case "get":
+			get()
+		case "table":
+			table()
+		default:
+			fmt.Println("unsupported action - " + *action)
+		}
+	} else {
 
-	switch *action {
-	case "walk":
-		walk()
-	case "next":
-		next()
-	case "get":
-		get()
-	case "table":
-		table()
-	default:
-		fmt.Println("unsupported action - " + *action)
+		switch *action {
+		case "walk":
+			*action = "get"
+		}
+		e := metric_invoke()
+		if nil != e {
+			fmt.Println(e)
+		}
 	}
 }
 
@@ -332,6 +344,91 @@ func table() {
 	//		break
 	//	}
 	// }
+}
+
+func metric_createUrl() (string, error) {
+
+	var url string
+	switch *version {
+	case "2", "2c", "v2", "v2c", "1", "v1":
+		url = fmt.Sprintf("http://%s/metric/%s/%s?snmp.community=%s&charset=%s", *proxy, started_oid, target, *community, *from_charset)
+	case "3", "v3":
+		url = fmt.Sprintf("http://%s/metric/%s/%s?snmp.version=3&snmp.secmodel=usm&snmp.secname=%s&charset=%s", *proxy, started_oid, target, *secret_name, *from_charset)
+		if "" != *auth_passphrase {
+			url = url + "&auth_pass=" + *auth_passphrase
+			if "" != *priv_passphrase {
+				url = url + "&priv_pass=" + *priv_passphrase
+			}
+		}
+	default:
+		return "", errors.New("version is error.")
+	}
+	return url, nil
+}
+
+func metric_invoke() error {
+	var err error
+
+	url, err := metric_createUrl()
+	if nil != err {
+		return err
+	}
+	var resp *http.Response = nil
+	switch *action {
+	case "get":
+		fmt.Println("Get " + url)
+		resp, err = http.Get(url)
+		if nil != err {
+			return fmt.Errorf("get failed - " + err.Error())
+		}
+	// case "put":
+	// 	fmt.Println("Put " + url)
+	// 	resp, err = http.Put(url)
+	// 	if nil != err {
+	// 		return "", fmt.Errorf("get failed - " + err.Error())
+	// 	}
+	// case "create", "post":
+	// 	fmt.Println("Get " + url)
+	// 	resp, err = http.Post(url)
+	// 	if nil != err {
+	// 		return "", fmt.Errorf("get failed - " + err.Error())
+	// 	}
+	// case "delete", "post":
+	// 	fmt.Println("DELETE " + url)
+	// 	resp, err = http.Post(url)
+	// 	if nil != err {
+	// 		return "", fmt.Errorf("get failed - " + err.Error())
+	// 	}
+	default:
+		return errors.New("unsupported action - " + *action)
+	}
+
+	bytes, err := ioutil.ReadAll(resp.Body)
+	if nil != err {
+		return fmt.Errorf("read body failed - " + err.Error())
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.New(string(bytes))
+	}
+
+	returnObject := map[string]interface{}{}
+	err = json.Unmarshal(bytes, &returnObject)
+	if nil != err {
+		return errors.New("unmarshal failed - " + err.Error() + "\n" + string(bytes))
+	}
+	value := commons.GetReturn(returnObject)
+	vbs := value.(map[string]interface{})
+	if 0 == len(vbs) {
+		return errors.New("result is empty." + "\n" + string(bytes))
+	}
+
+	bs, err := json.MarshalIndent(vbs, "", "  ")
+	if nil != err {
+		return errors.New("marshal failed - " + err.Error() + "\n" + string(bytes))
+	}
+	fmt.Println(string(bs))
+	return nil
 }
 
 func createUrl(action, oid string) (string, error) {

@@ -9,7 +9,8 @@ type AssocationType int
 const (
 	BELONGS_TO              AssocationType = 1
 	HAS_MANG                AssocationType = 2
-	HAS_AND_BELONGS_TO_MANY AssocationType = 3
+	HAS_ONE                 AssocationType = 3
+	HAS_AND_BELONGS_TO_MANY AssocationType = 4
 
 	COLLECTION_UNKNOWN CollectionType = 0
 	COLLECTION_ARRAY   CollectionType = 1
@@ -40,10 +41,23 @@ type HasMany struct {
 }
 
 func (self *HasMany) Type() AssocationType {
-	return BELONGS_TO
+	return HAS_MANG
 }
 
 func (self *HasMany) Target() *ClassDefinition {
+	return self.TargetClass
+}
+
+type HasOne struct {
+	TargetClass   *ClassDefinition
+	AttributeName string
+}
+
+func (self *HasOne) Type() AssocationType {
+	return HAS_ONE
+}
+
+func (self *HasOne) Target() *ClassDefinition {
 	return self.TargetClass
 }
 

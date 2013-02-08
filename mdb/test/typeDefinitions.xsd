@@ -190,6 +190,15 @@
 									</xs:simpleContent>
 								</xs:complexType>
 							</xs:element>
+							<xs:element name="has_one" minOccurs="0">
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:IDREF">
+											<xs:attribute name="attributeName" type="xs:string"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
 							<xs:element name="has_and_belongs_to_many" type="xs:IDREF" minOccurs="0">
 								<xs:complexType>
 									<xs:simpleContent>

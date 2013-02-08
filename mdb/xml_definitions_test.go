@@ -23,6 +23,7 @@ func TestOutXML(t *testing.T) {
 	cl2 := &XMLClassDefinition{Name: "Employee", Base: "Person",
 		BelongsTo:           []XMLBelongsTo{XMLBelongsTo{Name: "cc_id", Target: "CC"}, XMLBelongsTo{Name: "bb_id", Target: "BB"}},
 		HasMany:             []XMLHasMany{XMLHasMany{Target: "DD"}, XMLHasMany{Target: "BB"}},
+		HasOne:              []XMLHasOne{XMLHasOne{Target: "DD"}, XMLHasOne{Target: "BB"}},
 		HasAndBelongsToMany: []XMLHasAndBelongsToMany{XMLHasAndBelongsToMany{Target: "DD"}, XMLHasAndBelongsToMany{Target: "BB"}},
 		Properties: []XMLPropertyDefinition{
 			XMLPropertyDefinition{Name: "Id2", Restrictions: XMLRestrictionsDefinition{Type: "string", DefaultValue: "12"}},
@@ -182,19 +183,20 @@ func TestXML1(t *testing.T) {
 		t.Errorf("unmarshal xml 'test/test1.xml' error, classDefinition is nil")
 		return
 	}
-	if 3 != len(xmlDefinitions.Definitions) {
+	if 4 != len(xmlDefinitions.Definitions) {
 		t.Errorf("unmarshal xml 'test/test1.xml' error, len of classDefinitions is not 2", len(xmlDefinitions.Definitions))
 		return
 	}
 
 	employee := xmlDefinitions.Definitions[0]
-	person := xmlDefinitions.Definitions[1]
-	company := xmlDefinitions.Definitions[2]
+	boss := xmlDefinitions.Definitions[1]
+	person := xmlDefinitions.Definitions[2]
+	company := xmlDefinitions.Definitions[3]
 
-	a.Check(t, person.Name, a.Equals, "Person", a.Commentf("check Class name"))
-	a.Check(t, person.Base, a.Equals, "", a.Commentf("check Base name"))
-	a.Assert(t, len(person.Properties), a.Equals, 10, a.Commentf("check len of Properties"))
-	a.Check(t, person.Properties[0].Name, a.Equals, "ID1", a.Commentf("check name of Properties[0]"))
+	a.Check(t, person.Name, a.Equals, "Person", a.Commentf("check Class name of person"))
+	a.Check(t, person.Base, a.Equals, "", a.Commentf("check Base name of person"))
+	a.Assert(t, len(person.Properties), a.Equals, 10, a.Commentf("check len of Properties of person"))
+	a.Check(t, person.Properties[0].Name, a.Equals, "ID1", a.Commentf("check name of Properties[0] of person"))
 
 	assertProperty := func(p1, p2 *XMLPropertyDefinition, comment int) {
 		a.Check(t, p1.Name, a.Equals, p2.Name, a.Commentf("check Name of properties[%d]", comment))
@@ -230,7 +232,13 @@ func TestXML1(t *testing.T) {
 	}
 
 	assertHasMany := func(p1, p2 *XMLHasMany, comment int) {
+		a.Check(t, p1.ForeignKey, a.Equals, p2.ForeignKey, a.Commentf("check ForeignKey of has_many[%d]", comment))
 		a.Check(t, p1.Target, a.Equals, p2.Target, a.Commentf("check Target of has_many[%d]", comment))
+	}
+
+	assertHasOne := func(p1, p2 *XMLHasOne, comment int) {
+		a.Check(t, p1.AttributeName, a.Equals, p2.AttributeName, a.Commentf("check AttributeName of has_one[%d]", comment))
+		a.Check(t, p1.Target, a.Equals, p2.Target, a.Commentf("check Target of has_one[%d]", comment))
 	}
 
 	assertProperty(&person.Properties[0], &XMLPropertyDefinition{Name: "ID1",
@@ -283,6 +291,15 @@ func TestXML1(t *testing.T) {
 	assertProperty(&employee.Properties[1], &XMLPropertyDefinition{Name: "company_test_id",
 		Restrictions: XMLRestrictionsDefinition{Type: "string"}}, 0)
 
+	a.Check(t, boss.Name, a.Equals, "Boss", a.Commentf("check Class name of boss"))
+	a.Check(t, boss.Base, a.Equals, "Employee", a.Commentf("check Base name of boss"))
+
+	a.Assert(t, len(boss.Properties), a.Equals, 1, a.Commentf("check len of Properties"))
+
+	assertProperty(&boss.Properties[0], &XMLPropertyDefinition{Name: "Job",
+		Restrictions: XMLRestrictionsDefinition{Type: "string",
+			DefaultValue: "boss", MinLength: "3", MaxLength: "13"}}, 0)
+
 	a.Check(t, company.Name, a.Equals, "Company", a.Commentf("check Class company.name"))
 
 	a.Assert(t, len(company.Properties), a.Equals, 1, a.Commentf("check len of company.Properties"))
@@ -296,6 +313,8 @@ func TestXML1(t *testing.T) {
 	// 	return
 	// }
 	assertBelongsTo(&employee.BelongsTo[0], &XMLBelongsTo{Target: "Company", Name: "company_test_id"}, 0)
-	assertHasMany(&company.HasMany[0], &XMLHasMany{Target: "Employee"}, 0)
+	assertHasMany(&company.HasMany[0], &XMLHasMany{Target: "Employee", ForeignKey: "company_test_id"}, 0)
+
+	assertHasOne(&company.HasOne[0], &XMLHasOne{Target: "Boss", AttributeName: "boss"}, 0)
 
 }

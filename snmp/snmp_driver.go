@@ -243,7 +243,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 
 	timeout := getTimeout(params, self.timeout)
 	next_oid := start_oid
-	results := make(map[string]map[string]string)
+	results := make(map[string]map[string]SnmpValue)
 	for {
 		vb, err := self.getNext(params, client, next_oid, version, timeout)
 		if nil != err {
@@ -264,10 +264,10 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 
 		row, _ := results[keys]
 		if nil == row {
-			row = make(map[string]string)
+			row = make(map[string]SnmpValue)
 			results[keys] = row
 		}
-		row[idx] = vb.Value.String()
+		row[idx] = vb.Value
 
 		next_oid = vb.Oid
 	}
@@ -301,7 +301,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 		next_oids_s = append(next_oids_s, o.GetString())
 	}
 
-	results := make(map[string]map[string]string)
+	results := make(map[string]map[string]SnmpValue)
 
 	for {
 		var req PDU
@@ -350,10 +350,10 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 
 			row, _ := results[keys]
 			if nil == row {
-				row = make(map[string]string)
+				row = make(map[string]SnmpValue)
 				results[keys] = row
 			}
-			row[strconv.FormatInt(int64(columns[i]), 10)] = vb.Value.String()
+			row[strconv.FormatInt(int64(columns[i]), 10)] = vb.Value
 
 			next_oids[offset] = vb.Oid
 			offset++

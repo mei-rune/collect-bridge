@@ -157,7 +157,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 	if 0 == resp.GetVariableBindings().Len() {
 		return nil, internalError("result is empty", nil)
 	}
-	results := make(map[string]SnmpValue)
+	results := make(map[string]interface{})
 	for _, vb := range resp.GetVariableBindings().All() {
 		results[vb.Oid.GetString()] = vb.Value
 	}
@@ -249,7 +249,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 
 	timeout := getTimeout(params, self.timeout)
 	next_oid := start_oid
-	results := make(map[string]map[string]SnmpValue)
+	results := make(map[string]interface{})
 	for {
 		vb, err := self.getNext(params, client, next_oid, version, timeout)
 		if nil != err {
@@ -268,9 +268,9 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 		idx := strconv.FormatUint(uint64(sub[0]), 10)
 		keys := NewOid(sub[1:]).GetString()
 
-		row, _ := results[keys]
+		row, _ := results[keys].(map[string]interface{})
 		if nil == row {
-			row = make(map[string]SnmpValue)
+			row = make(map[string]interface{})
 			results[keys] = row
 		}
 		row[idx] = vb.Value
@@ -307,7 +307,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 		next_oids_s = append(next_oids_s, o.GetString())
 	}
 
-	results := make(map[string]map[string]SnmpValue)
+	results := make(map[string]interface{})
 
 	for {
 		var req PDU
@@ -354,9 +354,9 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 
 			keys := NewOid(sub).GetString()
 
-			row, _ := results[keys]
+			row, _ := results[keys].(map[string]interface{})
 			if nil == row {
-				row = make(map[string]SnmpValue)
+				row = make(map[string]interface{})
 				results[keys] = row
 			}
 			row[strconv.FormatInt(int64(columns[i]), 10)] = vb.Value

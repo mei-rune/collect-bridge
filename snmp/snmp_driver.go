@@ -159,8 +159,13 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 	}
 	results := make(map[string]interface{})
 	for _, vb := range resp.GetVariableBindings().All() {
+		if vb.Value.IsError() && 1 == req.GetVariableBindings().Len() {
+			return nil, internalError("result is error", nil)
+		}
+
 		results[vb.Oid.GetString()] = vb.Value
 	}
+
 	return commons.Return(results), nil
 }
 
@@ -262,7 +267,8 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 
 		sub := vb.Oid.GetUint32s()[len(start_oid):]
 		if 2 > len(sub) {
-			return nil, errutils.InternalError(fmt.Sprintf("read '%s' return '%s', it is incorrect", next_oid.GetString(), vb.Oid.GetString()))
+			return nil, errutils.InternalError(fmt.Sprintf("read '%s' return '%s', it is incorrect - value is %s",
+				next_oid.GetString(), vb.Oid.GetString(), vb.Value.String()))
 		}
 
 		idx := strconv.FormatUint(uint64(sub[0]), 10)
@@ -276,6 +282,9 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 		row[idx] = vb.Value
 
 		next_oid = vb.Oid
+	}
+	if 0 == len(results) {
+		return nil, internalError("result is empty", nil)
 	}
 
 	return commons.Return(results), nil
@@ -340,6 +349,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 
 		offset := 0
 		for i, vb := range resp.GetVariableBindings().All() {
+			fmt.Println(vb.Oid.String(), vb.Value.String())
 
 			if !strings.HasPrefix(vb.Oid.GetString(), next_oids_s[i]) {
 				copy(next_oids[i:], next_oids[i+1:])
@@ -349,7 +359,8 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 
 			sub := vb.Oid.GetUint32s()[len(start_oid)+1:]
 			if 1 > len(sub) {
-				return nil, internalError(fmt.Sprintf("read '%s' return '%s', it is incorrect", start_oid, vb.Oid.GetString()), nil)
+				return nil, errutils.InternalError(fmt.Sprintf("read '%s' return '%s', it is incorrect - value is %s",
+					start_oid.GetString(), vb.Oid.GetString(), vb.Value.String()))
 			}
 
 			keys := NewOid(sub).GetString()
@@ -369,6 +380,9 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 			break
 		}
 		next_oids = next_oids[0:offset]
+	}
+	if 0 == len(results) {
+		return nil, internalError("result is empty", nil)
 	}
 	return commons.Return(results), nil
 }

@@ -5,19 +5,19 @@ import (
 )
 
 func InternalError(message string) commons.RuntimeError {
-	return commons.NewRuntimeError(500, message)
+	return commons.NewRuntimeError(commons.InternalErrorCode, message)
 }
 
 func BadRequest(message string) commons.RuntimeError {
-	return commons.NewRuntimeError(400, message)
+	return commons.NewRuntimeError(commons.BadRequestCode, message)
 }
 
 func NotAcceptable(message string) commons.RuntimeError {
-	return commons.NewRuntimeError(406, message)
+	return commons.NewRuntimeError(commons.NotAcceptableCode, message)
 }
 
 func IsRequired(name string) commons.RuntimeError {
-	return commons.NewRuntimeError(400, "'"+name+"' is required.")
+	return commons.NewRuntimeError(commons.BadRequestCode, "'"+name+"' is required.")
 }
 
 func RecordNotFound(id string) commons.RuntimeError {
@@ -25,5 +25,5 @@ func RecordNotFound(id string) commons.RuntimeError {
 }
 
 func RecordAlreadyExists(id string) commons.RuntimeError {
-	return commons.NewRuntimeError(406, "'"+id+"' is already exists.")
+	return commons.NewRuntimeError(commons.NotAcceptableCode, "'"+id+"' is already exists.")
 }

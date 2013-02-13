@@ -29,7 +29,8 @@ func registerSNMP(svr *web.Server, timeout time.Duration, drvMgr *commons.Driver
 }
 
 func snmpReset(driver commons.Driver, ctx *web.Context, host string) {
-	ctx.Params["action"] = "remove_client"
+	ctx.Params["snmp.action"] = "remove_client"
+	ctx.Params["snmp.host"] = host
 	ctx.Params["id"] = host
 
 	ok, err := driver.Delete(ctx.Params)
@@ -47,8 +48,9 @@ func snmpReset(driver commons.Driver, ctx *web.Context, host string) {
 
 func snmpGet(driver commons.Driver, ctx *web.Context, host, oid, action string) {
 	ctx.Params["id"] = host
-	ctx.Params["oid"] = oid
-	ctx.Params["action"] = action
+	ctx.Params["snmp.host"] = host
+	ctx.Params["snmp.oid"] = oid
+	ctx.Params["snmp.action"] = action
 
 	obj, e := driver.Get(ctx.Params)
 	if nil != e {
@@ -61,7 +63,8 @@ func snmpGet(driver commons.Driver, ctx *web.Context, host, oid, action string) 
 
 func snmpPut(driver commons.Driver, ctx *web.Context, host, oid, action string) {
 	ctx.Params["id"] = host
-	ctx.Params["oid"] = oid
+	ctx.Params["snmp.host"] = host
+	ctx.Params["snmp.oid"] = oid
 
 	txt, err := ioutil.ReadAll(ctx.Request.Body)
 	ctx.Params["body"] = string(txt)

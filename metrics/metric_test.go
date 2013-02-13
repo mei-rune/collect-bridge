@@ -1,15 +1,17 @@
 package metrics
 
 import (
+	"commons"
 	"log"
 	"lua_binding"
 	"testing"
+	"time"
 )
 
 func TestRoutes(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
-	drv := lua_binding.NewLuaDriver()
+	drv := lua_binding.NewLuaDriver(1*time.Second, nil)
 	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
 	drv.Name = "TestRoutes"
 	drv.Start()
@@ -23,15 +25,13 @@ func TestRoutes(t *testing.T) {
 		return
 	}
 
-	s, ok := v.(string)
+	s, ok := commons.GetReturn(v).(string)
 	if !ok {
-		t.Log(v, e)
 		t.Errorf("return is not a string, %T", v)
 		return
 	}
 
 	if "ok" != s {
-		t.Log(v, e)
 		t.Errorf("return != 'ok', it is %s", s)
 		return
 	}

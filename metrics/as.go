@@ -300,3 +300,31 @@ func TryGetHardwareAddress(params map[string]string, values map[string]interface
 	}
 	return "", fmt.Errorf("row with key is '%s' cann`t convert to hardwareAddress, value is `%v`.", idx, value)
 }
+
+func GetIPAddress(params map[string]string, values map[string]interface{}, idx string) string {
+	s, e := TryGetIPAddress(params, values, idx)
+	if nil != e {
+		panic(e.Error())
+	}
+	return s
+}
+
+func TryGetIPAddress(params map[string]string, values map[string]interface{}, idx string) (string, error) {
+	value, ok := values[idx]
+	if !ok {
+		return "", errors.New("row with key is '" + idx + "' is not found")
+	}
+	switch v := value.(type) {
+	case snmp.SnmpValue:
+		if snmp.SNMP_SYNTAX_IPADDRESS == v.GetSyntax() {
+			return v.GetString(), nil
+		}
+		value = v.String()
+	case string:
+		if strings.HasPrefix(v, "[ip]") {
+			return v[4:], nil
+		}
+		return v, nil
+	}
+	return "", fmt.Errorf("row with key is '%s' cann`t convert to ipAddress, value is `%v`.", idx, value)
+}

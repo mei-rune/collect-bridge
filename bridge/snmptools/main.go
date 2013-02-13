@@ -62,15 +62,15 @@ var (
 			Oid: "1.3.6.1.2.1.1"},
 		Table{Name: "interface_snmp",
 			Oid: "1.3.6.1.2.1.2.2.1"},
-		Table{Name: "arp",
+		Table{Name: "arp_snmp",
 			Oid: "1.3.6.1.2.1.4.22.1"},
-		Table{Name: "ip",
+		Table{Name: "ip_snmp",
 			Oid: "1.3.6.1.2.1.4.20.1"},
-		Table{Name: "mac",
+		Table{Name: "mac_snmp",
 			Oid: "unsupported"}, // ? 
-		Table{Name: "route",
+		Table{Name: "route_snmp",
 			Oid: "1.3.6.1.2.1.4.21.1"},
-		Table{Name: "cdp",
+		Table{Name: "cdp_snmp",
 			Oid: "1.3.6.1.4.1.9.9.23.1.2.1.1;4,6,7,12"},
 
 		Table{Name: "HuaweiDP", // cdp of huawei 
@@ -438,18 +438,18 @@ func createUrl(action, oid string) (string, error) {
 
 	var columns_s string = ""
 	if "" != *columns && "table" == action {
-		columns_s = "&columns=" + *columns
+		columns_s = "&snmp.columns=" + *columns
 	}
 	var url string
 	switch *version {
 	case "2", "2c", "v2", "v2c", "1", "v1":
-		url = fmt.Sprintf("http://%s/snmp/%s/%s/"+action+"?community=%s%s", *proxy, target, strings.Replace(oid, ".", "_", -1), *community, columns_s)
+		url = fmt.Sprintf("http://%s/snmp/%s/%s/"+action+"?snmp.community=%s%s", *proxy, target, strings.Replace(oid, ".", "_", -1), *community, columns_s)
 	case "3", "v3":
-		url = fmt.Sprintf("http://%s/snmp/%s/%s/"+action+"?version=3&secmodel=usm&secname=%s%s", *proxy, target, strings.Replace(oid, ".", "_", -1), *secret_name, columns_s)
+		url = fmt.Sprintf("http://%s/snmp/%s/%s/"+action+"?snmp.version=3&snmp.secmodel=usm&snmp.secname=%s%s", *proxy, target, strings.Replace(oid, ".", "_", -1), *secret_name, columns_s)
 		if "" != *auth_passphrase {
-			url = url + "&auth_pass=" + *auth_passphrase
+			url = url + "&snmp.auth_pass=" + *auth_passphrase
 			if "" != *priv_passphrase {
-				url = url + "&priv_pass=" + *priv_passphrase
+				url = url + "&snmp.priv_pass=" + *priv_passphrase
 			}
 		}
 	default:

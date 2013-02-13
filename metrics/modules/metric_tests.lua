@@ -11,7 +11,7 @@ function get(params)
 			f()
 			mj.log(mj.DEBUG, i .. " is ok.")
 		end
-		return "ok", nil
+		return {value= "ok"}, nil
 	end
 	return "it is unit test for routes.", "it is unit test for routes."
 end

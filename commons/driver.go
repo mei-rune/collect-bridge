@@ -106,3 +106,25 @@ type Driver interface {
 	Create(map[string]string) (map[string]interface{}, RuntimeError)
 	Delete(map[string]string) (bool, RuntimeError)
 }
+
+type DefaultDrv struct {
+	GetValue, PutValue, CreateValue      interface{}
+	DeleteValue                          bool
+	GetErr, PutErr, CreateErr, DeleteErr RuntimeError
+}
+
+func (self *DefaultDrv) Get(params map[string]string) (map[string]interface{}, RuntimeError) {
+	return Return(self.GetValue), self.GetErr
+}
+
+func (self *DefaultDrv) Put(params map[string]string) (map[string]interface{}, RuntimeError) {
+	return Return(self.PutValue), self.PutErr
+}
+
+func (self *DefaultDrv) Create(params map[string]string) (map[string]interface{}, RuntimeError) {
+	return Return(self.CreateValue), self.CreateErr
+}
+
+func (self *DefaultDrv) Delete(params map[string]string) (bool, RuntimeError) {
+	return self.DeleteValue, self.DeleteErr
+}

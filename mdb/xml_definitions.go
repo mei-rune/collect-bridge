@@ -28,13 +28,17 @@ type XMLBelongsTo struct {
 
 type XMLHasMany struct {
 	//XMLName struct{} `xml:"has_many"`
-	ForeignKey string `xml:"foreignKey,attr,omitempty"`
-	Target     string `xml:",chardata"`
+	AttributeName string `xml:"attributeName,attr,omitempty"`
+	ForeignKey    string `xml:"foreignKey,attr,omitempty"`
+	Embedded      string `xml:"embedded,attr,omitempty"`
+	Target        string `xml:",chardata"`
 }
 
 type XMLHasOne struct {
 	//XMLName struct{} `xml:"has_one"`
 	AttributeName string `xml:"attributeName,attr,omitempty"`
+	ForeignKey    string `xml:"foreignKey,attr,omitempty"`
+	Embedded      string `xml:"embedded,attr,omitempty"`
 	Target        string `xml:",chardata"`
 }
 

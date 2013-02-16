@@ -55,22 +55,52 @@ func op_nin(pr *PropertyDefinition, s string) (interface{}, error) {
 	return nil, errors.New("not implemented")
 }
 func op_gt(pr *PropertyDefinition, s string) (interface{}, error) {
-	return nil, errors.New("not implemented")
+	v, e := pr.Type.Convert(s)
+	if nil != e {
+		return nil, e
+	}
+
+	return bson.M{"$gt": v}, nil
 }
 func op_gte(pr *PropertyDefinition, s string) (interface{}, error) {
-	return nil, errors.New("not implemented")
+	v, e := pr.Type.Convert(s)
+	if nil != e {
+		return nil, e
+	}
+
+	return bson.M{"$gte": v}, nil
 }
 func op_eq(pr *PropertyDefinition, s string) (interface{}, error) {
-	return nil, errors.New("not implemented")
+	v, e := pr.Type.Convert(s)
+	if nil != e {
+		return nil, e
+	}
+
+	return v, nil
 }
 func op_ne(pr *PropertyDefinition, s string) (interface{}, error) {
-	return nil, errors.New("not implemented")
+	v, e := pr.Type.Convert(s)
+	if nil != e {
+		return nil, e
+	}
+
+	return bson.M{"$ne": v}, nil
 }
 func op_lt(pr *PropertyDefinition, s string) (interface{}, error) {
-	return nil, errors.New("not implemented")
+	v, e := pr.Type.Convert(s)
+	if nil != e {
+		return nil, e
+	}
+
+	return bson.M{"$lt": v}, nil
 }
 func op_lte(pr *PropertyDefinition, s string) (interface{}, error) {
-	return nil, errors.New("not implemented")
+	v, e := pr.Type.Convert(s)
+	if nil != e {
+		return nil, e
+	}
+
+	return bson.M{"$lte": v}, nil
 }
 
 type mdb_server struct {
@@ -79,28 +109,28 @@ type mdb_server struct {
 	definitions *ClassDefinitions
 }
 
-func checkValue(pr *PropertyDefinition, attributes map[string]interface{}, value interface{}, errs []error) (interface{}, []error, bool) {
+func checkValue(pr *PropertyDefinition, attributes map[string]interface{}, value interface{}, errs *[]error) (interface{}, bool) {
 
 	new_value, err := pr.Type.Convert(value)
 	if nil != err {
-		errs = append(errs, errors.New("'"+pr.Name+"' convert to internal value failed, "+err.Error()))
-		return nil, errs, false
+		*errs = append(*errs, errors.New("'"+pr.Name+"' convert to internal value failed, "+err.Error()))
+		return nil, true
 	}
 
 	if nil != pr.Restrictions && 0 != len(pr.Restrictions) {
 		is_failed := false
 		for _, r := range pr.Restrictions {
 			if ok, err := r.Validate(new_value, attributes); !ok {
-				errs = append(errs, errors.New("'"+pr.Name+"' is validate failed, "+err.Error()))
+				*errs = append(*errs, errors.New("'"+pr.Name+"' is validate failed, "+err.Error()))
 				is_failed = true
 			}
 		}
 
 		if is_failed {
-			return nil, errs, false
+			return nil, true
 		}
 	}
-	return new_value, errs, true
+	return new_value, false
 }
 
 func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]interface{},
@@ -116,10 +146,9 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]in
 	new_attributes := make(map[string]interface{}, len(attributes))
 	errs := make([]error, 0, 10)
 	for k, pr := range cls.Properties {
-		var new_value interface{}
 		value, ok := attributes[k]
 		if !ok {
-			if COLLECTION_UNKNOWN == pr.Collection {
+			if COLLECTION_UNKNOWN != pr.Collection {
 				continue
 			}
 
@@ -131,53 +160,61 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]in
 				errs = append(errs, errors.New("'"+k+"' is required"))
 				continue
 			}
-			new_value = pr.DefaultValue
-		} else {
-			if self.restrict {
-				delete(attributes, k)
+			if nil == pr.DefaultValue {
+				continue
 			}
 
-			is_failed := false
+			new_attributes[k] = pr.DefaultValue
+			continue
+		}
 
-			if COLLECTION_UNKNOWN == pr.Collection {
-				new_value, errs, is_failed = checkValue(pr, uattributes, value, errs)
-			} else {
-				array, _ := as.AsArray(value)
-				if nil == array {
-					errs = append(errs, fmt.Errorf("'"+k+"' must is a collection, actual is %v", value))
-					continue
-				}
-				new_array := make([]interface{}, 0, len(array))
-				var nv interface{} = nil
-				failed := false
-				for _, v := range array {
-					nv, errs, failed = checkValue(pr, uattributes, v, errs)
-					if !failed {
-						new_array = append(new_array, nv)
-					} else {
-						is_failed = true
-					}
-				}
-				new_value = new_array
-			}
+		if self.restrict {
+			delete(attributes, k)
+		}
+
+		if COLLECTION_UNKNOWN == pr.Collection {
+			new_value, is_failed := checkValue(pr, uattributes, value, &errs)
 
 			if is_failed {
 				continue
 			}
+
+			new_attributes[k] = new_value
+			continue
 		}
 
-		new_attributes[k] = new_value
+		array, ok := value.([]interface{})
+		if !ok {
+			errs = append(errs, fmt.Errorf("'"+k+"' must is a collection, actual is %v", value))
+			continue
+		}
+		is_failed := false
+		new_array := make([]interface{}, 0, len(array))
+		for _, v := range array {
+			nv, failed := checkValue(pr, uattributes, v, &errs)
+			if failed {
+				is_failed = true
+			} else {
+				new_array = append(new_array, nv)
+			}
+		}
+
+		if is_failed {
+			continue
+		}
+
+		new_attributes[k] = new_array
 	}
 
 	if 0 != len(errs) {
-		return nil, &MutiErrors{msg: "validate failed", errs: errs}
+		return nil, commons.NewMutiErrors("validate failed", errs)
 	}
 
 	if self.restrict && 0 != len(attributes) {
 		for k, _ := range attributes {
 			errs = append(errs, errors.New("'"+k+"' is useless"))
 		}
-		return nil, &MutiErrors{msg: "validate failed", errs: errs}
+		return nil, commons.NewMutiErrors("validate failed", errs)
 	}
 	return new_attributes, nil
 }
@@ -230,7 +267,7 @@ func (self *mdb_server) postRead(cls *ClassDefinition, attributes map[string]int
 	}
 
 	if 0 != len(errs) {
-		return nil, &MutiErrors{msg: "validate failed", errs: errs}
+		return nil, commons.NewMutiErrors("validate failed", errs)
 	}
 
 	return new_attributes, nil
@@ -264,6 +301,7 @@ func (self *mdb_server) FindById(cls *ClassDefinition, id interface{}) (map[stri
 	}
 	err := q.One(&result)
 	if nil != err {
+		fmt.Println(id, err.Error())
 		return nil, err
 	}
 
@@ -337,7 +375,7 @@ func (self *mdb_server) RemoveById(cls *ClassDefinition, id interface{}) (bool, 
 	if 0 == len(errs) {
 		return true, nil
 	}
-	return true, &MutiErrors{msg: "", errs: errs}
+	return true, commons.NewMutiErrors("parameters is error.", errs)
 }
 
 func collectOwnProperties(cls *ClassDefinition, properties map[string]*PropertyDefinition) {
@@ -382,54 +420,78 @@ func parseObjectIdHex(s string) (id bson.ObjectId, err error) {
 	v := bson.ObjectIdHex(s)
 	return v, nil
 }
+
+func appendIdCriteria(q bson.M, exp string) error {
+	var err error
+	var cr interface{}
+	if '[' != exp[0] {
+		cr, err = parseObjectIdHex(exp)
+	} else if strings.HasPrefix(exp, "[eq]") {
+		cr, err = parseObjectIdHex(exp[4:])
+	} else {
+		return errors.New("invalid operator for _id - " + exp)
+	}
+	if nil != err {
+		return errors.New("_id is a invalid ObjectId")
+	}
+	q["_id"] = cr
+	return nil
+}
+
+// func findPropertyDefinitionIfIsArrayName(cls *ClassDefinition, nm string) (*PropertyDefinition, error) {
+// 	pos := strings.LastIndex(nm, ".")
+// 	if -1 != pos {
+// 		pr, _ = properties[nm[0:pos]]
+// 	}
+
+// 	if nil == pr {
+
+// 		if is_all {
+// 			return nil, errors.New("'" + nm + "' is not a property.")
+// 		}
+// 		properties = collectProperties(cls)
+// 		is_all = true
+// 		pr, _ = properties[nm]
+
+// 		if nil == pr {
+// 			if -1 != pos {
+// 				pr, _ = properties[nm[0:pos]]
+// 			}
+
+// 			if nil == pr {
+// 				return nil, errors.New("'" + nm + "' is not a property.")
+// 			}
+// 		}
+// 	}
+// }
+
 func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M, error) {
 	if nil == params || 0 == len(params) {
 		return nil, nil
 	}
 
-	is_all := nil != cls.Children || 0 == len(cls.Children)
+	//is_all := nil != cls.Children || 0 == len(cls.Children)
 	properties := cls.Properties
 	q := bson.M{}
 	for nm, exp := range params {
 		pr, _ := properties[nm]
 		if nil == pr {
 			if "_id" == nm {
-				var err error
-				if strings.HasPrefix(exp, "[eq]") {
-					q["_id"], err = parseObjectIdHex(exp[4:])
-				} else {
-					q["_id"], err = parseObjectIdHex(exp)
-				}
-				if nil != err {
-					return nil, errors.New("_id is a invalid ObjectId")
+				e := appendIdCriteria(q, exp)
+				if nil != e {
+					return nil, e
 				}
 				continue
 			}
+
+			pos := strings.LastIndex(nm, ".")
+			if -1 == pos {
+				return nil, errors.New("'" + nm + "' is not a property.")
+			}
+
+			pr, _ = properties[nm[0:pos]]
 			if nil == pr {
-				pos := strings.LastIndex(nm, ".")
-				if -1 != pos {
-					pr, _ = properties[nm[0:pos]]
-				}
-
-				if nil == pr {
-
-					if is_all {
-						return nil, errors.New("'" + nm + "' is not a property.")
-					}
-					properties = collectProperties(cls)
-					is_all = true
-					pr, _ = properties[nm]
-
-					if nil == pr {
-						if -1 != pos {
-							pr, _ = properties[nm[0:pos]]
-						}
-
-						if nil == pr {
-							return nil, errors.New("'" + nm + "' is not a property.")
-						}
-					}
-				}
+				return nil, errors.New("'" + nm + "' is not a property.")
 			}
 		}
 
@@ -466,7 +528,6 @@ func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 }
 
 func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) ([]map[string]interface{}, error) {
-
 	s, err := buildQueryStatement(cls, params)
 	if nil != err {
 		return nil, err

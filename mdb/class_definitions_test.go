@@ -11,12 +11,6 @@ func TestLoadXml(t *testing.T) {
 	definitions, err := LoadXml("test/test1.xml")
 	if nil != err {
 		t.Errorf("read file 'test/test1.xml' failed, %s", err.Error())
-		merr, _ := err.(*MutiErrors)
-		if nil != merr && nil != merr.errs {
-			for _, e := range merr.errs {
-				t.Errorf(e.Error())
-			}
-		}
 		return
 	}
 
@@ -158,12 +152,6 @@ func TestPropertyOverride(t *testing.T) {
 	definitions, err := LoadXml("test/test_property_override.xml")
 	if nil != err {
 		t.Errorf("read file 'test/test_property_override.xml' failed, %s", err.Error())
-		merr, _ := err.(*MutiErrors)
-		if nil != merr && nil != merr.errs {
-			for _, e := range merr.errs {
-				t.Errorf(e.Error())
-			}
-		}
 		return
 	}
 

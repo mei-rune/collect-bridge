@@ -48,12 +48,6 @@ func newServer(t *testing.T) (*mgo.Session, *mgo.Database, *mdb_server) {
 	definitions, err := LoadXml("test/test1.xml")
 	if nil != err {
 		t.Errorf("read file 'test/test1.xml' failed, %s", err.Error())
-		merr, _ := err.(*MutiErrors)
-		if nil != merr && nil != merr.errs {
-			for _, e := range merr.errs {
-				t.Errorf(e.Error())
-			}
-		}
 		t.FailNow()
 		return nil, nil, nil
 	}
@@ -62,8 +56,8 @@ func newServer(t *testing.T) (*mgo.Session, *mgo.Database, *mdb_server) {
 		t.Errorf("unmarshal xml 'test/test1.xml' error, classDefinition is nil")
 		return nil, nil, nil
 	}
-	if 3 != len(definitions.clsDefinitions) {
-		t.Errorf("unmarshal xml 'test/test1.xml' error, len of classDefinitions is not 2",
+	if 4 != len(definitions.clsDefinitions) {
+		t.Errorf("unmarshal xml 'test/test1.xml' error, len of classDefinitions is not 4, actual is %d",
 			len(definitions.clsDefinitions))
 		t.FailNow()
 		return nil, nil, nil
@@ -90,22 +84,16 @@ func newServer(t *testing.T) (*mgo.Session, *mgo.Database, *mdb_server) {
 
 func TestSimpleInsertByServer(t *testing.T) {
 
-	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
-		person := svr.definitions.Find(personClsName)
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, srv *mdb_server) {
+		person := srv.definitions.Find(personClsName)
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := svr.Create(person, person1_attributes)
+		id, err := srv.Create(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
-			merr, _ := err.(*MutiErrors)
-			if nil != merr && nil != merr.errs {
-				for _, e := range merr.errs {
-					t.Errorf(e.Error())
-				}
-			}
 			return
 		}
 		if "" == id {
@@ -142,22 +130,16 @@ func TestSimpleInsertByServer(t *testing.T) {
 
 func TestSimpleUpdateByServer(t *testing.T) {
 
-	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
-		person := svr.definitions.Find(personClsName)
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, srv *mdb_server) {
+		person := srv.definitions.Find(personClsName)
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := svr.Create(person, person1_attributes)
+		id, err := srv.Create(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
-			merr, _ := err.(*MutiErrors)
-			if nil != merr && nil != merr.errs {
-				for _, e := range merr.errs {
-					t.Errorf(e.Error())
-				}
-			}
 			return
 		}
 		if "" == id {
@@ -166,15 +148,9 @@ func TestSimpleUpdateByServer(t *testing.T) {
 		}
 		t.Log("id=", id)
 
-		err = svr.Update(person, id, person1_update_attributes)
+		err = srv.Update(person, id, person1_update_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
-			merr, _ := err.(*MutiErrors)
-			if nil != merr && nil != merr.errs {
-				for _, e := range merr.errs {
-					t.Errorf(e.Error())
-				}
-			}
 			return
 		}
 
@@ -212,22 +188,16 @@ func TestSimpleUpdateByServer(t *testing.T) {
 }
 
 func TestSimpleFindByidByServer(t *testing.T) {
-	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
-		person := svr.definitions.Find(personClsName)
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, srv *mdb_server) {
+		person := srv.definitions.Find(personClsName)
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := svr.Create(person, person1_attributes)
+		id, err := srv.Create(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
-			merr, _ := err.(*MutiErrors)
-			if nil != merr && nil != merr.errs {
-				for _, e := range merr.errs {
-					t.Errorf(e.Error())
-				}
-			}
 			return
 		}
 		if "" == id {
@@ -242,15 +212,9 @@ func TestSimpleFindByidByServer(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		db_attributes, err := svr.FindById(person, id)
+		db_attributes, err := srv.FindById(person, id)
 		if nil != err {
 			t.Errorf(err.Error())
-			merr, _ := err.(*MutiErrors)
-			if nil != merr && nil != merr.errs {
-				for _, e := range merr.errs {
-					t.Errorf(e.Error())
-				}
-			}
 			return
 		}
 
@@ -271,22 +235,16 @@ func TestSimpleFindByidByServer(t *testing.T) {
 }
 
 func TestSimpleQueryByServer(t *testing.T) {
-	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
-		person := svr.definitions.Find(personClsName)
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, srv *mdb_server) {
+		person := srv.definitions.Find(personClsName)
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := svr.Create(person, person1_attributes)
+		id, err := srv.Create(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
-			merr, _ := err.(*MutiErrors)
-			if nil != merr && nil != merr.errs {
-				for _, e := range merr.errs {
-					t.Errorf(e.Error())
-				}
-			}
 			return
 		}
 		if "" == id {
@@ -301,15 +259,9 @@ func TestSimpleQueryByServer(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		results, err := svr.FindBy(person, map[string]string{"_id": id.(bson.ObjectId).Hex()})
+		results, err := srv.FindBy(person, map[string]string{"_id": id.(bson.ObjectId).Hex()})
 		if nil != err {
 			t.Errorf(err.Error())
-			merr, _ := err.(*MutiErrors)
-			if nil != merr && nil != merr.errs {
-				for _, e := range merr.errs {
-					t.Errorf(e.Error())
-				}
-			}
 			return
 		}
 
@@ -336,22 +288,16 @@ func TestSimpleQueryByServer(t *testing.T) {
 }
 
 func TestSimpleDeleteByidByServer(t *testing.T) {
-	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, svr *mdb_server) {
-		person := svr.definitions.Find(personClsName)
+	simpleTest(t, []string{personName}, func(sess *mgo.Session, db *mgo.Database, srv *mdb_server) {
+		person := srv.definitions.Find(personClsName)
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := svr.Create(person, person1_attributes)
+		id, err := srv.Create(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
-			merr, _ := err.(*MutiErrors)
-			if nil != merr && nil != merr.errs {
-				for _, e := range merr.errs {
-					t.Errorf(e.Error())
-				}
-			}
 			return
 		}
 		if "" == id {
@@ -367,7 +313,7 @@ func TestSimpleDeleteByidByServer(t *testing.T) {
 			return
 		}
 
-		ok, err := svr.RemoveById(person, id)
+		ok, err := srv.RemoveById(person, id)
 		if !ok {
 			t.Errorf(err.Error())
 			return

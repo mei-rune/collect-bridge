@@ -1,6 +1,7 @@
 package mdb
 
 import (
+	"commons"
 	"commons/stringutils"
 	"encoding/xml"
 	"errors"
@@ -11,8 +12,23 @@ import (
 )
 
 type ClassDefinitions struct {
-	clsDefinitions map[string]*ClassDefinition
-	id2Definitions map[int]*ClassDefinition
+	underscore2Definitions map[string]*ClassDefinition
+	clsDefinitions         map[string]*ClassDefinition
+	id2Definitions         map[int]*ClassDefinition
+}
+
+func (self *ClassDefinitions) FindByUnderscoreName(nm string) *ClassDefinition {
+	if cls, ok := self.underscore2Definitions[nm]; ok {
+		return cls
+	}
+	return nil
+}
+
+func (self *ClassDefinitions) Find(nm string) *ClassDefinition {
+	if cls, ok := self.clsDefinitions[nm]; ok {
+		return cls
+	}
+	return nil
 }
 
 func checkHierarchicalType(self *ClassDefinitions, cls *ClassDefinition, errs []error) []error {
@@ -294,13 +310,57 @@ func loadOwnProperty(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 	return cpr, errs
 }
 
+func makeAssocation(self *ClassDefinitions, cls *ClassDefinition, errs *[]error, t, tName, em, fKey, attrName string) Assocation {
+	target, ok := self.clsDefinitions[tName]
+	if !ok {
+		*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, '%s' is not found.",
+			t, tName, cls.Name, tName))
+		return nil
+	}
+	embedded := false
+	if "" == em {
+		embedded = false
+	} else if "true" == em {
+		embedded = true
+	} else {
+		*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, attribute 'embedded' is unrecorign.",
+			t, tName, cls.Name, tName))
+		return nil
+	}
+	if embedded {
+		if "" != fKey {
+			*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed,  assocations is embedded, "+
+				"'foreignKey' must is not present .", t, tName, cls.Name))
+			return nil
+		}
+		if "" == attrName {
+			attrName = stringutils.Underscore(cls.Name)
+		}
+	} else {
+		if "" != attrName {
+			*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed,  assocations is embedded, "+
+				" 'attributeName' must is not present .", t, tName, cls.Name))
+			return nil
+		}
+		if "" == fKey {
+			fKey = stringutils.Underscore(cls.Name) + "_id"
+		}
+	}
+	if "has_one" == t {
+		return &HasOne{TargetClass: target, Embedded: embedded,
+			AttributeName: attrName, ForeignKey: fKey}
+	}
+	return &HasMany{TargetClass: target, Embedded: embedded,
+		AttributeName: attrName, ForeignKey: fKey}
+}
+
 func loadAssocations(self *ClassDefinitions, cls *ClassDefinition, xmlDefinition *XMLClassDefinition, errs []error) []error {
 	if nil != xmlDefinition.BelongsTo && 0 != len(xmlDefinition.BelongsTo) {
 		for _, belongs_to := range xmlDefinition.BelongsTo {
 			target, ok := self.clsDefinitions[belongs_to.Target]
 			if !ok {
-				errs = append(errs, errors.New("Target '"+belongs_to.Target+
-					"' of belongs_to '"+belongs_to.Name+"' is not found."))
+				errs = append(errs, errors.New("belongs_to Target '"+belongs_to.Target+
+					"' of class '"+xmlDefinition.Name+"' is not found."))
 				continue
 			}
 
@@ -319,38 +379,27 @@ func loadAssocations(self *ClassDefinitions, cls *ClassDefinition, xmlDefinition
 	}
 	if nil != xmlDefinition.HasMany && 0 != len(xmlDefinition.HasMany) {
 		for _, hasMany := range xmlDefinition.HasMany {
-			target, ok := self.clsDefinitions[hasMany.Target]
-			if !ok {
-				errs = append(errs, errors.New("Target '"+hasMany.Target+
-					"' of has_many is not found."))
+			ass := makeAssocation(self, cls, &errs, "has_many", hasMany.Target, hasMany.Embedded, hasMany.ForeignKey, hasMany.AttributeName)
+			if nil == ass {
 				continue
 			}
 			if nil == cls.Assocations {
 				cls.Assocations = make([]Assocation, 0, 4)
 			}
-			foreignKey := hasMany.ForeignKey
-			if "" == foreignKey {
-				foreignKey = stringutils.Underscore(cls.Name) + "_id"
-			}
-			cls.Assocations = append(cls.Assocations, &HasMany{TargetClass: target, ForeignKey: foreignKey})
+			cls.Assocations = append(cls.Assocations, ass)
 		}
 	}
 	if nil != xmlDefinition.HasOne && 0 != len(xmlDefinition.HasOne) {
 		for _, hasOne := range xmlDefinition.HasOne {
-			target, ok := self.clsDefinitions[hasOne.Target]
-			if !ok {
-				errs = append(errs, errors.New("Target '"+hasOne.Target+
-					"' of has_one is not found."))
+
+			ass := makeAssocation(self, cls, &errs, "has_one", hasOne.Target, hasOne.Embedded, hasOne.ForeignKey, hasOne.AttributeName)
+			if nil == ass {
 				continue
 			}
 			if nil == cls.Assocations {
 				cls.Assocations = make([]Assocation, 0, 4)
 			}
-			attributeName := hasOne.AttributeName
-			if "" == attributeName {
-				attributeName = stringutils.Underscore(cls.Name)
-			}
-			cls.Assocations = append(cls.Assocations, &HasOne{TargetClass: target, AttributeName: attributeName})
+			cls.Assocations = append(cls.Assocations, ass)
 		}
 	}
 	if nil != xmlDefinition.HasAndBelongsToMany && 0 != len(xmlDefinition.HasAndBelongsToMany) {
@@ -406,7 +455,8 @@ func LoadXml(nm string) (*ClassDefinitions, error) {
 		return nil, fmt.Errorf("unmarshal xml '%s' error, class definition is empty", nm)
 	}
 
-	self := &ClassDefinitions{clsDefinitions: make(map[string]*ClassDefinition, 100)}
+	self := &ClassDefinitions{clsDefinitions: make(map[string]*ClassDefinition, 100),
+		underscore2Definitions: make(map[string]*ClassDefinition, 100)}
 	errs := make([]error, 0, 10)
 
 	// load class definitions and own properties
@@ -423,6 +473,7 @@ func LoadXml(nm string) (*ClassDefinitions, error) {
 		errs = loadOwnProperties(self, &xmlDefinition, cls, errs)
 
 		self.clsDefinitions[cls.Name] = cls
+		self.underscore2Definitions[stringutils.Underscore(cls.Name)] = cls
 	}
 
 	// load super class and own assocations
@@ -461,7 +512,7 @@ func LoadXml(nm string) (*ClassDefinitions, error) {
 	if 0 == len(errs) {
 		return self, nil
 	}
-	return self, &MutiErrors{msg: "load file '" + nm + "' error", errs: errs}
+	return self, commons.NewMutiErrors("load file '"+nm+"' error", errs)
 }
 
 // func LoadHierarchyFromXml(self *ClassDefinitions, nm string) error {
@@ -492,10 +543,3 @@ func LoadXml(nm string) (*ClassDefinitions, error) {
 // 	}
 // 	return &MutiErrors{msg: "load file '" + nm + "' error", errs: errs}
 // }
-
-func (self *ClassDefinitions) Find(nm string) *ClassDefinition {
-	if cls, ok := self.clsDefinitions[nm]; ok {
-		return cls
-	}
-	return nil
-}

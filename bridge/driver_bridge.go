@@ -30,7 +30,7 @@ func registerBridge(srv *web.Server, drvMgr *commons.DriverManager) {
 
 func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManager) {
 
-	svr.Get("/"+schema+"/(.*)/(.*)", func(ctx *web.Context, name, id string) {
+	svr.Get("/"+schema+"/([^/]*)/([^/]*)", func(ctx *web.Context, name, id string) {
 		driver, ok := drvMgr.Connect(name)
 		if !ok {
 			ctx.Abort(404, notDefined(name))
@@ -49,7 +49,7 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 			ctx.Abort(500, "encode failed, "+err.Error())
 		}
 	})
-	svr.Put("/"+schema+"/(.*)/(.*)", func(ctx *web.Context, name, id string) {
+	svr.Put("/"+schema+"/([^/]*)/([^/]*)", func(ctx *web.Context, name, id string) {
 		driver, ok := drvMgr.Connect(name)
 		if !ok {
 			ctx.Abort(404, notDefined(name))
@@ -74,7 +74,7 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 			ctx.Abort(500, "encode failed, "+err.Error())
 		}
 	})
-	svr.Delete("/"+schema+"/(.*)/(.*)", func(ctx *web.Context, name, id string) {
+	svr.Delete("/"+schema+"/([^/]*)/([^/]*)", func(ctx *web.Context, name, id string) {
 
 		driver, ok := drvMgr.Connect(name)
 		if !ok {
@@ -96,7 +96,7 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 			ctx.Abort(500, "FAILED")
 		}
 	})
-	svr.Post("/"+schema+"/(.*)", func(ctx *web.Context, name string) {
+	svr.Post("/"+schema+"/([^/]*)", func(ctx *web.Context, name string) {
 		driver, ok := drvMgr.Connect(name)
 		if !ok {
 			ctx.Abort(404, notDefined(name))
@@ -126,9 +126,9 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 
 func registerDriver(svr *web.Server, drvMgr *commons.DriverManager, schema string, drv commons.Driver) {
 	drvMgr.Register(schema, drv)
-	svr.Get("/"+schema+"/(.*)", func(ctx *web.Context, id string) { drvGet(drv, ctx, id) })
-	svr.Put("/"+schema+"/(.*)", func(ctx *web.Context, id string) { drvPut(drv, ctx, id) })
-	svr.Delete("/"+schema+"/(.*)", func(ctx *web.Context, id string) { drvDelete(drv, ctx, id) })
+	svr.Get("/"+schema+"/([^/]*)", func(ctx *web.Context, id string) { drvGet(drv, ctx, id) })
+	svr.Put("/"+schema+"/([^/]*)", func(ctx *web.Context, id string) { drvPut(drv, ctx, id) })
+	svr.Delete("/"+schema+"/([^/]*)", func(ctx *web.Context, id string) { drvDelete(drv, ctx, id) })
 	svr.Post("/"+schema, func(ctx *web.Context) { drvCreate(drv, ctx) })
 }
 

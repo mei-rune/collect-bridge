@@ -490,6 +490,54 @@ func (self *PhysicalAddressTypeDefinition) Convert(v interface{}) (interface{}, 
 	return nil, errors.New("syntex error, it is not a string")
 }
 
+type BooleanTypeDefinition struct {
+}
+
+func (self *BooleanTypeDefinition) Name() string {
+	return "boolean"
+}
+
+func (self *BooleanTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *BooleanTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *BooleanTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *BooleanTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *BooleanTypeDefinition) Convert(v interface{}) (interface{}, error) {
+	switch value := v.(type) {
+	case string:
+		switch value {
+		case "true", "True", "TRUE", "yes", "Yes", "YES":
+			return true, nil
+		case "false", "False", "FALSE", "no", "No", "NO":
+			return false, nil
+		}
+	case *string:
+		switch *value {
+		case "true", "True", "TRUE", "yes", "Yes", "YES":
+			return true, nil
+		case "false", "False", "FALSE", "no", "No", "NO":
+			return false, nil
+		}
+	case bool:
+		return value, nil
+	case *bool:
+		return *value, nil
+	}
+
+	return nil, errors.New("syntex error, it is not a boolean")
+}
+
 type PasswordTypeDefinition struct {
 	StringTypeDefinition
 }
@@ -512,6 +560,7 @@ func (self *PasswordTypeDefinition) Convert(v interface{}) (interface{}, error) 
 }
 
 var (
+	booleanType         BooleanTypeDefinition
 	integerType         IntegerTypeDefinition
 	decimalType         DecimalTypeDefinition
 	stringType          StringTypeDefinition
@@ -527,6 +576,8 @@ func init() {
 
 func GetTypeDefinition(t string) TypeDefinition {
 	switch t {
+	case "boolean":
+		return &booleanType
 	case "integer":
 		return &integerType
 	case "decimal":

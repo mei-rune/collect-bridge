@@ -9,6 +9,7 @@
 	</xs:simpleType>
 	<xs:simpleType name="dataType">
 		<xs:restriction base="xs:string">
+			<xs:enumeration value="boolean"/>
 			<xs:enumeration value="integer"/>
 			<xs:enumeration value="decimal"/>
 			<xs:enumeration value="string"/>
@@ -185,7 +186,9 @@
 								<xs:complexType>
 									<xs:simpleContent>
 										<xs:extension base="xs:IDREF">
+											<xs:attribute name="attributeName" type="xs:string"/>
 											<xs:attribute name="foreignKey" type="xs:IDREF"/>
+											<xs:attribute name="embedded" type="xs:boolean"/>
 										</xs:extension>
 									</xs:simpleContent>
 								</xs:complexType>
@@ -195,6 +198,9 @@
 									<xs:simpleContent>
 										<xs:extension base="xs:IDREF">
 											<xs:attribute name="attributeName" type="xs:string"/>
+											<xs:attribute name="attributeName" type="xs:string"/>
+											<xs:attribute name="foreignKey" type="xs:IDREF"/>
+											<xs:attribute name="embedded" type="xs:boolean"/>
 										</xs:extension>
 									</xs:simpleContent>
 								</xs:complexType>

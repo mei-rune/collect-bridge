@@ -1,6 +1,7 @@
 package commons
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 )
@@ -33,6 +34,28 @@ func GetCode(e error, default_code int) int {
 		return default_code
 	}
 	return a.Code()
+}
+
+type MutiErrors struct {
+	msg  string
+	errs []error
+}
+
+func NewMutiErrors(msg string, errs []error) *MutiErrors {
+	var buffer bytes.Buffer
+	buffer.WriteString(msg)
+	for _, e := range errs {
+		buffer.WriteString("\n ")
+		buffer.WriteString(e.Error())
+	}
+	return &MutiErrors{msg: buffer.String(), errs: errs}
+}
+
+func (self *MutiErrors) Error() string {
+	return self.msg
+}
+func (self *MutiErrors) Errors() []error {
+	return self.errs
 }
 
 func NewPanicError(s string, any interface{}) error {

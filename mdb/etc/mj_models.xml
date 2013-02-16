@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classDefinitions lastModified="2013-02-13T08:57:30" xmlns="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions typeDefinitions.xsd">
+  <class name="Device">
+    <property name="name">
+      <restriction base="string">
+        <required />
+        <minLength>3</minLength>
+				<maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="description">
+      <restriction base="string">
+				<maxLength>2000</maxLength>
+      </restriction>
+    </property>
+    <property name="catalog">
+      <restriction base="integer">
+        <required />
+      </restriction>
+    </property>
+    <property name="services">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="locations">
+      <restriction base="string">
+				<maxLength>2000</maxLength>
+      </restriction>
+    </property>
+		<has_many foreignKey="device_id" >Interface</has_many>
+  </class>
+  <class name="Interface">
+    <property name="ifIndex">
+      <restriction base="integer">
+        <required />
+      </restriction>
+    </property>
+    <property name="ifDescr">
+      <restriction base="string">
+				<maxLength>2000</maxLength>
+      </restriction>
+    </property>
+    <property name="ifType">
+      <restriction base="string">
+				<maxLength>50</maxLength>
+      </restriction>
+    </property>
+    <property name="ifMtu">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="ifSpeed">
+      <restriction base="integer">
+      </restriction>
+    </property>
+  </class>
+</classDefinitions>

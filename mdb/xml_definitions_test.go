@@ -212,6 +212,8 @@ func TestXML1(t *testing.T) {
 			t.Errorf("check Restrictions.Enumerations properties[%d] failed, value is %v", comment, p1.Restrictions.Enumerations)
 		}
 
+		a.Check(t, p1.Restrictions.Collection, a.Equals, p2.Restrictions.Collection,
+			a.Commentf("check Restrictions.Collection properties[%d]", comment))
 		a.Check(t, p1.Restrictions.Length, a.Equals, p2.Restrictions.Length,
 			a.Commentf("check Restrictions.Length properties[%d]", comment))
 		a.Check(t, p1.Restrictions.MaxLength, a.Equals, p2.Restrictions.MaxLength,

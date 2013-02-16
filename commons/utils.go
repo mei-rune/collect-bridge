@@ -114,7 +114,12 @@ func EnumerateFiles(pa string) ([]string, error) {
 func SearchFile(pattern string) string {
 	ed, e := filepath.Abs(os.Args[0])
 	if nil == e {
-		pa := path.Join(filepath.Dir(ed), pattern)
+		ed = strings.Replace(filepath.Dir(ed), "\\", "/", -1)
+		pa := path.Join(ed, pattern)
+		if FileExists(pa) {
+			return pa
+		}
+		pa = path.Join(ed, "..", pattern)
 		if FileExists(pa) {
 			return pa
 		}
@@ -122,9 +127,14 @@ func SearchFile(pattern string) string {
 
 	wd, e := os.Getwd()
 	if nil == e {
-		pa, e := filepath.Abs(wd)
+		wd, e := filepath.Abs(wd)
 		if nil == e {
-			pa = path.Join(pa, pattern)
+			wd = strings.Replace(wd, "\\", "/", -1)
+			pa := path.Join(wd, pattern)
+			if FileExists(pa) {
+				return pa
+			}
+			pa = path.Join(wd, "..", pattern)
 			if FileExists(pa) {
 				return pa
 			}

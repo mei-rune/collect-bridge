@@ -94,8 +94,7 @@
 				</restriction>
 		</property>
 		<has_many foreignKey="company_test_id" >Employee</has_many>
-		<has_one attributeName="boss" >Boss</has_one>
-	    <designFor></designFor>
+		<has_one attributeName="boss" embedded="true" >Boss</has_one>
 	</class>	
 	<designFor/>
 </classDefinitions>

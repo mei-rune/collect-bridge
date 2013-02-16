@@ -36,8 +36,10 @@ func (self *BelongsTo) Target() *ClassDefinition {
 }
 
 type HasMany struct {
-	TargetClass *ClassDefinition
-	ForeignKey  string
+	TargetClass   *ClassDefinition
+	ForeignKey    string
+	AttributeName string
+	Embedded      bool
 }
 
 func (self *HasMany) Type() AssocationType {
@@ -50,7 +52,9 @@ func (self *HasMany) Target() *ClassDefinition {
 
 type HasOne struct {
 	TargetClass   *ClassDefinition
+	ForeignKey    string
 	AttributeName string
+	Embedded      bool
 }
 
 func (self *HasOne) Type() AssocationType {
@@ -83,18 +87,6 @@ type PropertyDefinition struct {
 	IsRequired   bool
 	Restrictions []Validator
 	DefaultValue interface{}
-}
-
-type MutiErrors struct {
-	msg  string
-	errs []error
-}
-
-func (self *MutiErrors) Error() string {
-	return self.msg
-}
-func (self *MutiErrors) Errors() []error {
-	return self.errs
 }
 
 type ClassDefinition struct {

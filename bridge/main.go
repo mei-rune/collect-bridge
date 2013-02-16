@@ -30,6 +30,11 @@ func mainHandle(rw *web.Context) {
 
 func main() {
 	flag.Parse()
+	if nil != flag.Args() && 0 != len(flag.Args()) {
+		flag.Usage()
+		return
+	}
+
 	svr := web.NewServer()
 	svr.Config.Name = "meijing-bridge v1.0"
 	svr.Config.Address = *address

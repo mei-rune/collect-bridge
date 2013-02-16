@@ -104,19 +104,28 @@ func (self *MdbDriver) Delete(params map[string]string) (bool, commons.RuntimeEr
 	if "" == objectType {
 		return false, errutils.IsRequired("mdb.type")
 	}
+
+	definition := self.definitions.FindByUnderscoreName(objectType)
+	if nil == definition {
+		return false, commons.NewRuntimeError(commons.InternalErrorCode, "class '"+objectType+"' is not found")
+	}
+
 	id, _ := params["id"]
 	if "" == id {
 		return false, commons.IdNotExists
+	}
+	if "all" == id {
+		res, e := self.RemoveAll(definition)
+		if nil != e {
+			return res, commons.NewRuntimeError(commons.InternalErrorCode, "remove object from db failed, "+e.Error())
+		} else {
+			return res, nil
+		}
 	}
 
 	oid, err := parseObjectIdHex(id)
 	if nil != err {
 		return false, errutils.BadRequest("id is not a objectId")
-	}
-
-	definition := self.definitions.FindByUnderscoreName(objectType)
-	if nil == definition {
-		return false, commons.NewRuntimeError(commons.InternalErrorCode, "class '"+objectType+"' is not found")
 	}
 
 	ok, err := self.RemoveById(definition, oid)
@@ -138,7 +147,7 @@ func (self *MdbDriver) Get(params map[string]string) (map[string]interface{}, co
 	}
 
 	id, _ := params["id"]
-	if "" == id {
+	if "" == id || "query" == id {
 		results, err := self.FindBy(definition, params)
 		if err != nil {
 			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())

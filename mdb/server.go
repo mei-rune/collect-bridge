@@ -224,46 +224,45 @@ func (self *mdb_server) postRead(cls *ClassDefinition, attributes map[string]int
 	new_attributes := make(map[string]interface{}, len(attributes))
 	errs := make([]error, 0, 10)
 	for k, pr := range cls.Properties {
-		var new_value interface{}
 		value, ok := attributes[k]
 		if !ok {
-			new_value = pr.DefaultValue
-		} else {
+			if nil != pr.DefaultValue {
+				new_attributes[k] = pr.DefaultValue
+			}
+			continue
+		}
 
-			if COLLECTION_UNKNOWN == pr.Collection {
-				var err error
-				new_value, err = pr.Type.Convert(value)
-				if nil != err {
-					errs = append(errs, errors.New("'"+k+"' convert to internal value failed, "+err.Error()))
-					continue
-				}
+		if COLLECTION_UNKNOWN == pr.Collection {
+			new_value, err := pr.Type.Convert(value)
+			if nil != err {
+				errs = append(errs, fmt.Errorf("value '%v' of key '%s' convert to internal value failed, %s", value, k, err.Error()))
 			} else {
-				array, _ := as.AsArray(value)
-				if nil == array {
-					errs = append(errs, fmt.Errorf("'"+k+"' must is a collection, actual is %v", value))
-					continue
-				}
+				new_attributes[k] = new_value
+			}
+			continue
+		}
+		array, _ := as.AsArray(value)
+		if nil == array {
+			errs = append(errs, fmt.Errorf("'"+k+"' must is a collection, actual is %v", value))
+			continue
+		}
 
-				new_array := make([]interface{}, 0, len(array))
-				is_failed := false
-				for _, v := range array {
-					nv, err := pr.Type.Convert(v)
-					if nil != err {
-						errs = append(errs, errors.New("'"+k+"' convert to internal value failed, "+err.Error()))
-						is_failed = true
-					} else {
-						new_array = append(new_array, nv)
-					}
-				}
-
-				if is_failed {
-					continue
-				}
-				new_value = new_array
+		new_array := make([]interface{}, 0, len(array))
+		is_failed := false
+		for _, v := range array {
+			nv, err := pr.Type.Convert(v)
+			if nil != err {
+				errs = append(errs, fmt.Errorf("value '%v' of key '%s' convert to internal value failed, %s", value, k, err.Error()))
+				is_failed = true
+			} else {
+				new_array = append(new_array, nv)
 			}
 		}
 
-		new_attributes[k] = new_value
+		if is_failed {
+			continue
+		}
+		new_attributes[k] = new_array
 	}
 
 	if 0 != len(errs) {
@@ -377,6 +376,26 @@ func (self *mdb_server) RemoveById(cls *ClassDefinition, id interface{}) (bool, 
 	}
 	return true, commons.NewMutiErrors("parameters is error.", errs)
 }
+func (self *mdb_server) RemoveAll(cls *ClassDefinition) (bool, error) {
+	q := self.session.C(cls.CollectionName()).Find(nil)
+	if nil == q {
+		return false, errors.New("return nil result")
+	}
+	fmt.Println("remove all")
+	iter := q.Select(bson.M{"_id": 1}).Iter()
+	var result map[string]interface{}
+	for iter.Next(&result) {
+		fmt.Println("remove", result)
+		self.RemoveById(cls, result["_id"])
+	}
+	err := iter.Err()
+	if nil != err {
+		fmt.Println(err)
+		return false, err
+	}
+
+	return true, nil
+}
 
 func collectOwnProperties(cls *ClassDefinition, properties map[string]*PropertyDefinition) {
 
@@ -474,6 +493,10 @@ func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 	properties := cls.Properties
 	q := bson.M{}
 	for nm, exp := range params {
+		if '@' != nm[0] {
+			continue
+		}
+		nm = nm[1:]
 		pr, _ := properties[nm]
 		if nil == pr {
 			if "_id" == nm {
@@ -532,21 +555,20 @@ func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) (
 	if nil != err {
 		return nil, err
 	}
-
 	q := self.session.C(cls.CollectionName()).Find(s)
 	if nil == q {
 		return nil, errors.New("return nil result")
 	}
-
 	results := make([]map[string]interface{}, 0, 10)
 	it := q.Iter()
-	var attributes map[string]interface{}
+	attributes := make(map[string]interface{})
 	for it.Next(&attributes) {
 		attributes, err = self.postRead(cls, attributes)
 		if nil != err {
 			return nil, err
 		}
 		results = append(results, attributes)
+		attributes = make(map[string]interface{})
 	}
 
 	err = it.Err()

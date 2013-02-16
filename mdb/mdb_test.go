@@ -58,6 +58,9 @@ func getDeviceByName(t *testing.T, factor string) map[string]interface{} {
 		t.Error(e.Error())
 		return nil
 	}
+	if 1 > len(res) {
+		return nil
+	}
 	return res[0]
 }
 
@@ -80,15 +83,15 @@ func fetchInt(params map[string]interface{}, key string) int {
 }
 func validMockDevice(t *testing.T, factor string, drv map[string]interface{}) {
 	if "dd"+factor != drv["name"].(string) {
-		t.Errorf("actual name is 'dd%s', excepted name is '%v'", factor, drv["name"])
+		t.Errorf("excepted name is 'dd%s', actual name is '%v'", factor, drv["name"])
 		return
 	}
 	if atoi(factor) != fetchInt(drv, "catalog") {
-		t.Errorf("actual catalog is '%s', excepted catalog is '%v'", factor, drv["catalog"])
+		t.Errorf("excepted catalog is '%s', actual catalog is '%v'", factor, drv["catalog"])
 		return
 	}
 	if atoi("2"+factor) != fetchInt(drv, "services") {
-		t.Errorf("actual services is '2%s', excepted services is '%v'", factor, drv["services"])
+		t.Errorf("excepted services is '2%s', actual services is '%v'", factor, drv["services"])
 		return
 	}
 }
@@ -133,6 +136,13 @@ func HttpPut(endpoint string, bodyType string, body io.Reader) (*http.Response, 
 	req.Header.Set("Content-Type", bodyType)
 	return http.DefaultClient.Do(req)
 }
+func httpDelete(endpoint string) (*http.Response, error) {
+	req, err := http.NewRequest("DELETE", endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	return http.DefaultClient.Do(req)
+}
 
 func updateJson(t, id, msg string) error {
 	resp, e := HttpPut("http://127.0.0.1:7071/mdb/"+t+"/"+id, "application/json", bytes.NewBuffer([]byte(msg)))
@@ -161,11 +171,21 @@ func findById(t, id string) (map[string]interface{}, error) {
 	}
 	return result["value"].(map[string]interface{}), nil
 }
+func deleteById(t, id string) error {
+	resp, e := httpDelete("http://127.0.0.1:7071/mdb/" + t + "/" + id)
+	if nil != e {
+		return fmt.Errorf("find %s failed, %v", t, e)
+	}
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("find %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+	}
+	return nil
+}
 
 func findBy(t string, params map[string]string) ([]map[string]interface{}, error) {
-	url := "http://127.0.0.1:7071/mdb/" + t + "?"
+	url := "http://127.0.0.1:7071/mdb/" + t + "/query?"
 	for k, v := range params {
-		url += (k + "=" + v + "&")
+		url += ("@" + k + "=" + v + "&")
 	}
 	resp, e := http.Get(url[:len(url)-1])
 	if nil != e {
@@ -180,10 +200,16 @@ func findBy(t string, params map[string]string) ([]map[string]interface{}, error
 	if nil != e {
 		return nil, fmt.Errorf("find %s failed, %v", t, e)
 	}
-	return result["value"].([]map[string]interface{}), nil
+	res := result["value"].([]interface{})
+	results := make([]map[string]interface{}, 0, 3)
+	for _, r := range res {
+		results = append(results, r.(map[string]interface{}))
+	}
+	return results, nil
 }
 
 func TestDeviceCreateAndUpdate(t *testing.T) {
+	deleteById("device", "all")
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
 	id3 := createMockDevice(t, "3")
@@ -238,9 +264,21 @@ func TestDeviceCreateAndUpdate(t *testing.T) {
 	validMockDevice(t, "21", d2)
 	validMockDevice(t, "31", d3)
 	validMockDevice(t, "41", d4)
+
+	deleteById("device", "all")
+
+	d1 = getDeviceByName(t, "11")
+	d2 = getDeviceByName(t, "21")
+	d3 = getDeviceByName(t, "31")
+	d4 = getDeviceByName(t, "41")
+
+	if nil != d1 || nil != d2 || nil != d3 || nil != d4 {
+		t.Errorf("remove all failed")
+	}
 }
 
 func TestDeviceFindBy(t *testing.T) {
+	deleteById("device", "all")
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
 	id3 := createMockDevice(t, "3")
@@ -277,8 +315,14 @@ func TestDeviceFindBy(t *testing.T) {
 		t.Errorf(e.Error())
 		return
 	}
-	validMockDevice(t, "1", searchBy(res, func(r map[string]interface{}) bool { return r["catalog"] == "1" }))
-	validMockDevice(t, "2", searchBy(res, func(r map[string]interface{}) bool { return r["catalog"] == "2" }))
+	d1 := searchBy(res, func(r map[string]interface{}) bool { return r["name"] == "dd1" })
+	d2 := searchBy(res, func(r map[string]interface{}) bool { return r["name"] == "dd2" })
+	if nil == d1 {
+		t.Errorf("catalog <=2 failed, result is %v", res)
+		return
+	}
+	validMockDevice(t, "1", d1)
+	validMockDevice(t, "2", d2)
 
 	res, e = findBy("device", map[string]string{"catalog": "[lt]2"})
 	if nil != e {

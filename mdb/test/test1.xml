@@ -7,7 +7,7 @@
 				</restriction>
 		</property>
 		<property name="company_test_id">
-				<restriction base="string" />
+				<restriction base="objectId" />
 		</property>
 		<belongs_to name="company_test_id">Company</belongs_to>
 	  <designFor></designFor>

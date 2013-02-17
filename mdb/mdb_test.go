@@ -27,6 +27,15 @@ func readAll(r io.Reader) string {
 	return string(bs)
 }
 
+func createMockInterface(t *testing.T, id, factor string) string {
+	id, e := createJson("interface", fmt.Sprintf(`{"ifIndex":%s, "ifDescr":"d%s", "ifType":2%s, "ifMtu":3%s, "ifSpeed":4%s, "device_id":"%s"}`, factor, factor, factor, factor, factor, id))
+	if nil != e {
+		t.Error(e.Error())
+		return ""
+	}
+	return id
+}
+
 func createMockDevice(t *testing.T, factor string) string {
 	id, e := createJson("device", fmt.Sprintf(`{"name":"dd%s", "catalog":%s, "services":2%s}`, factor, factor, factor))
 	if nil != e {
@@ -50,6 +59,13 @@ func getDeviceById(t *testing.T, id string) map[string]interface{} {
 		return nil
 	}
 	return res
+}
+
+func DeviceNotExistsById(t *testing.T, id string) {
+	_, e := findById("device", id)
+	if nil == e {
+		t.Errorf("device %s is exists", id)
+	}
 }
 
 func getDeviceByName(t *testing.T, factor string) map[string]interface{} {
@@ -174,12 +190,34 @@ func findById(t, id string) (map[string]interface{}, error) {
 func deleteById(t, id string) error {
 	resp, e := httpDelete("http://127.0.0.1:7071/mdb/" + t + "/" + id)
 	if nil != e {
-		return fmt.Errorf("find %s failed, %v", t, e)
+		return fmt.Errorf("delete %s failed, %v", t, e)
 	}
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("find %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+		return fmt.Errorf("delete %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
 	}
 	return nil
+}
+
+func count(t string, params map[string]string) (int, error) {
+	url := "http://127.0.0.1:7071/mdb/" + t + "/count?"
+	for k, v := range params {
+		url += ("@" + k + "=" + v + "&")
+	}
+	resp, e := http.Get(url[:len(url)-1])
+	if nil != e {
+		return -1, fmt.Errorf("count %s failed, %v", t, e)
+	}
+	if resp.StatusCode != 200 {
+		return -1, fmt.Errorf("count %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+	}
+	result := map[string]interface{}{}
+	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
+
+	if nil != e {
+		return -1, fmt.Errorf("count %s failed, %v", t, e)
+	}
+	res := result["value"].(float64)
+	return int(res), nil
 }
 
 func findBy(t string, params map[string]string) ([]map[string]interface{}, error) {
@@ -208,8 +246,194 @@ func findBy(t string, params map[string]string) ([]map[string]interface{}, error
 	return results, nil
 }
 
-func TestDeviceCreateAndUpdate(t *testing.T) {
-	deleteById("device", "all")
+func TestDeviceDeleteCascadeAll(t *testing.T) {
+	e := deleteById("device", "all")
+	if nil != e {
+		t.Errorf("remove all device failed, " + e.Error())
+	}
+	e = deleteById("interface", "all")
+	if nil != e {
+		t.Errorf("remove all interface failed, " + e.Error())
+	}
+
+	id1 := createMockDevice(t, "1")
+	id2 := createMockDevice(t, "2")
+	id3 := createMockDevice(t, "3")
+	id4 := createMockDevice(t, "4")
+	if "" == id1 {
+		return
+	}
+
+	createMockInterface(t, id1, "10001")
+	createMockInterface(t, id1, "10002")
+	createMockInterface(t, id1, "10003")
+	createMockInterface(t, id1, "10004")
+
+	createMockInterface(t, id2, "20001")
+	createMockInterface(t, id2, "20002")
+	createMockInterface(t, id2, "20003")
+	createMockInterface(t, id2, "20004")
+
+	createMockInterface(t, id3, "30001")
+	createMockInterface(t, id3, "30002")
+	createMockInterface(t, id3, "30003")
+	createMockInterface(t, id3, "30004")
+
+	createMockInterface(t, id4, "40001")
+	createMockInterface(t, id4, "40002")
+	createMockInterface(t, id4, "40003")
+	createMockInterface(t, id4, "40004")
+
+	e = deleteById("device", "all")
+	if nil != e {
+		t.Errorf("remove all device failed, " + e.Error())
+		return
+	}
+
+	if c, err := count("interface", map[string]string{}); 0 != c {
+		t.Errorf("16 != len(all.interfaces), actual is %d, %v", c, err)
+	}
+}
+
+func TestDeviceDeleteCascadeById(t *testing.T) {
+	e := deleteById("device", "all")
+	if nil != e {
+		t.Errorf("remove all device failed, " + e.Error())
+	}
+	e = deleteById("interface", "all")
+	if nil != e {
+		t.Errorf("remove all interface failed, " + e.Error())
+	}
+
+	id1 := createMockDevice(t, "1")
+	id2 := createMockDevice(t, "2")
+	id3 := createMockDevice(t, "3")
+	id4 := createMockDevice(t, "4")
+	if "" == id1 {
+		return
+	}
+
+	createMockInterface(t, id1, "10001")
+	createMockInterface(t, id1, "10002")
+	createMockInterface(t, id1, "10003")
+	createMockInterface(t, id1, "10004")
+
+	createMockInterface(t, id2, "20001")
+	createMockInterface(t, id2, "20002")
+	createMockInterface(t, id2, "20003")
+	createMockInterface(t, id2, "20004")
+
+	createMockInterface(t, id3, "30001")
+	createMockInterface(t, id3, "30002")
+	createMockInterface(t, id3, "30003")
+	createMockInterface(t, id3, "30004")
+
+	createMockInterface(t, id4, "40001")
+	createMockInterface(t, id4, "40002")
+	createMockInterface(t, id4, "40003")
+	createMockInterface(t, id4, "40004")
+
+	if c, err := count("interface", map[string]string{}); 16 != c {
+		t.Errorf("16 != len(all.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id1}); 4 != c {
+		t.Errorf("4 != len(d1.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id2}); 4 != c {
+		t.Errorf("4 != len(d2.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id3}); 4 != c {
+		t.Errorf("4 != len(d3.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id4}); 4 != c {
+		t.Errorf("4 != len(d4.interfaces), actual is %d, %v", c, err)
+	}
+
+	e = deleteById("device", id1)
+	if nil != e {
+		t.Errorf("remove dev1 failed, " + e.Error())
+	}
+	if c, err := count("interface", map[string]string{}); 12 != c {
+		t.Errorf("12 != len(all.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id1}); 0 != c {
+		t.Errorf("0 != len(d1.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id2}); 4 != c {
+		t.Errorf("4 != len(d2.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id3}); 4 != c {
+		t.Errorf("4 != len(d3.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id4}); 4 != c {
+		t.Errorf("4 != len(d4.interfaces), actual is %d, %v", c, err)
+	}
+
+	e = deleteById("device", id2)
+	if nil != e {
+		t.Errorf("remove dev2 failed, " + e.Error())
+	}
+	if c, err := count("interface", map[string]string{}); 8 != c {
+		t.Errorf("8 != len(all.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id1}); 0 != c {
+		t.Errorf("0 != len(d1.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id2}); 0 != c {
+		t.Errorf("0 != len(d2.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id3}); 4 != c {
+		t.Errorf("4 != len(d3.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id4}); 4 != c {
+		t.Errorf("4 != len(d4.interfaces), actual is %d, %v", c, err)
+	}
+	e = deleteById("device", id3)
+	if nil != e {
+		t.Errorf("remove dev3 failed, " + e.Error())
+	}
+	if c, err := count("interface", map[string]string{}); 4 != c {
+		t.Errorf("4 != len(all.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id1}); 0 != c {
+		t.Errorf("0 != len(d1.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id2}); 0 != c {
+		t.Errorf("0 != len(d2.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id3}); 0 != c {
+		t.Errorf("0 != len(d3.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id4}); 4 != c {
+		t.Errorf("4 != len(d4.interfaces), actual is %d, %v", c, err)
+	}
+	e = deleteById("device", id4)
+	if nil != e {
+		t.Errorf("remove dev4 failed, " + e.Error())
+	}
+	if c, err := count("interface", map[string]string{}); 0 != c {
+		t.Errorf("0 != len(all.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id1}); 0 != c {
+		t.Errorf("0 != len(d1.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id2}); 0 != c {
+		t.Errorf("0 != len(d2.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id3}); 0 != c {
+		t.Errorf("0 != len(d3.interfaces), actual is %d, %v", c, err)
+	}
+	if c, err := count("interface", map[string]string{"device_id": id4}); 0 != c {
+		t.Errorf("0 != len(d4.interfaces), actual is %d, %v", c, err)
+	}
+}
+
+func TestDeviceCURD(t *testing.T) {
+	e := deleteById("device", "all")
+	if nil != e {
+		t.Errorf("remove all failed, " + e.Error())
+	}
+
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
 	id3 := createMockDevice(t, "3")
@@ -265,7 +489,10 @@ func TestDeviceCreateAndUpdate(t *testing.T) {
 	validMockDevice(t, "31", d3)
 	validMockDevice(t, "41", d4)
 
-	deleteById("device", "all")
+	e = deleteById("device", "all")
+	if nil != e {
+		t.Errorf("remove all failed, " + e.Error())
+	}
 
 	d1 = getDeviceByName(t, "11")
 	d2 = getDeviceByName(t, "21")
@@ -277,8 +504,49 @@ func TestDeviceCreateAndUpdate(t *testing.T) {
 	}
 }
 
+func TestDeviceDeleteById(t *testing.T) {
+	e := deleteById("device", "all")
+	if nil != e {
+		t.Errorf("remove all failed, " + e.Error())
+	}
+
+	id1 := createMockDevice(t, "1")
+	id2 := createMockDevice(t, "2")
+	id3 := createMockDevice(t, "3")
+	id4 := createMockDevice(t, "4")
+	if "" == id1 {
+		return
+	}
+
+	e = deleteById("device", id1)
+	if nil != e {
+		t.Errorf("remove id1 failed, " + e.Error())
+	}
+	e = deleteById("device", id2)
+	if nil != e {
+		t.Errorf("remove id2 failed, " + e.Error())
+	}
+	e = deleteById("device", id3)
+	if nil != e {
+		t.Errorf("remove id3 failed, " + e.Error())
+	}
+	e = deleteById("device", id4)
+	if nil != e {
+		t.Errorf("remove id4 failed, " + e.Error())
+	}
+
+	DeviceNotExistsById(t, id1)
+	DeviceNotExistsById(t, id2)
+	DeviceNotExistsById(t, id3)
+	DeviceNotExistsById(t, id4)
+}
+
 func TestDeviceFindBy(t *testing.T) {
-	deleteById("device", "all")
+	e := deleteById("device", "all")
+	if nil != e {
+		t.Errorf("remove all failed, " + e.Error())
+	}
+
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
 	id3 := createMockDevice(t, "3")
@@ -315,6 +583,10 @@ func TestDeviceFindBy(t *testing.T) {
 		t.Errorf(e.Error())
 		return
 	}
+	if 2 != len(res) {
+		t.Errorf("catalog <=2 failed, len(result) is %v", len(res))
+		return
+	}
 	d1 := searchBy(res, func(r map[string]interface{}) bool { return r["name"] == "dd1" })
 	d2 := searchBy(res, func(r map[string]interface{}) bool { return r["name"] == "dd2" })
 	if nil == d1 {
@@ -337,4 +609,41 @@ func TestDeviceFindBy(t *testing.T) {
 		return
 	}
 	validMockDevice(t, "4", res[0])
+	res, e = findBy("device", map[string]string{"catalog": "[gte]3"})
+	if nil != e {
+		t.Errorf(e.Error())
+		return
+	}
+	if 2 != len(res) {
+		t.Errorf("catalog <=2 failed, len(result) is %v", len(res))
+		return
+	}
+	d3 := searchBy(res, func(r map[string]interface{}) bool { return r["name"] == "dd3" })
+	d4 := searchBy(res, func(r map[string]interface{}) bool { return r["name"] == "dd4" })
+	if nil == d3 {
+		t.Errorf("catalog <=2 failed, result is %v", res)
+		return
+	}
+	validMockDevice(t, "3", d3)
+	validMockDevice(t, "4", d4)
+
+	res, e = findBy("device", map[string]string{"catalog": "[ne]3"})
+	if nil != e {
+		t.Errorf(e.Error())
+		return
+	}
+	if 3 != len(res) {
+		t.Errorf("catalog <=3 failed, len(result) is %v", len(res))
+		return
+	}
+	d1 = searchBy(res, func(r map[string]interface{}) bool { return r["name"] == "dd1" })
+	d2 = searchBy(res, func(r map[string]interface{}) bool { return r["name"] == "dd2" })
+	d4 = searchBy(res, func(r map[string]interface{}) bool { return r["name"] == "dd4" })
+	if nil == d1 {
+		t.Errorf("catalog <=2 failed, result is %v", res)
+		return
+	}
+	validMockDevice(t, "1", d1)
+	validMockDevice(t, "2", d2)
+	validMockDevice(t, "4", d4)
 }

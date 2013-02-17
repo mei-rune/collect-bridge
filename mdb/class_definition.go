@@ -1,6 +1,8 @@
 package mdb
 
-import ()
+import (
+	"bytes"
+)
 
 //"commons/stringutils"
 type CollectionType int
@@ -132,4 +134,26 @@ func (self *ClassDefinition) GetProperty(nm string) (pr *PropertyDefinition, ok 
 func (self *ClassDefinition) GetOwnProperty(nm string) (pr *PropertyDefinition, ok bool) {
 	pr, ok = self.OwnProperties[nm]
 	return pr, ok
+}
+
+func (self *ClassDefinition) String() string {
+	var buffer bytes.Buffer
+	buffer.WriteString("class ")
+	buffer.WriteString(self.Name)
+	if nil != self.Super {
+		buffer.WriteString(" < ")
+		buffer.WriteString(self.Super.Name)
+		buffer.WriteString(" { ")
+	} else {
+		buffer.WriteString(" { ")
+	}
+	if nil != self.OwnProperties && 0 != len(self.OwnProperties) {
+		for _, pr := range self.OwnProperties {
+			buffer.WriteString(pr.Name)
+			buffer.WriteString(",")
+		}
+		buffer.Truncate(buffer.Len() - 1)
+	}
+	buffer.WriteString(" }")
+	return buffer.String()
 }

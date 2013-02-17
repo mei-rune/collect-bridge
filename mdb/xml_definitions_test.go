@@ -291,7 +291,7 @@ func TestXML1(t *testing.T) {
 		Restrictions: XMLRestrictionsDefinition{Type: "string",
 			Required: &XMLRequired{XMLName: xml.Name{Space: "http://schemas.meijing.com.cn/mdbs/1/typeDefinitions", Local: "required"}}}}, 0)
 	assertProperty(&employee.Properties[1], &XMLPropertyDefinition{Name: "company_test_id",
-		Restrictions: XMLRestrictionsDefinition{Type: "string"}}, 0)
+		Restrictions: XMLRestrictionsDefinition{Type: "objectId"}}, 0)
 
 	a.Check(t, boss.Name, a.Equals, "Boss", a.Commentf("check Class name of boss"))
 	a.Check(t, boss.Base, a.Equals, "Employee", a.Commentf("check Base name of boss"))

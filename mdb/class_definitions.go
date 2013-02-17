@@ -345,6 +345,17 @@ func makeAssocation(self *ClassDefinitions, cls *ClassDefinition, errs *[]error,
 		if "" == fKey {
 			fKey = stringutils.Underscore(cls.Name) + "_id"
 		}
+		pr, ok := target.OwnProperties[fKey]
+		if !ok {
+			pr = &PropertyDefinition{Name: fKey, Type: &objectIdType, Collection: COLLECTION_UNKNOWN}
+			target.OwnProperties[fKey] = pr
+		} else {
+			if _, ok := pr.Type.(*ObjectIdTypeDefinition); !ok {
+				*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, foreignKey is not objectId type",
+					t, tName, cls.Name))
+				return nil
+			}
+		}
 	}
 	if "has_one" == t {
 		return &HasOne{TargetClass: target, Embedded: embedded,

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
+	"strconv"
 	"strings"
 )
 
@@ -16,15 +17,16 @@ var (
 )
 
 type assocationOp struct {
-	deleteOp func(s *mdb_server, assoc Assocation, id interface{}) error
+	deleteOp    func(s *mdb_server, assoc Assocation, id interface{}) error
+	deleteAllOp func(s *mdb_server, assoc Assocation) error
 	//createOp func(s *mdb_server, assoc *Assocation, id interface{}) error
 }
 
 func init() {
 	assocationOps[BELONGS_TO] = &assocationOp{}
-	assocationOps[HAS_ONE] = &assocationOp{}
-	assocationOps[HAS_MANG] = &assocationOp{deleteOp: deleteChildren}
-	assocationOps[HAS_AND_BELONGS_TO_MANY] = &assocationOp{deleteOp: deleteMany2Many}
+	assocationOps[HAS_ONE] = &assocationOp{deleteOp: deleteHasMany, deleteAllOp: deleteAllHasMany}
+	assocationOps[HAS_MANG] = &assocationOp{deleteOp: deleteHasMany, deleteAllOp: deleteAllHasMany}
+	assocationOps[HAS_AND_BELONGS_TO_MANY] = &assocationOp{deleteOp: deleteMany2Many, deleteAllOp: deleteAllMany2Many}
 
 	operators["exists"] = op_exist
 	operators["in"] = op_in
@@ -300,7 +302,6 @@ func (self *mdb_server) FindById(cls *ClassDefinition, id interface{}) (map[stri
 	}
 	err := q.One(&result)
 	if nil != err {
-		fmt.Println(id, err.Error())
 		return nil, err
 	}
 
@@ -316,23 +317,50 @@ func (self *mdb_server) Update(cls *ClassDefinition, id interface{}, updated_att
 	return self.session.C(cls.CollectionName()).UpdateId(id, bson.M{"$set": new_attributes})
 }
 
-func deleteChildren(s *mdb_server, assoc Assocation, id interface{}) error {
+func collectionExists(s *mdb_server, cn string) bool {
+	names, e := s.session.CollectionNames()
+	if nil != e {
+		return false
+	}
+	for _, nm := range names {
+		if nm == cn {
+			return true
+		}
+	}
+	return false
+}
+
+func deleteHasMany(s *mdb_server, assoc Assocation, id interface{}) error {
 	hasMany, ok := assoc.(*HasMany)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
 	}
-	it := s.session.C(hasMany.Target().CollectionName()).Find(bson.M{hasMany.ForeignKey: id}).Select("_id").Iter()
-
+	it := s.session.C(hasMany.Target().CollectionName()).Find(bson.M{hasMany.ForeignKey: id}).Select(bson.M{"_id": 1}).Iter()
 	var result map[string]interface{}
 	for it.Next(&result) {
 		o, ok := result["_id"]
 		if !ok {
 			continue
 		}
+
 		s.RemoveById(assoc.Target(), o)
 	}
-
 	return it.Err()
+}
+func deleteAllHasMany(s *mdb_server, assoc Assocation) error {
+	hasMany, ok := assoc.(*HasMany)
+	if !ok {
+		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
+	}
+	cn := hasMany.Target().CollectionName()
+	err := s.session.C(cn).DropCollection()
+	if nil != err {
+		if !collectionExists(s, cn) {
+			return nil
+		}
+		return fmt.Errorf("delete '%s' collection failed, %v", cn, err)
+	}
+	return nil
 }
 
 func deleteMany2Many(s *mdb_server, assoc Assocation, id interface{}) error {
@@ -340,7 +368,7 @@ func deleteMany2Many(s *mdb_server, assoc Assocation, id interface{}) error {
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasAndBelongsToMany.", assoc))
 	}
-	it := s.session.C(habtm.CollectionName).Find(bson.M{habtm.ForeignKey: id}).Select("_id").Iter()
+	it := s.session.C(habtm.CollectionName).Find(bson.M{habtm.ForeignKey: id}).Select(bson.M{"_id": 1}).Iter()
 
 	var result map[string]interface{}
 	for it.Next(&result) {
@@ -354,19 +382,39 @@ func deleteMany2Many(s *mdb_server, assoc Assocation, id interface{}) error {
 	return it.Err()
 }
 
+func deleteAllMany2Many(s *mdb_server, assoc Assocation) error {
+	habtm, ok := assoc.(*HasAndBelongsToMany)
+	if !ok {
+		panic(fmt.Sprintf("it is a %T, please ensure it is a HasAndBelongsToMany.", assoc))
+	}
+	cn := habtm.CollectionName
+	err := s.session.C(cn).DropCollection()
+	if nil != err {
+		if !collectionExists(s, cn) {
+			return nil
+		}
+		return fmt.Errorf("delete '%s' collection failed, %v", cn, err)
+	}
+	return nil
+}
+
 func (self *mdb_server) RemoveById(cls *ClassDefinition, id interface{}) (bool, error) {
 	err := self.session.C(cls.CollectionName()).RemoveId(id)
 	if nil != err {
 		return false, err
 	}
+	_, err = self.removeChildren(cls, id)
+	return true, err
+}
 
+func (self *mdb_server) removeChildren(cls *ClassDefinition, id interface{}) (bool, error) {
 	errs := make([]error, 0)
 	for _, a := range cls.Assocations {
 		op := assocationOps[a.Type()]
 		if nil == op || nil == op.deleteOp {
 			continue
 		}
-		err = op.deleteOp(self, a, id)
+		err := op.deleteOp(self, a, id)
 		if nil != err {
 			errs = append(errs, err)
 		}
@@ -374,26 +422,63 @@ func (self *mdb_server) RemoveById(cls *ClassDefinition, id interface{}) (bool, 
 	if 0 == len(errs) {
 		return true, nil
 	}
-	return true, commons.NewMutiErrors("parameters is error.", errs)
+	return false, commons.NewMutiErrors("parameters is error.", errs)
 }
-func (self *mdb_server) RemoveAll(cls *ClassDefinition) (bool, error) {
-	q := self.session.C(cls.CollectionName()).Find(nil)
+func (self *mdb_server) removeAllChildren(cls *ClassDefinition) error {
+	errs := make([]error, 0)
+	for _, a := range cls.Assocations {
+		op := assocationOps[a.Type()]
+		if nil == op || nil == op.deleteAllOp {
+			continue
+		}
+		err := op.deleteAllOp(self, a)
+		if nil != err {
+			errs = append(errs, err)
+		}
+	}
+	if 0 == len(errs) {
+		return nil
+	}
+	return commons.NewMutiErrors("parameters is error.", errs)
+}
+
+func (self *mdb_server) RemoveBy(cls *ClassDefinition, params map[string]string) (bool, error) {
+	s, err := buildQueryStatement(cls, params)
+	if nil != err {
+		return false, err
+	}
+	c := self.session.C(cls.CollectionName())
+	q := c.Find(s)
 	if nil == q {
 		return false, errors.New("return nil result")
 	}
-	fmt.Println("remove all")
 	iter := q.Select(bson.M{"_id": 1}).Iter()
 	var result map[string]interface{}
 	for iter.Next(&result) {
-		fmt.Println("remove", result)
-		self.RemoveById(cls, result["_id"])
-	}
-	err := iter.Err()
-	if nil != err {
-		fmt.Println(err)
-		return false, err
+		self.removeChildren(cls, result["_id"])
 	}
 
+	err = iter.Err()
+	if nil != err {
+		return false, err
+	}
+	_, err = c.RemoveAll(s)
+	return (nil != err), err
+}
+
+func (self *mdb_server) RemoveAll(cls *ClassDefinition) (bool, error) {
+	err := self.removeAllChildren(cls)
+	if nil != err {
+		return false, err
+	}
+	err = self.session.C(cls.CollectionName()).DropCollection()
+	if nil != err {
+		if !collectionExists(self, cls.CollectionName()) {
+			return true, nil
+		}
+
+		return false, err
+	}
 	return true, nil
 }
 
@@ -509,12 +594,12 @@ func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 
 			pos := strings.LastIndex(nm, ".")
 			if -1 == pos {
-				return nil, errors.New("'" + nm + "' is not a property.")
+				return nil, errors.New("'" + nm + "' is not a property in " + cls.String() + ".")
 			}
 
 			pr, _ = properties[nm[0:pos]]
 			if nil == pr {
-				return nil, errors.New("'" + nm + "' is not a property.")
+				return nil, errors.New("'" + nm + "' is not a property in " + cls.String() + ".")
 			}
 		}
 
@@ -559,6 +644,23 @@ func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) (
 	if nil == q {
 		return nil, errors.New("return nil result")
 	}
+	offset := params["offset"]
+	if "" != offset {
+		n, err := strconv.Atoi(offset)
+		if nil != err {
+			return nil, errors.New("'offset' is not a integer - " + offset)
+		}
+		q.Skip(n)
+	}
+	limit := params["limit"]
+	if "" != limit {
+		n, err := strconv.Atoi(limit)
+		if nil != err {
+			return nil, errors.New("'limit' is not a integer - " + limit)
+		}
+		q.Limit(n)
+	}
+
 	results := make([]map[string]interface{}, 0, 10)
 	it := q.Iter()
 	attributes := make(map[string]interface{})
@@ -577,4 +679,16 @@ func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) (
 	}
 
 	return results, nil
+}
+
+func (self *mdb_server) Count(cls *ClassDefinition, params map[string]string) (int, error) {
+	s, err := buildQueryStatement(cls, params)
+	if nil != err {
+		return -1, err
+	}
+	q := self.session.C(cls.CollectionName()).Find(s)
+	if nil == q {
+		return -1, errors.New("return nil result")
+	}
+	return q.Count()
 }

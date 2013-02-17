@@ -128,7 +128,7 @@ func TestLoadXml(t *testing.T) {
 		Type:         GetTypeDefinition("string"),
 		DefaultValue: "developer"}, 0)
 	assertProperty(employee.Properties["company_test_id"], &PropertyDefinition{Name: "company_test_id",
-		Type: GetTypeDefinition("string")}, 0)
+		Type: GetTypeDefinition("objectId")}, 0)
 
 	a.Check(t, company.Name, a.Equals, "Company", a.Commentf("check Class name"))
 

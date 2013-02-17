@@ -41,8 +41,7 @@
       </restriction>
     </property>
     <property name="ifType">
-      <restriction base="string">
-				<maxLength>50</maxLength>
+      <restriction base="integer">
       </restriction>
     </property>
     <property name="ifMtu">

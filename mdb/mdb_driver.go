@@ -147,14 +147,20 @@ func (self *MdbDriver) Get(params map[string]string) (map[string]interface{}, co
 	}
 
 	id, _ := params["id"]
-	if "" == id || "query" == id {
+	switch id {
+	case "", "query":
 		results, err := self.FindBy(definition, params)
 		if err != nil {
 			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
 		}
 		return commons.Return(results), nil
+	case "count":
+		count, err := self.Count(definition, params)
+		if err != nil {
+			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
+		}
+		return commons.Return(count), nil
 	}
-
 	oid, err := parseObjectIdHex(id)
 	if nil != err {
 		return nil, errutils.BadRequest("id is not a objectId")

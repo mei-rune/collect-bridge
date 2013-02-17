@@ -3,6 +3,7 @@ package mdb
 import (
 	"errors"
 	"fmt"
+	"github.com/skynetservices/mgo/bson"
 	"net"
 	"regexp"
 	"strconv"
@@ -538,6 +539,44 @@ func (self *BooleanTypeDefinition) Convert(v interface{}) (interface{}, error) {
 	return nil, errors.New("syntex error, it is not a boolean")
 }
 
+type ObjectIdTypeDefinition struct {
+}
+
+func (self *ObjectIdTypeDefinition) Name() string {
+	return "objectId"
+}
+
+func (self *ObjectIdTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *ObjectIdTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *ObjectIdTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *ObjectIdTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *ObjectIdTypeDefinition) Convert(v interface{}) (interface{}, error) {
+	switch value := v.(type) {
+	case string:
+		return parseObjectIdHex(value)
+	case *string:
+		return parseObjectIdHex(*value)
+	case bson.ObjectId:
+		return value, nil
+	case *bson.ObjectId:
+		return *value, nil
+	}
+
+	return nil, errors.New("syntex error, it is not a boolean")
+}
+
 type PasswordTypeDefinition struct {
 	StringTypeDefinition
 }
@@ -568,6 +607,7 @@ var (
 	ipAddressType       IpAddressTypeDefinition
 	physicalAddressType PhysicalAddressTypeDefinition
 	passwordType        PasswordTypeDefinition
+	objectIdType        ObjectIdTypeDefinition
 )
 
 func init() {
@@ -592,6 +632,8 @@ func GetTypeDefinition(t string) TypeDefinition {
 		return &physicalAddressType
 	case "password":
 		return &passwordType
+	case "objectId":
+		return &objectIdType
 	}
 	return nil
 }

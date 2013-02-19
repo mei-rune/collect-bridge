@@ -27,6 +27,23 @@ func readAll(r io.Reader) string {
 	return string(bs)
 }
 
+func createMockHistoryRule2(t *testing.T, factor string) string {
+	id, e := createJson("history_rule", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s"}`, factor, factor, factor))
+	if nil != e {
+		t.Error(e.Error())
+		return ""
+	}
+	return id
+}
+func createMockHistoryRule(t *testing.T, id, factor string) string {
+	id, e := createJson("history_rule", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s", "parent_type":"devices", "parent_id":"%s"}`, factor, factor, factor, id))
+	if nil != e {
+		t.Error(e.Error())
+		return ""
+	}
+	return id
+}
+
 func createMockInterface(t *testing.T, id, factor string) string {
 	id, e := createJson("interface", fmt.Sprintf(`{"ifIndex":%s, "ifDescr":"d%s", "ifType":2%s, "ifMtu":3%s, "ifSpeed":4%s, "device_id":"%s"}`, factor, factor, factor, factor, factor, id))
 	if nil != e {
@@ -197,6 +214,20 @@ func deleteById(t, id string) error {
 	}
 	return nil
 }
+func deleteBy(t string, params map[string]string) error {
+	url := "http://127.0.0.1:7071/mdb/" + t + "/query?"
+	for k, v := range params {
+		url += ("@" + k + "=" + v + "&")
+	}
+	resp, e := httpDelete(url[:len(url)-1])
+	if nil != e {
+		return fmt.Errorf("delete %s failed, %v", t, e)
+	}
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("delete %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+	}
+	return nil
+}
 
 func count(t string, params map[string]string) (int, error) {
 	url := "http://127.0.0.1:7071/mdb/" + t + "/count?"
@@ -295,12 +326,123 @@ func TestDeviceDeleteCascadeAll(t *testing.T) {
 	}
 }
 
-func TestDeviceDeleteCascadeById(t *testing.T) {
+func checkHistoryRuleCount(t *testing.T, id1, id2, id3, id4 string, all, d1, d2, d3, d4 int) {
+	tName := "history_rule"
+	if c, err := count(tName, map[string]string{}); all != c {
+		t.Errorf("%d != len(all.rules), actual is %d, %v", all, c, err)
+	}
+	if c, err := count(tName, map[string]string{"parent_type": "devices", "parent_id": id1}); d1 != c {
+		t.Errorf("%d != len(d1.rules), actual is %d, %v", d1, c, err)
+	}
+	if c, err := count(tName, map[string]string{"parent_type": "devices", "parent_id": id2}); d2 != c {
+		t.Errorf("%d != len(d2.rules), actual is %d, %v", d2, c, err)
+	}
+	if c, err := count(tName, map[string]string{"parent_type": "devices", "parent_id": id3}); d3 != c {
+		t.Errorf("%d != len(d3.rules), actual is %d, %v", d3, c, err)
+	}
+	if c, err := count(tName, map[string]string{"parent_type": "devices", "parent_id": id4}); d4 != c {
+		t.Errorf("%d != len(d4.rules), actual is %d, %v", d4, c, err)
+	}
+}
+func checkInterfaceCount(t *testing.T, id1, id2, id3, id4 string, all, d1, d2, d3, d4 int) {
+	checkCount(t, "device_id", "interface", id1, id2, id3, id4, all, d1, d2, d3, d4)
+}
+func checkCount(t *testing.T, field, tName, id1, id2, id3, id4 string, all, d1, d2, d3, d4 int) {
+	if c, err := count(tName, map[string]string{}); all != c {
+		t.Errorf("%d != len(all.interfaces), actual is %d, %v", all, c, err)
+	}
+	if c, err := count(tName, map[string]string{field: id1}); d1 != c {
+		t.Errorf("%d != len(d1.interfaces), actual is %d, %v", d1, c, err)
+	}
+	if c, err := count(tName, map[string]string{field: id2}); d2 != c {
+		t.Errorf("%d != len(d2.interfaces), actual is %d, %v", d2, c, err)
+	}
+	if c, err := count(tName, map[string]string{field: id3}); d3 != c {
+		t.Errorf("%d != len(d3.interfaces), actual is %d, %v", d3, c, err)
+	}
+	if c, err := count(tName, map[string]string{field: id4}); d4 != c {
+		t.Errorf("%d != len(d4.interfaces), actual is %d, %v", d4, c, err)
+	}
+}
+
+func TestDeviceDeleteCascadeByAll(t *testing.T) {
 	e := deleteById("device", "all")
 	if nil != e {
 		t.Errorf("remove all device failed, " + e.Error())
 	}
 	e = deleteById("interface", "all")
+	if nil != e {
+		t.Errorf("remove all interface failed, " + e.Error())
+	}
+	e = deleteById("history_rule", "all")
+	if nil != e {
+		t.Errorf("remove all interface failed, " + e.Error())
+	}
+
+	id1 := createMockDevice(t, "1")
+	id2 := createMockDevice(t, "2")
+	id3 := createMockDevice(t, "3")
+	id4 := createMockDevice(t, "4")
+	if "" == id1 {
+		return
+	}
+	createMockHistoryRule2(t, "s")
+	createMockInterface(t, id1, "10001")
+	createMockInterface(t, id1, "10002")
+	createMockInterface(t, id1, "10003")
+	createMockInterface(t, id1, "10004")
+	createMockHistoryRule(t, id1, "10001")
+	createMockHistoryRule(t, id1, "10002")
+	createMockHistoryRule(t, id1, "10003")
+	createMockHistoryRule(t, id1, "10004")
+
+	createMockInterface(t, id2, "20001")
+	createMockInterface(t, id2, "20002")
+	createMockInterface(t, id2, "20003")
+	createMockInterface(t, id2, "20004")
+	createMockHistoryRule(t, id2, "20001")
+	createMockHistoryRule(t, id2, "20002")
+	createMockHistoryRule(t, id2, "20003")
+	createMockHistoryRule(t, id2, "20004")
+
+	createMockInterface(t, id3, "30001")
+	createMockInterface(t, id3, "30002")
+	createMockInterface(t, id3, "30003")
+	createMockInterface(t, id3, "30004")
+	createMockHistoryRule(t, id3, "30001")
+	createMockHistoryRule(t, id3, "30002")
+	createMockHistoryRule(t, id3, "30003")
+	createMockHistoryRule(t, id3, "30004")
+
+	createMockInterface(t, id4, "40001")
+	createMockInterface(t, id4, "40002")
+	createMockInterface(t, id4, "40003")
+	createMockInterface(t, id4, "40004")
+	createMockHistoryRule(t, id4, "40001")
+	createMockHistoryRule(t, id4, "40002")
+	createMockHistoryRule(t, id4, "40003")
+	createMockHistoryRule(t, id4, "40004")
+
+	checkInterfaceCount(t, id1, id2, id3, id4, 16, 4, 4, 4, 4)
+	checkHistoryRuleCount(t, id1, id2, id3, id4, 17, 4, 4, 4, 4)
+	e = deleteById("device", "all")
+	if nil != e {
+		t.Errorf("remove dev1 failed, " + e.Error())
+	}
+	checkInterfaceCount(t, id1, id2, id3, id4, 0, 0, 0, 0, 0)
+	checkHistoryRuleCount(t, id1, id2, id3, id4, 1, 0, 0, 0, 0)
+}
+
+func TestDeviceDeleteCascadeByQuery(t *testing.T) {
+	e := deleteById("device", "all")
+	if nil != e {
+		t.Errorf("remove all device failed, " + e.Error())
+	}
+	e = deleteById("interface", "all")
+	if nil != e {
+		t.Errorf("remove all interface failed, " + e.Error())
+	}
+	e = deleteById("trigger", "all")
 	if nil != e {
 		t.Errorf("remove all interface failed, " + e.Error())
 	}
@@ -313,119 +455,141 @@ func TestDeviceDeleteCascadeById(t *testing.T) {
 		return
 	}
 
+	createMockHistoryRule2(t, "s")
 	createMockInterface(t, id1, "10001")
 	createMockInterface(t, id1, "10002")
 	createMockInterface(t, id1, "10003")
 	createMockInterface(t, id1, "10004")
+	createMockHistoryRule(t, id1, "10001")
+	createMockHistoryRule(t, id1, "10002")
+	createMockHistoryRule(t, id1, "10003")
+	createMockHistoryRule(t, id1, "10004")
 
 	createMockInterface(t, id2, "20001")
 	createMockInterface(t, id2, "20002")
 	createMockInterface(t, id2, "20003")
 	createMockInterface(t, id2, "20004")
+	createMockHistoryRule(t, id2, "20001")
+	createMockHistoryRule(t, id2, "20002")
+	createMockHistoryRule(t, id2, "20003")
+	createMockHistoryRule(t, id2, "20004")
 
 	createMockInterface(t, id3, "30001")
 	createMockInterface(t, id3, "30002")
 	createMockInterface(t, id3, "30003")
 	createMockInterface(t, id3, "30004")
+	createMockHistoryRule(t, id3, "30001")
+	createMockHistoryRule(t, id3, "30002")
+	createMockHistoryRule(t, id3, "30003")
+	createMockHistoryRule(t, id3, "30004")
 
 	createMockInterface(t, id4, "40001")
 	createMockInterface(t, id4, "40002")
 	createMockInterface(t, id4, "40003")
 	createMockInterface(t, id4, "40004")
+	createMockHistoryRule(t, id4, "40001")
+	createMockHistoryRule(t, id4, "40002")
+	createMockHistoryRule(t, id4, "40003")
+	createMockHistoryRule(t, id4, "40004")
 
-	if c, err := count("interface", map[string]string{}); 16 != c {
-		t.Errorf("16 != len(all.interfaces), actual is %d, %v", c, err)
+	checkInterfaceCount(t, id1, id2, id3, id4, 16, 4, 4, 4, 4)
+	checkHistoryRuleCount(t, id1, id2, id3, id4, 17, 4, 4, 4, 4)
+	e = deleteBy("device", map[string]string{"catalog": "[gte]3"})
+	if nil != e {
+		t.Errorf("remove query failed, " + e.Error())
 	}
-	if c, err := count("interface", map[string]string{"device_id": id1}); 4 != c {
-		t.Errorf("4 != len(d1.interfaces), actual is %d, %v", c, err)
+	checkInterfaceCount(t, id1, id2, id3, id4, 8, 4, 4, 0, 0)
+	checkHistoryRuleCount(t, id1, id2, id3, id4, 9, 4, 4, 0, 0)
+}
+
+func TestDeviceDeleteCascadeById(t *testing.T) {
+	e := deleteById("device", "all")
+	if nil != e {
+		t.Errorf("remove all device failed, " + e.Error())
 	}
-	if c, err := count("interface", map[string]string{"device_id": id2}); 4 != c {
-		t.Errorf("4 != len(d2.interfaces), actual is %d, %v", c, err)
+	e = deleteById("interface", "all")
+	if nil != e {
+		t.Errorf("remove all interface failed, " + e.Error())
 	}
-	if c, err := count("interface", map[string]string{"device_id": id3}); 4 != c {
-		t.Errorf("4 != len(d3.interfaces), actual is %d, %v", c, err)
+	e = deleteById("history_rule", "all")
+	if nil != e {
+		t.Errorf("remove all interface failed, " + e.Error())
 	}
-	if c, err := count("interface", map[string]string{"device_id": id4}); 4 != c {
-		t.Errorf("4 != len(d4.interfaces), actual is %d, %v", c, err)
+
+	id1 := createMockDevice(t, "1")
+	id2 := createMockDevice(t, "2")
+	id3 := createMockDevice(t, "3")
+	id4 := createMockDevice(t, "4")
+	if "" == id1 {
+		return
 	}
+
+	createMockHistoryRule2(t, "s")
+	createMockInterface(t, id1, "10001")
+	createMockInterface(t, id1, "10002")
+	createMockInterface(t, id1, "10003")
+	createMockInterface(t, id1, "10004")
+	createMockHistoryRule(t, id1, "10001")
+	createMockHistoryRule(t, id1, "10002")
+	createMockHistoryRule(t, id1, "10003")
+	createMockHistoryRule(t, id1, "10004")
+
+	createMockInterface(t, id2, "20001")
+	createMockInterface(t, id2, "20002")
+	createMockInterface(t, id2, "20003")
+	createMockInterface(t, id2, "20004")
+	createMockHistoryRule(t, id2, "20001")
+	createMockHistoryRule(t, id2, "20002")
+	createMockHistoryRule(t, id2, "20003")
+	createMockHistoryRule(t, id2, "20004")
+
+	createMockInterface(t, id3, "30001")
+	createMockInterface(t, id3, "30002")
+	createMockInterface(t, id3, "30003")
+	createMockInterface(t, id3, "30004")
+	createMockHistoryRule(t, id3, "30001")
+	createMockHistoryRule(t, id3, "30002")
+	createMockHistoryRule(t, id3, "30003")
+	createMockHistoryRule(t, id3, "30004")
+
+	createMockInterface(t, id4, "40001")
+	createMockInterface(t, id4, "40002")
+	createMockInterface(t, id4, "40003")
+	createMockInterface(t, id4, "40004")
+	createMockHistoryRule(t, id4, "40001")
+	createMockHistoryRule(t, id4, "40002")
+	createMockHistoryRule(t, id4, "40003")
+	createMockHistoryRule(t, id4, "40004")
+
+	checkInterfaceCount(t, id1, id2, id3, id4, 16, 4, 4, 4, 4)
+	checkHistoryRuleCount(t, id1, id2, id3, id4, 17, 4, 4, 4, 4)
 
 	e = deleteById("device", id1)
 	if nil != e {
 		t.Errorf("remove dev1 failed, " + e.Error())
 	}
-	if c, err := count("interface", map[string]string{}); 12 != c {
-		t.Errorf("12 != len(all.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id1}); 0 != c {
-		t.Errorf("0 != len(d1.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id2}); 4 != c {
-		t.Errorf("4 != len(d2.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id3}); 4 != c {
-		t.Errorf("4 != len(d3.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id4}); 4 != c {
-		t.Errorf("4 != len(d4.interfaces), actual is %d, %v", c, err)
-	}
-
+	checkInterfaceCount(t, id1, id2, id3, id4, 12, 0, 4, 4, 4)
+	checkHistoryRuleCount(t, id1, id2, id3, id4, 13, 0, 4, 4, 4)
 	e = deleteById("device", id2)
 	if nil != e {
 		t.Errorf("remove dev2 failed, " + e.Error())
 	}
-	if c, err := count("interface", map[string]string{}); 8 != c {
-		t.Errorf("8 != len(all.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id1}); 0 != c {
-		t.Errorf("0 != len(d1.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id2}); 0 != c {
-		t.Errorf("0 != len(d2.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id3}); 4 != c {
-		t.Errorf("4 != len(d3.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id4}); 4 != c {
-		t.Errorf("4 != len(d4.interfaces), actual is %d, %v", c, err)
-	}
+	checkInterfaceCount(t, id1, id2, id3, id4, 8, 0, 0, 4, 4)
+	checkHistoryRuleCount(t, id1, id2, id3, id4, 9, 0, 0, 4, 4)
 	e = deleteById("device", id3)
 	if nil != e {
 		t.Errorf("remove dev3 failed, " + e.Error())
 	}
-	if c, err := count("interface", map[string]string{}); 4 != c {
-		t.Errorf("4 != len(all.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id1}); 0 != c {
-		t.Errorf("0 != len(d1.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id2}); 0 != c {
-		t.Errorf("0 != len(d2.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id3}); 0 != c {
-		t.Errorf("0 != len(d3.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id4}); 4 != c {
-		t.Errorf("4 != len(d4.interfaces), actual is %d, %v", c, err)
-	}
+
+	checkInterfaceCount(t, id1, id2, id3, id4, 4, 0, 0, 0, 4)
+	checkHistoryRuleCount(t, id1, id2, id3, id4, 5, 0, 0, 0, 4)
 	e = deleteById("device", id4)
 	if nil != e {
 		t.Errorf("remove dev4 failed, " + e.Error())
 	}
-	if c, err := count("interface", map[string]string{}); 0 != c {
-		t.Errorf("0 != len(all.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id1}); 0 != c {
-		t.Errorf("0 != len(d1.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id2}); 0 != c {
-		t.Errorf("0 != len(d2.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id3}); 0 != c {
-		t.Errorf("0 != len(d3.interfaces), actual is %d, %v", c, err)
-	}
-	if c, err := count("interface", map[string]string{"device_id": id4}); 0 != c {
-		t.Errorf("0 != len(d4.interfaces), actual is %d, %v", c, err)
-	}
+
+	checkInterfaceCount(t, id1, id2, id3, id4, 0, 0, 0, 0, 0)
+	checkHistoryRuleCount(t, id1, id2, id3, id4, 1, 0, 0, 0, 0)
 }
 
 func TestDeviceCURD(t *testing.T) {

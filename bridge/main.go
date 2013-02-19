@@ -68,6 +68,11 @@ func main() {
 		fmt.Println("metrics", e)
 		return
 	}
+	e = registerDiscovery(svr, time.Duration(*timeout)*time.Second, drvMgr)
+	if nil != e {
+		fmt.Println("discovery", e)
+		return
+	}
 	registerBridge(svr, drvMgr)
 
 	svr.Run()

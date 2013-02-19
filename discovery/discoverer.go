@@ -195,7 +195,7 @@ func (self *Discoverer) readLocal() (*Device, error) {
 
 	communities := self.guessCommunities(managed_ip)
 	if nil == communities || 0 == len(communities) {
-		return nil, errors.New("community ip of local host is empty.")
+		return nil, errors.New("community of localhost is empty.")
 	}
 
 	drv := &Device{ManagedIP: managed_ip, Communities: communities, Interfaces: interfaces,

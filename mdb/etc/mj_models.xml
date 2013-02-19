@@ -28,6 +28,7 @@
       </restriction>
     </property>
 		<has_many foreignKey="device_id" >Interface</has_many>
+    <has_many polymorphic="true" >Trigger</has_many>
   </class>
   <class name="Interface">
     <property name="ifIndex">
@@ -50,6 +51,36 @@
     </property>
     <property name="ifSpeed">
       <restriction base="integer">
+      </restriction>
+    </property>
+  </class>
+  <class name="Trigger">
+    <property name="name">
+      <restriction base="string">
+        <required />
+      </restriction>
+    </property>
+    <property name="expression">
+      <restriction base="string">
+        <required />
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="attachment">
+      <restriction base="string">
+        <maxLength>2000</maxLength>
+      </restriction>
+    </property>
+    <property name="description">
+      <restriction base="string">
+        <maxLength>2000</maxLength>
+      </restriction>
+    </property>
+  </class>
+  <class name="HistoryRule" base="Trigger">
+    <property name="metric">
+      <restriction base="string">
+        <required />
       </restriction>
     </property>
   </class>

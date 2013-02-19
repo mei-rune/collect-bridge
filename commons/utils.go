@@ -1,6 +1,7 @@
 package commons
 
 import (
+	"commons/as"
 	"errors"
 	"fmt"
 	"io"
@@ -194,6 +195,18 @@ func GetReturn(params map[string]interface{}) interface{} {
 		return v
 	}
 	return nil
+}
+
+func GetReturnCode(params map[string]interface{}) int {
+	v, ok := params["code"]
+	if ok {
+		i, e := as.AsInt(v)
+		if nil != e {
+			panic(e.Error())
+		}
+		return i
+	}
+	return -1
 }
 
 func Return(value interface{}) map[string]interface{} {

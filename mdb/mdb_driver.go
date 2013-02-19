@@ -109,13 +109,19 @@ func (self *MdbDriver) Delete(params map[string]string) (bool, commons.RuntimeEr
 	if nil == definition {
 		return false, commons.NewRuntimeError(commons.InternalErrorCode, "class '"+objectType+"' is not found")
 	}
-
 	id, _ := params["id"]
-	if "" == id {
+	switch id {
+	case "":
 		return false, commons.IdNotExists
-	}
-	if "all" == id {
-		res, e := self.RemoveAll(definition)
+	case "all":
+		res, e := self.RemoveAll(definition, params)
+		if nil != e {
+			return res, commons.NewRuntimeError(commons.InternalErrorCode, "remove object from db failed, "+e.Error())
+		} else {
+			return res, nil
+		}
+	case "query":
+		res, e := self.RemoveBy(definition, params)
 		if nil != e {
 			return res, commons.NewRuntimeError(commons.InternalErrorCode, "remove object from db failed, "+e.Error())
 		} else {

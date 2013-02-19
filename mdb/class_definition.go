@@ -42,6 +42,7 @@ type HasMany struct {
 	ForeignKey    string
 	AttributeName string
 	Embedded      bool
+	Polymorphic   bool
 }
 
 func (self *HasMany) Type() AssocationType {

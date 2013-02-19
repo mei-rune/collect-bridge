@@ -43,7 +43,7 @@ func (self *DiscoveryDriver) Get(params map[string]string) (map[string]interface
 	if "message" == dst {
 		messages := make([]string, 0, 10)
 		for !discoverer.IsCompleted() {
-			message := discoverer.Read(time.Duration(1))
+			message := discoverer.Read(1 * time.Second)
 			if TIMEOUT_TOKEN == message {
 				break
 			}

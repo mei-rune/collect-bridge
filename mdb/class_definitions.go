@@ -310,13 +310,24 @@ func loadOwnProperty(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 	return cpr, errs
 }
 
-func makeAssocation(self *ClassDefinitions, cls *ClassDefinition, errs *[]error, t, tName, em, fKey, attrName string) Assocation {
+func makeAssocation(self *ClassDefinitions, cls *ClassDefinition, errs *[]error, t, tName, em, polymorphic_s, fKey, attrName string) Assocation {
 	target, ok := self.clsDefinitions[tName]
 	if !ok {
 		*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, '%s' is not found.",
 			t, tName, cls.Name, tName))
 		return nil
 	}
+	polymorphic := false
+	if "" == polymorphic_s {
+		polymorphic = false
+	} else if "true" == polymorphic_s {
+		polymorphic = true
+	} else {
+		*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, attribute 'polymorphic' is unrecorign.",
+			t, tName, cls.Name, tName))
+		return nil
+	}
+
 	embedded := false
 	if "" == em {
 		embedded = false
@@ -342,26 +353,61 @@ func makeAssocation(self *ClassDefinitions, cls *ClassDefinition, errs *[]error,
 				" 'attributeName' must is not present .", t, tName, cls.Name))
 			return nil
 		}
-		if "" == fKey {
-			fKey = stringutils.Underscore(cls.Name) + "_id"
-		}
-		pr, ok := target.OwnProperties[fKey]
-		if !ok {
-			pr = &PropertyDefinition{Name: fKey, Type: &objectIdType, Collection: COLLECTION_UNKNOWN}
-			target.OwnProperties[fKey] = pr
-		} else {
-			if _, ok := pr.Type.(*ObjectIdTypeDefinition); !ok {
-				*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, foreignKey is not objectId type",
-					t, tName, cls.Name))
+		if "has_many" == t && polymorphic {
+			if "" != fKey {
+				*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed,  assocations is polymorphic, "+
+					" 'foreignKey' must is not present .", t, tName, cls.Name))
 				return nil
+			}
+			pr, ok := target.OwnProperties["parent_id"]
+			if !ok {
+				pr = &PropertyDefinition{Name: "parent_id", Type: &objectIdType, Collection: COLLECTION_UNKNOWN}
+				target.OwnProperties["parent_id"] = pr
+			} else {
+				if _, ok := pr.Type.(*ObjectIdTypeDefinition); !ok {
+					*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, 'parent_id' is not objectId type",
+						t, tName, cls.Name))
+					return nil
+				}
+			}
+			pr, ok = target.OwnProperties["parent_type"]
+			if !ok {
+				pr = &PropertyDefinition{Name: "parent_type", Type: &stringType, Collection: COLLECTION_UNKNOWN}
+				target.OwnProperties["parent_type"] = pr
+			} else {
+				if _, ok := pr.Type.(*StringTypeDefinition); !ok {
+					*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, 'parent_type' is not string type",
+						t, tName, cls.Name))
+					return nil
+				}
+				if COLLECTION_UNKNOWN != pr.Collection {
+					*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, 'parent_type' is array or set",
+						t, tName, cls.Name))
+					return nil
+				}
+			}
+		} else {
+			if "" == fKey {
+				fKey = stringutils.Underscore(cls.Name) + "_id"
+			}
+			pr, ok := target.OwnProperties[fKey]
+			if !ok {
+				pr = &PropertyDefinition{Name: fKey, Type: &objectIdType, Collection: COLLECTION_UNKNOWN}
+				target.OwnProperties[fKey] = pr
+			} else {
+				if _, ok := pr.Type.(*ObjectIdTypeDefinition); !ok {
+					*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, foreignKey is not objectId type",
+						t, tName, cls.Name))
+					return nil
+				}
 			}
 		}
 	}
-	if "has_one" == t {
-		return &HasOne{TargetClass: target, Embedded: embedded,
+	if "has_many" == t {
+		return &HasMany{TargetClass: target, Embedded: embedded, Polymorphic: polymorphic,
 			AttributeName: attrName, ForeignKey: fKey}
 	}
-	return &HasMany{TargetClass: target, Embedded: embedded,
+	return &HasOne{TargetClass: target, Embedded: embedded,
 		AttributeName: attrName, ForeignKey: fKey}
 }
 
@@ -390,7 +436,8 @@ func loadAssocations(self *ClassDefinitions, cls *ClassDefinition, xmlDefinition
 	}
 	if nil != xmlDefinition.HasMany && 0 != len(xmlDefinition.HasMany) {
 		for _, hasMany := range xmlDefinition.HasMany {
-			ass := makeAssocation(self, cls, &errs, "has_many", hasMany.Target, hasMany.Embedded, hasMany.ForeignKey, hasMany.AttributeName)
+			ass := makeAssocation(self, cls, &errs, "has_many", hasMany.Target, hasMany.Embedded,
+				hasMany.Polymorphic, hasMany.ForeignKey, hasMany.AttributeName)
 			if nil == ass {
 				continue
 			}
@@ -402,8 +449,8 @@ func loadAssocations(self *ClassDefinitions, cls *ClassDefinition, xmlDefinition
 	}
 	if nil != xmlDefinition.HasOne && 0 != len(xmlDefinition.HasOne) {
 		for _, hasOne := range xmlDefinition.HasOne {
-
-			ass := makeAssocation(self, cls, &errs, "has_one", hasOne.Target, hasOne.Embedded, hasOne.ForeignKey, hasOne.AttributeName)
+			ass := makeAssocation(self, cls, &errs, "has_one", hasOne.Target, hasOne.Embedded,
+				"", hasOne.ForeignKey, hasOne.AttributeName)
 			if nil == ass {
 				continue
 			}

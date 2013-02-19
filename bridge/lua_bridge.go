@@ -12,10 +12,10 @@ import (
 func registerLua(svr *web.Server, timeout time.Duration, drvMgr *commons.DriverManager) error {
 	driver := lua_binding.NewLuaDriver(timeout, drvMgr)
 	drvMgr.Register("lua", driver)
-	svr.Get("/lua/(.*)/(.*)", func(ctx *web.Context, script, id string) { luaGet(driver, ctx, script, id) })
-	svr.Put("/lua/(.*)/(.*)", func(ctx *web.Context, script, id string) { luaPut(driver, ctx, script, id) })
-	svr.Delete("/lua/(.*)/(.*)", func(ctx *web.Context, script, id string) { luaDelete(driver, ctx, script, id) })
-	svr.Post("/lua/(.*)", func(ctx *web.Context, script string) { luaCreate(driver, ctx, script) })
+	svr.Get("/lua/([^/]*)/([^/]*)", func(ctx *web.Context, script, id string) { luaGet(driver, ctx, script, id) })
+	svr.Put("/lua/([^/]*)/([^/]*)", func(ctx *web.Context, script, id string) { luaPut(driver, ctx, script, id) })
+	svr.Delete("/lua/([^/]*)/([^/]*)", func(ctx *web.Context, script, id string) { luaDelete(driver, ctx, script, id) })
+	svr.Post("/lua/([^/]*)", func(ctx *web.Context, script string) { luaCreate(driver, ctx, script) })
 
 	return driver.Start()
 }

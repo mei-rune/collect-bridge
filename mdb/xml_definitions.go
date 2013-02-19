@@ -31,6 +31,7 @@ type XMLHasMany struct {
 	AttributeName string `xml:"attributeName,attr,omitempty"`
 	ForeignKey    string `xml:"foreignKey,attr,omitempty"`
 	Embedded      string `xml:"embedded,attr,omitempty"`
+	Polymorphic   string `xml:"polymorphic,attr,omitempty"`
 	Target        string `xml:",chardata"`
 }
 

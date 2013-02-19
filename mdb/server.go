@@ -17,8 +17,8 @@ var (
 )
 
 type assocationOp struct {
-	deleteOp    func(s *mdb_server, assoc Assocation, id interface{}) error
-	deleteAllOp func(s *mdb_server, assoc Assocation) error
+	deleteOp    func(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) error
+	deleteAllOp func(s *mdb_server, assoc Assocation, cls *ClassDefinition) error
 	//createOp func(s *mdb_server, assoc *Assocation, id interface{}) error
 }
 
@@ -330,12 +330,18 @@ func collectionExists(s *mdb_server, cn string) bool {
 	return false
 }
 
-func deleteHasMany(s *mdb_server, assoc Assocation, id interface{}) error {
+func deleteHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) error {
 	hasMany, ok := assoc.(*HasMany)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
 	}
-	it := s.session.C(hasMany.Target().CollectionName()).Find(bson.M{hasMany.ForeignKey: id}).Select(bson.M{"_id": 1}).Iter()
+	var qc bson.M
+	if hasMany.Polymorphic {
+		qc = bson.M{"parent_type": cls.CollectionName(), "parent_id": id}
+	} else {
+		qc = bson.M{hasMany.ForeignKey: id}
+	}
+	it := s.session.C(hasMany.Target().CollectionName()).Find(qc).Select(bson.M{"_id": 1}).Iter()
 	var result map[string]interface{}
 	for it.Next(&result) {
 		o, ok := result["_id"]
@@ -347,13 +353,20 @@ func deleteHasMany(s *mdb_server, assoc Assocation, id interface{}) error {
 	}
 	return it.Err()
 }
-func deleteAllHasMany(s *mdb_server, assoc Assocation) error {
+func deleteAllHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition) error {
 	hasMany, ok := assoc.(*HasMany)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
 	}
 	cn := hasMany.Target().CollectionName()
-	err := s.session.C(cn).DropCollection()
+	if hasMany.Polymorphic {
+		_, err := s.RemoveBy(hasMany.Target(), map[string]string{"@parent_type": cls.CollectionName()})
+		if nil != err {
+			return fmt.Errorf("delete from '%s' collection failed, %v", cn, err)
+		}
+		return nil
+	}
+	_, err := s.RemoveAll(hasMany.Target(), map[string]string{})
 	if nil != err {
 		if !collectionExists(s, cn) {
 			return nil
@@ -363,7 +376,7 @@ func deleteAllHasMany(s *mdb_server, assoc Assocation) error {
 	return nil
 }
 
-func deleteMany2Many(s *mdb_server, assoc Assocation, id interface{}) error {
+func deleteMany2Many(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) error {
 	habtm, ok := assoc.(*HasAndBelongsToMany)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasAndBelongsToMany.", assoc))
@@ -382,7 +395,7 @@ func deleteMany2Many(s *mdb_server, assoc Assocation, id interface{}) error {
 	return it.Err()
 }
 
-func deleteAllMany2Many(s *mdb_server, assoc Assocation) error {
+func deleteAllMany2Many(s *mdb_server, assoc Assocation, cls *ClassDefinition) error {
 	habtm, ok := assoc.(*HasAndBelongsToMany)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasAndBelongsToMany.", assoc))
@@ -414,7 +427,7 @@ func (self *mdb_server) removeChildren(cls *ClassDefinition, id interface{}) (bo
 		if nil == op || nil == op.deleteOp {
 			continue
 		}
-		err := op.deleteOp(self, a, id)
+		err := op.deleteOp(self, a, cls, id)
 		if nil != err {
 			errs = append(errs, err)
 		}
@@ -424,6 +437,7 @@ func (self *mdb_server) removeChildren(cls *ClassDefinition, id interface{}) (bo
 	}
 	return false, commons.NewMutiErrors("parameters is error.", errs)
 }
+
 func (self *mdb_server) removeAllChildren(cls *ClassDefinition) error {
 	errs := make([]error, 0)
 	for _, a := range cls.Assocations {
@@ -431,7 +445,7 @@ func (self *mdb_server) removeAllChildren(cls *ClassDefinition) error {
 		if nil == op || nil == op.deleteAllOp {
 			continue
 		}
-		err := op.deleteAllOp(self, a)
+		err := op.deleteAllOp(self, a, cls)
 		if nil != err {
 			errs = append(errs, err)
 		}
@@ -463,10 +477,10 @@ func (self *mdb_server) RemoveBy(cls *ClassDefinition, params map[string]string)
 		return false, err
 	}
 	_, err = c.RemoveAll(s)
-	return (nil != err), err
+	return (nil == err), err
 }
 
-func (self *mdb_server) RemoveAll(cls *ClassDefinition) (bool, error) {
+func (self *mdb_server) RemoveAll(cls *ClassDefinition, params map[string]string) (bool, error) {
 	err := self.removeAllChildren(cls)
 	if nil != err {
 		return false, err

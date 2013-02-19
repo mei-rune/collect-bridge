@@ -47,9 +47,6 @@ func NewPinger(network, laddr string, capacity int) (*Pinger, error) {
 }
 
 func (self *Pinger) Close() {
-
-	fmt.Println("exit")
-
 	self.conn.Close()
 	self.conn = nil
 	self.wait.Wait()

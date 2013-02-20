@@ -9,9 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
-	"web"
 )
 
 var (
@@ -19,11 +17,8 @@ var (
 	timeout     = flag.Int("timeout", 5, "the timeout")
 	network     = flag.String("ip-range", "", "the ip range")
 	communities = flag.String("communities", "public", "the community")
-	proxy       = flag.String("proxy", "127.0.0.1:7070", "the address of proxy")
-
-	address   = flag.String("http", ":7071", "the address of http")
-	directory = flag.String("directory", ".", "the static directory of http")
-	cookies   = flag.String("cookies", "", "the static directory of http")
+	proxy       = flag.String("proxy", "127.0.0.1:7070", "the address of bridge proxy")
+	dbproxy     = flag.String("dbproxy", "127.0.0.1:7071", "the address of mdb proxy")
 )
 
 func HttpPut(endpoint string, bodyType string, body io.Reader) (*http.Response, error) {
@@ -40,17 +35,6 @@ func httpDelete(endpoint string) (*http.Response, error) {
 		return nil, err
 	}
 	return http.DefaultClient.Do(req)
-}
-
-func mainHandle(rw *web.Context) {
-	errFile := "_log_/error.html"
-	_, err := os.Stat(errFile)
-	if err == nil || os.IsExist(err) {
-		content, _ := ioutil.ReadFile(errFile)
-		rw.WriteString(string(content))
-		return
-	}
-	rw.WriteString("Hello, World!")
 }
 
 func readAll(r io.Reader) string {
@@ -80,7 +64,7 @@ func discoveryCreate(params map[string]interface{}) (string, error) {
 	if nil != e {
 		return "", fmt.Errorf("create discovery failed, %v", e)
 	}
-	return result["id"].(string), nil
+	return commons.GetReturn(result).(string), nil
 }
 
 func discoveryGet(id string, params map[string]string) (interface{}, error) {
@@ -95,8 +79,9 @@ func discoveryGet(id string, params map[string]string) (interface{}, error) {
 	if resp.StatusCode != 200 {
 		return "", fmt.Errorf("get discovery message failed, %v, %v", resp.StatusCode, readAll(resp.Body))
 	}
+	body := readAll(resp.Body)
 	result := map[string]interface{}{}
-	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
+	e = json.Unmarshal([]byte(body), &result)
 
 	if nil != e {
 		return "", fmt.Errorf("get discovery message failed, %v", e)
@@ -115,6 +100,27 @@ func discoveryDelete(id string) error {
 	return nil
 }
 
+func save(drv interface{}) (string, error) {
+	js, err := json.Marshal(drv)
+	if nil != err {
+		return "", fmt.Errorf("marshal device to json failed, %s", err.Error())
+	}
+
+	resp, e := http.Post("http://"+*dbproxy+"/mdb/device", "application/json", bytes.NewBuffer([]byte(js)))
+	if nil != e {
+		return "", fmt.Errorf("create device failed, %v", e)
+	}
+	if resp.StatusCode != 201 {
+		return "", fmt.Errorf("create device failed, %v, %v", resp.StatusCode, readAll(resp.Body))
+	}
+	result := map[string]interface{}{}
+	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
+
+	if nil != e {
+		return "", fmt.Errorf("create device failed, %v", e)
+	}
+	return commons.GetReturn(result).(string), nil
+}
 func main() {
 
 	flag.Parse()
@@ -124,15 +130,7 @@ func main() {
 		return
 	}
 
-	svr := web.NewServer()
-	svr.Config.Name = "meijing-discovery v1.0"
-	svr.Config.Address = *address
-	svr.Config.StaticDirectory = *directory
-	svr.Config.CookieSecret = *cookies
-	svr.Get("/", mainHandle)
-
 	params := map[string]interface{}{}
-
 	communities2 := strings.Split(*communities, ";")
 	if nil != communities2 && 0 != len(communities2) {
 		params["communities"] = communities2
@@ -150,7 +148,6 @@ func main() {
 		return
 	}
 
-	go svr.Run()
 	for {
 		values, err := discoveryGet(id, map[string]string{"dst": "message"})
 		if nil != err {
@@ -179,12 +176,25 @@ func main() {
 		return
 	}
 	if nil != res {
+
 		bytes, e := json.MarshalIndent(res, "", "  ")
 		if nil != e {
 			fmt.Println(e)
 			return
 		}
 		fmt.Println(string(bytes))
+
+		devices, ok := res.(map[string]interface{})
+		if ok {
+			for _, drv := range devices {
+				_, e := save(drv)
+				if nil != e {
+					fmt.Println(e)
+				}
+			}
+		} else {
+			fmt.Println("this is not a array")
+		}
 	}
 
 	err = discoveryDelete(id)

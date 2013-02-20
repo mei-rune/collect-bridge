@@ -25,7 +25,7 @@ func (self *ipAddress) GetDefault(params map[string]string) (map[string]interfac
 			new_row := map[string]interface{}{}
 			new_row["address"] = GetIPAddress(params, old_row, "1")
 			new_row["ifIndex"] = GetInt32(params, old_row, "2", -1)
-			new_row["mask"] = GetIPAddress(params, old_row, "3")
+			new_row["netmask"] = GetIPAddress(params, old_row, "3")
 			new_row["bcastAddress"] = GetInt32(params, old_row, "4", -1)
 			new_row["reasmMaxSize"] = GetInt32(params, old_row, "5", -1)
 			table[key] = new_row

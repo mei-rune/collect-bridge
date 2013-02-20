@@ -52,7 +52,7 @@ func (self *DiscoveryDriver) Get(params map[string]string) (map[string]interface
 		return commons.Return(messages), nil
 	}
 	if discoverer.IsCompleted() {
-		return discoverer.Result(), nil
+		return commons.Return(discoverer.Result()), nil
 	}
 	return nil, commons.NewRuntimeError(503, "discovering, try again later.")
 }
@@ -111,7 +111,7 @@ func (self *DiscoveryDriver) Create(params map[string]string) (map[string]interf
 		return nil, commons.ServiceUnavailable
 	}
 	self.discoverers[id] = discoverer
-	return commons.ReturnWithKV(map[string]interface{}{}, "id", id), nil
+	return commons.Return(id), nil
 }
 
 func (self *DiscoveryDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {

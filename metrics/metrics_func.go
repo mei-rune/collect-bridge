@@ -422,51 +422,59 @@ func (self *SnmpBase) Delete(params map[string]string) (bool, commons.RuntimeErr
 	return false, commons.NotImplemented
 }
 
-type SystemOid struct {
+type systemOid struct {
 	SnmpBase
 }
 
-func (self *SystemOid) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *systemOid) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	return self.GetOid(params, "1.3.6.1.2.1.1.2.0")
 }
 
-type SystemDescr struct {
+type systemDescr struct {
 	SnmpBase
 }
 
-func (self *SystemDescr) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *systemDescr) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	return self.GetString(params, "1.3.6.1.2.1.1.1.0")
 }
 
-type SystemName struct {
+type systemName struct {
 	SnmpBase
 }
 
-func (self *SystemName) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *systemName) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	return self.GetString(params, "1.3.6.1.2.1.1.5.0")
 }
 
-type SystemUpTime struct {
+type systemUpTime struct {
 	SnmpBase
 }
 
-func (self *SystemUpTime) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *systemUpTime) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	return self.GetUint32(params, "1.3.6.1.2.1.1.3.0")
 }
 
-type SystemServices struct {
+type systemLocation struct {
 	SnmpBase
 }
 
-func (self *SystemServices) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *systemLocation) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	return self.GetString(params, "1.3.6.1.2.1.1.6.0")
+}
+
+type systemServices struct {
+	SnmpBase
+}
+
+func (self *systemServices) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	return self.GetInt32(params, "1.3.6.1.2.1.1.7.0")
 }
 
-type SystemInfo struct {
+type systemInfo struct {
 	SnmpBase
 }
 
-func (self *SystemInfo) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *systemInfo) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	return self.GetOne(params, "1.3.6.1.2.1.1", "", func(old_row map[string]interface{}) (map[string]interface{}, commons.RuntimeError) {
 
 		oid := GetOid(params, old_row, "2")
@@ -493,11 +501,11 @@ func (self *SystemInfo) Get(params map[string]string) (map[string]interface{}, c
 	})
 }
 
-type Interface struct {
+type interfaceAll struct {
 	SnmpBase
 }
 
-func (self *Interface) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *interfaceAll) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	//params["columns"] = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21"
 
 	return self.GetTable(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
@@ -529,7 +537,28 @@ func (self *Interface) Get(params map[string]string) (map[string]interface{}, co
 		})
 }
 
-type SystemType struct {
+type interfaceDescr struct {
+	SnmpBase
+}
+
+func (self *interfaceDescr) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	//params["columns"] = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21"
+
+	return self.GetTable(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6",
+		func(table map[string]interface{}, key string, old_row map[string]interface{}) error {
+			new_row := map[string]interface{}{}
+			new_row["ifIndex"] = GetInt32(params, old_row, "1", -1)
+			new_row["ifDescr"] = GetString(params, old_row, "2")
+			new_row["ifType"] = GetInt32(params, old_row, "3", -1)
+			new_row["ifMtu"] = GetInt32(params, old_row, "4", -1)
+			new_row["ifSpeed"] = GetUint64(params, old_row, "5", 0)
+			new_row["ifPhysAddress"] = GetHardwareAddress(params, old_row, "6")
+			table[key] = new_row
+			return nil
+		})
+}
+
+type systemType struct {
 	SnmpBase
 	device2id map[string]int
 }
@@ -542,7 +571,7 @@ func ErrorIsRestric(msg string, restric bool, log *commons.Logger) commons.Runti
 	return commons.NewRuntimeError(commons.InternalErrorCode, msg)
 }
 
-func (self *SystemType) Init(params map[string]interface{}, drvName string) commons.RuntimeError {
+func (self *systemType) Init(params map[string]interface{}, drvName string) commons.RuntimeError {
 	e := self.SnmpBase.Init(params, drvName)
 	if nil != e {
 		return e
@@ -577,7 +606,7 @@ func (self *SystemType) Init(params map[string]interface{}, drvName string) comm
 	return nil
 }
 
-func (self *SystemType) Get(params map[string]string) (
+func (self *systemType) Get(params map[string]string) (
 	map[string]interface{}, commons.RuntimeError) {
 	oid, e := self.GetStringMetric(params, "sys.oid")
 	if nil == e {
@@ -618,37 +647,46 @@ SERVICES:
 
 func init() {
 	commons.METRIC_DRVS["sys.oid"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
-		drv := &SystemOid{}
+		drv := &systemOid{}
 		return drv, drv.Init(params, "snmp")
 	}
 	commons.METRIC_DRVS["sys.descr"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
-		drv := &SystemDescr{}
+		drv := &systemDescr{}
 		return drv, drv.Init(params, "snmp")
 	}
 	commons.METRIC_DRVS["sys.name"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
-		drv := &SystemName{}
+		drv := &systemName{}
 		return drv, drv.Init(params, "snmp")
 	}
 	commons.METRIC_DRVS["sys.services"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
-		drv := &SystemServices{}
+		drv := &systemServices{}
 		return drv, drv.Init(params, "snmp")
 	}
 	commons.METRIC_DRVS["sys.upTime"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
-		drv := &SystemUpTime{}
+		drv := &systemUpTime{}
 		return drv, drv.Init(params, "snmp")
 	}
 	commons.METRIC_DRVS["sys.type"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
-		drv := &SystemType{}
+		drv := &systemType{}
+		return drv, drv.Init(params, "snmp")
+	}
+	commons.METRIC_DRVS["sys.location"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+		drv := &systemLocation{}
 		return drv, drv.Init(params, "snmp")
 	}
 	commons.METRIC_DRVS["sys"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
-		drv := &SystemInfo{}
+		drv := &systemInfo{}
 		return drv, drv.Init(params, "snmp")
 	}
 	commons.METRIC_DRVS["interface"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
-		drv := &Interface{}
+		drv := &interfaceAll{}
 		return drv, drv.Init(params, "snmp")
 	}
+	commons.METRIC_DRVS["interfaceDescr"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+		drv := &interfaceDescr{}
+		return drv, drv.Init(params, "snmp")
+	}
+
 }
 
 type DispatchFunc func(params map[string]string) (map[string]interface{}, commons.RuntimeError)
@@ -662,7 +700,7 @@ type dispatcherBase struct {
 	set_methods map[uint]map[string]DispatchFunc
 }
 
-func splitSystemOid(oid string) (uint, string) {
+func splitsystemOid(oid string) (uint, string) {
 	if !strings.HasPrefix(oid, "1.3.6.1.4.1.") {
 		return 0, oid
 	}
@@ -685,7 +723,7 @@ func splitSystemOid(oid string) (uint, string) {
 
 func (self *dispatcherBase) RegisterGetFunc(oids []string, get DispatchFunc) {
 	for _, oid := range oids {
-		main, sub := splitSystemOid(oid)
+		main, sub := splitsystemOid(oid)
 		methods := self.get_methods[main]
 		if nil == methods {
 			methods = map[string]DispatchFunc{}
@@ -697,7 +735,7 @@ func (self *dispatcherBase) RegisterGetFunc(oids []string, get DispatchFunc) {
 
 func (self *dispatcherBase) RegisterSetFunc(oids []string, set DispatchFunc) {
 	for _, oid := range oids {
-		main, sub := splitSystemOid(oid)
+		main, sub := splitsystemOid(oid)
 		methods := self.set_methods[main]
 		if nil == methods {
 			methods = map[string]DispatchFunc{}
@@ -708,7 +746,7 @@ func (self *dispatcherBase) RegisterSetFunc(oids []string, set DispatchFunc) {
 }
 
 func findFunc(oid string, funcs map[uint]map[string]DispatchFunc) DispatchFunc {
-	main, sub := splitSystemOid(oid)
+	main, sub := splitsystemOid(oid)
 	methods := funcs[main]
 	if nil == methods {
 		return nil
@@ -732,7 +770,7 @@ func (self *dispatcherBase) FindSetFunc(oid string) DispatchFunc {
 }
 
 func findDefaultFunc(oid string, funcs map[uint]map[string]DispatchFunc) DispatchFunc {
-	main, sub := splitSystemOid(oid)
+	main, sub := splitsystemOid(oid)
 	methods := funcs[main]
 	if nil == methods {
 		return nil

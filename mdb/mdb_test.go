@@ -54,7 +54,7 @@ func createMockInterface(t *testing.T, id, factor string) string {
 }
 
 func createMockDevice(t *testing.T, factor string) string {
-	id, e := createJson("device", fmt.Sprintf(`{"name":"dd%s", "catalog":%s, "services":2%s}`, factor, factor, factor))
+	id, e := createJson("device", fmt.Sprintf(`{"name":"dd%s", "catalog":%s, "services":2%s, "managed_address":"20.0.8.110"}`, factor, factor, factor))
 	if nil != e {
 		t.Error(e.Error())
 		return ""

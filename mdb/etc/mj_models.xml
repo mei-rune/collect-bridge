@@ -8,6 +8,15 @@
 				<maxLength>200</maxLength>
       </restriction>
     </property>
+    <property name="address">
+      <restriction base="ipAddress">
+        <required />
+      </restriction>
+    </property>
+    <property name="communities">
+      <restriction base="string" collection="array">
+      </restriction>
+    </property>
     <property name="description">
       <restriction base="string">
 				<maxLength>2000</maxLength>
@@ -18,17 +27,44 @@
         <required />
       </restriction>
     </property>
+    <property name="oid">
+      <restriction base="string">
+      </restriction>
+    </property>
     <property name="services">
       <restriction base="integer">
       </restriction>
     </property>
-    <property name="locations">
+    <property name="location">
       <restriction base="string">
 				<maxLength>2000</maxLength>
       </restriction>
     </property>
 		<has_many foreignKey="device_id" >Interface</has_many>
+    <has_many foreignKey="device_id" >Address</has_many>
     <has_many polymorphic="true" >Trigger</has_many>
+  </class>
+  <class name="Address">
+    <property name="address">
+      <restriction base="ipAddress">
+      </restriction>
+    </property>
+    <property name="ifIndex">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="netmask">
+      <restriction base="ipAddress">
+      </restriction>
+    </property>
+    <property name="bcastAddress">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="reasmMaxSize">
+      <restriction base="integer">
+      </restriction>
+    </property>
   </class>
   <class name="Interface">
     <property name="ifIndex">
@@ -51,6 +87,10 @@
     </property>
     <property name="ifSpeed">
       <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="ifPhysAddress">
+      <restriction base="physicalAddress">
       </restriction>
     </property>
   </class>

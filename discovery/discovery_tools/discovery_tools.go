@@ -102,7 +102,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	id, e := as.AsString(res["id"])
+	id, e := as.AsString(res["value"])
 	if nil != e {
 		fmt.Println(e)
 		return

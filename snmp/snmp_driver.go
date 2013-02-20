@@ -148,7 +148,6 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 	if nil != err {
 		return nil, internalError("append vb failed", err)
 	}
-
 	resp, err := client.SendAndRecv(req, getTimeout(params, self.timeout))
 	if nil != err {
 		return nil, internalError("snmp failed", err)
@@ -349,7 +348,6 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 
 		offset := 0
 		for i, vb := range resp.GetVariableBindings().All() {
-			fmt.Println(vb.Oid.String(), vb.Value.String())
 
 			if !strings.HasPrefix(vb.Oid.GetString(), next_oids_s[i]) {
 				copy(next_oids[i:], next_oids[i+1:])

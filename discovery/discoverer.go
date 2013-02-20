@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	DEBUG         = "debug"
-	WARN          = "warn"
-	ERROR         = "error"
-	FATAL         = "fatal"
-	INFO          = "info"
+	DEBUG         = "[DEBUG]"
+	WARN          = "[WARN]"
+	ERROR         = "[ERROR]"
+	FATAL         = "[FATAL]"
+	INFO          = "[INFO]"
 	END_TOKEN     = "end"
 	TIMEOUT_TOKEN = "timeout"
 )
@@ -29,7 +29,7 @@ type replyResult struct {
 }
 type Discoverer struct {
 	ch          chan string
-	drv_ch      chan *Device
+	drv_ch      chan Device
 	command_ch  chan map[string]interface{}
 	result_ch   chan commons.RuntimeError
 	isCompleted bool
@@ -41,7 +41,7 @@ type Discoverer struct {
 	snmp_drv    commons.Driver
 	metrics_drv commons.Driver
 
-	devices    map[string]*Device
+	devices    map[string]Device
 	ip2managed map[string]string
 }
 
@@ -87,7 +87,7 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 	}
 
 	discoverer := &Discoverer{ch: make(chan string, 1000),
-		drv_ch:     make(chan *Device),
+		drv_ch:     make(chan Device),
 		command_ch: make(chan map[string]interface{}),
 		result_ch:  make(chan commons.RuntimeError),
 		//icmp_pinger: icmp_pinger,
@@ -97,7 +97,7 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 
 		params: params,
 
-		devices:    make(map[string]*Device),
+		devices:    make(map[string]Device),
 		ip2managed: make(map[string]string)}
 
 	go discoverer.serve()
@@ -105,14 +105,14 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 	return discoverer, nil
 }
 
-func (self *Discoverer) readMetric(drv *Device, name string) (interface{}, error) {
-
-	if nil == drv.Communities || 0 == len(drv.Communities) {
+func (self *Discoverer) readMetric(drv Device, name string) (interface{}, error) {
+	communities := drv["communities"].([]string)
+	if nil == communities || 0 == len(communities) {
 		return nil, errors.New("community ip of local host is empty.")
 	}
 
-	res, e := self.metrics_drv.Get(map[string]string{"id": drv.ManagedIP, "metric": name,
-		"snmp.community": drv.Communities[0]})
+	res, e := self.metrics_drv.Get(map[string]string{"id": drv["address"].(string), "metric": name,
+		"snmp.community": communities[0], "charset": "GB18030"})
 	if nil != e {
 		return nil, e
 	}
@@ -138,10 +138,8 @@ func (self *Discoverer) guessCommunities(ip string) []string {
 			} else {
 				h <- ""
 			}
-		}(ch, c, map[string]string{"id": ip, "oid": "1.3.6.1.2.1.1.2.0", "action": "get", "community": c, "timeout": "30"})
+		}(ch, c, map[string]string{"id": ip, "snmp.oid": "1.3.6.1.2.1.1.2.0", "snmp.action": "get", "snmp.community": c, "timeout": "30"})
 	}
-
-	self.log(DEBUG, "guess password for "+ip)
 
 	tries := len(self.params.Communities)
 	for 0 != tries {
@@ -156,13 +154,17 @@ func (self *Discoverer) guessCommunities(ip string) []string {
 		}
 	}
 End:
-	self.log(DEBUG, "guess password for "+ip+", result is "+strings.Join(valid, ","))
+	if 0 == len(valid) {
+		self.log(DEBUG, "guess password for "+ip+", result is empty")
+	} else {
+		self.log(DEBUG, "guess password for "+ip+", result is "+strings.Join(valid, ","))
+	}
 	return valid
 }
 
-func (self *Discoverer) readLocal() (*Device, error) {
+func (self *Discoverer) readLocal() (Device, error) {
 	managed_ip := ""
-	interfaces := make([]Interface, 0)
+	interfaces := make([]interface{}, 0)
 	ifs, e := net.Interfaces()
 	if nil != e {
 		return nil, e
@@ -180,11 +182,11 @@ func (self *Discoverer) readLocal() (*Device, error) {
 					managed_ip = addr.String()
 				}
 			}
-			interfaces = append(interfaces, Interface{Index: f.Index,
-				MTU:          f.MTU,
-				Description:  f.Name,
-				Address:      addr.String(),
-				HardwareAddr: f.HardwareAddr.String()})
+			interfaces = append(interfaces, map[string]interface{}{"ifIndex": f.Index,
+				"ifMtu":         f.MTU,
+				"ifDescr":       f.Name,
+				"address":       addr.String(),
+				"ifPhysAddress": f.HardwareAddr.String()})
 		}
 	}
 
@@ -198,13 +200,12 @@ func (self *Discoverer) readLocal() (*Device, error) {
 		return nil, errors.New("community of localhost is empty.")
 	}
 
-	drv := &Device{ManagedIP: managed_ip, Communities: communities, Interfaces: interfaces,
-		Attributes: map[string]interface{}{}}
+	drv := Device{"address": managed_ip, "communities": communities, "interfaceTables": interfaces}
 	self.initDevice(drv)
 	return drv, nil
 }
 
-func (self *Discoverer) discoverDevice(ip, port string) (*Device, error) {
+func (self *Discoverer) discoverDevice(ip, port string) (Device, error) {
 	if "" == ip {
 		return nil, errors.New("managed ip of local host is empty.")
 	}
@@ -214,23 +215,28 @@ func (self *Discoverer) discoverDevice(ip, port string) (*Device, error) {
 		return nil, errors.New("community ip of local host is empty.")
 	}
 
-	drv := &Device{ManagedIP: ip, Communities: communities}
+	drv := Device{"address": ip, "communities": communities}
 	return drv, self.initDevice(drv)
 }
 
-func (self *Discoverer) initDevice(drv *Device) error {
+func (self *Discoverer) initDevice(drv Device) error {
 	// read basic attributes
-	drv.Attributes = map[string]interface{}{}
-	for _, name := range []string{"sys.oid", "sys.descr"} {
-		self.logf(DEBUG, "read '%s' for '%s", name, drv.ManagedIP)
+	for name, alias := range map[string]string{"sys.oid": "oid", "sys.descr": "description",
+		"sys.type":       "catalog",
+		"sys.services":   "services",
+		"sys.name":       "name",
+		"sys.location":   "location",
+		"interfaceDescr": "interfaces",
+		"ipAddress":      "addresses"} {
+		self.logf(DEBUG, "read '%s' for '%v", name, drv["address"])
 		metric, e := self.readMetric(drv, name)
 		if nil != e {
-			self.logf(ERROR, "read %s of '%s' failed, %v.", name, drv.ManagedIP, e)
+			self.logf(ERROR, "read %s of '%v' failed, %v.", name, drv["address"], e)
 		} else if nil == metric {
-			self.logf(ERROR, "read %s of '%s' failed, result is nil.", name, drv.ManagedIP)
+			self.logf(ERROR, "read %s of '%v' failed, result is nil.", name, drv["address"])
 		} else {
-			self.logf(DEBUG, "read '%s' for '%s', result is %v", name, drv.ManagedIP, metric)
-			drv.Attributes[name] = metric
+			self.logf(DEBUG, "read '%s' for '%v' successed, result is %v", name, drv["address"], metric)
+			drv[alias] = metric
 		}
 	}
 
@@ -245,26 +251,79 @@ func (self *Discoverer) logf(level string, format string, params ...interface{})
 	self.ch <- fmt.Sprintf(level+" "+format, params...)
 }
 
-func (self *Discoverer) addDevice(drv *Device) {
-	self.devices[drv.ManagedIP] = drv
-	if nil == drv.Interfaces {
+func (self *Discoverer) addDevice(drv Device) {
+	self.devices[drv["address"].(string)] = drv
+
+	interfaceTables, ok := drv["interfaceTables"].([]interface{})
+	if !ok {
+		self.logf(FATAL, "interfaceTables is not []interface{}, actual is %T.", interfaceTables)
+	} else if nil != interfaceTables {
+		for _, ifs := range interfaceTables {
+			row, ok := ifs.(map[string]interface{})
+			if !ok {
+				self.logf(FATAL, "interfaceTables is not map[string]interface{}, actual is %T.", ifs)
+				break
+			}
+			self.ip2managed[row["address"].(string)] = drv["address"].(string)
+		}
+	}
+
+	ipAddresses, ok := drv["addresses"].(map[string]interface{})
+	if !ok || nil == ipAddresses || 0 == len(ipAddresses) {
 		return
 	}
-	for _, ifs := range drv.Interfaces {
-		self.ip2managed[ifs.Address] = drv.ManagedIP
+
+	for _, r := range ipAddresses {
+		row, ok := r.(map[string]interface{})
+		if !ok || nil == row {
+			continue
+		}
+		self.ip2managed[row["address"].(string)] = drv["address"].(string)
 	}
 }
 
-func (self *Discoverer) detectIPRange(drv *Device) {
-	for _, ifs := range drv.Interfaces {
+func (self *Discoverer) detectIPRange(drv Device) {
+	ip_list := map[string]int{}
 
-		ip_range, err := netutils.ParseIPRange(ifs.Address + "/24")
+	interfaceTables, ok := drv["interfaceTables"].([]interface{})
+	if !ok {
+		self.logf(FATAL, "interfaceTables is not []interface{}, actual is %T.", interfaceTables)
+	} else if nil != interfaceTables {
+		for _, ifs := range interfaceTables {
+			row, ok := ifs.(map[string]interface{})
+			if !ok {
+				self.logf(FATAL, "interfaceTables is not map[string]interface{}, actual is %T.", ifs)
+				continue
+			}
+			ip_list[row["address"].(string)] = 0
+		}
+	}
+
+	ipAddresses, ok := drv["addresses"].(map[string]interface{})
+	if ok && nil != ipAddresses {
+		for _, r := range ipAddresses {
+			row, ok := r.(map[string]interface{})
+			if !ok || nil == row {
+				self.logf(FATAL, "ipAddress is not map[string]interface{}, actual is %T.", r)
+				continue
+			}
+			ip_list[row["address"].(string)] = 0
+		}
+	}
+
+	for ip, _ := range ip_list {
+		if netutils.IsInvalidAddress(ip) {
+			self.log(DEBUG, "skip invalid address - "+ip)
+			break
+		}
+
+		ip_range, err := netutils.ParseIPRange(ip + "/24")
 		if nil != err {
-			self.log(DEBUG, "scan ip range '"+ifs.Address+"/24' failed, "+err.Error())
+			self.log(DEBUG, "scan ip range '"+ip+"/24' failed, "+err.Error())
 			continue
 		}
 
-		self.log(DEBUG, "scan ip range '"+ifs.Address+"/24' success")
+		self.log(DEBUG, "scan ip range '"+ip+"/24' success")
 
 		for ip_range.HasNext() {
 			addr := ip_range.Current().String()
@@ -304,12 +363,12 @@ func (self *Discoverer) serve() {
 		return
 	}
 
-	self.log(INFO, "discover device '"+local.ManagedIP+"'")
+	self.logf(INFO, "discover device '%v'", local["address"])
 	self.addDevice(local)
 	self.detectIPRange(local)
 
 	for d := 0; d < self.params.Depth; d++ {
-		pending_drvs := make([]*Device, 0, 10)
+		pending_drvs := make([]Device, 0, 10)
 		goroutes := 0
 		running := true
 		for running {

@@ -3,7 +3,7 @@ package mdb
 import (
 	"errors"
 	"fmt"
-	"github.com/skynetservices/mgo/bson"
+	"labix.org/v2/mgo/bson"
 	"net"
 	"regexp"
 	"strconv"

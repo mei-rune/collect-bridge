@@ -48,7 +48,7 @@ func GetInt32(params map[string]string, values map[string]interface{}, idx strin
 func TryGetInt32(params map[string]string, values map[string]interface{}, idx string, defaultValue int32) (int32, error) {
 	value, ok := values[idx]
 	if !ok {
-		return defaultValue, errors.New("row with key is '" + idx + "' is not found")
+		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
 	case snmp.SnmpValue:
@@ -91,7 +91,7 @@ func GetUint32(params map[string]string, values map[string]interface{}, idx stri
 func TryGetUint32(params map[string]string, values map[string]interface{}, idx string, defaultValue uint32) (uint32, error) {
 	value, ok := values[idx]
 	if !ok {
-		return defaultValue, errors.New("row with key is '" + idx + "' is not found")
+		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
 	case snmp.SnmpValue:
@@ -134,7 +134,7 @@ func GetInt64(params map[string]string, values map[string]interface{}, idx strin
 func TryGetInt64(params map[string]string, values map[string]interface{}, idx string, defaultValue int64) (int64, error) {
 	value, ok := values[idx]
 	if !ok {
-		return defaultValue, errors.New("row with key is '" + idx + "' is not found")
+		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
 	case snmp.SnmpValue:
@@ -177,7 +177,7 @@ func GetUint64(params map[string]string, values map[string]interface{}, idx stri
 func TryGetUint64(params map[string]string, values map[string]interface{}, idx string, defaultValue uint64) (uint64, error) {
 	value, ok := values[idx]
 	if !ok {
-		return defaultValue, errors.New("row with key is '" + idx + "' is not found")
+		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
 	case snmp.SnmpValue:
@@ -220,7 +220,7 @@ func GetOid(params map[string]string, values map[string]interface{}, idx string)
 func TryGetOid(params map[string]string, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
-		return "", errors.New("row with key is '" + idx + "' is not found")
+		return "", nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
 	case snmp.SnmpValue:
@@ -247,7 +247,7 @@ func GetString(params map[string]string, values map[string]interface{}, idx stri
 func TryGetString(params map[string]string, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
-		return "", errors.New("row with key is '" + idx + "' is not found")
+		return "", nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
 	case snmp.SnmpValue:
@@ -284,7 +284,7 @@ func GetHardwareAddress(params map[string]string, values map[string]interface{},
 func TryGetHardwareAddress(params map[string]string, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
-		return "", errors.New("row with key is '" + idx + "' is not found")
+		return "", nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
 	case snmp.SnmpValue:
@@ -312,7 +312,7 @@ func GetIPAddress(params map[string]string, values map[string]interface{}, idx s
 func TryGetIPAddress(params map[string]string, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
-		return "", errors.New("row with key is '" + idx + "' is not found")
+		return "", nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
 	case snmp.SnmpValue:

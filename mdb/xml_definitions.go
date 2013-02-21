@@ -79,6 +79,8 @@ type XMLRestrictionsDefinition struct {
 	Type       string   `xml:"base,attr"`
 	Collection string   `xml:"collection,attr,omitempty"`
 
+	ReadOnly     *XMLReadOnly `xml:",omitempty"`
+	Unique       *XMLUnique   `xml:",omitempty"`
 	Required     *XMLRequired `xml:",omitempty"`
 	DefaultValue string       `xml:"defaultValue,omitempty"`
 	Enumerations *[]string    `xml:"enumeration>value,omitempty"`
@@ -101,6 +103,14 @@ type XMLRestrictionsDefinition struct {
 
 type XMLRequired struct {
 	XMLName xml.Name `xml:"required"`
+}
+
+type XMLReadOnly struct {
+	XMLName xml.Name `xml:"readonly"`
+}
+
+type XMLUnique struct {
+	XMLName xml.Name `xml:"unique"`
 }
 
 // type DefaultValueRestrictionDefinition struct {

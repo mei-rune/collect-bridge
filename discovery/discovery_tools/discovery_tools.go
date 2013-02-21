@@ -21,7 +21,7 @@ var (
 	depth       = flag.Int("depth", 5, "the depth")
 	timeout     = flag.Int("timeout", 5, "the timeout")
 	network     = flag.String("ip-range", "", "the ip range")
-	communities = flag.String("communities", "public", "the community")
+	communities = flag.String("communities", "public;public1", "the community")
 
 	address   = flag.String("http", ":7070", "the address of http")
 	directory = flag.String("directory", ".", "the static directory of http")

@@ -235,7 +235,7 @@ func (self *Discoverer) initDevice(drv Device) error {
 		} else if nil == metric {
 			self.logf(ERROR, "read %s of '%v' failed, result is nil.", name, drv["address"])
 		} else {
-			self.logf(DEBUG, "read '%s' for '%v' successed, result is %v", name, drv["address"], metric)
+			self.logf(DEBUG, "read '%s' for '%v' successed", name, drv["address"])
 			drv[alias] = metric
 		}
 	}
@@ -254,17 +254,19 @@ func (self *Discoverer) logf(level string, format string, params ...interface{})
 func (self *Discoverer) addDevice(drv Device) {
 	self.devices[drv["address"].(string)] = drv
 
-	interfaceTables, ok := drv["interfaceTables"].([]interface{})
-	if !ok {
-		self.logf(FATAL, "interfaceTables is not []interface{}, actual is %T.", interfaceTables)
-	} else if nil != interfaceTables {
-		for _, ifs := range interfaceTables {
-			row, ok := ifs.(map[string]interface{})
-			if !ok {
-				self.logf(FATAL, "interfaceTables is not map[string]interface{}, actual is %T.", ifs)
-				break
+	if ift := drv["interfaceTables"]; nil != ift {
+		interfaceTables, ok := ift.([]interface{})
+		if !ok {
+			self.logf(FATAL, "interfaceTables is not []interface{}, actual is %T.", interfaceTables)
+		} else if nil != interfaceTables {
+			for _, ifs := range interfaceTables {
+				row, ok := ifs.(map[string]interface{})
+				if !ok {
+					self.logf(FATAL, "interfaceTables is not map[string]interface{}, actual is %T.", ifs)
+					break
+				}
+				self.ip2managed[row["address"].(string)] = drv["address"].(string)
 			}
-			self.ip2managed[row["address"].(string)] = drv["address"].(string)
 		}
 	}
 
@@ -282,23 +284,24 @@ func (self *Discoverer) addDevice(drv Device) {
 	}
 }
 
-func (self *Discoverer) detectIPRange(drv Device) {
+func (self *Discoverer) detectNewAddress(drv Device) {
 	ip_list := map[string]int{}
 
-	interfaceTables, ok := drv["interfaceTables"].([]interface{})
-	if !ok {
-		self.logf(FATAL, "interfaceTables is not []interface{}, actual is %T.", interfaceTables)
-	} else if nil != interfaceTables {
-		for _, ifs := range interfaceTables {
-			row, ok := ifs.(map[string]interface{})
-			if !ok {
-				self.logf(FATAL, "interfaceTables is not map[string]interface{}, actual is %T.", ifs)
-				continue
+	if ift := drv["interfaceTables"]; nil != ift {
+		interfaceTables, ok := ift.([]interface{})
+		if !ok {
+			self.logf(FATAL, "interfaceTables is not []interface{}, actual is %T.", interfaceTables)
+		} else if nil != interfaceTables {
+			for _, ifs := range interfaceTables {
+				row, ok := ifs.(map[string]interface{})
+				if !ok {
+					self.logf(FATAL, "interfaceTables is not map[string]interface{}, actual is %T.", ifs)
+					continue
+				}
+				ip_list[row["address"].(string)] = 0
 			}
-			ip_list[row["address"].(string)] = 0
 		}
 	}
-
 	ipAddresses, ok := drv["addresses"].(map[string]interface{})
 	if ok && nil != ipAddresses {
 		for _, r := range ipAddresses {
@@ -314,7 +317,7 @@ func (self *Discoverer) detectIPRange(drv Device) {
 	for ip, _ := range ip_list {
 		if netutils.IsInvalidAddress(ip) {
 			self.log(DEBUG, "skip invalid address - "+ip)
-			break
+			continue
 		}
 
 		ip_range, err := netutils.ParseIPRange(ip + "/24")
@@ -325,16 +328,35 @@ func (self *Discoverer) detectIPRange(drv Device) {
 
 		self.log(DEBUG, "scan ip range '"+ip+"/24' success")
 
+		communities := []string{"public"}
+		if nil != self.params.Communities && 0 != len(self.params.Communities) {
+			communities = self.params.Communities
+		}
+
 		for ip_range.HasNext() {
 			addr := ip_range.Current().String()
 			// err = self.icmp_pinger.Send(addr, nil)
 			// if nil != err {
 			//	self.log(DEBUG, "send icmp to '"+addr+"'' failed, "+err.Error())
 			// }
+			self.log(DEBUG, "send probe packet to '"+addr+"'")
+			for i, community := range communities {
+				if i != 0 {
+					//select {
+					//case <-time.After(500 * time.Millisecond): // it is required, otherwise target host should busy and discard it
+					//}
+					//time.Sleep(500 * time.Millisecond) // it is required, otherwise target host should busy and discard it
+				}
 
-			err = self.snmp_pinger.Send(addr+":161", snmp.SNMP_V2C)
+				err = self.snmp_pinger.Send(addr+":161", snmp.SNMP_V2C, community)
+				if nil != err {
+					self.log(DEBUG, "send snmp to '"+addr+"' failed, "+err.Error())
+				}
+			}
+
+			err = self.snmp_pinger.Send(addr+":161", snmp.SNMP_V3, "")
 			if nil != err {
-				self.log(DEBUG, "send snmp to '"+addr+"'' failed, "+err.Error())
+				self.log(DEBUG, "send snmp to '"+addr+"' failed, "+err.Error())
 			}
 		}
 	}
@@ -365,9 +387,9 @@ func (self *Discoverer) serve() {
 
 	self.logf(INFO, "discover device '%v'", local["address"])
 	self.addDevice(local)
-	self.detectIPRange(local)
+	self.detectNewAddress(local)
 
-	for d := 0; d < self.params.Depth; d++ {
+	for d := 0; ; d++ {
 		pending_drvs := make([]Device, 0, 10)
 		goroutes := 0
 		running := true
@@ -411,6 +433,7 @@ func (self *Discoverer) serve() {
 			case drv := <-self.drv_ch:
 				if nil != drv {
 					self.addDevice(drv)
+					pending_drvs = append(pending_drvs, drv)
 				}
 			case <-time.After(1 * time.Minute):
 				if 0 == goroutes {
@@ -420,12 +443,18 @@ func (self *Discoverer) serve() {
 		}
 
 		if 0 == len(pending_drvs) {
+			self.log(INFO, "pending device is empty and exit.")
 			break
 		}
-
-		for _, drv := range pending_drvs {
-			self.detectIPRange(drv)
+		if d > self.params.Depth {
+			self.logf(INFO, "Reach the specified depth '%d' and exit.", self.params.Depth)
+			break
 		}
+		go func() {
+			for _, drv := range pending_drvs {
+				self.detectNewAddress(drv)
+			}
+		}()
 	}
 }
 

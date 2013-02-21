@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -16,7 +17,7 @@ var (
 	depth       = flag.Int("depth", 5, "the depth")
 	timeout     = flag.Int("timeout", 5, "the timeout")
 	network     = flag.String("ip-range", "", "the ip range")
-	communities = flag.String("communities", "public", "the community")
+	communities = flag.String("communities", "public;public1", "the community")
 	proxy       = flag.String("proxy", "127.0.0.1:7070", "the address of bridge proxy")
 	dbproxy     = flag.String("dbproxy", "127.0.0.1:7071", "the address of mdb proxy")
 )
@@ -176,20 +177,24 @@ func main() {
 		return
 	}
 	if nil != res {
-
-		bytes, e := json.MarshalIndent(res, "", "  ")
+		fmt.Println("======================")
+		e := json.NewEncoder(os.Stdout).Encode(res)
 		if nil != e {
 			fmt.Println(e)
-			return
 		}
-		fmt.Println(string(bytes))
+		fmt.Println("======================")
 
 		devices, ok := res.(map[string]interface{})
 		if ok {
-			for _, drv := range devices {
+
+			for k, _ := range devices {
+				fmt.Println(k)
+			}
+
+			for k, drv := range devices {
 				_, e := save(drv)
 				if nil != e {
-					fmt.Println(e)
+					fmt.Println(k, e)
 				}
 			}
 		} else {

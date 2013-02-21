@@ -6,6 +6,7 @@ import (
 	"commons/netutils"
 	"encoding/json"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -72,7 +73,7 @@ func (self *PingerDriver) Put(params map[string]string) (map[string]interface{},
 		return nil, errutils.RecordNotFound(id)
 	}
 
-	port, ok := params["port"]
+	port, ok := params["snmp.port"]
 	if !ok {
 		port = "161"
 	}
@@ -88,6 +89,14 @@ func (self *PingerDriver) Put(params map[string]string) (map[string]interface{},
 	e := json.Unmarshal([]byte(body), &ipList)
 	if nil != e {
 		return nil, errutils.BadRequest("read body failed, it is not []string of json - " + e.Error() + body)
+	}
+
+	communities := params["snmp.communities"]
+	if "" == communities {
+		communities = params["snmp.community"]
+	}
+	if "" == communities {
+		communities = "public"
 	}
 
 	versions := []SnmpVersion{SNMP_V2C, SNMP_V3}
@@ -108,10 +117,16 @@ func (self *PingerDriver) Put(params map[string]string) (map[string]interface{},
 				ip_range.Reset()
 			}
 
-			for ip_range.HasNext() {
-				e = pinger.Send(net.JoinHostPort(ip_range.Current().String(), port), v)
-				if nil != e {
-					return nil, errutils.InternalError(e.Error())
+			for j, community := range strings.Split(communities, ";") {
+				if j != 0 {
+					time.Sleep(500 * time.Millisecond)
+				}
+
+				for ip_range.HasNext() {
+					e = pinger.Send(net.JoinHostPort(ip_range.Current().String(), port), v, community)
+					if nil != e {
+						return nil, errutils.InternalError(e.Error())
+					}
 				}
 			}
 		}

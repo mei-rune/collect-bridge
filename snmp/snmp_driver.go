@@ -312,7 +312,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 	for _, i := range columns {
 		o := start_oid.Concat(i)
 		next_oids = append(next_oids, o)
-		next_oids_s = append(next_oids_s, o.GetString())
+		next_oids_s = append(next_oids_s, o.GetString()+".")
 	}
 
 	results := make(map[string]interface{})
@@ -350,8 +350,6 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 		for i, vb := range resp.GetVariableBindings().All() {
 
 			if !strings.HasPrefix(vb.Oid.GetString(), next_oids_s[i]) {
-				copy(next_oids[i:], next_oids[i+1:])
-				copy(columns[i:], columns[i+1:])
 				continue
 			}
 
@@ -368,15 +366,22 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 				row = make(map[string]interface{})
 				results[keys] = row
 			}
+
 			row[strconv.FormatInt(int64(columns[i]), 10)] = vb.Value
 
 			next_oids[offset] = vb.Oid
+			if offset != i {
+				next_oids_s[offset] = next_oids_s[i]
+				columns[offset] = columns[i]
+			}
+
 			offset++
 		}
-
 		if 0 == offset {
 			break
 		}
+		next_oids_s = next_oids_s[0:offset]
+		columns = columns[0:offset]
 		next_oids = next_oids[0:offset]
 	}
 	if 0 == len(results) {

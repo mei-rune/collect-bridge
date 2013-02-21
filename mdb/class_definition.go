@@ -88,6 +88,8 @@ type PropertyDefinition struct {
 	Type         TypeDefinition
 	Collection   CollectionType
 	IsRequired   bool
+	IsReadOnly   bool
+	IsUniquely   bool
 	Restrictions []Validator
 	DefaultValue interface{}
 }
@@ -125,6 +127,18 @@ func (self *ClassDefinition) CollectionName() string {
 	}
 
 	return self.Super.CollectionName()
+}
+
+func (self *ClassDefinition) GetAssocationByCollectionName(nm string) Assocation {
+	if nil == self.Assocations {
+		return nil
+	}
+	for _, assoc := range self.Assocations {
+		if nm == assoc.Target().CollectionName() {
+			return assoc
+		}
+	}
+	return nil
 }
 
 func (self *ClassDefinition) GetProperty(nm string) (pr *PropertyDefinition, ok bool) {

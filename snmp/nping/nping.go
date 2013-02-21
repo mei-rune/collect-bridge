@@ -2,19 +2,22 @@ package main
 
 import (
 	"commons"
+	"commons/netutils"
 	"flag"
 	"fmt"
 	"net"
 	"snmp"
+	"strings"
 	"sync/atomic"
 	"time"
 )
 
 var (
-	laddr   = flag.String("laddr", "0.0.0.0:0", "the address of bind, default: '0.0.0.0:0'")
-	network = flag.String("network", "udp4", "the family of address, default: 'udp4'")
-	timeout = flag.Int("timeout", 5, "the family of address, default: '5'")
-	port    = flag.String("port", "161", "the port of address, default: '161'")
+	laddr       = flag.String("laddr", "0.0.0.0:0", "the address of bind, default: '0.0.0.0:0'")
+	network     = flag.String("network", "udp4", "the family of address, default: 'udp4'")
+	timeout     = flag.Int("timeout", 5, "the family of address, default: '5'")
+	port        = flag.String("port", "161", "the port of address, default: '161'")
+	communities = flag.String("communities", "public;public1", "the community of snmp")
 )
 
 func main() {
@@ -33,7 +36,7 @@ func main() {
 	}
 	defer scanner.Close()
 
-	ip_range, err := commons.ParseIPRange(targets[0])
+	ip_range, err := netutils.ParseIPRange(targets[0])
 	if nil != err {
 		fmt.Println(err)
 		return
@@ -42,11 +45,18 @@ func main() {
 	go func() {
 		for _, v := range []snmp.SnmpVersion{snmp.SNMP_V2C, snmp.SNMP_V3} {
 			ip_range.Reset()
-			for ip_range.HasNext() {
-				err = scanner.Send(net.JoinHostPort(ip_range.Current().String(), *port), v)
-				if nil != err {
-					fmt.Println(err)
-					goto end
+
+			for j, community := range strings.Split(*communities, ";") {
+				if j != 0 {
+					time.Sleep(500 * time.Millisecond)
+				}
+
+				for ip_range.HasNext() {
+					err = scanner.Send(net.JoinHostPort(ip_range.Current().String(), *port), v, community)
+					if nil != err {
+						fmt.Println(err)
+						goto end
+					}
 				}
 			}
 			time.Sleep(500 * time.Millisecond)

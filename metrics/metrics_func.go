@@ -298,7 +298,8 @@ func (self *SnmpBase) GetValues(params map[string]string, oids []string) (map[st
 	return res, values, nil
 }
 
-func (self *SnmpBase) GetUint64Value(params map[string]string, oid string, defaultValue uint64) (map[string]interface{}, uint64, commons.RuntimeError) {
+func (self *SnmpBase) GetUint64Value(params map[string]string, oid string,
+	defaultValue uint64) (map[string]interface{}, uint64, commons.RuntimeError) {
 	params["snmp.oid"] = oid
 	params["snmp.action"] = "get"
 	res, err := self.drv.Get(params)
@@ -321,7 +322,8 @@ func (self *SnmpBase) GetUint64Value(params map[string]string, oid string, defau
 	return res, value, commons.NewRuntimeError(commons.InternalErrorCode, e.Error())
 }
 
-func (self *SnmpBase) GetTable(params map[string]string, oid, columns string, cb TABLE_CB) (map[string]interface{}, commons.RuntimeError) {
+func (self *SnmpBase) GetTable(params map[string]string, oid, columns string,
+	cb TABLE_CB) (map[string]interface{}, commons.RuntimeError) {
 	res, t, err := self.GetTableValue(params, oid, columns, cb)
 	if nil == err {
 		return commons.ReturnWithValue(res, t), err
@@ -329,7 +331,15 @@ func (self *SnmpBase) GetTable(params map[string]string, oid, columns string, cb
 	return res, err
 }
 
-func (self *SnmpBase) GetTableValue(params map[string]string, oid, columns string, cb TABLE_CB) (map[string]interface{}, map[string]interface{}, commons.RuntimeError) {
+func (self *SnmpBase) GetTableValue(params map[string]string, oid, columns string,
+	cb TABLE_CB) (result map[string]interface{}, sv map[string]interface{}, re commons.RuntimeError) {
+
+	defer func() {
+		if e := recover(); nil != e {
+			re = errutils.InternalError(fmt.Sprint(e))
+		}
+	}()
+
 	params["snmp.oid"] = oid
 	params["snmp.action"] = "table"
 	params["snmp.columns"] = columns
@@ -371,7 +381,14 @@ func (self *SnmpBase) GetOne(params map[string]string, oid, columns string, cb O
 	return res, err
 }
 
-func (self *SnmpBase) GetOneValue(params map[string]string, oid, columns string, cb ONE_CB) (map[string]interface{}, map[string]interface{}, commons.RuntimeError) {
+func (self *SnmpBase) GetOneValue(params map[string]string, oid, columns string, cb ONE_CB) (result map[string]interface{}, sv map[string]interface{}, re commons.RuntimeError) {
+
+	defer func() {
+		if e := recover(); nil != e {
+			re = errutils.InternalError(fmt.Sprint(e))
+		}
+	}()
+
 	params["snmp.oid"] = oid
 	params["snmp.action"] = "table"
 	params["snmp.columns"] = columns

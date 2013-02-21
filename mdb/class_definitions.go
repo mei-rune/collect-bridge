@@ -225,8 +225,28 @@ func loadOwnProperty(self *ClassDefinitions, xmlCls *XMLClassDefinition,
 		cpr.Collection = COLLECTION_UNKNOWN
 	}
 
+	if "created_at" == pr.Name || "updated_at" == pr.Name {
+		if _, ok := cpr.Type.(*DateTimeTypeDefinition); !ok {
+			errs = append(errs, errors.New("load property '"+pr.Name+"' of class '"+
+				xmlCls.Name+"' failed, it must is a dateTime"))
+		}
+
+		if COLLECTION_UNKNOWN != cpr.Collection {
+			errs = append(errs, errors.New("load property '"+pr.Name+"' of class '"+
+				xmlCls.Name+"' failed, it must not is a collection"))
+		}
+	}
+
 	if nil != pr.Restrictions.Required {
 		cpr.IsRequired = true
+	}
+
+	if nil != pr.Restrictions.ReadOnly {
+		cpr.IsReadOnly = true
+	}
+
+	if nil != pr.Restrictions.Unique {
+		cpr.IsUniquely = true
 	}
 
 	if "" != pr.Restrictions.DefaultValue {

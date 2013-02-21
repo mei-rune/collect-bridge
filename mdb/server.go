@@ -9,6 +9,7 @@ import (
 	"labix.org/v2/mgo/bson"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -135,6 +136,33 @@ func checkValue(pr *PropertyDefinition, attributes map[string]interface{}, value
 	return new_value, false
 }
 
+func doMagic(k string, attributes, new_attributes map[string]interface{},
+	is_update bool, errs *[]error) bool {
+	if k == "updated_at" {
+		_, ok := attributes[k]
+		if !ok {
+			*errs = append(*errs, errors.New("'"+k+"' is magic property"))
+			return true
+		}
+
+		new_attributes[k] = time.Now()
+		return true
+	}
+
+	if k == "created_at" {
+		_, ok := attributes[k]
+		if !ok {
+			*errs = append(*errs, errors.New("'"+k+"' is magic property"))
+			return true
+		}
+
+		if !is_update {
+			new_attributes[k] = time.Now()
+		}
+		return true
+	}
+	return false
+}
 func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]interface{},
 	is_update bool) (map[string]interface{}, error) {
 	attributes := uattributes
@@ -148,6 +176,11 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]in
 	new_attributes := make(map[string]interface{}, len(attributes))
 	errs := make([]error, 0, 10)
 	for k, pr := range cls.Properties {
+
+		if doMagic(k, attributes, new_attributes, is_update, &errs) {
+			continue
+		}
+
 		value, ok := attributes[k]
 		if !ok {
 			if COLLECTION_UNKNOWN != pr.Collection {
@@ -167,6 +200,11 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]in
 			}
 
 			new_attributes[k] = pr.DefaultValue
+			continue
+		}
+
+		if pr.IsReadOnly {
+			errs = append(errs, errors.New("'"+k+"' is readonly"))
 			continue
 		}
 
@@ -214,6 +252,9 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]in
 
 	if self.restrict && 0 != len(attributes) {
 		for k, _ := range attributes {
+			if '$' == k[0] { // it is child of the model
+				continue
+			}
 			errs = append(errs, errors.New("'"+k+"' is useless"))
 		}
 		return nil, commons.NewMutiErrors("validate failed", errs)

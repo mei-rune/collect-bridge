@@ -57,7 +57,7 @@ func (self *Pinger) GetChannel() <-chan *PingResult {
 	return self.ch
 }
 
-func (self *Pinger) Send(raddr string, version SnmpVersion) error {
+func (self *Pinger) Send(raddr string, version SnmpVersion, community string) error {
 	ra, err := net.ResolveUDPAddr(self.network, raddr)
 	if err != nil {
 		return fmt.Errorf("ResolveIPAddr(%q, %q) failed: %v", self.network, raddr, err)
@@ -68,7 +68,7 @@ func (self *Pinger) Send(raddr string, version SnmpVersion) error {
 	var pdu PDU = nil
 	switch version {
 	case SNMP_V1, SNMP_V2C:
-		pdu = &V2CPDU{op: SNMP_PDU_GET, version: version, requestId: self.id, target: raddr, community: "public"}
+		pdu = &V2CPDU{op: SNMP_PDU_GET, version: version, requestId: self.id, target: raddr, community: community}
 		err = pdu.GetVariableBindings().Append("1.3.6.1.2.1.1.2.0", "")
 		if err != nil {
 			return fmt.Errorf("AppendVariableBinding failed: %v", err)

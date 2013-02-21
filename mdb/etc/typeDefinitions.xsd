@@ -24,8 +24,8 @@
 		<xs:sequence>
 			<xs:element name="restriction">
 				<xs:complexType>
-					<xs:sequence minOccurs="0">
-						<xs:element name="enumeration" minOccurs="0">
+					<xs:sequence minOccurs="0" maxOccurs="1" >
+						<xs:element name="enumeration" minOccurs="0" maxOccurs="1" >
 							<xs:annotation>
 								<xs:documentation>定义可接受值的一个列表</xs:documentation>
 							</xs:annotation>
@@ -42,7 +42,7 @@
 								</xs:sequence>
 							</xs:complexType>
 						</xs:element>
-						<xs:element name="pattern" minOccurs="0">
+						<xs:element name="pattern" minOccurs="0" maxOccurs="1" >
 							<xs:annotation>
 								<xs:documentation>定义可接受的字符的精确序列。</xs:documentation>
 							</xs:annotation>
@@ -52,7 +52,7 @@
 						</xs:element>
 						<xs:choice>
 							<xs:sequence>
-								<xs:element name="minValue" minOccurs="0">
+								<xs:element name="minValue" minOccurs="0" maxOccurs="1" >
 									<xs:annotation>
 										<xs:documentation>定义数值的下限。所允许的值必需大于或等于此值。</xs:documentation>
 									</xs:annotation>
@@ -60,7 +60,7 @@
 										<xs:attribute name="value" type="xs:string" use="required"/>
 									</xs:complexType>
 								</xs:element>
-								<xs:element name="maxValue" minOccurs="0">
+								<xs:element name="maxValue" minOccurs="0" maxOccurs="1" >
 									<xs:annotation>
 										<xs:documentation>定义数值的上限。所允许的值必须小于或等于此值。</xs:documentation>
 									</xs:annotation>
@@ -68,7 +68,7 @@
 										<xs:attribute name="value" type="xs:string" use="required"/>
 									</xs:complexType>
 								</xs:element>
-								<xs:element name="fractionDigits" minOccurs="0">
+								<xs:element name="fractionDigits" minOccurs="0" maxOccurs="1" >
 									<xs:annotation>
 										<xs:documentation>定义所允许的最大的小数位数。必须大于等于0。</xs:documentation>
 									</xs:annotation>
@@ -76,7 +76,7 @@
 										<xs:attribute name="value" type="xs:integer" use="required"/>
 									</xs:complexType>
 								</xs:element>
-								<xs:element name="totalDigits" minOccurs="0">
+								<xs:element name="totalDigits" minOccurs="0" maxOccurs="1" >
 									<xs:annotation>
 										<xs:documentation>定义所允许的阿拉伯数字的精确位数。必须大于0。</xs:documentation>
 									</xs:annotation>
@@ -86,7 +86,7 @@
 								</xs:element>
 							</xs:sequence>
 							<xs:choice minOccurs="0">
-								<xs:element name="length" minOccurs="0">
+								<xs:element name="length" minOccurs="0" maxOccurs="1" >
 									<xs:annotation>
 										<xs:documentation>定义所允许的字符或者列表项目的精确数目。必须大于或等于0。</xs:documentation>
 									</xs:annotation>
@@ -95,7 +95,7 @@
 									</xs:complexType>
 								</xs:element>
 								<xs:sequence minOccurs="0">
-									<xs:element name="minLength" minOccurs="0">
+									<xs:element name="minLength" minOccurs="0" maxOccurs="1" >
 										<xs:annotation>
 											<xs:documentation>定义所允许的字符或者列表项目的最小数目。必须大于或等于0。</xs:documentation>
 										</xs:annotation>
@@ -103,7 +103,7 @@
 											<xs:attribute name="value" type="xs:integer" use="required"/>
 										</xs:complexType>
 									</xs:element>
-									<xs:element name="maxLength" minOccurs="0">
+									<xs:element name="maxLength" minOccurs="0" maxOccurs="1" >
 										<xs:complexType>
 											<xs:attribute name="value" type="xs:integer" use="required"/>
 										</xs:complexType>
@@ -112,7 +112,7 @@
 							</xs:choice>
 						</xs:choice>
 						<xs:choice>
-							<xs:element name="defaultValue" minOccurs="0">
+							<xs:element name="defaultValue" minOccurs="0" maxOccurs="1" >
 								<xs:annotation>
 									<xs:documentation>定义空白字符（换行、回车、空格以及制表符）的处理方式。</xs:documentation>
 								</xs:annotation>
@@ -120,7 +120,9 @@
 									<xs:attribute name="value" use="required"/>
 								</xs:complexType>
 							</xs:element>
-							<xs:element name="required" minOccurs="0"/>
+							<xs:element name="required" minOccurs="0" maxOccurs="1" />
+							<xs:element name="readonly" minOccurs="0" maxOccurs="1" />
+							<xs:element name="unique" minOccurs="0" maxOccurs="1" />
 						</xs:choice>
 					</xs:sequence>
 					<xs:attribute name="base" type="mdbs:dataType" use="required"/>

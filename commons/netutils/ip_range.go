@@ -23,6 +23,12 @@ func (self *IPRange) HasNext() bool {
 		return false
 	}
 	self.cur++
+
+	var b [4]byte
+	binary.BigEndian.PutUint32(b[:], self.cur)
+	if b[3] == 0 || b[3] == 255 {
+		self.cur++
+	}
 	return true
 }
 

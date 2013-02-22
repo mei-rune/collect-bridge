@@ -39,6 +39,10 @@ func getVersion(params map[string]string) (SnmpVersion, commons.RuntimeError) {
 	if !ok {
 		return SNMP_V2C, nil
 	}
+	return parseVersion(v)
+}
+
+func parseVersion(v string) (SnmpVersion, commons.RuntimeError) {
 	switch v {
 	case "v1", "V1", "1":
 		return SNMP_V1, nil

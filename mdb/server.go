@@ -140,7 +140,7 @@ func doMagic(k string, attributes, new_attributes map[string]interface{},
 	is_update bool, errs *[]error) bool {
 	if k == "updated_at" {
 		_, ok := attributes[k]
-		if !ok {
+		if ok {
 			*errs = append(*errs, errors.New("'"+k+"' is magic property"))
 			return true
 		}
@@ -151,7 +151,7 @@ func doMagic(k string, attributes, new_attributes map[string]interface{},
 
 	if k == "created_at" {
 		_, ok := attributes[k]
-		if !ok {
+		if ok {
 			*errs = append(*errs, errors.New("'"+k+"' is magic property"))
 			return true
 		}

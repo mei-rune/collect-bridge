@@ -13,6 +13,7 @@ import "C"
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"strconv"
 	"unsafe"
 )
@@ -33,9 +34,18 @@ type V2CPDU struct {
 	target           string
 	community        string
 	variableBindings VariableBindings
+	maxMsgSize       uint
 }
 
 func (pdu *V2CPDU) Init(params map[string]string) SnmpCodeError {
+
+	pdu.maxMsgSize = *maxPDUSize
+	if v, ok := params["snmp.max_msg_size"]; ok {
+		if num, e := strconv.ParseUint(v, 10, 0); nil == e {
+			pdu.maxMsgSize = uint(num)
+		}
+	}
+
 	community, ok := params["snmp.community"]
 	if ok && "" != community {
 		pdu.community = community
@@ -94,7 +104,8 @@ func (pdu *V2CPDU) encodePDU(is_dump bool) ([]byte, SnmpCodeError) {
 	if nil != err {
 		return nil, newError(SNMP_CODE_FAILED, err, "copy community")
 	}
-	internal.engine.max_msg_size = 10000
+
+	internal.engine.max_msg_size = C.int32_t(pdu.maxMsgSize)
 	internal.request_id = C.int32_t(pdu.requestId)
 	internal.pdu_type = C.u_int(pdu.op)
 	internal.version = uint32(pdu.version)
@@ -154,7 +165,7 @@ type V3PDU struct {
 func (pdu *V3PDU) Init(params map[string]string) (err SnmpCodeError) {
 	var e error
 
-	pdu.maxMsgSize = 10000
+	pdu.maxMsgSize = *maxPDUSize
 
 	if v, ok := params["snmp.max_msg_size"]; ok {
 		if num, e := strconv.ParseUint(v, 10, 0); nil == e {
@@ -200,8 +211,9 @@ func (pdu *V3PDU) Init(params map[string]string) (err SnmpCodeError) {
 			}
 		}
 	}
-
+	fmt.Println("====")
 	pdu.securityModel, err = NewSecurityModel(params)
+	fmt.Println("=====")
 	return
 }
 
@@ -291,7 +303,7 @@ func (pdu *V3PDU) encodePDU(is_dump bool) ([]byte, SnmpCodeError) {
 	}
 
 	if 0 == pdu.maxMsgSize {
-		pdu.maxMsgSize = 10000
+		pdu.maxMsgSize = *maxPDUSize
 	}
 	internal.engine.max_msg_size = C.int32_t(pdu.maxMsgSize)
 
@@ -416,6 +428,10 @@ func debug_init_secparams(pdu *C.snmp_pdu_t) {
 }
 
 func encodeNativePdu(pdu *C.snmp_pdu_t) ([]byte, SnmpCodeError) {
+	if pdu.engine.max_msg_size == 0 {
+		pdu.engine.max_msg_size = C.int32_t(*maxPDUSize)
+	}
+
 	bytes := make([]byte, int(pdu.engine.max_msg_size))
 	var buffer C.asn_buf_t
 	C.set_asn_u_ptr(&buffer.asn_u, (*C.char)(unsafe.Pointer(&bytes[0])))

@@ -807,8 +807,8 @@ func (self *dispatcherBase) FindDefaultSetFunc(oid string) DispatchFunc {
 }
 
 func (self *dispatcherBase) Init(params map[string]interface{}, drvName string) commons.RuntimeError {
-	self.get_methods = make(map[uint]map[string]DispatchFunc, 5000)
-	self.set_methods = make(map[uint]map[string]DispatchFunc, 5000)
+	self.get_methods = make(map[uint]map[string]DispatchFunc, 1000)
+	self.set_methods = make(map[uint]map[string]DispatchFunc, 1000)
 	return self.SnmpBase.Init(params, drvName)
 }
 

@@ -19,6 +19,7 @@ func (self *IPRange) Reset() {
 }
 
 func (self *IPRange) HasNext() bool {
+again:
 	if self.cur >= self.end {
 		return false
 	}
@@ -27,7 +28,7 @@ func (self *IPRange) HasNext() bool {
 	var b [4]byte
 	binary.BigEndian.PutUint32(b[:], self.cur)
 	if b[3] == 0 || b[3] == 255 {
-		self.cur++
+		goto again
 	}
 	return true
 }
@@ -63,7 +64,7 @@ func ParseIPRange(raw string) (*IPRange, error) {
 		}
 		start = binary.BigEndian.Uint32(ipNet.IP.To4())
 		ones, bits := ipNet.Mask.Size()
-		end = start | (uint32(1) << uint32(bits-ones))
+		end = start + (uint32(1) << uint32(bits-ones))
 	} else {
 		start = parseIPV4(fields[0])
 		end = parseIPV4(fields[1])

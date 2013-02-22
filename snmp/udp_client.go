@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	maxPDUSize  = flag.Int("maxPDUSize", 10240, "set max size of pdu")
+	maxPDUSize  = flag.Uint("maxPDUSize", 2048, "set max size of pdu")
 	deadTimeout = flag.Int("deadTimeout", 1, "set timeout(Minute) of client to dead")
 )
 

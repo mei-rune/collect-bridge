@@ -22,7 +22,7 @@ var (
 	dbproxy     = flag.String("dbproxy", "127.0.0.1:7071", "the address of mdb proxy")
 )
 
-func HttpPut(endpoint string, bodyType string, body io.Reader) (*http.Response, error) {
+func httpPut(endpoint string, bodyType string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest("PUT", endpoint, body)
 	if err != nil {
 		return nil, err
@@ -101,24 +101,78 @@ func discoveryDelete(id string) error {
 	return nil
 }
 
-func save(drv interface{}) (string, error) {
+func findDeviceByAddress(address string) (map[string]interface{}, error) {
+	res, e := findDevice(map[string]string{"@address": address})
+	if nil == res {
+		return nil, e
+	}
+	if 0 == len(res) {
+		return nil, fmt.Errorf("device is not found - %s", address)
+	}
+	return res[0], nil
+}
+func findDevice(params map[string]string) ([]map[string]interface{}, error) {
+	url := "http://" + *dbproxy + "/mdb/device/query" + "?"
+	for k, v := range params {
+		url += (k + "=" + v + "&")
+	}
+
+	resp, e := http.Get(url[:len(url)-1])
+	if nil != e {
+		return nil, fmt.Errorf("get device message failed, %v", e)
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("get device message failed, %v, %v", resp.StatusCode, readAll(resp.Body))
+	}
+	body := readAll(resp.Body)
+	result := map[string]interface{}{}
+	e = json.Unmarshal([]byte(body), &result)
+
+	if nil != e {
+		return nil, fmt.Errorf("get device message failed, %v", e)
+	}
+
+	res, ok := commons.GetReturn(result).([]interface{})
+	if ok {
+		return nil, fmt.Errorf("get device message failed, result is not []interface{}, %T", commons.GetReturn(result))
+	}
+	results := make([]map[string]interface{}, 0, len(res))
+	for _, r := range res {
+		results = append(results, r.(map[string]interface{}))
+	}
+	return results, nil
+}
+
+func save(drv map[string]interface{}) (string, error) {
+
+	var resp *http.Response
 	js, err := json.Marshal(drv)
 	if nil != err {
 		return "", fmt.Errorf("marshal device to json failed, %s", err.Error())
 	}
 
-	resp, e := http.Post("http://"+*dbproxy+"/mdb/device", "application/json", bytes.NewBuffer([]byte(js)))
-	if nil != e {
-		return "", fmt.Errorf("create device failed, %v", e)
+	old, err := findDeviceByAddress(drv["address"].(string))
+	if nil != err {
+		fmt.Println(err)
 	}
-	if resp.StatusCode != 201 {
+
+	if old == nil {
+		resp, err = http.Post("http://"+*dbproxy+"/mdb/device", "application/json", bytes.NewBuffer([]byte(js)))
+	} else {
+		resp, err = httpPut("http://"+*dbproxy+"/mdb/device/"+fmt.Sprint(old["_id"]), "application/json", bytes.NewBuffer([]byte(js)))
+	}
+
+	if nil != err {
+		return "", fmt.Errorf("create device failed, %v", err)
+	}
+	if resp.StatusCode != 201 && resp.StatusCode != 200 {
 		return "", fmt.Errorf("create device failed, %v, %v", resp.StatusCode, readAll(resp.Body))
 	}
 	result := map[string]interface{}{}
-	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
+	err = json.Unmarshal([]byte(readAll(resp.Body)), &result)
 
-	if nil != e {
-		return "", fmt.Errorf("create device failed, %v", e)
+	if nil != err {
+		return "", fmt.Errorf("create device failed, %v", err)
 	}
 	return commons.GetReturn(result).(string), nil
 }
@@ -192,7 +246,7 @@ func main() {
 			}
 
 			for k, drv := range devices {
-				_, e := save(drv)
+				_, e := save(drv.(map[string]interface{}))
 				if nil != e {
 					fmt.Println(k, e)
 				}

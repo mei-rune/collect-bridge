@@ -133,7 +133,7 @@ func findDevice(params map[string]string) ([]map[string]interface{}, error) {
 	}
 
 	res, ok := commons.GetReturn(result).([]interface{})
-	if ok {
+	if !ok {
 		return nil, fmt.Errorf("get device message failed, result is not []interface{}, %T", commons.GetReturn(result))
 	}
 	results := make([]map[string]interface{}, 0, len(res))
@@ -143,12 +143,12 @@ func findDevice(params map[string]string) ([]map[string]interface{}, error) {
 	return results, nil
 }
 
-func save(drv map[string]interface{}) (string, error) {
+func save(drv map[string]interface{}) (string, string, error) {
 
 	var resp *http.Response
 	js, err := json.Marshal(drv)
 	if nil != err {
-		return "", fmt.Errorf("marshal device to json failed, %s", err.Error())
+		return "", "", fmt.Errorf("marshal device to json failed, %s", err.Error())
 	}
 
 	old, err := findDeviceByAddress(drv["address"].(string))
@@ -156,25 +156,31 @@ func save(drv map[string]interface{}) (string, error) {
 		fmt.Println(err)
 	}
 
-	if old == nil {
+	action := "create"
+	if old == nil || nil == old["_id"] {
 		resp, err = http.Post("http://"+*dbproxy+"/mdb/device", "application/json", bytes.NewBuffer([]byte(js)))
 	} else {
+
+		action = "update"
 		resp, err = httpPut("http://"+*dbproxy+"/mdb/device/"+fmt.Sprint(old["_id"]), "application/json", bytes.NewBuffer([]byte(js)))
 	}
 
 	if nil != err {
-		return "", fmt.Errorf("create device failed, %v", err)
+		return "", action, fmt.Errorf("create device failed, %v", err)
 	}
 	if resp.StatusCode != 201 && resp.StatusCode != 200 {
-		return "", fmt.Errorf("create device failed, %v, %v", resp.StatusCode, readAll(resp.Body))
+		return "", action, fmt.Errorf("create device failed, %v, %v", resp.StatusCode, readAll(resp.Body))
 	}
 	result := map[string]interface{}{}
 	err = json.Unmarshal([]byte(readAll(resp.Body)), &result)
 
 	if nil != err {
-		return "", fmt.Errorf("create device failed, %v", err)
+		return "", action, fmt.Errorf("create device failed, %v", err)
 	}
-	return commons.GetReturn(result).(string), nil
+	if warnings, ok := result["warnings"]; ok {
+		fmt.Println(warnings)
+	}
+	return commons.GetReturn(result).(string), action, nil
 }
 func main() {
 
@@ -240,15 +246,12 @@ func main() {
 
 		devices, ok := res.(map[string]interface{})
 		if ok {
-
-			for k, _ := range devices {
-				fmt.Println(k)
-			}
-
 			for k, drv := range devices {
-				_, e := save(drv.(map[string]interface{}))
+				_, action, e := save(drv.(map[string]interface{}))
 				if nil != e {
-					fmt.Println(k, e)
+					fmt.Println(action, k, e)
+				} else {
+					fmt.Println(action, k)
 				}
 			}
 		} else {

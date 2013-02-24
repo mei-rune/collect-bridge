@@ -312,6 +312,7 @@ func (self *mdb_server) postRead(raw_cls *ClassDefinition, attributes map[string
 		}
 		new_attributes["type"] = nm
 	}
+	new_attributes["_id"] = attributes["_id"]
 
 	errs := make([]error, 0, 10)
 	for k, pr := range cls.Properties {

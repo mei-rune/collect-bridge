@@ -86,6 +86,13 @@ func fetchInt(params map[string]interface{}, key string) int {
 	}
 	return int(v.(float64))
 }
+func validMockDeviceWithId(t *testing.T, factor string, drv map[string]interface{}, id string) {
+	if id != drv["_id"].(string) {
+		t.Errorf("excepted id is '%s', actual id is '%v'", id, drv["_id"])
+		return
+	}
+}
+
 func validMockDevice(t *testing.T, factor string, drv map[string]interface{}) {
 	if "dd"+factor != drv["name"].(string) {
 		t.Errorf("excepted name is 'dd%s', actual name is '%v'", factor, drv["name"])
@@ -604,10 +611,10 @@ func TestDeviceCURD(t *testing.T) {
 		return
 	}
 
-	validMockDevice(t, "1", d1)
-	validMockDevice(t, "2", d2)
-	validMockDevice(t, "3", d3)
-	validMockDevice(t, "4", d4)
+	validMockDeviceWithId(t, "1", d1, id1)
+	validMockDeviceWithId(t, "2", d2, id2)
+	validMockDeviceWithId(t, "3", d3, id3)
+	validMockDeviceWithId(t, "4", d4, id4)
 
 	updateMockDevice(t, id1, "11")
 	updateMockDevice(t, id2, "21")

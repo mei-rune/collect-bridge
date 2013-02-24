@@ -291,18 +291,18 @@ func TryGetHardwareAddress(params map[string]string, values map[string]interface
 		if snmp.SNMP_SYNTAX_OCTETSTRING == v.GetSyntax() {
 			s := v.GetString()
 			if 12 != len(s) {
-				return nil, errors.New("'" + s + "' is invalid hardware address")
+				return "", errors.New("'" + s + "' is invalid hardware address")
 			}
-			return s[:2] + "-" + s[2:4] + "-" + s[4:6] + "-" + s[6:8] + "-" + s[8:10] + "-" + s[10:], nil
+			return s[:2] + ":" + s[2:4] + ":" + s[4:6] + ":" + s[6:8] + ":" + s[8:10] + ":" + s[10:], nil
 		}
 		value = v.String()
 	case string:
 		if strings.HasPrefix(v, "[octets]") {
 			s := v[8:]
 			if 12 != len(s) {
-				return nil, errors.New("'" + s + "' is invalid hardware address")
+				return "", errors.New("'" + s + "' is invalid hardware address")
 			}
-			return s[:2] + "-" + s[2:4] + "-" + s[4:6] + "-" + s[6:8] + "-" + s[8:10] + "-" + s[10:], nil
+			return s[:2] + ":" + s[2:4] + ":" + s[4:6] + ":" + s[6:8] + ":" + s[8:10] + ":" + s[10:], nil
 		}
 		return v, nil
 	}

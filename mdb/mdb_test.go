@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"labix.org/v2/mgo/bson"
 	"net/http"
 	"strconv"
 	"testing"
@@ -28,38 +29,18 @@ func readAll(r io.Reader) string {
 }
 
 func createMockHistoryRule2(t *testing.T, factor string) string {
-	id, e := createJson("history_rule", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s"}`, factor, factor, factor))
-	if nil != e {
-		t.Error(e.Error())
-		return ""
-	}
-	return id
+	return createJson(t, "history_rule", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s"}`, factor, factor, factor))
 }
 func createMockHistoryRule(t *testing.T, id, factor string) string {
-	id, e := createJson("history_rule", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s", "parent_type":"devices", "parent_id":"%s"}`, factor, factor, factor, id))
-	if nil != e {
-		t.Error(e.Error())
-		return ""
-	}
-	return id
+	return createJson(t, "history_rule", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s", "parent_type":"devices", "parent_id":"%s"}`, factor, factor, factor, id))
 }
 
 func createMockInterface(t *testing.T, id, factor string) string {
-	id, e := createJson("interface", fmt.Sprintf(`{"ifIndex":%s, "ifDescr":"d%s", "ifType":2%s, "ifMtu":3%s, "ifSpeed":4%s, "device_id":"%s"}`, factor, factor, factor, factor, factor, id))
-	if nil != e {
-		t.Error(e.Error())
-		return ""
-	}
-	return id
+	return createJson(t, "interface", fmt.Sprintf(`{"ifIndex":%s, "ifDescr":"d%s", "ifType":2%s, "ifMtu":3%s, "ifSpeed":4%s, "device_id":"%s"}`, factor, factor, factor, factor, factor, id))
 }
 
 func createMockDevice(t *testing.T, factor string) string {
-	id, e := createJson("device", fmt.Sprintf(`{"name":"dd%s", "catalog":%s, "services":2%s, "managed_address":"20.0.8.110"}`, factor, factor, factor))
-	if nil != e {
-		t.Error(e.Error())
-		return ""
-	}
-	return id
+	return createJson(t, "device", fmt.Sprintf(`{"name":"dd%s", "address":"192.168.1.%s", "catalog":%s, "services":2%s, "managed_address":"20.0.8.110"}`, factor, factor, factor, factor))
 }
 
 func updateMockDevice(t *testing.T, id, factor string) {
@@ -70,27 +51,18 @@ func updateMockDevice(t *testing.T, id, factor string) {
 }
 
 func getDeviceById(t *testing.T, id string) map[string]interface{} {
-	res, e := findById("device", id)
-	if nil != e {
-		t.Error(e.Error())
-		return nil
-	}
-	return res
+	return findById(t, "device", id)
 }
 
 func DeviceNotExistsById(t *testing.T, id string) {
-	_, e := findById("device", id)
-	if nil == e {
-		t.Errorf("device %s is exists", id)
+	if existsById(t, "device", id) {
+		t.Error("device '" + id + "' is exists")
+		t.FailNow()
 	}
 }
 
 func getDeviceByName(t *testing.T, factor string) map[string]interface{} {
-	res, e := findBy("device", map[string]string{"name": "dd" + factor})
-	if nil != e {
-		t.Error(e.Error())
-		return nil
-	}
+	res := findBy(t, "device", map[string]string{"name": "dd" + factor})
 	if 1 > len(res) {
 		return nil
 	}
@@ -128,29 +100,44 @@ func validMockDevice(t *testing.T, factor string, drv map[string]interface{}) {
 		return
 	}
 }
-func create(t string, body map[string]interface{}) (string, error) {
+func create(t *testing.T, target string, body map[string]interface{}) string {
 	msg, e := json.Marshal(body)
 	if nil != e {
-		return "", fmt.Errorf("create %s failed, %v", t, e)
+		t.Errorf("create %s failed, %v", target, e)
+		t.FailNow()
 	}
-	return createJson(t, string(msg))
+	return createJson(t, target, string(msg))
 }
 
-func createJson(t, msg string) (string, error) {
-	resp, e := http.Post("http://127.0.0.1:7071/mdb/"+t, "application/json", bytes.NewBuffer([]byte(msg)))
+func createJson(t *testing.T, target, msg string) string {
+	resp, e := http.Post("http://127.0.0.1:7071/mdb/"+target, "application/json", bytes.NewBuffer([]byte(msg)))
 	if nil != e {
-		return "", fmt.Errorf("create %s failed, %v", t, e)
+		t.Errorf("create %s failed, %v", target, e)
+		t.FailNow()
 	}
 	if resp.StatusCode != 201 {
-		return "", fmt.Errorf("create %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+		t.Errorf("create %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
+		t.FailNow()
 	}
 	result := map[string]interface{}{}
 	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
 
 	if nil != e {
-		return "", fmt.Errorf("create %s failed, %v", t, e)
+		t.Errorf("create %s failed, %v", target, e)
+		t.FailNow()
 	}
-	return result["value"].(string), nil
+	if warnings, ok := result["warnings"]; ok {
+		t.Error(warnings)
+	}
+	return result["value"].(string)
+}
+
+func updateById(t *testing.T, target, id string, body map[string]interface{}) {
+	e := update(target, id, body)
+	if nil != t {
+		t.Error(e)
+		t.FailNow()
+	}
 }
 
 func update(t, id string, body map[string]interface{}) error {
@@ -188,45 +175,87 @@ func updateJson(t, id, msg string) error {
 	return nil
 }
 
-func findById(t, id string) (map[string]interface{}, error) {
-	resp, e := http.Get("http://127.0.0.1:7071/mdb/" + t + "/" + id)
+func existsById(t *testing.T, target, id string) bool {
+	resp, e := http.Get("http://127.0.0.1:7071/mdb/" + target + "/" + id)
 	if nil != e {
-		return nil, fmt.Errorf("find %s failed, %v", t, e)
+		t.Errorf("find %s failed, %v", target, e)
+		t.FailNow()
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("find %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+		if resp.StatusCode == 404 {
+			return false
+		}
+		t.Errorf("find %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
+		t.FailNow()
 	}
 	result := map[string]interface{}{}
 	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
 
 	if nil != e {
-		return nil, fmt.Errorf("find %s failed, %v", t, e)
+		t.Errorf("find %s failed, %v", target, e)
+		t.FailNow()
 	}
-	return result["value"].(map[string]interface{}), nil
+	return true
 }
-func deleteById(t, id string) error {
-	resp, e := httpDelete("http://127.0.0.1:7071/mdb/" + t + "/" + id)
+
+func findById(t *testing.T, target, id string) map[string]interface{} {
+	resp, e := http.Get("http://127.0.0.1:7071/mdb/" + target + "/" + id)
 	if nil != e {
-		return fmt.Errorf("delete %s failed, %v", t, e)
+		t.Errorf("find %s failed, %v", target, e)
+		t.FailNow()
 	}
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("delete %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+		t.Errorf("find %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
+		t.FailNow()
 	}
-	return nil
+	result := map[string]interface{}{}
+	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
+
+	if nil != e {
+		t.Errorf("find %s failed, %v", target, e)
+		t.FailNow()
+	}
+	return result["value"].(map[string]interface{})
 }
-func deleteBy(t string, params map[string]string) error {
-	url := "http://127.0.0.1:7071/mdb/" + t + "/query?"
+
+func deleteByIdWhileNotExist(t *testing.T, target, id string) {
+	resp, e := httpDelete("http://127.0.0.1:7071/mdb/" + target + "/" + id)
+	if nil != e {
+		t.Errorf("delete %s failed, %v", target, e)
+		t.FailNow()
+	}
+	if resp.StatusCode != 404 {
+		t.Errorf("delete %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
+		t.FailNow()
+	}
+}
+
+func deleteById(t *testing.T, target, id string) {
+	resp, e := httpDelete("http://127.0.0.1:7071/mdb/" + target + "/" + id)
+	if nil != e {
+		t.Errorf("delete %s failed, %v", target, e)
+		t.FailNow()
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("delete %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
+		t.FailNow()
+	}
+}
+
+func deleteBy(t *testing.T, target string, params map[string]string) {
+	url := "http://127.0.0.1:7071/mdb/" + target + "/query?"
 	for k, v := range params {
 		url += ("@" + k + "=" + v + "&")
 	}
 	resp, e := httpDelete(url[:len(url)-1])
 	if nil != e {
-		return fmt.Errorf("delete %s failed, %v", t, e)
+		t.Errorf("delete %s failed, %v", t, e)
+		t.FailNow()
 	}
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("delete %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+		t.Errorf("delete %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+		t.FailNow()
 	}
-	return nil
 }
 
 func count(t string, params map[string]string) (int, error) {
@@ -251,41 +280,48 @@ func count(t string, params map[string]string) (int, error) {
 	return int(res), nil
 }
 
-func findBy(t string, params map[string]string) ([]map[string]interface{}, error) {
-	url := "http://127.0.0.1:7071/mdb/" + t + "/query?"
+func findOne(t *testing.T, target string, params map[string]string) map[string]interface{} {
+	res := findBy(t, target, params)
+	if 0 == len(res) {
+		t.Errorf("find %s failed, result is empty", target)
+		t.FailNow()
+	}
+	return res[0]
+}
+
+func findBy(t *testing.T, target string, params map[string]string) []map[string]interface{} {
+	url := "http://127.0.0.1:7071/mdb/" + target + "/query?"
 	for k, v := range params {
 		url += ("@" + k + "=" + v + "&")
 	}
 	resp, e := http.Get(url[:len(url)-1])
 	if nil != e {
-		return nil, fmt.Errorf("find %s failed, %v", t, e)
+		t.Errorf("find %s failed, %v", target, e)
+		t.FailNow()
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("find %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+		t.Errorf("find %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
+		t.FailNow()
 	}
+	body := readAll(resp.Body)
 	result := map[string]interface{}{}
-	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
+	e = json.Unmarshal([]byte(body), &result)
 
 	if nil != e {
-		return nil, fmt.Errorf("find %s failed, %v", t, e)
+		t.Errorf("find %s failed, %v, %v", target, e, body)
+		t.FailNow()
 	}
 	res := result["value"].([]interface{})
 	results := make([]map[string]interface{}, 0, 3)
 	for _, r := range res {
 		results = append(results, r.(map[string]interface{}))
 	}
-	return results, nil
+	return results
 }
 
 func TestDeviceDeleteCascadeAll(t *testing.T) {
-	e := deleteById("device", "all")
-	if nil != e {
-		t.Errorf("remove all device failed, " + e.Error())
-	}
-	e = deleteById("interface", "all")
-	if nil != e {
-		t.Errorf("remove all interface failed, " + e.Error())
-	}
+	deleteById(t, "device", "all")
+	deleteById(t, "interface", "all")
 
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
@@ -315,11 +351,7 @@ func TestDeviceDeleteCascadeAll(t *testing.T) {
 	createMockInterface(t, id4, "40003")
 	createMockInterface(t, id4, "40004")
 
-	e = deleteById("device", "all")
-	if nil != e {
-		t.Errorf("remove all device failed, " + e.Error())
-		return
-	}
+	deleteById(t, "device", "all")
 
 	if c, err := count("interface", map[string]string{}); 0 != c {
 		t.Errorf("16 != len(all.interfaces), actual is %d, %v", c, err)
@@ -366,18 +398,9 @@ func checkCount(t *testing.T, field, tName, id1, id2, id3, id4 string, all, d1, 
 }
 
 func TestDeviceDeleteCascadeByAll(t *testing.T) {
-	e := deleteById("device", "all")
-	if nil != e {
-		t.Errorf("remove all device failed, " + e.Error())
-	}
-	e = deleteById("interface", "all")
-	if nil != e {
-		t.Errorf("remove all interface failed, " + e.Error())
-	}
-	e = deleteById("history_rule", "all")
-	if nil != e {
-		t.Errorf("remove all interface failed, " + e.Error())
-	}
+	deleteById(t, "device", "all")
+	deleteById(t, "interface", "all")
+	deleteById(t, "trigger", "all")
 
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
@@ -425,27 +448,16 @@ func TestDeviceDeleteCascadeByAll(t *testing.T) {
 
 	checkInterfaceCount(t, id1, id2, id3, id4, 16, 4, 4, 4, 4)
 	checkHistoryRuleCount(t, id1, id2, id3, id4, 17, 4, 4, 4, 4)
-	e = deleteById("device", "all")
-	if nil != e {
-		t.Errorf("remove dev1 failed, " + e.Error())
-	}
+	deleteById(t, "device", "all")
 	checkInterfaceCount(t, id1, id2, id3, id4, 0, 0, 0, 0, 0)
 	checkHistoryRuleCount(t, id1, id2, id3, id4, 1, 0, 0, 0, 0)
 }
 
 func TestDeviceDeleteCascadeByQuery(t *testing.T) {
-	e := deleteById("device", "all")
-	if nil != e {
-		t.Errorf("remove all device failed, " + e.Error())
-	}
-	e = deleteById("interface", "all")
-	if nil != e {
-		t.Errorf("remove all interface failed, " + e.Error())
-	}
-	e = deleteById("trigger", "all")
-	if nil != e {
-		t.Errorf("remove all interface failed, " + e.Error())
-	}
+
+	deleteById(t, "device", "all")
+	deleteById(t, "interface", "all")
+	deleteById(t, "trigger", "all")
 
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
@@ -494,27 +506,15 @@ func TestDeviceDeleteCascadeByQuery(t *testing.T) {
 
 	checkInterfaceCount(t, id1, id2, id3, id4, 16, 4, 4, 4, 4)
 	checkHistoryRuleCount(t, id1, id2, id3, id4, 17, 4, 4, 4, 4)
-	e = deleteBy("device", map[string]string{"catalog": "[gte]3"})
-	if nil != e {
-		t.Errorf("remove query failed, " + e.Error())
-	}
+	deleteBy(t, "device", map[string]string{"catalog": "[gte]3"})
 	checkInterfaceCount(t, id1, id2, id3, id4, 8, 4, 4, 0, 0)
 	checkHistoryRuleCount(t, id1, id2, id3, id4, 9, 4, 4, 0, 0)
 }
 
 func TestDeviceDeleteCascadeById(t *testing.T) {
-	e := deleteById("device", "all")
-	if nil != e {
-		t.Errorf("remove all device failed, " + e.Error())
-	}
-	e = deleteById("interface", "all")
-	if nil != e {
-		t.Errorf("remove all interface failed, " + e.Error())
-	}
-	e = deleteById("history_rule", "all")
-	if nil != e {
-		t.Errorf("remove all interface failed, " + e.Error())
-	}
+	deleteById(t, "device", "all")
+	deleteById(t, "interface", "all")
+	deleteById(t, "trigger", "all")
 
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
@@ -564,39 +564,28 @@ func TestDeviceDeleteCascadeById(t *testing.T) {
 	checkInterfaceCount(t, id1, id2, id3, id4, 16, 4, 4, 4, 4)
 	checkHistoryRuleCount(t, id1, id2, id3, id4, 17, 4, 4, 4, 4)
 
-	e = deleteById("device", id1)
-	if nil != e {
-		t.Errorf("remove dev1 failed, " + e.Error())
-	}
+	deleteById(t, "device", id1)
+
 	checkInterfaceCount(t, id1, id2, id3, id4, 12, 0, 4, 4, 4)
 	checkHistoryRuleCount(t, id1, id2, id3, id4, 13, 0, 4, 4, 4)
-	e = deleteById("device", id2)
-	if nil != e {
-		t.Errorf("remove dev2 failed, " + e.Error())
-	}
+	deleteById(t, "device", id2)
+
 	checkInterfaceCount(t, id1, id2, id3, id4, 8, 0, 0, 4, 4)
 	checkHistoryRuleCount(t, id1, id2, id3, id4, 9, 0, 0, 4, 4)
-	e = deleteById("device", id3)
-	if nil != e {
-		t.Errorf("remove dev3 failed, " + e.Error())
-	}
+	deleteById(t, "device", id3)
 
 	checkInterfaceCount(t, id1, id2, id3, id4, 4, 0, 0, 0, 4)
 	checkHistoryRuleCount(t, id1, id2, id3, id4, 5, 0, 0, 0, 4)
-	e = deleteById("device", id4)
-	if nil != e {
-		t.Errorf("remove dev4 failed, " + e.Error())
-	}
+	deleteById(t, "device", id4)
 
 	checkInterfaceCount(t, id1, id2, id3, id4, 0, 0, 0, 0, 0)
 	checkHistoryRuleCount(t, id1, id2, id3, id4, 1, 0, 0, 0, 0)
 }
 
 func TestDeviceCURD(t *testing.T) {
-	e := deleteById("device", "all")
-	if nil != e {
-		t.Errorf("remove all failed, " + e.Error())
-	}
+	deleteById(t, "device", "all")
+	deleteById(t, "interface", "all")
+	deleteById(t, "trigger", "all")
 
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
@@ -653,10 +642,7 @@ func TestDeviceCURD(t *testing.T) {
 	validMockDevice(t, "31", d3)
 	validMockDevice(t, "41", d4)
 
-	e = deleteById("device", "all")
-	if nil != e {
-		t.Errorf("remove all failed, " + e.Error())
-	}
+	deleteById(t, "device", "all")
 
 	d1 = getDeviceByName(t, "11")
 	d2 = getDeviceByName(t, "21")
@@ -669,10 +655,7 @@ func TestDeviceCURD(t *testing.T) {
 }
 
 func TestDeviceDeleteById(t *testing.T) {
-	e := deleteById("device", "all")
-	if nil != e {
-		t.Errorf("remove all failed, " + e.Error())
-	}
+	deleteById(t, "device", "all")
 
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
@@ -682,34 +665,21 @@ func TestDeviceDeleteById(t *testing.T) {
 		return
 	}
 
-	e = deleteById("device", id1)
-	if nil != e {
-		t.Errorf("remove id1 failed, " + e.Error())
-	}
-	e = deleteById("device", id2)
-	if nil != e {
-		t.Errorf("remove id2 failed, " + e.Error())
-	}
-	e = deleteById("device", id3)
-	if nil != e {
-		t.Errorf("remove id3 failed, " + e.Error())
-	}
-	e = deleteById("device", id4)
-	if nil != e {
-		t.Errorf("remove id4 failed, " + e.Error())
-	}
+	deleteById(t, "device", id1)
+	deleteById(t, "device", id2)
+	deleteById(t, "device", id3)
+	deleteById(t, "device", id4)
 
 	DeviceNotExistsById(t, id1)
 	DeviceNotExistsById(t, id2)
 	DeviceNotExistsById(t, id3)
 	DeviceNotExistsById(t, id4)
+
+	deleteByIdWhileNotExist(t, "device", bson.NewObjectId().Hex())
 }
 
 func TestDeviceFindBy(t *testing.T) {
-	e := deleteById("device", "all")
-	if nil != e {
-		t.Errorf("remove all failed, " + e.Error())
-	}
+	deleteById(t, "device", "all")
 
 	id1 := createMockDevice(t, "1")
 	id2 := createMockDevice(t, "2")
@@ -728,25 +698,13 @@ func TestDeviceFindBy(t *testing.T) {
 		return
 	}
 
-	res, e := findBy("device", map[string]string{"catalog": "[eq]1"})
-	if nil != e {
-		t.Errorf(e.Error())
-		return
-	}
+	res := findBy(t, "device", map[string]string{"catalog": "[eq]1"})
 	validMockDevice(t, "1", res[0])
 
-	res, e = findBy("device", map[string]string{"catalog": "[lte]1"})
-	if nil != e {
-		t.Errorf(e.Error())
-		return
-	}
+	res = findBy(t, "device", map[string]string{"catalog": "[lte]1"})
 	validMockDevice(t, "1", res[0])
 
-	res, e = findBy("device", map[string]string{"catalog": "[lte]2"})
-	if nil != e {
-		t.Errorf(e.Error())
-		return
-	}
+	res = findBy(t, "device", map[string]string{"catalog": "[lte]2"})
 	if 2 != len(res) {
 		t.Errorf("catalog <=2 failed, len(result) is %v", len(res))
 		return
@@ -760,24 +718,12 @@ func TestDeviceFindBy(t *testing.T) {
 	validMockDevice(t, "1", d1)
 	validMockDevice(t, "2", d2)
 
-	res, e = findBy("device", map[string]string{"catalog": "[lt]2"})
-	if nil != e {
-		t.Errorf(e.Error())
-		return
-	}
+	res = findBy(t, "device", map[string]string{"catalog": "[lt]2"})
 	validMockDevice(t, "1", res[0])
 
-	res, e = findBy("device", map[string]string{"catalog": "[gt]3"})
-	if nil != e {
-		t.Errorf(e.Error())
-		return
-	}
+	res = findBy(t, "device", map[string]string{"catalog": "[gt]3"})
 	validMockDevice(t, "4", res[0])
-	res, e = findBy("device", map[string]string{"catalog": "[gte]3"})
-	if nil != e {
-		t.Errorf(e.Error())
-		return
-	}
+	res = findBy(t, "device", map[string]string{"catalog": "[gte]3"})
 	if 2 != len(res) {
 		t.Errorf("catalog <=2 failed, len(result) is %v", len(res))
 		return
@@ -791,11 +737,7 @@ func TestDeviceFindBy(t *testing.T) {
 	validMockDevice(t, "3", d3)
 	validMockDevice(t, "4", d4)
 
-	res, e = findBy("device", map[string]string{"catalog": "[ne]3"})
-	if nil != e {
-		t.Errorf(e.Error())
-		return
-	}
+	res = findBy(t, "device", map[string]string{"catalog": "[ne]3"})
 	if 3 != len(res) {
 		t.Errorf("catalog <=3 failed, len(result) is %v", len(res))
 		return

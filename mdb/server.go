@@ -3,6 +3,7 @@ package mdb
 import (
 	"commons"
 	"commons/as"
+	"commons/stringutils"
 	"errors"
 	"fmt"
 	"labix.org/v2/mgo"
@@ -163,6 +164,27 @@ func doMagic(k string, attributes, new_attributes map[string]interface{},
 	}
 	return false
 }
+func doInheritance(cls *ClassDefinition, attributes, new_attributes map[string]interface{},
+	is_update bool, errs *[]error) {
+	t, ok := attributes["type"]
+	if ok {
+		if !cls.IsInheritance() {
+			*errs = append(*errs, errors.New("it is not inheritance and cannot contains 'type'"))
+			return
+		}
+		cm := stringutils.Underscore(cls.Name)
+		if cm != t {
+			*errs = append(*errs, fmt.Errorf("'%t' of 'type' is not equal class '%s'", t, cm))
+			return
+		}
+		new_attributes["type"] = t
+	} else {
+		if cls.IsInheritance() {
+			new_attributes["type"] = stringutils.Underscore(cls.Name)
+		}
+	}
+}
+
 func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]interface{},
 	is_update bool) (map[string]interface{}, error) {
 	attributes := uattributes
@@ -175,6 +197,9 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]in
 
 	new_attributes := make(map[string]interface{}, len(attributes))
 	errs := make([]error, 0, 10)
+
+	doInheritance(cls, attributes, new_attributes, is_update, &errs)
+
 	for k, pr := range cls.Properties {
 
 		if doMagic(k, attributes, new_attributes, is_update, &errs) {
@@ -262,9 +287,32 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]in
 	return new_attributes, nil
 }
 
-func (self *mdb_server) postRead(cls *ClassDefinition, attributes map[string]interface{}) (map[string]interface{}, error) {
+func (self *mdb_server) postRead(raw_cls *ClassDefinition, attributes map[string]interface{}) (map[string]interface{}, error) {
 
 	new_attributes := make(map[string]interface{}, len(attributes))
+
+	cls := raw_cls
+	if raw_cls.IsInheritance() {
+		t, ok := attributes["type"]
+		if !ok {
+			return nil, fmt.Errorf("result is not contains 'type' - %v", attributes)
+		}
+
+		nm, ok := t.(string)
+		if !ok {
+			return nil, fmt.Errorf("'type' is not a string type, it is  '%T:%s' is not found - %v", t, t, attributes)
+		}
+
+		cls = self.definitions.FindByUnderscoreName(nm)
+		if nil == cls {
+			return nil, fmt.Errorf("class '%s' is not found  - %v", nm, attributes)
+		}
+		if !cls.InheritanceFrom(raw_cls) {
+			return nil, fmt.Errorf("class '%s' is not child of class %s  - %v", cls.Name, raw_cls.Name, attributes)
+		}
+		new_attributes["type"] = nm
+	}
+
 	errs := make([]error, 0, 10)
 	for k, pr := range cls.Properties {
 		value, ok := attributes[k]
@@ -308,11 +356,114 @@ func (self *mdb_server) postRead(cls *ClassDefinition, attributes map[string]int
 		new_attributes[k] = new_array
 	}
 
+	if t, ok := attributes["type"]; ok {
+		new_attributes["type"] = t
+	}
+
 	if 0 != len(errs) {
 		return nil, commons.NewMutiErrors("validate failed", errs)
 	}
-
 	return new_attributes, nil
+}
+
+func (self *mdb_server) findClassByAttributes(attributes map[string]interface{}) (*ClassDefinition, error) {
+	if nil == attributes {
+		return nil, nil
+	}
+	objectType, ok := attributes["type"]
+	if !ok {
+		return nil, nil
+	}
+
+	t, ok := objectType.(string)
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("type '%v' in body is not a string type", objectType))
+	}
+
+	definition := self.definitions.FindByUnderscoreName(t)
+	if nil == definition {
+		return nil, errors.New("class '" + t + "' is not found")
+	}
+	return definition, nil
+}
+
+func (self *mdb_server) findClass(t string, attributes map[string]interface{}) (*ClassDefinition, error) {
+	cls, e := self.findClassByAttributes(attributes)
+	if nil != e {
+		return nil, e
+	}
+	if nil != cls {
+		return cls, nil
+	}
+	definition := self.definitions.FindByUnderscoreName(t)
+	if nil == definition {
+		return nil, errors.New("class '" + t + "' is not found")
+	}
+	return definition, nil
+}
+
+func (self *mdb_server) createChildren(cls *ClassDefinition, id interface{}, attributes map[string]interface{}) []string {
+	warnings := []string{}
+	for k, v := range attributes {
+		if '$' != k[0] {
+			continue
+		}
+		ccls := self.definitions.FindByUnderscoreName(k[1:])
+		if nil == ccls {
+			warnings = append(warnings, fmt.Sprintf("class '%s' of '%s' is not found", k[1:], k))
+			continue
+		}
+
+		assoc := cls.GetAssocationByCollectionName(ccls.CollectionName())
+		if nil == assoc {
+			warnings = append(warnings, fmt.Sprintf("class '%s' is not contains child that name is '%s' at the '%s'", cls.Name, k[1:], k))
+			continue
+		}
+		foreignKey := ""
+		is_polymorphic := false
+		switch a := assoc.(type) {
+		case *HasMany:
+			foreignKey = a.ForeignKey
+			is_polymorphic = a.Polymorphic
+		case *HasOne:
+			foreignKey = a.ForeignKey
+		default:
+			warnings = append(warnings, fmt.Sprintf("class '%s' is not contains child that name is '%s' at the '%s'", cls.Name, k[1:], k))
+		}
+
+		commons.Each(v, func(ck interface{}, r interface{}) {
+			attrs, ok := r.(map[string]interface{})
+			if !ok {
+				warnings = append(warnings, fmt.Sprintf("value of '%s.%s' is not map[string]interface{}", k, ck))
+				return
+			}
+
+			lcls, err := self.findClassByAttributes(attrs)
+			if nil != err {
+				warnings = append(warnings, fmt.Sprintf("class '%s' of '%s.%s' is not found, %v - %v", k[1:], k, ck, err, attrs))
+				return
+			}
+			if nil == lcls {
+				lcls = ccls
+			}
+			if is_polymorphic {
+				attrs["parent_type"] = stringutils.Underscore(cls.Name)
+				attrs["parent_id"] = id
+			} else {
+				attrs[foreignKey] = id
+			}
+			_, err = self.Create(lcls, attrs)
+			if nil != err {
+				warnings = append(warnings, fmt.Sprintf("save '%s.%s' failed, %v - %v", k, ck, err, attrs))
+			}
+		}, func() {
+			warnings = append(warnings, fmt.Sprintf("value of '%s' is not []interface{} or map[string]interface{}", k))
+		})
+	}
+	if 0 == len(warnings) {
+		return nil
+	}
+	return warnings
 }
 
 func (self *mdb_server) Create(cls *ClassDefinition, attributes map[string]interface{}) (interface{}, error) {
@@ -330,6 +481,7 @@ func (self *mdb_server) Create(cls *ClassDefinition, attributes map[string]inter
 	if nil != err {
 		return nil, err
 	}
+
 	return id, nil
 }
 
@@ -623,15 +775,36 @@ func appendIdCriteria(q bson.M, exp string) error {
 // 		}
 // 	}
 // }
-
+func buildInheritanceQuery(cls *ClassDefinition) bson.M {
+	if !cls.IsInheritance() {
+		return nil
+	}
+	if nil == cls.Super {
+		return nil
+	}
+	cm := stringutils.Underscore(cls.Name)
+	if nil == cls.Children {
+		return bson.M{"type": cm}
+	}
+	ar := make([]interface{}, 0, len(cls.Children))
+	ar = append(ar, cm)
+	for _, child := range cls.Children {
+		ar = append(ar, stringutils.Underscore(child.Name))
+	}
+	return bson.M{"type": bson.M{"$in": ar}}
+}
 func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M, error) {
+	q := buildInheritanceQuery(cls)
 	if nil == params || 0 == len(params) {
-		return nil, nil
+		return q, nil
 	}
 
 	//is_all := nil != cls.Children || 0 == len(cls.Children)
 	properties := cls.Properties
-	q := bson.M{}
+	if nil == q {
+		q = bson.M{}
+	}
+
 	for nm, exp := range params {
 		if '@' != nm[0] {
 			continue

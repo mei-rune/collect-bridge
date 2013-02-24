@@ -406,6 +406,10 @@ func (self *IpAddressTypeDefinition) CreateLengthValidator(minLength, maxLength 
 	panic("not supported")
 }
 func (self *IpAddressTypeDefinition) Convert(v interface{}) (interface{}, error) {
+	if nil == v {
+		return nil, nil
+	}
+
 	switch value := v.(type) {
 	case string:
 		ip := net.ParseIP(value)
@@ -461,8 +465,14 @@ func (self *PhysicalAddressTypeDefinition) CreateLengthValidator(minLength, maxL
 }
 
 func (self *PhysicalAddressTypeDefinition) Convert(v interface{}) (interface{}, error) {
+	if nil == v {
+		return nil, nil
+	}
 	switch value := v.(type) {
 	case string:
+		if "" == value {
+			return nil, nil
+		}
 		mac, err := net.ParseMAC(value)
 		if nil != err {
 			return nil, err
@@ -470,6 +480,9 @@ func (self *PhysicalAddressTypeDefinition) Convert(v interface{}) (interface{}, 
 		addr := SqlPhysicalAddress(mac)
 		return &addr, nil
 	case *string:
+		if "" == *value {
+			return nil, nil
+		}
 		mac, err := net.ParseMAC(*value)
 		if nil != err {
 			return nil, err

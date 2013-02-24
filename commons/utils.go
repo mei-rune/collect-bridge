@@ -13,6 +13,21 @@ import (
 	"time"
 )
 
+func Each(instance interface{}, cb func(k interface{}, v interface{}), default_cb func()) {
+	switch values := instance.(type) {
+	case map[string]interface{}:
+		for ck, r := range values {
+			cb(ck, r)
+		}
+	case []interface{}:
+		for ck, r := range values {
+			cb(ck, r)
+		}
+	default:
+		default_cb()
+	}
+}
+
 func ConvertToIntList(value, sep string) ([]int, error) {
 
 	ss := strings.Split(value, sep)

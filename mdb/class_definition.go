@@ -121,6 +121,17 @@ type HierarchicalEnumeration struct {
 // 	Children         []*ClassDefinition)
 // }
 
+func (self *ClassDefinition) IsInheritance() bool {
+	return (nil != self.Super) || (nil != self.Children && 0 != len(self.Children))
+}
+func (self *ClassDefinition) InheritanceFrom(cls *ClassDefinition) bool {
+	for s := self; nil != s; s = s.Super {
+		if s == cls {
+			return true
+		}
+	}
+	return false
+}
 func (self *ClassDefinition) CollectionName() string {
 	if nil == self.Super {
 		return self.collectionName

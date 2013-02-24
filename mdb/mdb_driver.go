@@ -5,7 +5,9 @@ import (
 	"commons/errutils"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"labix.org/v2/mgo"
+	"strings"
 )
 
 type MdbDriver struct {
@@ -33,39 +35,75 @@ func NewMdbDriver(mgo_url, mgo_db string, drvMgr *commons.DriverManager) (*MdbDr
 	return &MdbDriver{drvMgr, mdb_server{session: sess.DB(mgo_db), definitions: definitions}}, nil
 }
 
-func (self *MdbDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *MdbDriver) findClassByBody(body map[string]interface{}) (*ClassDefinition, commons.RuntimeError) {
+	if nil == body {
+		return nil, nil
+	}
+	objectType, ok := body["type"]
+	if !ok {
+		return nil, nil
+	}
+
+	t, ok := objectType.(string)
+	if !ok {
+		return nil, errutils.BadRequest(fmt.Sprintf("type '%v' in body is not a string type", objectType))
+	}
+
+	definition := self.definitions.FindByUnderscoreName(t)
+	if nil == definition {
+		return nil, errutils.BadRequest("class '" + t + "' is not found")
+	}
+	return definition, nil
+}
+
+func (self *MdbDriver) findClass(params map[string]string, body map[string]interface{}) (*ClassDefinition, commons.RuntimeError) {
+	definition, e := self.findClassByBody(body)
+	if nil != definition || nil != e {
+		return definition, e
+	}
+
 	objectType, _ := params["mdb.type"]
 	if "" == objectType {
 		return nil, errutils.IsRequired("mdb.type")
 	}
-	definition := self.definitions.FindByUnderscoreName(objectType)
+	definition = self.definitions.FindByUnderscoreName(objectType)
 	if nil == definition {
-		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "class '"+objectType+"' is not found")
+		return nil, errutils.BadRequest("class '" + objectType + "' is not found")
 	}
+	return definition, nil
+}
+
+func (self *MdbDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
 	body, ok := params["body"]
 	if !ok {
 		return nil, commons.BodyNotExists
 	}
 
-	var result map[string]interface{}
-	err := json.Unmarshal([]byte(body), &result)
+	var attributes map[string]interface{}
+	err := json.Unmarshal([]byte(body), &attributes)
 	if err != nil {
 		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "unmarshal object from request failed, "+err.Error())
 	}
 
-	instance_id, err := self.mdb_server.Create(definition, result)
+	definition, e := self.findClass(params, attributes)
+	if nil != e {
+		return nil, e
+	}
+
+	instance_id, err := self.mdb_server.Create(definition, attributes)
 	if err != nil {
 		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "insert object to db, "+err.Error())
 	}
+	warnings := self.mdb_server.createChildren(definition, instance_id, attributes)
 
-	return commons.Return(instance_id), nil
+	res := commons.Return(instance_id)
+	if nil != warnings {
+		res["warnings"] = strings.Join(warnings, "\n")
+	}
+	return res, nil
 }
 
 func (self *MdbDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
-	objectType, _ := params["mdb.type"]
-	if "" == objectType {
-		return nil, errutils.IsRequired("mdb.type")
-	}
 	id, _ := params["id"]
 	if "" == id {
 		return nil, commons.IdNotExists
@@ -76,23 +114,29 @@ func (self *MdbDriver) Put(params map[string]string) (map[string]interface{}, co
 		return nil, errutils.BadRequest("id is not a objectId")
 	}
 
-	var result map[string]interface{}
-	definition := self.definitions.FindByUnderscoreName(objectType)
-	if nil == definition {
-		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "class '"+objectType+"' is not found")
-	}
-
 	body, ok := params["body"]
 	if !ok {
 		return nil, commons.BodyNotExists
 	}
+
+	var result map[string]interface{}
 	err = json.Unmarshal([]byte(body), &result)
 	if err != nil {
 		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "unmarshal object from request failed, "+err.Error())
 	}
 
+	definition, e := self.findClass(params, result)
+	if nil != e {
+		return nil, e
+	}
+
 	err = self.mdb_server.Update(definition, oid, result)
 	if err != nil {
+
+		if "not found" == err.Error() {
+			return nil, errutils.RecordNotFound(id)
+		}
+
 		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "update object to db, "+err.Error())
 	}
 
@@ -107,7 +151,7 @@ func (self *MdbDriver) Delete(params map[string]string) (bool, commons.RuntimeEr
 
 	definition := self.definitions.FindByUnderscoreName(objectType)
 	if nil == definition {
-		return false, commons.NewRuntimeError(commons.InternalErrorCode, "class '"+objectType+"' is not found")
+		return false, errutils.BadRequest("class '" + objectType + "' is not found")
 	}
 	id, _ := params["id"]
 	switch id {
@@ -136,6 +180,10 @@ func (self *MdbDriver) Delete(params map[string]string) (bool, commons.RuntimeEr
 
 	ok, err := self.RemoveById(definition, oid)
 	if !ok {
+		if "not found" == err.Error() {
+			return false, errutils.RecordNotFound(id)
+		}
+
 		return false, commons.NewRuntimeError(commons.InternalErrorCode, "remove object from db failed, "+err.Error())
 	}
 
@@ -149,7 +197,7 @@ func (self *MdbDriver) Get(params map[string]string) (map[string]interface{}, co
 	}
 	definition := self.definitions.FindByUnderscoreName(objectType)
 	if nil == definition {
-		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "class '"+objectType+"' is not found")
+		return nil, errutils.BadRequest("class '" + objectType + "' is not found")
 	}
 
 	id, _ := params["id"]
@@ -173,6 +221,10 @@ func (self *MdbDriver) Get(params map[string]string) (map[string]interface{}, co
 	}
 	result, err := self.FindById(definition, oid)
 	if err != nil {
+		if "not found" == err.Error() {
+			return nil, errutils.RecordNotFound(id)
+		}
+
 		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
 	}
 

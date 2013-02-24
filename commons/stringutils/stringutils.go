@@ -173,6 +173,9 @@ func Pluralize(str string) string {
 	if strings.HasSuffix(str, "y") {
 		str = str[:len(str)-1] + "ie"
 	}
+	if strings.HasSuffix(str, "s") {
+		str = str[:len(str)-1] + "e"
+	}
 	return str + "s"
 }
 

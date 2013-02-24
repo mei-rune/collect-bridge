@@ -84,14 +84,29 @@ func internalError(msg string, err error) commons.RuntimeError {
 var HostIsRequired = errutils.IsRequired("snmp.host")
 var OidIsRequired = errutils.IsRequired("snmp.oid")
 
-func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func getHost(params map[string]string) (string, commons.RuntimeError) {
 	host, ok := params["snmp.host"]
 	if !ok {
-		host, ok = params["id"]
-		if !ok {
-			return nil, HostIsRequired
+		if address, ok := params["snmp.address"]; ok {
+			host = address
+			if port, ok := params["snmp.port"]; ok {
+				host += (":" + port)
+			} else {
+				host += ":161"
+			}
+		} else if host, ok = params["id"]; !ok {
+			return "", HostIsRequired
 		}
 	}
+	return host, nil
+}
+
+func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	host, e := getHost(params)
+	if nil != e {
+		return nil, e
+	}
+
 	oid, ok := params["snmp.oid"]
 	if !ok {
 		return nil, OidIsRequired
@@ -191,10 +206,7 @@ func (self *SnmpDriver) Create(params map[string]string) (map[string]interface{}
 func (self *SnmpDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {
 	action, ok := params["snmp.action"]
 	if ok && "remove_client" == action {
-		host, _ := params["snmp.host"]
-		if "" == host {
-			host, _ = params["id"]
-		}
+		host, _ := getHost(params)
 		if "" != host && "all" != host {
 			self.RemoveClient(host)
 		} else {

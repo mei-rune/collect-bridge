@@ -11,11 +11,6 @@
     <property name="address">
       <restriction base="ipAddress">
         <required />
-        <readonly />
-      </restriction>
-    </property>
-    <property name="communities">
-      <restriction base="string" collection="array">
       </restriction>
     </property>
     <property name="description">
@@ -50,9 +45,69 @@
       <restriction base="datetime">
       </restriction>
     </property>
+    <has_many foreignKey="device_id" >AccessParams</has_many>
 		<has_many foreignKey="device_id" >Interface</has_many>
     <has_many foreignKey="device_id" >Address</has_many>
     <has_many polymorphic="true" >Trigger</has_many>
+  </class>
+  <class name="AccessParams">
+    <property name="description">
+      <restriction base="string">
+        <maxLength>2000</maxLength>
+      </restriction>
+    </property>
+  </class>
+  <class name="EndpointParams" base="AccessParams">
+    <property name="address">
+      <restriction base="ipAddress">
+        <required />
+      </restriction>
+    </property>
+    <property name="port">
+      <restriction base="integer">
+        <required />
+      </restriction>
+    </property>
+  </class>
+  <class name="SnmpParams" base="EndpointParams">
+    <property name="version">
+      <restriction base="string">
+        <required />
+        <enumeration value="snmp_v1" />
+        <enumeration value="snmp_v2c" />
+        <enumeration value="snmp_v3" />
+      </restriction>
+    </property>
+    <property name="community">
+      <restriction base="password">
+        <required />
+      </restriction>
+    </property>
+  </class>
+  <class name="SshParams" base="EndpointParams">
+    <property name="user">
+      <restriction base="string">
+      </restriction>
+    </property>
+    <property name="password">
+      <restriction base="password">
+      </restriction>
+    </property>
+  </class>
+  <class name="WbemParams" base="AccessParams">
+    <property name="url">
+      <restriction base="string">
+        <required />
+      </restriction>
+    </property>
+    <property name="user">
+      <restriction base="string">
+      </restriction>
+    </property>
+    <property name="password">
+      <restriction base="password">
+      </restriction>
+    </property>
   </class>
   <class name="Address">
     <property name="address">

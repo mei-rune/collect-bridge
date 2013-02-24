@@ -60,10 +60,18 @@ func (self *SqlIPAddress) String() string {
 	return net.IP(*self).String()
 }
 
+func (self *SqlIPAddress) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + net.IP(*self).String() + "\""), nil
+}
+
 func (self *SqlPhysicalAddress) GetBSON() (interface{}, error) {
 	return net.HardwareAddr(*self).String(), nil
 }
 
 func (self *SqlPhysicalAddress) String() string {
 	return net.HardwareAddr(*self).String()
+}
+
+func (self *SqlPhysicalAddress) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + net.HardwareAddr(*self).String() + "\""), nil
 }

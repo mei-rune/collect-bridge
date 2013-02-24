@@ -4,7 +4,6 @@ import (
 	"commons"
 	"commons/errutils"
 	"commons/netutils"
-	"errors"
 	"fmt"
 	"net"
 	"snmp"
@@ -126,17 +125,32 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 }
 
 func (self *Discoverer) readMetric(drv Device, name string) (interface{}, error) {
-	communities := drv["communities"].([]string)
-	if nil == communities || 0 == len(communities) {
-		return nil, errors.New("community ip of local host is empty.")
+	params := drv["$access_params"]
+	if nil == params {
+		return nil, fmt.Errorf("access params of %v is not exists.", drv["address"])
 	}
 
-	res, e := self.metrics_drv.Get(map[string]string{"id": drv["address"].(string), "metric": name,
-		"snmp.community": communities[0], "charset": "GB18030"})
-	if nil != e {
-		return nil, e
+	access_params, _ := params.([]interface{})
+	if nil == access_params || 0 == len(access_params) {
+		return nil, fmt.Errorf("access params of %v is empty.", drv["address"])
 	}
-	return commons.GetReturn(res), nil
+	for _, param := range access_params {
+		p, _ := param.(map[string]interface{})
+		if nil == p || "snmp_params" != p["type"] {
+			continue
+		}
+		metric_params := map[string]string{"id": drv["address"].(string), "metric": name, "charset": "GB18030"}
+		for k, v := range p {
+			metric_params["snmp."+k] = fmt.Sprint(v)
+		}
+
+		res, e := self.metrics_drv.Get(metric_params)
+		if nil != e {
+			return nil, e
+		}
+		return commons.GetReturn(res), nil
+	}
+	return nil, fmt.Errorf("snmp params of %v is not exists.", drv["address"])
 }
 
 func (self *Discoverer) readLocal() ([]interface{}, error) {
@@ -170,8 +184,8 @@ func (self *Discoverer) initDevice(drv Device) error {
 		"sys.services":   "services",
 		"sys.name":       "name",
 		"sys.location":   "location",
-		"interfaceDescr": "interfaces",
-		"ipAddress":      "addresses"} {
+		"interfaceDescr": "$interface",
+		"ipAddress":      "$address"} {
 		self.logf(DEBUG, "read '%s' for '%v", name, drv["address"])
 		metric, e := self.readMetric(drv, name)
 		if nil != e {
@@ -199,7 +213,7 @@ func (self *Discoverer) addDevice(drv Device) {
 	addr := drv["address"].(string)
 	self.devices[addr] = drv
 
-	ipAddresses, ok := drv["addresses"].(map[string]interface{})
+	ipAddresses, ok := drv["$address"].(map[string]interface{})
 	if !ok || nil == ipAddresses || 0 == len(ipAddresses) {
 		return
 	}
@@ -338,7 +352,7 @@ func (self *Discoverer) serve() {
 			break
 		}
 		for _, drv := range pending_drvs {
-			self.detectNewAddress(drv["addresses"])
+			self.detectNewAddress(drv["$address"])
 		}
 	}
 }
@@ -378,7 +392,8 @@ func (self *Discoverer) pollAddress() {
 			continue
 		}
 
-		drv := Device{"address": addr, "communities": []string{reply.Community}}
+		drv := Device{"address": addr, "$access_params": []interface{}{map[string]interface{}{"type": "snmp_params", "address": addr,
+			"port": port, "version": reply.Version.String(), "community": reply.Community}}}
 		e := self.initDevice(drv)
 		if nil != e {
 			self.log(ERROR, "init device '"+addr+":"+port+"' failed, "+e.Error())

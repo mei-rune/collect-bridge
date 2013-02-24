@@ -337,6 +337,11 @@ func makeAssocation(self *ClassDefinitions, cls *ClassDefinition, errs *[]error,
 			t, tName, cls.Name, tName))
 		return nil
 	}
+	if nil != target.Super {
+		*errs = append(*errs, fmt.Errorf("process %s target '%s' of class '%s' failed, '%s' is a sub class.",
+			t, tName, cls.Name, tName))
+		return nil
+	}
 	polymorphic := false
 	if "" == polymorphic_s {
 		polymorphic = false

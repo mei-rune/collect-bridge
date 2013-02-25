@@ -181,8 +181,29 @@
         <maxLength>2000</maxLength>
       </restriction>
     </property>
+    <has_many polymorphic="true">Action</has_many>
   </class>
-  <class name="HistoryRule" base="Trigger">
+  <class name="Action">
+    <property name="name">
+      <restriction base="string">
+        <required />
+        <unique />
+      </restriction>
+    </property>
+    <property name="description">
+      <restriction base="string">
+        <maxLength>2000</maxLength>
+      </restriction>
+    </property>
+  </class>
+  <class name="RedisMapAction" base="Action">
+    <property name="collection_name">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+  </class>
+  <class name="MetricRule" base="Trigger">
     <property name="metric">
       <restriction base="string">
         <required />

@@ -28,11 +28,11 @@ func readAll(r io.Reader) string {
 	return string(bs)
 }
 
-func createMockHistoryRule2(t *testing.T, factor string) string {
-	return createJson(t, "history_rule", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s"}`, factor, factor, factor))
+func createMockMetricRule2(t *testing.T, factor string) string {
+	return createJson(t, "metric_rule", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s"}`, factor, factor, factor))
 }
-func createMockHistoryRule(t *testing.T, id, factor string) string {
-	return createJson(t, "history_rule", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s", "parent_type":"devices", "parent_id":"%s"}`, factor, factor, factor, id))
+func createMockMetricRule(t *testing.T, id, factor string) string {
+	return createJson(t, "metric_rule", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s", "parent_type":"device", "parent_id":"%s"}`, factor, factor, factor, id))
 }
 
 func createMockInterface(t *testing.T, id, factor string) string {
@@ -365,21 +365,21 @@ func TestDeviceDeleteCascadeAll(t *testing.T) {
 	}
 }
 
-func checkHistoryRuleCount(t *testing.T, id1, id2, id3, id4 string, all, d1, d2, d3, d4 int) {
-	tName := "history_rule"
+func checkMetricRuleCount(t *testing.T, id1, id2, id3, id4 string, all, d1, d2, d3, d4 int) {
+	tName := "metric_rule"
 	if c, err := count(tName, map[string]string{}); all != c {
 		t.Errorf("%d != len(all.rules), actual is %d, %v", all, c, err)
 	}
-	if c, err := count(tName, map[string]string{"parent_type": "devices", "parent_id": id1}); d1 != c {
+	if c, err := count(tName, map[string]string{"parent_type": "device", "parent_id": id1}); d1 != c {
 		t.Errorf("%d != len(d1.rules), actual is %d, %v", d1, c, err)
 	}
-	if c, err := count(tName, map[string]string{"parent_type": "devices", "parent_id": id2}); d2 != c {
+	if c, err := count(tName, map[string]string{"parent_type": "device", "parent_id": id2}); d2 != c {
 		t.Errorf("%d != len(d2.rules), actual is %d, %v", d2, c, err)
 	}
-	if c, err := count(tName, map[string]string{"parent_type": "devices", "parent_id": id3}); d3 != c {
+	if c, err := count(tName, map[string]string{"parent_type": "device", "parent_id": id3}); d3 != c {
 		t.Errorf("%d != len(d3.rules), actual is %d, %v", d3, c, err)
 	}
-	if c, err := count(tName, map[string]string{"parent_type": "devices", "parent_id": id4}); d4 != c {
+	if c, err := count(tName, map[string]string{"parent_type": "device", "parent_id": id4}); d4 != c {
 		t.Errorf("%d != len(d4.rules), actual is %d, %v", d4, c, err)
 	}
 }
@@ -404,7 +404,8 @@ func checkCount(t *testing.T, field, tName, id1, id2, id3, id4 string, all, d1, 
 	}
 }
 
-func TestDeviceDeleteCascadeByAll(t *testing.T) {
+func initData(t *testing.T) []string {
+
 	deleteById(t, "device", "all")
 	deleteById(t, "interface", "all")
 	deleteById(t, "trigger", "all")
@@ -413,180 +414,88 @@ func TestDeviceDeleteCascadeByAll(t *testing.T) {
 	id2 := createMockDevice(t, "2")
 	id3 := createMockDevice(t, "3")
 	id4 := createMockDevice(t, "4")
-	if "" == id1 {
-		return
-	}
-	createMockHistoryRule2(t, "s")
+
+	createMockMetricRule2(t, "s")
 	createMockInterface(t, id1, "10001")
 	createMockInterface(t, id1, "10002")
 	createMockInterface(t, id1, "10003")
 	createMockInterface(t, id1, "10004")
-	createMockHistoryRule(t, id1, "10001")
-	createMockHistoryRule(t, id1, "10002")
-	createMockHistoryRule(t, id1, "10003")
-	createMockHistoryRule(t, id1, "10004")
+	createMockMetricRule(t, id1, "10001")
+	createMockMetricRule(t, id1, "10002")
+	createMockMetricRule(t, id1, "10003")
+	createMockMetricRule(t, id1, "10004")
 
 	createMockInterface(t, id2, "20001")
 	createMockInterface(t, id2, "20002")
 	createMockInterface(t, id2, "20003")
 	createMockInterface(t, id2, "20004")
-	createMockHistoryRule(t, id2, "20001")
-	createMockHistoryRule(t, id2, "20002")
-	createMockHistoryRule(t, id2, "20003")
-	createMockHistoryRule(t, id2, "20004")
+	createMockMetricRule(t, id2, "20001")
+	createMockMetricRule(t, id2, "20002")
+	createMockMetricRule(t, id2, "20003")
+	createMockMetricRule(t, id2, "20004")
 
 	createMockInterface(t, id3, "30001")
 	createMockInterface(t, id3, "30002")
 	createMockInterface(t, id3, "30003")
 	createMockInterface(t, id3, "30004")
-	createMockHistoryRule(t, id3, "30001")
-	createMockHistoryRule(t, id3, "30002")
-	createMockHistoryRule(t, id3, "30003")
-	createMockHistoryRule(t, id3, "30004")
+	createMockMetricRule(t, id3, "30001")
+	createMockMetricRule(t, id3, "30002")
+	createMockMetricRule(t, id3, "30003")
+	createMockMetricRule(t, id3, "30004")
 
 	createMockInterface(t, id4, "40001")
 	createMockInterface(t, id4, "40002")
 	createMockInterface(t, id4, "40003")
 	createMockInterface(t, id4, "40004")
-	createMockHistoryRule(t, id4, "40001")
-	createMockHistoryRule(t, id4, "40002")
-	createMockHistoryRule(t, id4, "40003")
-	createMockHistoryRule(t, id4, "40004")
+	createMockMetricRule(t, id4, "40001")
+	createMockMetricRule(t, id4, "40002")
+	createMockMetricRule(t, id4, "40003")
+	createMockMetricRule(t, id4, "40004")
+	return []string{id1, id2, id3, id4}
+}
+func TestDeviceDeleteCascadeByAll(t *testing.T) {
 
-	checkInterfaceCount(t, id1, id2, id3, id4, 16, 4, 4, 4, 4)
-	checkHistoryRuleCount(t, id1, id2, id3, id4, 17, 4, 4, 4, 4)
+	idlist := initData(t)
+
+	checkInterfaceCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 16, 4, 4, 4, 4)
+	checkMetricRuleCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 17, 4, 4, 4, 4)
 	deleteById(t, "device", "all")
-	checkInterfaceCount(t, id1, id2, id3, id4, 0, 0, 0, 0, 0)
-	checkHistoryRuleCount(t, id1, id2, id3, id4, 1, 0, 0, 0, 0)
+	checkInterfaceCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 0, 0, 0, 0, 0)
+	checkMetricRuleCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 1, 0, 0, 0, 0)
 }
 
 func TestDeviceDeleteCascadeByQuery(t *testing.T) {
 
-	deleteById(t, "device", "all")
-	deleteById(t, "interface", "all")
-	deleteById(t, "trigger", "all")
-
-	id1 := createMockDevice(t, "1")
-	id2 := createMockDevice(t, "2")
-	id3 := createMockDevice(t, "3")
-	id4 := createMockDevice(t, "4")
-	if "" == id1 {
-		return
-	}
-
-	createMockHistoryRule2(t, "s")
-	createMockInterface(t, id1, "10001")
-	createMockInterface(t, id1, "10002")
-	createMockInterface(t, id1, "10003")
-	createMockInterface(t, id1, "10004")
-	createMockHistoryRule(t, id1, "10001")
-	createMockHistoryRule(t, id1, "10002")
-	createMockHistoryRule(t, id1, "10003")
-	createMockHistoryRule(t, id1, "10004")
-
-	createMockInterface(t, id2, "20001")
-	createMockInterface(t, id2, "20002")
-	createMockInterface(t, id2, "20003")
-	createMockInterface(t, id2, "20004")
-	createMockHistoryRule(t, id2, "20001")
-	createMockHistoryRule(t, id2, "20002")
-	createMockHistoryRule(t, id2, "20003")
-	createMockHistoryRule(t, id2, "20004")
-
-	createMockInterface(t, id3, "30001")
-	createMockInterface(t, id3, "30002")
-	createMockInterface(t, id3, "30003")
-	createMockInterface(t, id3, "30004")
-	createMockHistoryRule(t, id3, "30001")
-	createMockHistoryRule(t, id3, "30002")
-	createMockHistoryRule(t, id3, "30003")
-	createMockHistoryRule(t, id3, "30004")
-
-	createMockInterface(t, id4, "40001")
-	createMockInterface(t, id4, "40002")
-	createMockInterface(t, id4, "40003")
-	createMockInterface(t, id4, "40004")
-	createMockHistoryRule(t, id4, "40001")
-	createMockHistoryRule(t, id4, "40002")
-	createMockHistoryRule(t, id4, "40003")
-	createMockHistoryRule(t, id4, "40004")
-
-	checkInterfaceCount(t, id1, id2, id3, id4, 16, 4, 4, 4, 4)
-	checkHistoryRuleCount(t, id1, id2, id3, id4, 17, 4, 4, 4, 4)
+	idlist := initData(t)
+	checkInterfaceCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 16, 4, 4, 4, 4)
+	checkMetricRuleCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 17, 4, 4, 4, 4)
 	deleteBy(t, "device", map[string]string{"catalog": "[gte]3"})
-	checkInterfaceCount(t, id1, id2, id3, id4, 8, 4, 4, 0, 0)
-	checkHistoryRuleCount(t, id1, id2, id3, id4, 9, 4, 4, 0, 0)
+	checkInterfaceCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 8, 4, 4, 0, 0)
+	checkMetricRuleCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 9, 4, 4, 0, 0)
 }
 
 func TestDeviceDeleteCascadeById(t *testing.T) {
-	deleteById(t, "device", "all")
-	deleteById(t, "interface", "all")
-	deleteById(t, "trigger", "all")
 
-	id1 := createMockDevice(t, "1")
-	id2 := createMockDevice(t, "2")
-	id3 := createMockDevice(t, "3")
-	id4 := createMockDevice(t, "4")
-	if "" == id1 {
-		return
-	}
+	idlist := initData(t)
 
-	createMockHistoryRule2(t, "s")
-	createMockInterface(t, id1, "10001")
-	createMockInterface(t, id1, "10002")
-	createMockInterface(t, id1, "10003")
-	createMockInterface(t, id1, "10004")
-	createMockHistoryRule(t, id1, "10001")
-	createMockHistoryRule(t, id1, "10002")
-	createMockHistoryRule(t, id1, "10003")
-	createMockHistoryRule(t, id1, "10004")
+	checkInterfaceCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 16, 4, 4, 4, 4)
+	checkMetricRuleCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 17, 4, 4, 4, 4)
+	deleteById(t, "device", idlist[0])
 
-	createMockInterface(t, id2, "20001")
-	createMockInterface(t, id2, "20002")
-	createMockInterface(t, id2, "20003")
-	createMockInterface(t, id2, "20004")
-	createMockHistoryRule(t, id2, "20001")
-	createMockHistoryRule(t, id2, "20002")
-	createMockHistoryRule(t, id2, "20003")
-	createMockHistoryRule(t, id2, "20004")
+	checkInterfaceCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 12, 0, 4, 4, 4)
+	checkMetricRuleCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 13, 0, 4, 4, 4)
+	deleteById(t, "device", idlist[1])
 
-	createMockInterface(t, id3, "30001")
-	createMockInterface(t, id3, "30002")
-	createMockInterface(t, id3, "30003")
-	createMockInterface(t, id3, "30004")
-	createMockHistoryRule(t, id3, "30001")
-	createMockHistoryRule(t, id3, "30002")
-	createMockHistoryRule(t, id3, "30003")
-	createMockHistoryRule(t, id3, "30004")
+	checkInterfaceCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 8, 0, 0, 4, 4)
+	checkMetricRuleCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 9, 0, 0, 4, 4)
+	deleteById(t, "device", idlist[2])
 
-	createMockInterface(t, id4, "40001")
-	createMockInterface(t, id4, "40002")
-	createMockInterface(t, id4, "40003")
-	createMockInterface(t, id4, "40004")
-	createMockHistoryRule(t, id4, "40001")
-	createMockHistoryRule(t, id4, "40002")
-	createMockHistoryRule(t, id4, "40003")
-	createMockHistoryRule(t, id4, "40004")
+	checkInterfaceCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 4, 0, 0, 0, 4)
+	checkMetricRuleCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 5, 0, 0, 0, 4)
+	deleteById(t, "device", idlist[3])
 
-	checkInterfaceCount(t, id1, id2, id3, id4, 16, 4, 4, 4, 4)
-	checkHistoryRuleCount(t, id1, id2, id3, id4, 17, 4, 4, 4, 4)
-
-	deleteById(t, "device", id1)
-
-	checkInterfaceCount(t, id1, id2, id3, id4, 12, 0, 4, 4, 4)
-	checkHistoryRuleCount(t, id1, id2, id3, id4, 13, 0, 4, 4, 4)
-	deleteById(t, "device", id2)
-
-	checkInterfaceCount(t, id1, id2, id3, id4, 8, 0, 0, 4, 4)
-	checkHistoryRuleCount(t, id1, id2, id3, id4, 9, 0, 0, 4, 4)
-	deleteById(t, "device", id3)
-
-	checkInterfaceCount(t, id1, id2, id3, id4, 4, 0, 0, 0, 4)
-	checkHistoryRuleCount(t, id1, id2, id3, id4, 5, 0, 0, 0, 4)
-	deleteById(t, "device", id4)
-
-	checkInterfaceCount(t, id1, id2, id3, id4, 0, 0, 0, 0, 0)
-	checkHistoryRuleCount(t, id1, id2, id3, id4, 1, 0, 0, 0, 0)
+	checkInterfaceCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 0, 0, 0, 0, 0)
+	checkMetricRuleCount(t, idlist[0], idlist[1], idlist[2], idlist[3], 1, 0, 0, 0, 0)
 }
 
 func TestDeviceCURD(t *testing.T) {

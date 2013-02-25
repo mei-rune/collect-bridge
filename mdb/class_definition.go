@@ -121,6 +121,14 @@ type HierarchicalEnumeration struct {
 // 	Children         []*ClassDefinition)
 // }
 
+func (self *ClassDefinition) RootClass() *ClassDefinition {
+	s := self
+	for nil != s.Super {
+		s = s.Super
+	}
+	return s
+}
+
 func (self *ClassDefinition) IsInheritance() bool {
 	return (nil != self.Super) || (nil != self.Children && 0 != len(self.Children))
 }

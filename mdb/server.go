@@ -164,7 +164,7 @@ func doMagic(k string, attributes, new_attributes map[string]interface{},
 	}
 	return false
 }
-func doInheritance(cls *ClassDefinition, attributes, new_attributes map[string]interface{},
+func (self *mdb_server) doInheritance(cls *ClassDefinition, attributes, new_attributes map[string]interface{},
 	is_update bool, errs *[]error) {
 	t, ok := attributes["type"]
 	if ok {
@@ -183,6 +183,19 @@ func doInheritance(cls *ClassDefinition, attributes, new_attributes map[string]i
 			new_attributes["type"] = stringutils.Underscore(cls.Name)
 		}
 	}
+
+	t, ok = attributes["parent_type"]
+	if ok {
+		if nm, ok := t.(string); ok {
+			pcls := self.definitions.FindByUnderscoreName(nm)
+			if nil == pcls {
+				*errs = append(*errs, fmt.Errorf("parent class '%s' is not found", nm))
+				return
+			}
+			attributes["parent_type"] = getRootClassName(pcls)
+		}
+	}
+
 }
 
 func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]interface{},
@@ -198,7 +211,7 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]in
 	new_attributes := make(map[string]interface{}, len(attributes))
 	errs := make([]error, 0, 10)
 
-	doInheritance(cls, attributes, new_attributes, is_update, &errs)
+	self.doInheritance(cls, attributes, new_attributes, is_update, &errs)
 
 	for k, pr := range cls.Properties {
 
@@ -448,7 +461,7 @@ func (self *mdb_server) createChildren(cls *ClassDefinition, id interface{}, att
 				lcls = ccls
 			}
 			if is_polymorphic {
-				attrs["parent_type"] = stringutils.Underscore(cls.Name)
+				attrs["parent_type"] = getRootClassName(cls)
 				attrs["parent_id"] = id
 			} else {
 				attrs[foreignKey] = id
@@ -531,7 +544,7 @@ func deleteHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition, id int
 	}
 	var qc bson.M
 	if hasMany.Polymorphic {
-		qc = bson.M{"parent_type": cls.CollectionName(), "parent_id": id}
+		qc = bson.M{"parent_type": buildClassQuery(cls), "parent_id": id}
 	} else {
 		qc = bson.M{hasMany.ForeignKey: id}
 	}
@@ -554,7 +567,7 @@ func deleteAllHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition) err
 	}
 	cn := hasMany.Target().CollectionName()
 	if hasMany.Polymorphic {
-		_, err := s.RemoveBy(hasMany.Target(), map[string]string{"@parent_type": cls.CollectionName()})
+		_, err := s.RemoveBy(hasMany.Target(), map[string]string{"@parent_type": stringutils.Underscore(cls.Name)})
 		if nil != err {
 			return fmt.Errorf("delete from '%s' collection failed, %v", cn, err)
 		}
@@ -651,7 +664,7 @@ func (self *mdb_server) removeAllChildren(cls *ClassDefinition) error {
 }
 
 func (self *mdb_server) RemoveBy(cls *ClassDefinition, params map[string]string) (bool, error) {
-	s, err := buildQueryStatement(cls, params)
+	s, err := self.buildQueryStatement(cls, params)
 	if nil != err {
 		return false, err
 	}
@@ -776,6 +789,14 @@ func appendIdCriteria(q bson.M, exp string) error {
 // 		}
 // 	}
 // }
+func getRootClassName(cls *ClassDefinition) string {
+	return stringutils.Underscore(cls.RootClass().Name)
+}
+
+func buildClassQueryStatment(cls *ClassDefinition) string {
+	return stringutils.Underscore(cls.RootClass().Name)
+}
+
 func buildInheritanceQuery(cls *ClassDefinition) bson.M {
 	if !cls.IsInheritance() {
 		return nil
@@ -784,7 +805,7 @@ func buildInheritanceQuery(cls *ClassDefinition) bson.M {
 		return nil
 	}
 	cm := stringutils.Underscore(cls.Name)
-	if nil == cls.Children {
+	if nil == cls.Children || 0 == len(cls.Children) {
 		return bson.M{"type": cm}
 	}
 	ar := make([]interface{}, 0, len(cls.Children))
@@ -794,7 +815,34 @@ func buildInheritanceQuery(cls *ClassDefinition) bson.M {
 	}
 	return bson.M{"type": bson.M{"$in": ar}}
 }
-func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M, error) {
+
+func buildClassQuery(cls *ClassDefinition) interface{} {
+
+	cm := stringutils.Underscore(cls.Name)
+	if !cls.IsInheritance() {
+		return cm
+	}
+	if nil == cls.Children || 0 == len(cls.Children) {
+		return cm
+	}
+
+	ar := make([]interface{}, 0, len(cls.Children))
+	ar = append(ar, cm)
+	for _, child := range cls.Children {
+		ar = append(ar, stringutils.Underscore(child.Name))
+	}
+	return bson.M{"$in": ar}
+}
+
+func (self *mdb_server) buildClassQueryFromClassName(t string) (interface{}, error) {
+	cls := self.definitions.FindByUnderscoreName(t)
+	if nil == cls {
+		return nil, errors.New("class '" + t + "' is not found")
+	}
+	return buildClassQuery(cls), nil
+}
+
+func (self *mdb_server) buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M, error) {
 	q := buildInheritanceQuery(cls)
 	if nil == params || 0 == len(params) {
 		return q, nil
@@ -811,6 +859,18 @@ func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 			continue
 		}
 		nm = nm[1:]
+
+		if "parent_type" == nm {
+			s, e := self.buildClassQueryFromClassName(exp)
+			if nil != e {
+				return nil, e
+			}
+			if nil != s {
+				q[nm] = s
+			}
+			continue
+		}
+
 		pr, _ := properties[nm]
 		if nil == pr {
 			if "_id" == nm {
@@ -861,11 +921,14 @@ func buildQueryStatement(cls *ClassDefinition, params map[string]string) (bson.M
 		}
 		q[nm] = value
 	}
+	if 0 == len(q) {
+		return nil, nil
+	}
 	return q, nil
 }
 
 func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) ([]map[string]interface{}, error) {
-	s, err := buildQueryStatement(cls, params)
+	s, err := self.buildQueryStatement(cls, params)
 	if nil != err {
 		return nil, err
 	}
@@ -911,7 +974,7 @@ func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) (
 }
 
 func (self *mdb_server) Count(cls *ClassDefinition, params map[string]string) (int, error) {
-	s, err := buildQueryStatement(cls, params)
+	s, err := self.buildQueryStatement(cls, params)
 	if nil != err {
 		return -1, err
 	}

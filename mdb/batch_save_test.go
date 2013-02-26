@@ -1,6 +1,7 @@
 package mdb
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -10,6 +11,10 @@ var (
 		"port":      161,
 		"type":      "snmp_params",
 		"version":   "v2c"}
+	wbem_params = map[string]interface{}{"url": "tcp://192.168.1.9",
+		"user":     "user1",
+		"password": "password1",
+		"type":     "wbem_params"}
 
 	if1 = map[string]interface{}{
 		"ifDescr":       "Software Loopback Interface 1",
@@ -48,7 +53,7 @@ var (
 	rule2 = map[string]interface{}{"name": "rule2", "type": "metric_rule", "expression": "d222", "metric": "2222"}
 
 	js = map[string]interface{}{
-		"$access_params": []map[string]interface{}{snmp_params},
+		"$access_params": []map[string]interface{}{snmp_params, wbem_params},
 		"$address":       map[string]interface{}{"127.0.0.1": ip1, "169.254.67.142": ip2, "192.168.1.9": ip3},
 		"$interface":     map[string]interface{}{"1": if1, "9": if2},
 		"$trigger":       []interface{}{rule1, rule2},
@@ -136,3 +141,51 @@ func TestIntCreateDevice(t *testing.T) {
 
 	checkSnmpParams(t, findOne(t, "snmp_params", map[string]string{"device_id": id, "address": "192.168.1.9"}), snmp_params)
 }
+
+func TestIntQueryByParent(t *testing.T) {
+
+	deleteById(t, "device", "all")
+	deleteById(t, "interface", "all")
+	deleteById(t, "trigger", "all")
+
+	id := create(t, "device", js)
+	drv := findByIdWithIncludes(t, "device", id, "interface,trigger,snmp_params")
+
+	checkDevice(t, drv, js)
+	bs, e := json.MarshalIndent(drv, "", "  ")
+	if nil != e {
+		t.Error(e)
+	} else {
+		t.Log(string(bs))
+	}
+
+	checkInterface(t, findOneFrom(t, drv, "interface", map[string]string{"ifIndex": "1"}), if1)
+	checkInterface(t, findOneFrom(t, drv, "interface", map[string]string{"ifIndex": "9"}), if2)
+	if ExistsInChilren(t, drv, "snmp_params", map[string]string{"type": "wbem_params"}) ||
+		ExistsInChilren(t, drv, "wbem_params", map[string]string{"type": "wbem_params"}) ||
+		ExistsInChilren(t, drv, "access_params", map[string]string{"type": "wbem_params"}) {
+		t.Error("wbem_params in result")
+	}
+
+	checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
+	checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
+	checkSnmpParams(t, findOneFrom(t, drv, "snmp_params", map[string]string{"device_id": id, "address": "192.168.1.9"}), snmp_params)
+}
+
+// func TestIntQueryByChild(t *testing.T) {
+// 	deleteById(t, "device", "all")
+// 	deleteById(t, "interface", "all")
+// 	deleteById(t, "trigger", "all")
+
+// 	id := create(t, "device", js)
+// 	res := findOneByQueryWithIncludes(t, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}, "device,action")
+
+// 	bs, e := json.MarshalIndent(res, "", "  ")
+// 	if nil != e {
+// 		t.Error(e)
+// 	} else {
+// 		t.Log(string(bs))
+// 	}
+// 	checkHistoryRule(t, res, rule1)
+// 	checkDevice(t, findOneFrom(t, res, "device", map[string]string{"id": id}), js)
+// }

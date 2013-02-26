@@ -219,7 +219,7 @@ func (self *MdbDriver) Get(params map[string]string) (map[string]interface{}, co
 	if nil != err {
 		return nil, errutils.BadRequest("id is not a objectId")
 	}
-	result, err := self.FindById(definition, oid)
+	result, err := self.FindById(definition, oid, params)
 	if err != nil {
 		if "not found" == err.Error() {
 			return nil, errutils.RecordNotFound(id)

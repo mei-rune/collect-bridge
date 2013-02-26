@@ -212,7 +212,7 @@ func TestSimpleFindByidByServer(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		db_attributes, err := srv.FindById(person, id)
+		db_attributes, err := srv.FindById(person, id, map[string]string{})
 		if nil != err {
 			t.Errorf(err.Error())
 			return

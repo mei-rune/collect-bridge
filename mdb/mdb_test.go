@@ -206,7 +206,15 @@ func existsById(t *testing.T, target, id string) bool {
 }
 
 func findById(t *testing.T, target, id string) map[string]interface{} {
-	resp, e := http.Get("http://127.0.0.1:7071/mdb/" + target + "/" + id)
+	return findByIdWithIncludes(t, target, id, "")
+}
+
+func findByIdWithIncludes(t *testing.T, target, id string, includes string) map[string]interface{} {
+	url := "http://127.0.0.1:7071/mdb/" + target + "/" + id
+	if "" != includes {
+		url += ("?includes=" + includes)
+	}
+	resp, e := http.Get(url)
 	if nil != e {
 		t.Errorf("find %s failed, %v", target, e)
 		t.FailNow()
@@ -288,7 +296,11 @@ func count(t string, params map[string]string) (int, error) {
 }
 
 func findOne(t *testing.T, target string, params map[string]string) map[string]interface{} {
-	res := findBy(t, target, params)
+	return findOneByQueryWithIncludes(t, target, params, "")
+}
+
+func findOneByQueryWithIncludes(t *testing.T, target string, params map[string]string, includes string) map[string]interface{} {
+	res := findByQueryWithIncludes(t, target, params, includes)
 	if 0 == len(res) {
 		t.Errorf("find %s failed, result is empty", target)
 		t.FailNow()
@@ -296,8 +308,80 @@ func findOne(t *testing.T, target string, params map[string]string) map[string]i
 	return res[0]
 }
 
+func ExistsInChilren(t *testing.T, attrs map[string]interface{}, target string, params map[string]string) bool {
+	a := attrs["$"+target]
+	if nil == a {
+		return false
+	}
+	aa, ok := a.([]interface{})
+	if !ok {
+		t.Error("$" + target + " is not a []interface{} type")
+		t.FailNow()
+	}
+	for _, r := range aa {
+		res, ok := r.(map[string]interface{})
+		if !ok {
+			t.Error("$" + target + " is not a map[string]interface{} type")
+			t.FailNow()
+		}
+		found := true
+		for k, v := range params {
+			if v != fmt.Sprint(res[k]) {
+				found = false
+				break
+			}
+		}
+		if found {
+			return true
+		}
+	}
+
+	return false
+}
+
+func findOneFrom(t *testing.T, attrs map[string]interface{}, target string, params map[string]string) map[string]interface{} {
+	a := attrs["$"+target]
+	if nil == a {
+		t.Error("$" + target + " is not found")
+		t.FailNow()
+	}
+	aa, ok := a.([]interface{})
+	if !ok {
+		t.Error("$" + target + " is not a []interface{} type")
+		t.FailNow()
+	}
+	for _, r := range aa {
+		res, ok := r.(map[string]interface{})
+		if !ok {
+			t.Error("$" + target + " is not a map[string]interface{} type")
+			t.FailNow()
+		}
+		found := true
+		for k, v := range params {
+			if v != fmt.Sprint(res[k]) {
+				found = false
+				break
+			}
+		}
+		if found {
+			return res
+		}
+	}
+
+	t.Error("$" + target + " is not found with the speacfic params")
+	t.FailNow()
+	return nil
+}
+
 func findBy(t *testing.T, target string, params map[string]string) []map[string]interface{} {
+	return findByQueryWithIncludes(t, target, params, "")
+}
+
+func findByQueryWithIncludes(t *testing.T, target string, params map[string]string, includes string) []map[string]interface{} {
 	url := "http://127.0.0.1:7071/mdb/" + target + "/query?"
+	if "" != includes {
+		url += ("includes=" + includes + "&")
+	}
 	for k, v := range params {
 		url += ("@" + k + "=" + v + "&")
 	}

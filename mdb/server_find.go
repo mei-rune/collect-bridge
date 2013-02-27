@@ -3,6 +3,7 @@ package mdb
 import (
 	"commons"
 	"commons/as"
+	"commons/stringutils"
 	"errors"
 	"fmt"
 	"labix.org/v2/mgo"
@@ -10,7 +11,8 @@ import (
 	"strings"
 )
 
-func (self *mdb_server) postRead(raw_cls *ClassDefinition, attributes map[string]interface{}) (map[string]interface{}, error) {
+func (self *mdb_server) postRead(raw_cls *ClassDefinition,
+	attributes map[string]interface{}) (map[string]interface{}, error) {
 
 	new_attributes := make(map[string]interface{}, len(attributes))
 
@@ -23,7 +25,8 @@ func (self *mdb_server) postRead(raw_cls *ClassDefinition, attributes map[string
 
 		nm, ok := t.(string)
 		if !ok {
-			return nil, fmt.Errorf("'type' is not a string type, it is  '%T:%s' is not found - %v", t, t, attributes)
+			return nil, fmt.Errorf("'type' is not a string type, it is  '%T:%s' is not found - %v",
+				t, t, attributes)
 		}
 
 		cls = self.definitions.FindByUnderscoreName(nm)
@@ -31,7 +34,8 @@ func (self *mdb_server) postRead(raw_cls *ClassDefinition, attributes map[string
 			return nil, fmt.Errorf("class '%s' is not found  - %v", nm, attributes)
 		}
 		if !cls.InheritanceFrom(raw_cls) {
-			return nil, fmt.Errorf("class '%s' is not child of class %s  - %v", cls.Name, raw_cls.Name, attributes)
+			return nil, fmt.Errorf("class '%s' is not child of class %s  - %v", cls.Name,
+				raw_cls.Name, attributes)
 		}
 		new_attributes["type"] = nm
 	}
@@ -50,7 +54,8 @@ func (self *mdb_server) postRead(raw_cls *ClassDefinition, attributes map[string
 		if COLLECTION_UNKNOWN == pr.Collection {
 			new_value, err := pr.Type.Convert(value)
 			if nil != err {
-				errs = append(errs, fmt.Errorf("value '%v' of key '%s' convert to internal value failed, %s", value, k, err.Error()))
+				errs = append(errs, fmt.Errorf("value '%v' of key '%s' convert to internal value failed, %s",
+					value, k, err.Error()))
 			} else {
 				new_attributes[k] = new_value
 			}
@@ -67,7 +72,8 @@ func (self *mdb_server) postRead(raw_cls *ClassDefinition, attributes map[string
 		for _, v := range array {
 			nv, err := pr.Type.Convert(v)
 			if nil != err {
-				errs = append(errs, fmt.Errorf("value '%v' of key '%s' convert to internal value failed, %s", value, k, err.Error()))
+				errs = append(errs, fmt.Errorf("value '%v' of key '%s' convert to internal value failed, %s",
+					value, k, err.Error()))
 				is_failed = true
 			} else {
 				new_array = append(new_array, nv)
@@ -90,12 +96,13 @@ func (self *mdb_server) postRead(raw_cls *ClassDefinition, attributes map[string
 	return new_attributes, nil
 }
 
-func (self *mdb_server) collectIncludes(cls *ClassDefinition, params map[string]string) (map[string]Assocation, error) {
+func (self *mdb_server) collectIncludes(cls *ClassDefinition, params map[string]string) (
+	map[*ClassDefinition]Assocation, error) {
 	includes, ok := params["includes"]
 	if !ok {
 		return nil, nil
 	}
-	assocations := make(map[string]Assocation, 10)
+	assocations := make(map[*ClassDefinition]Assocation, 10)
 	for _, s := range strings.Split(includes, ",") {
 		peer := self.definitions.FindByUnderscoreName(s)
 		if nil == peer {
@@ -103,35 +110,36 @@ func (self *mdb_server) collectIncludes(cls *ClassDefinition, params map[string]
 		}
 		assoc := cls.GetAssocationByCollectionName(peer.CollectionName())
 		if nil == assoc {
-			return nil, errors.New("assocation to '" + s + "' is not found in the includes.")
+			return nil, errors.New("assocation that to '" + s + "' is not found in the includes.")
 		}
-		assocations[s] = assoc
+		assocations[peer] = assoc
 	}
 	return assocations, nil
 }
 
-func (self *mdb_server) loadIncludes(cls *ClassDefinition, id interface{}, res map[string]interface{}, includes map[string]Assocation) error {
-
+func (self *mdb_server) loadIncludes(cls *ClassDefinition, id interface{}, res map[string]interface{},
+	includes map[*ClassDefinition]Assocation) error {
 	if nil == includes {
 		return nil
 	}
 
-	for k, include := range includes {
+	for peer, include := range includes {
 		findOp := assocationOps[include.Type()].findOp
 		if nil == findOp {
 			continue
 		}
-
-		results, err := findOp(self, include, cls, id)
+		peerName := stringutils.Underscore(peer.Name)
+		results, err := findOp(self, include, cls, id, peer)
 		if nil != err {
-			return errors.New("query includes '" + k + "' failed, " + err.Error())
+			return errors.New("query includes '" + peerName + "' failed, " + err.Error())
 		}
-		res["$"+k] = results
+		res["$"+peerName] = results
 	}
 	return nil
 }
 
-func (self *mdb_server) FindById(cls *ClassDefinition, id interface{}, params map[string]string) (map[string]interface{}, error) {
+func (self *mdb_server) FindById(cls *ClassDefinition, id interface{}, params map[string]string) (
+	map[string]interface{}, error) {
 	var q *mgo.Query
 	var result map[string]interface{}
 
@@ -160,7 +168,8 @@ func (self *mdb_server) FindById(cls *ClassDefinition, id interface{}, params ma
 	return res, err
 }
 
-func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) ([]map[string]interface{}, error) {
+func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) (
+	[]map[string]interface{}, error) {
 	s, err := self.buildQueryStatement(cls, params)
 	if nil != err {
 		return nil, err
@@ -170,6 +179,7 @@ func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) (
 	if nil != err {
 		return nil, err
 	}
+	fmt.Println(cls.CollectionName(), s)
 
 	q := self.session.C(cls.CollectionName()).Find(s)
 	if nil == q {

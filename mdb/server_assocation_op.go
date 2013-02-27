@@ -13,23 +13,28 @@ var (
 type assocationOp struct {
 	deleteOp    func(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) error
 	deleteAllOp func(s *mdb_server, assoc Assocation, cls *ClassDefinition) error
-	findOp      func(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) ([]map[string]interface{}, error)
+	findOp      func(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{},
+		peer *ClassDefinition) ([]map[string]interface{}, error)
 	//createOp func(s *mdb_server, assoc *Assocation, id interface{}) error
 }
 
 func init() {
 	assocationOps[BELONGS_TO] = &assocationOp{}
-	assocationOps[HAS_ONE] = &assocationOp{deleteOp: deleteHasOne, deleteAllOp: deleteAllHasOne, findOp: findHasOne}
-	assocationOps[HAS_MANG] = &assocationOp{deleteOp: deleteHasMany, deleteAllOp: deleteAllHasMany, findOp: findHasMany}
-	assocationOps[HAS_AND_BELONGS_TO_MANY] = &assocationOp{deleteOp: deleteMany2Many, deleteAllOp: deleteAllMany2Many, findOp: findMany2Many}
+	assocationOps[HAS_ONE] = &assocationOp{deleteOp: deleteHasOne,
+		deleteAllOp: deleteAllHasOne, findOp: findHasOne}
+	assocationOps[HAS_MANG] = &assocationOp{deleteOp: deleteHasMany,
+		deleteAllOp: deleteAllHasMany, findOp: findHasMany}
+	assocationOps[HAS_AND_BELONGS_TO_MANY] = &assocationOp{deleteOp: deleteMany2Many,
+		deleteAllOp: deleteAllMany2Many, findOp: findMany2Many}
 }
 
-func findHasOne(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) ([]map[string]interface{}, error) {
+func findHasOne(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{},
+	peer *ClassDefinition) ([]map[string]interface{}, error) {
 	hasOne, ok := assoc.(*HasOne)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasOne.", assoc))
 	}
-	return s.FindBy(hasOne.Target(), map[string]string{"@" + hasOne.ForeignKey: IdString(id)})
+	return s.FindBy(peer, map[string]string{"@" + hasOne.ForeignKey: IdString(id)})
 }
 
 func deleteHasOne(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) error {
@@ -67,15 +72,17 @@ func deleteAllHasOne(s *mdb_server, assoc Assocation, cls *ClassDefinition) erro
 	return nil
 }
 
-func findHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) ([]map[string]interface{}, error) {
+func findHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{},
+	peer *ClassDefinition) ([]map[string]interface{}, error) {
 	hasMany, ok := assoc.(*HasMany)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
 	}
 	if hasMany.Polymorphic {
-		return s.FindBy(hasMany.Target(), map[string]string{"@parent_type": stringutils.Underscore(cls.Name), "@parent_id": IdString(id)})
+		return s.FindBy(peer, map[string]string{
+			"@parent_type": stringutils.Underscore(cls.Name), "@parent_id": IdString(id)})
 	}
-	return s.FindBy(hasMany.Target(), map[string]string{"@" + hasMany.ForeignKey: IdString(id)})
+	return s.FindBy(peer, map[string]string{"@" + hasMany.ForeignKey: IdString(id)})
 }
 
 func deleteHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) error {
@@ -124,17 +131,20 @@ func deleteAllHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition) err
 	return nil
 }
 
-func findMany2Many(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) ([]map[string]interface{}, error) {
+func findMany2Many(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{},
+	peer *ClassDefinition) ([]map[string]interface{}, error) {
 	hasBelongsToMany1, ok := assoc.(*HasAndBelongsToMany)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
 	}
-	hasBelongsToMany2 := hasBelongsToMany1.TargetClass.GetAssocationByCollectionName(hasBelongsToMany1.CollectionName).(*HasAndBelongsToMany)
+	hasBelongsToMany2 := hasBelongsToMany1.TargetClass.GetAssocationByCollectionName(
+		hasBelongsToMany1.CollectionName).(*HasAndBelongsToMany)
 	if nil == hasBelongsToMany2 {
 		panic(fmt.Sprintf("xxx.", assoc))
 	}
 
-	it := s.session.C(hasBelongsToMany1.CollectionName).Find(bson.M{hasBelongsToMany1.ForeignKey: id}).Select(bson.M{hasBelongsToMany2.ForeignKey: 1}).Iter()
+	it := s.session.C(hasBelongsToMany1.CollectionName).Find(bson.M{hasBelongsToMany1.ForeignKey: id}).
+		Select(bson.M{hasBelongsToMany2.ForeignKey: 1}).Iter()
 	idlist := make([]interface{}, 0, 10)
 	var result map[string]interface{}
 	for it.Next(&result) {

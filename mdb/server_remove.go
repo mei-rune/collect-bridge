@@ -89,6 +89,10 @@ func (self *mdb_server) RemoveBy(cls *ClassDefinition, params map[string]string)
 }
 
 func (self *mdb_server) RemoveAll(cls *ClassDefinition, params map[string]string) (bool, error) {
+	if cls.IsInheritance() && nil != cls.Super {
+		return self.RemoveBy(cls, params)
+	}
+
 	err := self.removeAllChildren(cls)
 	if nil != err {
 		return false, err

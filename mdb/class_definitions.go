@@ -445,11 +445,14 @@ func loadAssocations(self *ClassDefinitions, cls *ClassDefinition, xmlDefinition
 					"' of class '"+xmlDefinition.Name+"' is not found."))
 				continue
 			}
+			if "" == belongs_to.Name {
+				belongs_to.Name = stringutils.Underscore(belongs_to.Target) + "_id"
+			}
 
 			pr, ok := cls.OwnProperties[belongs_to.Name]
 			if !ok {
 				errs = append(errs, errors.New("Property '"+belongs_to.Name+
-					"' of belongs_to '"+belongs_to.Name+"' is not found."))
+					"' of belongs_to '"+belongs_to.Target+"' is not found."))
 				continue
 			}
 			if nil == cls.Assocations {

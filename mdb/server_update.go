@@ -2,6 +2,7 @@ package mdb
 
 import (
 	"commons"
+	"commons/errutils"
 	"commons/stringutils"
 	"errors"
 	"fmt"
@@ -75,7 +76,7 @@ func (self *mdb_server) doInheritance(cls *ClassDefinition, attributes, new_attr
 		}
 		new_attributes["type"] = t
 	} else {
-		if cls.IsInheritance() {
+		if !is_update && cls.IsInheritance() {
 			new_attributes["type"] = stringutils.Underscore(cls.Name)
 		}
 	}
@@ -279,11 +280,31 @@ func (self *mdb_server) Create(cls *ClassDefinition, attributes map[string]inter
 	return id, nil
 }
 
-func (self *mdb_server) Update(cls *ClassDefinition, id interface{}, updated_attributes map[string]interface{}) error {
+func (self *mdb_server) Update(cls *ClassDefinition, id string, params map[string]string, updated_attributes map[string]interface{}) error {
+
 	new_attributes, errs := self.preWrite(cls, updated_attributes, true)
 	if nil != errs {
 		return errs
 	}
+	switch id {
+	case "all", "query":
+		s, err := self.buildQueryStatement(cls, params)
+		if nil != err {
+			return err
+		}
 
-	return self.session.C(cls.CollectionName()).UpdateId(id, bson.M{"$set": new_attributes})
+		fmt.Println(cls.Name, new_attributes)
+		_, err = self.session.C(cls.CollectionName()).UpdateAll(s, bson.M{"$set": new_attributes})
+		if nil != err {
+			return err
+		}
+		return nil
+	}
+
+	oid, err := parseObjectIdHex(id)
+	if nil != err {
+		return errutils.BadRequest("id is not a objectId")
+	}
+
+	return self.session.C(cls.CollectionName()).UpdateId(oid, bson.M{"$set": new_attributes})
 }

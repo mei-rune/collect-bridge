@@ -147,6 +147,29 @@ func updateById(t *testing.T, target, id string, body map[string]interface{}) {
 	}
 }
 
+func updateBy(t *testing.T, target string, params map[string]string, body map[string]interface{}) {
+	url := "http://127.0.0.1:7071/mdb/" + target + "/query?"
+	for k, v := range params {
+		url += ("@" + k + "=" + v + "&")
+	}
+
+	msg, e := json.Marshal(body)
+	if nil != e {
+		t.Errorf("update %s failed, %v", t, e)
+		t.FailNow()
+	}
+
+	resp, e := HttpPut(url[:len(url)], "application/json", bytes.NewBuffer([]byte(msg)))
+	if nil != e {
+		t.Errorf("update %s failed, %v", t, e)
+		t.FailNow()
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("update %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
+		t.FailNow()
+	}
+}
+
 func update(t, id string, body map[string]interface{}) error {
 	msg, e := json.Marshal(body)
 	if nil != e {

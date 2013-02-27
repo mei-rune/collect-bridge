@@ -109,18 +109,13 @@ func (self *MdbDriver) Put(params map[string]string) (map[string]interface{}, co
 		return nil, commons.IdNotExists
 	}
 
-	oid, err := parseObjectIdHex(id)
-	if nil != err {
-		return nil, errutils.BadRequest("id is not a objectId")
-	}
-
 	body, ok := params["body"]
 	if !ok {
 		return nil, commons.BodyNotExists
 	}
 
 	var result map[string]interface{}
-	err = json.Unmarshal([]byte(body), &result)
+	err := json.Unmarshal([]byte(body), &result)
 	if err != nil {
 		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "unmarshal object from request failed, "+err.Error())
 	}
@@ -130,9 +125,8 @@ func (self *MdbDriver) Put(params map[string]string) (map[string]interface{}, co
 		return nil, e
 	}
 
-	err = self.mdb_server.Update(definition, oid, result)
+	err = self.mdb_server.Update(definition, id, params, result)
 	if err != nil {
-
 		if "not found" == err.Error() {
 			return nil, errutils.RecordNotFound(id)
 		}

@@ -148,7 +148,7 @@ func TestSimpleUpdateByServer(t *testing.T) {
 		}
 		t.Log("id=", id)
 
-		err = srv.Update(person, id, person1_update_attributes)
+		err = srv.Update(person, IdString(id), map[string]string{}, person1_update_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return

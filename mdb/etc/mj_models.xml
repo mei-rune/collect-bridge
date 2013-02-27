@@ -210,4 +210,108 @@
       </restriction>
     </property>
   </class>
+  <!-- For Test as Follow
+   * Magazine       extends PrintedDocument extends Document{documents}
+   * Book    extends PrintedDocument extends Document{documents}
+   * OnlineTutorial extends OnlineDocument  extends Document{documents}
+   * HelpFile       extends OnlineDocument  extends Document{documents}
+   *
+   * Document       --has many--   ZipFile
+   * OnlineDocument --belongs to-- Website
+   * HelpFile       --has many--   Topic
+   * PrintedBook    --belongs to-- Printer
+   -->
+  <class name="Document">
+    <property name="name">
+      <restriction base="string">
+        <required />
+        <maxLength>100</maxLength>
+      </restriction>
+    </property>
+    <property name="publish_at">
+      <restriction base="integer">
+        <required />
+      </restriction>
+    </property>
+    <has_many>ZipFile</has_many>
+  </class>
+  <class name="PrintedDocument" base="Document">
+    <property name="page_count">
+      <restriction base="integer">
+      </restriction>
+    </property>
+  </class>
+  <class name="OnlineDocument" base="Document">
+    <property name="bytes">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="website_id">
+      <restriction base="objectId">
+        <required />
+      </restriction>
+    </property>
+    <belongs_to>Website</belongs_to>
+  </class>
+  <class name="Magazine" base="PrintedDocument">
+    <property name="journal_id">
+      <restriction base="integer">
+      </restriction>
+    </property>
+  </class>
+  <class name="Book" base="PrintedDocument">
+    <property name="author">
+      <restriction base="string">
+        <maxLength>100</maxLength>
+      </restriction>
+    </property>
+    <property name="isbn">
+      <restriction base="string">
+        <maxLength>100</maxLength>
+      </restriction>
+    </property>
+    <property name="printer_id">
+      <restriction base="objectId">
+      </restriction>
+    </property>
+    <belongs_to>Printer</belongs_to>
+  </class>
+  <class name="OnlineTutorial" base="OnlineDocument">
+  </class>
+  <class name="HelpFile" base="OnlineDocument">
+    <property name="compressed_format">
+      <restriction base="string">
+        <maxLength>100</maxLength>
+      </restriction>
+    </property>
+    <has_many>Topic</has_many> 
+  </class>
+  <class name="ZipFile">
+    <property name="body">
+      <restriction base="string">
+        <required />
+      </restriction>
+    </property>
+  </class>
+  <class name="Website">
+    <property name="url">
+      <restriction base="string">
+        <required />
+      </restriction>
+    </property>
+  </class>
+  <class name="Topic">
+    <property name="name">
+      <restriction base="string">
+        <required />
+      </restriction>
+    </property>
+  </class>
+  <class name="Printer">
+    <property name="name">
+      <restriction base="string">
+        <required />
+      </restriction>
+    </property>
+  </class>
 </classDefinitions>

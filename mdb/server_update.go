@@ -266,6 +266,17 @@ func (self *mdb_server) Create(cls *ClassDefinition, attributes map[string]inter
 	if nil != errs {
 		return nil, errs
 	}
+	if "true" == attributes["save"] {
+		s, err := self.buildQueryStatement(cls, params)
+		if nil != err {
+			return nil, err
+		}
+		changeInfo, err := Upsert(s, new_attributes)
+		if nil != err {
+			return nil, err
+		}
+		return changeInfo.UpsertedId, nil
+	}
 
 	id, ok := new_attributes["_id"]
 	if !ok {

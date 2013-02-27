@@ -466,7 +466,7 @@ func TestUpdateDocuments(t *testing.T) {
 		saveIt(t, "document", change(createHelpFile(website1), map[string]interface{}{"name": "aa"}))
 		saveIt(t, "document", change(createOnlineTutorial(website2), map[string]interface{}{"name": "aa"}))
 	}
-	updateBy(t, "book", map[string]string{"name": "bb"}, map[string]interface{}{"name": "aa"})
+	updateBy(t, "book", map[string]string{"name": "aa"}, map[string]interface{}{"name": "bb"})
 
 	checkModelCount(t, "book", map[string]string{"name": "bb"}, 4)
 	checkModelCount(t, "book", map[string]string{"name": "aa"}, 0)
@@ -504,7 +504,7 @@ func TestBaseClassUpdateDocuments(t *testing.T) {
 		saveIt(t, "document", change(createOnlineTutorial(website2), map[string]interface{}{"name": "aa"}))
 	}
 
-	updateBy(t, "printed_document", map[string]string{"name": "bb"}, map[string]interface{}{"name": "aa"})
+	updateBy(t, "printed_document", map[string]string{"name": "aa"}, map[string]interface{}{"name": "bb"})
 
 	checkModelCount(t, "book", map[string]string{"name": "bb"}, 4)
 	checkModelCount(t, "book", map[string]string{"name": "aa"}, 0)
@@ -542,7 +542,7 @@ func TestTopClassUpdateDocuments(t *testing.T) {
 		saveIt(t, "document", change(createOnlineTutorial(website2), map[string]interface{}{"name": "aa"}))
 	}
 
-	updateBy(t, "document", map[string]string{"name": "bb"}, map[string]interface{}{"name": "aa"})
+	updateBy(t, "document", map[string]string{"name": "aa"}, map[string]interface{}{"name": "bb"})
 	//     Document.update("name = ?", "name= ?", "bb", "aa");
 
 	checkModelCount(t, "book", map[string]string{"name": "bb"}, 4)

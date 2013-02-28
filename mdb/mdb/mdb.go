@@ -108,11 +108,10 @@ func main() {
 			ctx.Abort(err.Code(), err.Error())
 			return
 		}
-		if obj {
-			ctx.Status(200)
-			ctx.WriteString("OK")
-		} else {
-			ctx.Abort(500, "FAILED")
+		ctx.Status(getStatus(obj, 200))
+		e = json.NewEncoder(ctx).Encode(obj)
+		if nil != e {
+			ctx.Abort(500, "encode failed, "+e.Error())
 		}
 	})
 	svr.Post("/mdb/([^/]*)", func(ctx *web.Context, t string) {

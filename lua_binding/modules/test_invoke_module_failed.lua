@@ -13,5 +13,5 @@ function create(params)
 end
 
 function delete(params)
-	return true, nil
+	return nil, "delete failed"
 end

@@ -2,9 +2,15 @@ package mdb
 
 import (
 	"commons"
-	"errors"
+	"commons/errutils"
+	"commons/stringutils"
+	"fmt"
 	"labix.org/v2/mgo/bson"
 )
+
+func internalError(e error) commons.RuntimeError {
+	return errutils.InternalError(e.Error())
+}
 
 func collectionExists(s *mdb_server, cn string) bool {
 	names, e := s.session.CollectionNames()
@@ -19,17 +25,8 @@ func collectionExists(s *mdb_server, cn string) bool {
 	return false
 }
 
-func (self *mdb_server) RemoveById(cls *ClassDefinition, id interface{}) (bool, error) {
-	err := self.session.C(cls.CollectionName()).RemoveId(id)
-	if nil != err {
-		return false, err
-	}
-	_, err = self.removeChildren(cls, id)
-	return true, err
-}
-
-func (self *mdb_server) removeChildren(cls *ClassDefinition, id interface{}) (bool, error) {
-	errs := make([]error, 0)
+func (self *mdb_server) removeChildren(cls *ClassDefinition, id interface{}) (int, error) {
+	deleted := 0
 	for _, a := range cls.Assocations {
 		op := assocationOps[a.Type()]
 		if nil == op || nil == op.deleteOp {
@@ -37,17 +34,16 @@ func (self *mdb_server) removeChildren(cls *ClassDefinition, id interface{}) (bo
 		}
 		err := op.deleteOp(self, a, cls, id)
 		if nil != err {
-			errs = append(errs, err)
+			return deleted, err
+		} else {
+			deleted++
 		}
 	}
-	if 0 == len(errs) {
-		return true, nil
-	}
-	return false, commons.NewMutiErrors("parameters is error.", errs)
+	return deleted, nil
 }
 
-func (self *mdb_server) removeAllChildren(cls *ClassDefinition) error {
-	errs := make([]error, 0)
+func (self *mdb_server) removeAllChildren(cls *ClassDefinition) (int, error) {
+	deleted := 0
 	for _, a := range cls.Assocations {
 		op := assocationOps[a.Type()]
 		if nil == op || nil == op.deleteAllOp {
@@ -55,55 +51,109 @@ func (self *mdb_server) removeAllChildren(cls *ClassDefinition) error {
 		}
 		err := op.deleteAllOp(self, a, cls)
 		if nil != err {
-			errs = append(errs, err)
+			return deleted, err
+		} else {
+			deleted++
 		}
 	}
-	if 0 == len(errs) {
-		return nil
-	}
-	return commons.NewMutiErrors("parameters is error.", errs)
+	return deleted, nil
 }
 
-func (self *mdb_server) RemoveBy(cls *ClassDefinition, params map[string]string) (bool, error) {
+func (self *mdb_server) removeById(cls *ClassDefinition, id interface{}) (int, commons.RuntimeError) {
+	deleted, err := self.removeChildren(cls, id)
+	if nil != err {
+		return deleted, internalError(err)
+	}
+
+	err = self.session.C(cls.CollectionName()).RemoveId(id)
+	if nil != err {
+		if "not found" == err.Error() {
+			return 0, errutils.RecordNotFound(IdString(id))
+		}
+
+		return deleted, errutils.InternalError("delete " + stringutils.Underscore(cls.Name) + " fialed, " + err.Error())
+	}
+	return 1, nil
+}
+
+func (self *mdb_server) removeBy(cls *ClassDefinition, params map[string]string) (int, commons.RuntimeError) {
 	s, err := self.buildQueryStatement(cls, params)
 	if nil != err {
-		return false, err
+		return -1, internalError(err)
 	}
-	c := self.session.C(cls.CollectionName())
-	q := c.Find(s)
-	if nil == q {
-		return false, errors.New("return nil result")
-	}
-	iter := q.Select(bson.M{"_id": 1}).Iter()
+	collection := self.session.C(cls.CollectionName())
+	deleted := 0
+
+	iter := collection.Find(s).Select(bson.M{"_id": 1}).Iter()
 	var result map[string]interface{}
 	for iter.Next(&result) {
-		self.removeChildren(cls, result["_id"])
+		_, e := self.removeChildren(cls, result["_id"])
+		if nil != e {
+			return deleted, internalError(e)
+		} else {
+			deleted++
+		}
 	}
 
 	err = iter.Err()
 	if nil != err {
-		return false, err
+		return deleted, errutils.InternalError("delete " + cls.Name + "failed, " + err.Error())
 	}
-	_, err = c.RemoveAll(s)
-	return (nil == err), err
+
+	changeInfo, err := collection.RemoveAll(s)
+	if nil != err {
+		return deleted, internalError(err)
+	}
+
+	return changeInfo.Removed, nil
 }
 
-func (self *mdb_server) RemoveAll(cls *ClassDefinition, params map[string]string) (bool, error) {
+func (self *mdb_server) removeAll(cls *ClassDefinition, params map[string]string) (int, commons.RuntimeError) {
 	if cls.IsInheritance() && nil != cls.Super {
-		return self.RemoveBy(cls, params)
+		return self.removeBy(cls, params)
 	}
 
-	err := self.removeAllChildren(cls)
+	deleted, err := self.removeAllChildren(cls)
 	if nil != err {
-		return false, err
+		return deleted, internalError(err)
 	}
 	err = self.session.C(cls.CollectionName()).DropCollection()
 	if nil != err {
 		if !collectionExists(self, cls.CollectionName()) {
-			return true, nil
+			return -1, nil
 		}
 
-		return false, err
+		return deleted, internalError(err)
 	}
-	return true, nil
+	return -1, nil
+}
+
+func (self *mdb_server) Delete(cls *ClassDefinition, id string, params map[string]string) (int, string, commons.RuntimeError) {
+	switch id {
+	case "all":
+		effected, e := self.removeAll(cls, params)
+		if nil != e {
+			return 0, fmt.Sprintf("delete some chilren, count is %d", effected), e
+		} else {
+			return effected, "", nil
+		}
+	case "query":
+		effected, e := self.removeBy(cls, params)
+		if nil != e {
+			return 0, fmt.Sprintf("delete some chilren, count is %d", effected), e
+		} else {
+			return effected, "", nil
+		}
+	}
+
+	oid, err := parseObjectIdHex(id)
+	if nil != err {
+		return 0, "", errutils.BadRequest("id is not a objectId")
+	}
+
+	effected, e := self.removeById(cls, oid)
+	if nil != e {
+		return 0, fmt.Sprintf("delete some chilren, count is %d", effected), e
+	}
+	return effected, "", nil
 }

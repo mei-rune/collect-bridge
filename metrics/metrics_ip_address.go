@@ -13,13 +13,13 @@ func (self *ipAddress) Init(params map[string]interface{}, drvName string) commo
 	if nil != e {
 		return e
 	}
-	self.get = func(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	self.get = func(params map[string]string) (commons.Result, commons.RuntimeError) {
 		return self.GetDefault(params)
 	}
 	return nil
 }
 
-func (self *ipAddress) GetDefault(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *ipAddress) GetDefault(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return self.GetTable(params, "1.3.6.1.2.1.4.20.1", "1,2,3,4,5",
 		func(table map[string]interface{}, key string, old_row map[string]interface{}) error {
 			new_row := map[string]interface{}{}
@@ -42,13 +42,13 @@ func (self *route) Init(params map[string]interface{}, drvName string) commons.R
 	if nil != e {
 		return e
 	}
-	self.get = func(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	self.get = func(params map[string]string) (commons.Result, commons.RuntimeError) {
 		return self.GetDefault(params)
 	}
 	return nil
 }
 
-func (self *route) GetDefault(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *route) GetDefault(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return self.GetTable(params, "1.3.6.1.2.1.4.21.1", "1,2,7,8,9,10,11",
 		func(table map[string]interface{}, key string, old_row map[string]interface{}) error {
 			new_row := map[string]interface{}{}
@@ -73,13 +73,13 @@ func (self *arp) Init(params map[string]interface{}, drvName string) commons.Run
 	if nil != e {
 		return e
 	}
-	self.get = func(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	self.get = func(params map[string]string) (commons.Result, commons.RuntimeError) {
 		return self.GetDefault(params)
 	}
 	return nil
 }
 
-func (self *arp) GetDefault(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *arp) GetDefault(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return self.GetTable(params, "1.3.6.1.2.1.4.22.1", "1,2,3,4",
 		func(table map[string]interface{}, key string, old_row map[string]interface{}) error {
 			new_row := map[string]interface{}{}

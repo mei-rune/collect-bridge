@@ -187,7 +187,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 	return commons.Return(results), nil
 }
 
-func (self *SnmpDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *SnmpDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
 	action, err := getAction(params)
 	if nil != err {
 		return nil, internalError("get action failed", err)
@@ -195,15 +195,15 @@ func (self *SnmpDriver) Get(params map[string]string) (map[string]interface{}, c
 	return self.invoke(action, params)
 }
 
-func (self *SnmpDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *SnmpDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return self.invoke(SNMP_PDU_SET, params)
 }
 
-func (self *SnmpDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *SnmpDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return nil, commons.NotImplemented
 }
 
-func (self *SnmpDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {
+func (self *SnmpDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
 	action, ok := params["snmp.action"]
 	if ok && "remove_client" == action {
 		host, _ := getHost(params)
@@ -213,10 +213,10 @@ func (self *SnmpDriver) Delete(params map[string]string) (bool, commons.RuntimeE
 			self.RemoveAllClients()
 		}
 
-		return true, nil
+		return commons.Return(true), nil
 	}
 
-	return false, commons.NotImplemented
+	return nil, commons.NotImplemented
 }
 
 var (

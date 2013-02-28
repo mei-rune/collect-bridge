@@ -29,7 +29,7 @@ func NewDiscoveryDriver(timeout time.Duration, drvMgr *commons.DriverManager) *D
 	return &DiscoveryDriver{drvMgr: drvMgr, discoverers: make(map[string]*Discoverer)}
 }
 
-func (self *DiscoveryDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *DiscoveryDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["id"]
 	if !ok {
 		return nil, commons.IdNotExists
@@ -57,7 +57,7 @@ func (self *DiscoveryDriver) Get(params map[string]string) (map[string]interface
 	return nil, commons.NewRuntimeError(503, "discovering, try again later.")
 }
 
-func (self *DiscoveryDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *DiscoveryDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["id"]
 	if !ok {
 		return nil, commons.IdNotExists
@@ -87,10 +87,10 @@ func (self *DiscoveryDriver) Put(params map[string]string) (map[string]interface
 	if nil != err {
 		return nil, err
 	}
-	return commons.ReturnOK(), nil
+	return commons.Return(true), nil
 }
 
-func (self *DiscoveryDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *DiscoveryDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
 	body, _ := params["body"]
 	if "" == body {
 		return nil, commons.BodyIsEmpty
@@ -114,17 +114,17 @@ func (self *DiscoveryDriver) Create(params map[string]string) (map[string]interf
 	return commons.Return(id), nil
 }
 
-func (self *DiscoveryDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {
+func (self *DiscoveryDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["id"]
 	if !ok {
-		return false, commons.IdNotExists
+		return nil, commons.IdNotExists
 	}
 	discoverer, ok := self.discoverers[id]
 	if !ok {
-		return false, errutils.RecordNotFound(id)
+		return nil, errutils.RecordNotFound(id)
 	}
 	delete(self.discoverers, id)
 	discoverer.Close()
 
-	return true, nil
+	return commons.Return(true), nil
 }

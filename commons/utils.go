@@ -1,7 +1,6 @@
 package commons
 
 import (
-	"commons/as"
 	"errors"
 	"fmt"
 	"io"
@@ -202,54 +201,4 @@ func ParseTime(s string) (time.Duration, error) {
 		return 0, fmt.Errorf(time_format, s, err.Error())
 	}
 	return time.Duration(i) * unit, nil
-}
-
-func IsReturnOk(params map[string]interface{}) bool {
-	v, ok := params["value"]
-	if ok {
-		return v == "ok"
-	}
-	return false
-}
-
-func GetReturn(params map[string]interface{}) interface{} {
-	v, ok := params["value"]
-	if ok {
-		return v
-	}
-	return nil
-}
-
-func GetReturnCode(params map[string]interface{}) int {
-	v, ok := params["code"]
-	if ok {
-		i, e := as.AsInt(v)
-		if nil != e {
-			panic(e.Error())
-		}
-		return i
-	}
-	return -1
-}
-
-func Return(value interface{}) map[string]interface{} {
-	return map[string]interface{}{"value": value}
-}
-
-func ReturnWithKV(params map[string]interface{}, key string, value interface{}) map[string]interface{} {
-	params[key] = value
-	return params
-}
-
-func ReturnWithValue(params map[string]interface{}, value interface{}) map[string]interface{} {
-	params["value"] = value
-	return params
-}
-
-func ReturnOK() map[string]interface{} {
-	return map[string]interface{}{"value": "ok"}
-}
-
-func ReturnFailed() map[string]interface{} {
-	return map[string]interface{}{"value": "ok"}
 }

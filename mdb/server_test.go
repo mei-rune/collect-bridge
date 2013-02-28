@@ -313,9 +313,9 @@ func TestSimpleDeleteByidByServer(t *testing.T) {
 			return
 		}
 
-		ok, err := srv.RemoveById(person, id)
-		if !ok {
-			t.Errorf(err.Error())
+		_, e := srv.removeById(person, id)
+		if nil != e {
+			t.Errorf(e.Error())
 			return
 		}
 

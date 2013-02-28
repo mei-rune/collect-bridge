@@ -30,7 +30,7 @@ func NewMetrics(ctx map[string]interface{}) (*Metrics, error) {
 	return metrics, nil
 }
 
-func (self *Metrics) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *Metrics) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["metric"]
 	if !ok {
 		return nil, MetricNotExists
@@ -43,7 +43,7 @@ func (self *Metrics) Get(params map[string]string) (map[string]interface{}, comm
 	return driver.Get(params)
 }
 
-func (self *Metrics) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *Metrics) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["metric"]
 	if !ok {
 		return nil, MetricNotExists
@@ -56,7 +56,7 @@ func (self *Metrics) Put(params map[string]string) (map[string]interface{}, comm
 	return driver.Put(params)
 }
 
-func (self *Metrics) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *Metrics) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["metric"]
 	if !ok {
 		return nil, MetricNotExists
@@ -69,15 +69,15 @@ func (self *Metrics) Create(params map[string]string) (map[string]interface{}, c
 	return driver.Create(params)
 }
 
-func (self *Metrics) Delete(params map[string]string) (bool, commons.RuntimeError) {
+func (self *Metrics) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["metric"]
 	if !ok {
-		return false, MetricNotExists
+		return nil, MetricNotExists
 	}
 
 	driver, ok := self.Connect(id)
 	if !ok {
-		return false, MetricNotDefined(id)
+		return nil, MetricNotDefined(id)
 	}
 	return driver.Delete(params)
 }

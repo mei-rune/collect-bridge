@@ -89,7 +89,7 @@ func main() {
 	}
 	drvMgr.Register("lua", lua_drv)
 
-	ms, err := metrics.NewMetrics(map[string]string{}, drvMgr)
+	ms, err := metrics.NewMetrics(map[string]interface{}{"drvMgr": drvMgr})
 	if nil != err {
 		fmt.Println(err)
 		return

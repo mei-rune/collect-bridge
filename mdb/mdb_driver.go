@@ -73,7 +73,7 @@ func (self *MdbDriver) findClass(params map[string]string, body map[string]inter
 	return definition, nil
 }
 
-func (self *MdbDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *MdbDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
 	body, ok := params["body"]
 	if !ok {
 		return nil, commons.BodyNotExists
@@ -98,12 +98,12 @@ func (self *MdbDriver) Create(params map[string]string) (map[string]interface{},
 
 	res := commons.Return(instance_id)
 	if nil != warnings {
-		res["warnings"] = strings.Join(warnings, "\n")
+		res.Warnings(strings.Join(warnings, "\n"))
 	}
 	return res, nil
 }
 
-func (self *MdbDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *MdbDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, _ := params["id"]
 	if "" == id {
 		return nil, commons.IdNotExists
@@ -137,54 +137,30 @@ func (self *MdbDriver) Put(params map[string]string) (map[string]interface{}, co
 	return commons.Return(effected), nil
 }
 
-func (self *MdbDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {
+func (self *MdbDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
 	objectType, _ := params["mdb.type"]
 	if "" == objectType {
-		return false, errutils.IsRequired("mdb.type")
+		return nil, errutils.IsRequired("mdb.type")
 	}
 
 	definition := self.definitions.FindByUnderscoreName(objectType)
 	if nil == definition {
-		return false, errutils.BadRequest("class '" + objectType + "' is not found")
+		return nil, errutils.BadRequest("class '" + objectType + "' is not found")
 	}
 	id, _ := params["id"]
-	switch id {
-	case "":
-		return false, commons.IdNotExists
-	case "all":
-		res, e := self.RemoveAll(definition, params)
-		if nil != e {
-			return res, commons.NewRuntimeError(commons.InternalErrorCode, "remove object from db failed, "+e.Error())
-		} else {
-			return res, nil
-		}
-	case "query":
-		res, e := self.RemoveBy(definition, params)
-		if nil != e {
-			return res, commons.NewRuntimeError(commons.InternalErrorCode, "remove object from db failed, "+e.Error())
-		} else {
-			return res, nil
-		}
+
+	if "" == id {
+		return nil, commons.IdNotExists
 	}
 
-	oid, err := parseObjectIdHex(id)
+	effected, warnings, err := self.mdb_server.Delete(definition, id, params)
 	if nil != err {
-		return false, errutils.BadRequest("id is not a objectId")
+		return nil, err
 	}
-
-	ok, err := self.RemoveById(definition, oid)
-	if !ok {
-		if "not found" == err.Error() {
-			return false, errutils.RecordNotFound(id)
-		}
-
-		return false, commons.NewRuntimeError(commons.InternalErrorCode, "remove object from db failed, "+err.Error())
-	}
-
-	return true, nil
+	return commons.Return(effected).Effected(effected).Warnings(warnings), nil
 }
 
-func (self *MdbDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *MdbDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
 	objectType, _ := params["mdb.type"]
 	if "" == objectType {
 		return nil, errutils.IsRequired("mdb.type")

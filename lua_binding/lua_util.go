@@ -415,6 +415,8 @@ func pushAny(ls *C.lua_State, any interface{}) {
 		pushArray(ls, v)
 	case map[string]interface{}:
 		pushMap(ls, v)
+	case commons.Result:
+		pushMap(ls, map[string]interface{}(v))
 	default:
 		val := reflect.ValueOf(any)
 		switch val.Kind() {

@@ -10,9 +10,9 @@ function put(params)
 end
 
 function create(params)
-	return {id= "2328"}, "create test ok test1whj23"
+	return {value= "2328"}, "create test ok test1whj23"
 end
 
 function delete(params)
-	return false, "delete test ok test1whj23"
+	return {value=false}, "delete test ok test1whj23"
 end

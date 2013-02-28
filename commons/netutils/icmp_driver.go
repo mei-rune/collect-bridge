@@ -29,7 +29,7 @@ func NewICMPDriver(drvMgr *commons.DriverManager) *ICMPDriver {
 	return &ICMPDriver{drvMgr: drvMgr, pingers: make(map[string]*Pinger)}
 }
 
-func (self *ICMPDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *ICMPDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["id"]
 	if !ok {
 		return nil, commons.IdNotExists
@@ -53,7 +53,7 @@ func (self *ICMPDriver) Get(params map[string]string) (map[string]interface{}, c
 	return commons.Return(values), nil
 }
 
-func (self *ICMPDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *ICMPDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["id"]
 	if !ok {
 		return nil, commons.IdNotExists
@@ -90,10 +90,10 @@ func (self *ICMPDriver) Put(params map[string]string) (map[string]interface{}, c
 			}
 		}
 	}
-	return commons.ReturnOK(), nil
+	return commons.Return(true), nil
 }
 
-func (self *ICMPDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *ICMPDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
 	body, _ := params["body"]
 	if "" == body {
 		body = "{}"
@@ -136,20 +136,20 @@ func (self *ICMPDriver) Create(params map[string]string) (map[string]interface{}
 		return nil, commons.NewRuntimeError(500, err.Error())
 	}
 	self.pingers[id] = icmp
-	return commons.ReturnWithKV(map[string]interface{}{}, "id", id), nil
+	return commons.Return(id), nil
 }
 
-func (self *ICMPDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {
+func (self *ICMPDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["id"]
 	if !ok {
-		return false, commons.IdNotExists
+		return nil, commons.IdNotExists
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return false, errutils.RecordNotFound(id)
+		return nil, errutils.RecordNotFound(id)
 	}
 	delete(self.pingers, id)
 	pinger.Close()
 
-	return true, nil
+	return commons.Return(true), nil
 }

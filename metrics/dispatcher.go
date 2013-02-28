@@ -155,6 +155,6 @@ func (self *Dispatcher) Create(params map[string]string) (map[string]interface{}
 	return nil, commons.NotImplemented
 }
 
-func (self *Dispatcher) Delete(params map[string]string) (bool, commons.RuntimeError) {
-	return false, commons.NotImplemented
+func (self *Dispatcher) Delete(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	return nil, commons.NotImplemented
 }

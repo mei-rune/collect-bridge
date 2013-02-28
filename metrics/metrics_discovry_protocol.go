@@ -8,7 +8,7 @@ type cisco_discovry_protocol struct {
 	SnmpBase
 }
 
-func (self *cisco_discovry_protocol) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *cisco_discovry_protocol) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return self.GetTable(params, "1.3.6.1.4.1.9.9.23.1.2.1.1", "4,6,7,12",
 		func(table map[string]interface{}, key string, old_row map[string]interface{}) error {
 			new_row := map[string]interface{}{}
@@ -25,7 +25,7 @@ type huawei_discovry_protocol struct {
 	SnmpBase
 }
 
-func (self *huawei_discovry_protocol) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *huawei_discovry_protocol) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return self.GetTable(params, "1.3.6.1.4.1.2011.6.7.5.6.1", "1,2,3",
 		func(table map[string]interface{}, key string, old_row map[string]interface{}) error {
 			new_row := map[string]interface{}{}

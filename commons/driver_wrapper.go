@@ -32,8 +32,7 @@ type driver_message struct {
 	command      int
 	f            func()
 	arguments    map[string]string
-	returnResult map[string]interface{}
-	returnBool   bool
+	returnResult Result
 	returnError  RuntimeError
 }
 
@@ -53,7 +52,6 @@ func putCachedCh(msg *driver_message) {
 	msg.arguments = nil
 	msg.returnResult = nil
 	msg.returnError = nil
-	msg.returnBool = false
 	msg.f = nil
 	msg.command = DRV_MESSAGE_REQ_UNKNOW
 	select {
@@ -279,7 +277,7 @@ func (self *DriverWrapper) safelyCall(msg *driver_message) *driver_message {
 		msg.returnResult, msg.returnError = self.drv.Put(msg.arguments)
 	case DRV_MESSAGE_REQ_DELETE:
 		msg.command = DRV_MESSAGE_RET_NORMAL
-		msg.returnBool, msg.returnError = self.drv.Delete(msg.arguments)
+		msg.returnResult, msg.returnError = self.drv.Delete(msg.arguments)
 	case DRV_MESSAGE_REQ_CREATE:
 		msg.command = DRV_MESSAGE_RET_NORMAL
 		msg.returnResult, msg.returnError = self.drv.Create(msg.arguments)
@@ -294,9 +292,9 @@ func (self *DriverWrapper) safelyCall(msg *driver_message) *driver_message {
 	return nil
 }
 
-func (self *DriverWrapper) invoke(cmd int, params map[string]string, f func()) (map[string]interface{}, bool, RuntimeError) {
+func (self *DriverWrapper) invoke(cmd int, params map[string]string, f func()) (Result, RuntimeError) {
 	if !self.IsAlive() {
-		return nil, false, DieError
+		return nil, DieError
 	}
 
 	msg := getCachedCh()
@@ -323,31 +321,27 @@ func (self *DriverWrapper) invoke(cmd int, params map[string]string, f func()) (
 		if DRV_MESSAGE_RET_PANIC == resp.command {
 			panic(resp.returnError.Error())
 		}
-		return resp.returnResult, resp.returnBool, resp.returnError
+		return resp.returnResult, resp.returnError
 	case <-time.After(self.timeout):
-		return nil, false, TimeoutErr
+		return nil, TimeoutErr
 	}
-	return nil, false, nil
+	return nil, nil
 }
 
-func (self *DriverWrapper) Get(params map[string]string) (map[string]interface{}, RuntimeError) {
-	r, _, e := self.invoke(DRV_MESSAGE_REQ_GET, params, nil)
-	return r, e
+func (self *DriverWrapper) Get(params map[string]string) (Result, RuntimeError) {
+	return self.invoke(DRV_MESSAGE_REQ_GET, params, nil)
 }
 
-func (self *DriverWrapper) Put(params map[string]string) (map[string]interface{}, RuntimeError) {
-	r, _, e := self.invoke(DRV_MESSAGE_REQ_PUT, params, nil)
-	return r, e
+func (self *DriverWrapper) Put(params map[string]string) (Result, RuntimeError) {
+	return self.invoke(DRV_MESSAGE_REQ_PUT, params, nil)
 }
 
-func (self *DriverWrapper) Create(params map[string]string) (map[string]interface{}, RuntimeError) {
-	r, _, e := self.invoke(DRV_MESSAGE_REQ_CREATE, params, nil)
-	return r, e
+func (self *DriverWrapper) Create(params map[string]string) (Result, RuntimeError) {
+	return self.invoke(DRV_MESSAGE_REQ_CREATE, params, nil)
 }
 
-func (self *DriverWrapper) Delete(params map[string]string) (bool, RuntimeError) {
-	_, r, e := self.invoke(DRV_MESSAGE_REQ_DELETE, params, nil)
-	return r, e
+func (self *DriverWrapper) Delete(params map[string]string) (Result, RuntimeError) {
+	return self.invoke(DRV_MESSAGE_REQ_DELETE, params, nil)
 }
 
 func (self *DriverWrapper) Call(f func()) {

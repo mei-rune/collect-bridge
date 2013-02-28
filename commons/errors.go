@@ -164,4 +164,5 @@ var (
 	BodyIsEmpty        = NewRuntimeError(BadRequestCode, "'body' is empty.")
 	ServiceUnavailable = NewRuntimeError(ServiceUnavailableCode, "service temporary unavailable, try again later")
 	ValueIsNil         = NewRuntimeError(InternalErrorCode, "value is nil.")
+	NotIntValue        = NewRuntimeError(InternalErrorCode, "it is not a int.")
 )

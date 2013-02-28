@@ -51,7 +51,10 @@ func deleteHasOne(s *mdb_server, assoc Assocation, cls *ClassDefinition, id inte
 			continue
 		}
 
-		s.RemoveById(assoc.Target(), o)
+		_, err := s.removeById(assoc.Target(), o)
+		if nil != err && "not found" == err.Error() {
+			return err
+		}
 	}
 	return it.Err()
 }
@@ -62,7 +65,7 @@ func deleteAllHasOne(s *mdb_server, assoc Assocation, cls *ClassDefinition) erro
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasOne.", assoc))
 	}
 	cn := hasOne.Target().CollectionName()
-	_, err := s.RemoveAll(hasOne.Target(), map[string]string{})
+	_, err := s.removeAll(hasOne.Target(), map[string]string{})
 	if nil != err {
 		if !collectionExists(s, cn) {
 			return nil
@@ -104,7 +107,10 @@ func deleteHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition, id int
 			continue
 		}
 
-		s.RemoveById(assoc.Target(), o)
+		_, err := s.removeById(assoc.Target(), o)
+		if nil != err && "not found" == err.Error() {
+			return err
+		}
 	}
 	return it.Err()
 }
@@ -115,13 +121,13 @@ func deleteAllHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition) err
 	}
 	cn := hasMany.Target().CollectionName()
 	if hasMany.Polymorphic {
-		_, err := s.RemoveBy(hasMany.Target(), map[string]string{"@parent_type": stringutils.Underscore(cls.Name)})
+		_, err := s.removeBy(hasMany.Target(), map[string]string{"@parent_type": stringutils.Underscore(cls.Name)})
 		if nil != err {
 			return fmt.Errorf("delete from '%s' collection failed, %v", cn, err)
 		}
 		return nil
 	}
-	_, err := s.RemoveAll(hasMany.Target(), map[string]string{})
+	_, err := s.removeAll(hasMany.Target(), map[string]string{})
 	if nil != err {
 		if !collectionExists(s, cn) {
 			return nil
@@ -183,7 +189,10 @@ func deleteMany2Many(s *mdb_server, assoc Assocation, cls *ClassDefinition, id i
 		if !ok {
 			continue
 		}
-		s.RemoveById(assoc.Target(), o)
+		_, err := s.removeById(assoc.Target(), o)
+		if nil != err && "not found" == err.Error() {
+			return err
+		}
 	}
 
 	return it.Err()

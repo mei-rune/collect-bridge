@@ -62,10 +62,10 @@ func luaDelete(driver commons.Driver, ctx *web.Context, script, id string) {
 		ctx.Abort(err.Code(), err.Error())
 		return
 	}
-	if obj {
-		ctx.WriteString("OK")
-	} else {
-		ctx.Abort(500, "FAILED")
+	ctx.Status(200)
+	e := json.NewEncoder(ctx).Encode(obj)
+	if nil != e {
+		ctx.Abort(500, "encode failed, "+e.Error())
 	}
 }
 

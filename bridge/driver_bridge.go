@@ -88,12 +88,10 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 			return
 		}
 
-		//ctx.Status(getStatus(obj, 200))
-		if obj {
-			ctx.Status(200)
-			ctx.WriteString("OK")
-		} else {
-			ctx.Abort(500, "FAILED")
+		ctx.Status(200)
+		e := json.NewEncoder(ctx).Encode(obj)
+		if nil != e {
+			ctx.Abort(500, "encode failed, "+e.Error())
 		}
 	})
 	svr.Post("/"+schema+"/([^/]*)", func(ctx *web.Context, name string) {
@@ -178,12 +176,10 @@ func drvDelete(driver commons.Driver, ctx *web.Context, id string) {
 		return
 	}
 
-	//ctx.Status(getStatus(obj, 200))
-	if obj {
-		ctx.Status(200)
-		ctx.WriteString("OK")
-	} else {
-		ctx.Abort(500, "FAILED")
+	ctx.Status(200)
+	e := json.NewEncoder(ctx).Encode(obj)
+	if nil != e {
+		ctx.Abort(500, "encode failed, "+e.Error())
 	}
 }
 

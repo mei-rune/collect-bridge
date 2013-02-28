@@ -33,16 +33,16 @@ func snmpReset(driver commons.Driver, ctx *web.Context, host string) {
 	ctx.Params["snmp.host"] = host
 	ctx.Params["id"] = host
 
-	ok, err := driver.Delete(ctx.Params)
+	obj, err := driver.Delete(ctx.Params)
 	if nil != err {
 		ctx.Abort(err.Code(), err.Error())
 		return
 	}
 
-	if ok {
-		ctx.WriteString("OK")
-	} else {
-		ctx.Abort(500, "FAILED")
+	ctx.Status(200)
+	e := json.NewEncoder(ctx).Encode(obj)
+	if nil != e {
+		ctx.Abort(500, "encode failed, "+e.Error())
 	}
 }
 

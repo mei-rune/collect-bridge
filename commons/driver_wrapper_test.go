@@ -30,24 +30,24 @@ func (svc *mock_driver) Stop() {
 	}
 }
 
-func (svc *mock_driver) Get(params map[string]string) (map[string]interface{}, RuntimeError) {
+func (svc *mock_driver) Get(params map[string]string) (Result, RuntimeError) {
 	resp, _ := strconv.Atoi(params["a"])
 	resp++
-	return map[string]interface{}{"result": resp}, nil
+	return Result{"result": resp}, nil
 }
 
-func (svc *mock_driver) Put(params map[string]string) (map[string]interface{}, RuntimeError) {
+func (svc *mock_driver) Put(params map[string]string) (Result, RuntimeError) {
 	a, _ := strconv.Atoi(params["a"])
 	b, _ := strconv.Atoi(params["b"])
 
-	return map[string]interface{}{"result": a + b}, nil
+	return Result{"result": a + b}, nil
 }
 
-func (svc *mock_driver) Create(params map[string]string) (map[string]interface{}, RuntimeError) {
+func (svc *mock_driver) Create(params map[string]string) (Result, RuntimeError) {
 	a, _ := strconv.Atoi(params["a"])
 	b, _ := strconv.Atoi(params["b"])
 
-	return map[string]interface{}{"result": a - b}, nil
+	return Result{"result": a - b}, nil
 }
 
 func (svc *mock_driver) Delete(params map[string]string) (bool, RuntimeError) {
@@ -110,22 +110,22 @@ func TestDriverWrapper(t *testing.T) {
 	if nil != e {
 		t.Errorf("get error! %v", e)
 	}
-	if !reflect.DeepEqual(map[string]interface{}{"result": 2}, result) {
-		t.Errorf("get error, excepted is %v, actual is %v", result, map[string]interface{}{"result": 2})
+	if !reflect.DeepEqual(Result{"result": 2}, result) {
+		t.Errorf("get error, excepted is %v, actual is %v", result, Result{"result": 2})
 	}
 	result, e = mock.Put(map[string]string{"a": "1", "b": "3"})
 	if nil != e {
 		t.Errorf("put error! %v", e)
 	}
-	if !reflect.DeepEqual(map[string]interface{}{"result": 4}, result) {
-		t.Errorf("put error, excepted is %v, actual is %v", result, map[string]interface{}{"result": 4})
+	if !reflect.DeepEqual(Result{"result": 4}, result) {
+		t.Errorf("put error, excepted is %v, actual is %v", result, Result{"result": 4})
 	}
 	result, e = mock.Create(map[string]string{"a": "9", "b": "3"})
 	if nil != e {
 		t.Errorf("create error! %v", e)
 	}
-	if !reflect.DeepEqual(map[string]interface{}{"result": 6}, result) {
-		t.Errorf("create error, excepted is %v, actual is %v", result, map[string]interface{}{"result": 6})
+	if !reflect.DeepEqual(Result{"result": 6}, result) {
+		t.Errorf("create error, excepted is %v, actual is %v", result, Result{"result": 6})
 	}
 	b, e := mock.Delete(map[string]string{"a": "9", "b": "3"})
 

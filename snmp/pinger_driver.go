@@ -38,7 +38,7 @@ func NewPingerDriver(drvMgr *commons.DriverManager) *PingerDriver {
 // 	return self.Start()
 // }
 
-func (self *PingerDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *PingerDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["id"]
 	if !ok {
 		return nil, commons.IdNotExists
@@ -62,7 +62,7 @@ func (self *PingerDriver) Get(params map[string]string) (map[string]interface{},
 	return commons.Return(values), nil
 }
 
-func (self *PingerDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *PingerDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["id"]
 	if !ok {
 		return nil, commons.IdNotExists
@@ -131,10 +131,10 @@ func (self *PingerDriver) Put(params map[string]string) (map[string]interface{},
 			}
 		}
 	}
-	return commons.ReturnOK(), nil
+	return commons.Return(true), nil
 }
 
-func (self *PingerDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *PingerDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
 	body, _ := params["body"]
 	if "" == body {
 		body = "{}"
@@ -169,20 +169,20 @@ func (self *PingerDriver) Create(params map[string]string) (map[string]interface
 		return nil, commons.NewRuntimeError(500, err.Error())
 	}
 	self.pingers[id] = pinger
-	return commons.ReturnWithKV(map[string]interface{}{}, "id", id), nil
+	return commons.Return(id), nil
 }
 
-func (self *PingerDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {
+func (self *PingerDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
 	id, ok := params["id"]
 	if !ok {
-		return false, commons.IdNotExists
+		return commons.Return(false), commons.IdNotExists
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return false, errutils.RecordNotFound(id)
+		return commons.Return(false), errutils.RecordNotFound(id)
 	}
 	delete(self.pingers, id)
 	pinger.Close()
 
-	return true, nil
+	return commons.Return(true), nil
 }

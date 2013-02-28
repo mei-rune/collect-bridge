@@ -711,44 +711,31 @@ func (driver *LuaDriver) invoke(action string, params map[string]string) (interf
 	return nil, ctx.Error
 }
 
-func (driver *LuaDriver) invokeAndReturnBool(action string, params map[string]string) (bool, commons.RuntimeError) {
-	ret, err := driver.invoke(action, params)
-	if nil == ret {
-		return false, err
-	}
-	b, ok := ret.(bool)
-	if !ok {
-		panic(fmt.Sprintf("type of result is not bool type - [%T]%v", ret))
-	}
-
-	return b, err
-}
-
-func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]string) (commons.Result, commons.RuntimeError) {
 	ret, err := driver.invoke(action, params)
 	if nil == ret {
 		return nil, err
 	}
-	b, ok := ret.(map[string]interface{})
+	res, ok := ret.(map[string]interface{})
 	if !ok {
 		panic(fmt.Sprintf("type of result is not map[string]interface{} type - [%T]%v - %v", ret, ret, driver.Name))
 	}
 
-	return b, err
+	return res, err
 }
 
-func (driver *LuaDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (driver *LuaDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return driver.invokeAndReturnMap("get", params)
 }
 
-func (driver *LuaDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (driver *LuaDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return driver.invokeAndReturnMap("put", params)
 }
 
-func (driver *LuaDriver) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (driver *LuaDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return driver.invokeAndReturnMap("create", params)
 }
 
-func (driver *LuaDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {
-	return driver.invokeAndReturnBool("delete", params)
+func (driver *LuaDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
+	return driver.invokeAndReturnMap("delete", params)
 }

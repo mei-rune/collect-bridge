@@ -30,7 +30,7 @@ func (self *MetricManager) Get(params map[string]string) (interface{}, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (self *MetricManager) Put(params map[string]string) (map[string]interface{}, error) {
+func (self *MetricManager) Put(params map[string]string) (commons.Result, error) {
 	j, ok := params["body"]
 	if !ok {
 		return nil, commons.BodyNotExists
@@ -52,10 +52,10 @@ func (self *MetricManager) Put(params map[string]string) (map[string]interface{}
 
 	self.dispatcher.registerSpec(rs)
 
-	return commons.ReturnOK(), nil
+	return commons.Return(true), nil
 }
 
-func (self *MetricManager) Create(params map[string]string) (map[string]interface{}, error) {
+func (self *MetricManager) Create(params map[string]string) (commons.Result, error) {
 	j, ok := params["body"]
 	if !ok {
 		return nil, commons.BodyNotExists
@@ -84,7 +84,7 @@ func (self *MetricManager) Create(params map[string]string) (map[string]interfac
 		return nil, errors.New("parse route definitions failed.\n" + strings.Join(ss, "\n"))
 	}
 
-	return commons.ReturnOK(), nil
+	return commons.Return(true), nil
 }
 
 func (self *MetricManager) Delete(params map[string]string) (bool, error) {

@@ -13,16 +13,16 @@ func (self *memory) Init(params map[string]interface{}, drvName string) commons.
 	if nil != e {
 		return e
 	}
-	self.RegisterGetFunc([]string{"1.3.6.1.4.1.9"}, func(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	self.RegisterGetFunc([]string{"1.3.6.1.4.1.9"}, func(params map[string]string) (commons.Result, commons.RuntimeError) {
 		return self.GetCisco(params)
 	})
-	self.get = func(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+	self.get = func(params map[string]string) (commons.Result, commons.RuntimeError) {
 		return self.GetWindows(params)
 	}
 	return nil
 }
 
-func (self *memory) GetCisco(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *memory) GetCisco(params map[string]string) (commons.Result, commons.RuntimeError) {
 	res, e := self.GetCiscoA(params)
 	if nil == e {
 		return res, e
@@ -34,10 +34,10 @@ func (self *memory) GetCisco(params map[string]string) (map[string]interface{}, 
 	return self.GetCiscoHost(params)
 }
 
-func (self *memory) GetCiscoHost(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *memory) GetCiscoHost(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return self.GetWindows(params)
 }
-func (self *memory) GetCiscoA(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *memory) GetCiscoA(params map[string]string) (commons.Result, commons.RuntimeError) {
 	_, total, e := self.GetInt64Value(params, "1.3.6.1.4.1.9.3.6.6.0", -1)
 	if nil == e {
 		return nil, e
@@ -47,10 +47,10 @@ func (self *memory) GetCiscoA(params map[string]string) (map[string]interface{},
 		return nil, e
 	}
 
-	return map[string]interface{}{"total": total, "used_per": float64(total-free) / float64(total), "used": total - free, "free": free}, nil
+	return commons.Return(map[string]interface{}{"total": total, "used_per": float64(total-free) / float64(total), "used": total - free, "free": free}), nil
 }
 
-func (self *memory) GetCiscoB(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *memory) GetCiscoB(params map[string]string) (commons.Result, commons.RuntimeError) {
 	_, used, e := self.GetInt64Value(params, "1.3.6.1.4.1.9.9.109.1.1.1.1.12.1", -1)
 	if nil == e {
 		return nil, e
@@ -60,10 +60,10 @@ func (self *memory) GetCiscoB(params map[string]string) (map[string]interface{},
 		return nil, e
 	}
 
-	return map[string]interface{}{"total": used + free, "used_per": float64(used) / float64(used+free), "used": used, "free": free}, nil
+	return commons.Return(map[string]interface{}{"total": used + free, "used_per": float64(used) / float64(used+free), "used": used, "free": free}), nil
 }
 
-func (self *memory) GetWindows(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *memory) GetWindows(params map[string]string) (commons.Result, commons.RuntimeError) {
 	//HOST-RESOURCES-MIB:hrStorageTable  = ".1.3.6.1.2.1.25.2.3.1.";
 	//HOST-RESOURCES-MIB:hrMemorySize  = ".1.3.6.1.2.1.25.2.2.0";
 	//Physical Memory type = "1.3.6.1.2.1.25.2.1.2";
@@ -92,7 +92,7 @@ func (self *memory) GetWindows(params map[string]string) (map[string]interface{}
 
 	used := uint64(float64(total) * used_per)
 	free := total - used
-	return map[string]interface{}{"total": total, "used_per": used_per, "used": used, "free": free}, nil
+	return commons.Return(map[string]interface{}{"total": total, "used_per": used_per, "used": used, "free": free}), nil
 }
 
 func init() {

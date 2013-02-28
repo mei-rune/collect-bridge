@@ -281,6 +281,19 @@ func GetHardwareAddress(params map[string]string, values map[string]interface{},
 	return s
 }
 
+func parseMAC(s string) (string, error) {
+	switch len(s) {
+	case 0:
+		return "", nil
+	case 12:
+		return s[:2] + ":" + s[2:4] + ":" + s[4:6] + ":" + s[6:8] + ":" + s[8:10] + ":" + s[10:], nil
+	case 14:
+		return s[:2] + ":" + s[2:4] + ":" + s[4:6] + ":" + s[6:8] + ":" + s[8:10] + ":" + s[10:12] + ":" + s[12:], nil
+	case 16:
+		return s[:2] + ":" + s[2:4] + ":" + s[4:6] + ":" + s[6:8] + ":" + s[8:10] + ":" + s[10:12] + ":" + s[12:14] + ":" + s[14:], nil
+	}
+	return "", errors.New("'" + s + "' is invalid hardware address")
+}
 func TryGetHardwareAddress(params map[string]string, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
@@ -289,20 +302,12 @@ func TryGetHardwareAddress(params map[string]string, values map[string]interface
 	switch v := value.(type) {
 	case snmp.SnmpValue:
 		if snmp.SNMP_SYNTAX_OCTETSTRING == v.GetSyntax() {
-			s := v.GetString()
-			if 12 != len(s) {
-				return "", errors.New("'" + s + "' is invalid hardware address")
-			}
-			return s[:2] + ":" + s[2:4] + ":" + s[4:6] + ":" + s[6:8] + ":" + s[8:10] + ":" + s[10:], nil
+			return parseMAC(v.GetString())
 		}
 		value = v.String()
 	case string:
 		if strings.HasPrefix(v, "[octets]") {
-			s := v[8:]
-			if 12 != len(s) {
-				return "", errors.New("'" + s + "' is invalid hardware address")
-			}
-			return s[:2] + ":" + s[2:4] + ":" + s[4:6] + ":" + s[6:8] + ":" + s[8:10] + ":" + s[10:], nil
+			return parseMAC(v[8:])
 		}
 		return v, nil
 	}

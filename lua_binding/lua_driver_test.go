@@ -310,27 +310,26 @@ func TestInvokeScriptFailed(t *testing.T) {
 }
 
 type TestDriver struct {
-	create, get, put     interface{}
-	get_error, put_error commons.RuntimeError
+	create, get, put, delete interface{}
+	get_error, put_error     commons.RuntimeError
 
-	delete                     bool
 	create_error, delete_error commons.RuntimeError
 }
 
-func (bridge *TestDriver) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (bridge *TestDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return commons.Return(bridge.get), bridge.get_error
 }
 
-func (bridge *TestDriver) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (bridge *TestDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
 	return commons.Return(bridge.put), bridge.put_error
 }
 
-func (bridge *TestDriver) Create(map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (bridge *TestDriver) Create(map[string]string) (commons.Result, commons.RuntimeError) {
 	return commons.Return(bridge.create), bridge.create_error
 }
 
-func (bridge *TestDriver) Delete(map[string]string) (bool, commons.RuntimeError) {
-	return bridge.delete, bridge.delete_error
+func (bridge *TestDriver) Delete(map[string]string) (commons.Result, commons.RuntimeError) {
+	return commons.Return(bridge.delete), bridge.delete_error
 }
 
 func TestInvokeAndCallback(t *testing.T) {
@@ -401,9 +400,9 @@ func TestInvokeModule(t *testing.T) {
 	v, e = drv.Put(params)
 	testResult(t, drv, commons.Return("put test ok test1whj23"), "", v, e)
 	v, e = drv.Create(params)
-	testResult(t, drv, commons.ReturnWithKV(map[string]interface{}{}, "id", "2328"), "create test ok test1whj23", v, e)
-	b, e := drv.Delete(params)
-	testResult(t, drv, false, "delete test ok test1whj23", b, e)
+	testResult(t, drv, commons.Return("2328"), "create test ok test1whj23", v, e)
+	v, e = drv.Delete(params)
+	testResult(t, drv, commons.Return(false), "delete test ok test1whj23", v, e)
 }
 
 func TestInvokeModuleFailed(t *testing.T) {
@@ -436,8 +435,12 @@ func TestInvokeModuleFailed(t *testing.T) {
 		testResult(t, drv, nil, "record not found", v, e)
 	}
 
-	b, e := drv.Delete(params)
-	testResult(t, drv, true, "", b, e)
+	v, e = drv.Delete(params)
+	if nil == v {
+		testResult(t, drv, nil, "delete failed", nil, e)
+	} else {
+		testResult(t, drv, nil, "delete failed", v, e)
+	}
 }
 
 func TestInvokeModuleAndCallback(t *testing.T) {
@@ -466,7 +469,7 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	v, e = drv.Create(params)
 	testResult(t, drv, commons.Return(false), "create test cb ok test1whj23", v, e)
 	b, e := drv.Delete(params)
-	testResult(t, drv, false, "delete test cb ok test1whj23", b, e)
+	testResult(t, drv, commons.Return(false), "delete test cb ok test1whj23", b, e)
 }
 
 func TestInvokeModuleAndCallbackFailed(t *testing.T) {
@@ -503,7 +506,7 @@ func TestInvokeModuleAndCallbackFailed(t *testing.T) {
 	v, e = drv.Create(params)
 	testResult(t, drv, commons.Return(false), "", v, e)
 	b, e := drv.Delete(params)
-	testResult(t, drv, false, "", b, e)
+	testResult(t, drv, commons.Return(false), "", b, e)
 }
 
 func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {

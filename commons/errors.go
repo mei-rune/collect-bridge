@@ -114,8 +114,8 @@ var (
 	MultiStatusCode                  = 207
 	IMUsedCode                       = 226
 	MultipleChoicesCode              = 300
-	MovedPermanently                 = 301
-	FoundCode                        = 302
+	MovedPermanentlyCode             = 301
+	MovedTemporarilyCode             = 302
 	SeeOtherCode                     = 303
 	NotModifiedCode                  = 304
 	UseProxyCode                     = 305
@@ -153,6 +153,7 @@ var (
 	VariantAlsoNegotiatesCode        = 506
 	InsufficientStorageCode          = 507
 	NotExtendedCode                  = 510
+	NetworkErrorCode                 = 560
 
 	ContinueError      = NewRuntimeError(ContinueCode, "continue")
 	NotImplemented     = NewRuntimeError(NotImplementedCode, "not implemented")

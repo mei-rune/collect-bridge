@@ -13,7 +13,13 @@ import (
 	"time"
 )
 
-func Each(instance interface{}, cb func(k interface{}, v interface{}), default_cb func()) {
+var (
+	ThrowPanic = func(instance interface{}) {
+		panic(fmt.Sprintf("it is not []interface{} or map[string]interface{}, actual is [%T]%v", instance, instance))
+	}
+)
+
+func Each(instance interface{}, cb func(k interface{}, v interface{}), default_cb func(instance interface{})) {
 	switch values := instance.(type) {
 	case map[string]interface{}:
 		for ck, r := range values {
@@ -24,7 +30,9 @@ func Each(instance interface{}, cb func(k interface{}, v interface{}), default_c
 			cb(ck, r)
 		}
 	default:
-		default_cb()
+		if nil != default_cb {
+			default_cb(instance)
+		}
 	}
 }
 

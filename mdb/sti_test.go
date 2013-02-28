@@ -50,8 +50,8 @@ func change(attributes, merge map[string]interface{}) map[string]interface{} {
 }
 
 func checkModelCount(t *testing.T, target string, params map[string]string, all int) {
-	if c, err := count(target, params); all != c {
-		t.Errorf("%d != len(%s), actual is %d, %v", all, target, c, err)
+	if c := count(t, target, params); all != c {
+		t.Errorf("%d != len(%s), actual is %d", all, target, c)
 	}
 	res := findBy(t, target, params)
 	if all != len(res) {

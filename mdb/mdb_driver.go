@@ -90,7 +90,7 @@ func (self *MdbDriver) Create(params map[string]string) (map[string]interface{},
 		return nil, e
 	}
 
-	instance_id, err := self.mdb_server.Create(definition, attributes)
+	instance_id, err := self.mdb_server.Create(definition, params, attributes)
 	if err != nil {
 		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "insert object to db, "+err.Error())
 	}
@@ -125,7 +125,7 @@ func (self *MdbDriver) Put(params map[string]string) (map[string]interface{}, co
 		return nil, e
 	}
 
-	err = self.mdb_server.Update(definition, id, params, result)
+	effected, err := self.mdb_server.Update(definition, id, params, result)
 	if err != nil {
 		if "not found" == err.Error() {
 			return nil, errutils.RecordNotFound(id)
@@ -134,7 +134,7 @@ func (self *MdbDriver) Put(params map[string]string) (map[string]interface{}, co
 		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "update object to db, "+err.Error())
 	}
 
-	return commons.ReturnOK(), nil
+	return commons.Return(effected), nil
 }
 
 func (self *MdbDriver) Delete(params map[string]string) (bool, commons.RuntimeError) {

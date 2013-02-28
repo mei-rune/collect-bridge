@@ -91,7 +91,7 @@ func TestSimpleInsertByServer(t *testing.T) {
 			return
 		}
 
-		id, err := srv.Create(person, person1_attributes)
+		id, err := srv.Create(person, map[string]string{}, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -137,7 +137,7 @@ func TestSimpleUpdateByServer(t *testing.T) {
 			return
 		}
 
-		id, err := srv.Create(person, person1_attributes)
+		id, err := srv.Create(person, map[string]string{}, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -148,7 +148,7 @@ func TestSimpleUpdateByServer(t *testing.T) {
 		}
 		t.Log("id=", id)
 
-		err = srv.Update(person, IdString(id), map[string]string{}, person1_update_attributes)
+		_, err = srv.Update(person, IdString(id), map[string]string{}, person1_update_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -195,7 +195,7 @@ func TestSimpleFindByidByServer(t *testing.T) {
 			return
 		}
 
-		id, err := srv.Create(person, person1_attributes)
+		id, err := srv.Create(person, map[string]string{}, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -242,7 +242,7 @@ func TestSimpleQueryByServer(t *testing.T) {
 			return
 		}
 
-		id, err := srv.Create(person, person1_attributes)
+		id, err := srv.Create(person, map[string]string{}, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -295,7 +295,7 @@ func TestSimpleDeleteByidByServer(t *testing.T) {
 			return
 		}
 
-		id, err := srv.Create(person, person1_attributes)
+		id, err := srv.Create(person, map[string]string{}, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return

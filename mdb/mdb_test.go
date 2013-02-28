@@ -1,7 +1,6 @@
 package mdb
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -44,10 +43,7 @@ func createMockDevice(t *testing.T, factor string) string {
 }
 
 func updateMockDevice(t *testing.T, id, factor string) {
-	e := updateJson("device", id, fmt.Sprintf(`{"name":"dd%s", "catalog":%s, "services":2%s}`, factor, factor, factor))
-	if nil != e {
-		t.Error(e.Error())
-	}
+	updateJson(t, "device", id, fmt.Sprintf(`{"name":"dd%s", "catalog":%s, "services":2%s}`, factor, factor, factor))
 }
 
 func getDeviceById(t *testing.T, id string) map[string]interface{} {
@@ -108,75 +104,62 @@ func validMockDevice(t *testing.T, factor string, drv map[string]interface{}) {
 	}
 }
 func create(t *testing.T, target string, body map[string]interface{}) string {
-	msg, e := json.Marshal(body)
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	id, e := client.Create(target, body)
 	if nil != e {
 		t.Errorf("create %s failed, %v", target, e)
 		t.FailNow()
 	}
-	return createJson(t, target, string(msg))
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
+	}
+	return id
 }
 
 func createJson(t *testing.T, target, msg string) string {
-	resp, e := http.Post("http://127.0.0.1:7071/mdb/"+target, "application/json", bytes.NewBuffer([]byte(msg)))
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	id, e := client.CreateJson("http://127.0.0.1:7071/mdb/"+target, []byte(msg))
 	if nil != e {
 		t.Errorf("create %s failed, %v", target, e)
 		t.FailNow()
 	}
-	if resp.StatusCode != 201 {
-		t.Errorf("create %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
-		t.FailNow()
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
 	}
-	result := map[string]interface{}{}
-	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
-
-	if nil != e {
-		t.Errorf("create %s failed, %v", target, e)
-		t.FailNow()
-	}
-	if warnings, ok := result["warnings"]; ok {
-		t.Error(warnings)
-	}
-	return result["value"].(string)
+	return id
 }
 
 func updateById(t *testing.T, target, id string, body map[string]interface{}) {
-	e := update(target, id, body)
-	if nil != t {
-		t.Error(e)
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	e := client.UpdateById(target, id, body)
+	if nil != e {
+		t.Errorf("update %s failed, %v", target, e)
 		t.FailNow()
+	}
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
 	}
 }
 
 func updateBy(t *testing.T, target string, params map[string]string, body map[string]interface{}) {
-	url := "http://127.0.0.1:7071/mdb/" + target + "/query?"
-	for k, v := range params {
-		url += ("@" + k + "=" + v + "&")
-	}
-
-	msg, e := json.Marshal(body)
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	_, e := client.UpdateBy(target, params, body)
 	if nil != e {
-		t.Errorf("update %s failed, %v", t, e)
+		t.Errorf("update %s failed, %v", target, e)
 		t.FailNow()
 	}
-
-	resp, e := HttpPut(url[:len(url)], "application/json", bytes.NewBuffer([]byte(msg)))
-	if nil != e {
-		t.Errorf("update %s failed, %v", t, e)
-		t.FailNow()
-	}
-	if resp.StatusCode != 200 {
-		t.Errorf("update %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
-		t.FailNow()
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
 	}
 }
 
-func update(t, id string, body map[string]interface{}) error {
-	msg, e := json.Marshal(body)
-	if nil != e {
-		return fmt.Errorf("update %s failed, %v", t, e)
-	}
-	return updateJson(t, id, string(msg))
-}
+// func update(t, id string, body map[string]interface{}) error {
+//	msg, e := json.Marshal(body)
+//	if nil != e {
+//		return fmt.Errorf("update %s failed, %v", t, e)
+//	}
+//	return updateJson(t, id, string(msg))
+// }
 
 func HttpPut(endpoint string, bodyType string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest("PUT", endpoint, body)
@@ -194,36 +177,31 @@ func httpDelete(endpoint string) (*http.Response, error) {
 	return http.DefaultClient.Do(req)
 }
 
-func updateJson(t, id, msg string) error {
-	resp, e := HttpPut("http://127.0.0.1:7071/mdb/"+t+"/"+id, "application/json", bytes.NewBuffer([]byte(msg)))
+func updateJson(t *testing.T, target, id, msg string) {
+
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	_, e := client.UpdateJson("http://127.0.0.1:7071/mdb/"+target+"/"+id, []byte(msg))
 	if nil != e {
-		return fmt.Errorf("update %s failed, %v", t, e)
+		t.Errorf("update %s failed, %v", target, e)
+		t.FailNow()
 	}
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("update %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
 	}
-	return nil
 }
 
 func existsById(t *testing.T, target, id string) bool {
-	resp, e := http.Get("http://127.0.0.1:7071/mdb/" + target + "/" + id)
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	_, e := client.FindByIdWithIncludes(target, id, "")
 	if nil != e {
-		t.Errorf("find %s failed, %v", target, e)
-		t.FailNow()
-	}
-	if resp.StatusCode != 200 {
-		if resp.StatusCode == 404 {
+		if 404 == e.Code() {
 			return false
 		}
-		t.Errorf("find %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
-		t.FailNow()
-	}
-	result := map[string]interface{}{}
-	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
-
-	if nil != e {
 		t.Errorf("find %s failed, %v", target, e)
 		t.FailNow()
+	}
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
 	}
 	return true
 }
@@ -233,89 +211,69 @@ func findById(t *testing.T, target, id string) map[string]interface{} {
 }
 
 func findByIdWithIncludes(t *testing.T, target, id string, includes string) map[string]interface{} {
-	url := "http://127.0.0.1:7071/mdb/" + target + "/" + id
-	if "" != includes {
-		url += ("?includes=" + includes)
-	}
-	resp, e := http.Get(url)
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	res, e := client.FindByIdWithIncludes(target, id, includes)
 	if nil != e {
 		t.Errorf("find %s failed, %v", target, e)
 		t.FailNow()
 	}
-	if resp.StatusCode != 200 {
-		t.Errorf("find %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
-		t.FailNow()
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
 	}
-	result := map[string]interface{}{}
-	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
-
-	if nil != e {
-		t.Errorf("find %s failed, %v", target, e)
-		t.FailNow()
-	}
-	return result["value"].(map[string]interface{})
+	return res
 }
 
 func deleteByIdWhileNotExist(t *testing.T, target, id string) {
-	resp, e := httpDelete("http://127.0.0.1:7071/mdb/" + target + "/" + id)
-	if nil != e {
-		t.Errorf("delete %s failed, %v", target, e)
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	e := client.DeleteById(target, id)
+	if nil == e {
+		t.Errorf("delete not exist %s failed", target)
 		t.FailNow()
 	}
-	if resp.StatusCode != 404 {
-		t.Errorf("delete %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
+	}
+	if 404 != e.Code() {
+		t.Errorf("delete not exist %s failed, %v", target, e)
 		t.FailNow()
 	}
 }
 
 func deleteById(t *testing.T, target, id string) {
-	resp, e := httpDelete("http://127.0.0.1:7071/mdb/" + target + "/" + id)
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	e := client.DeleteById(target, id)
 	if nil != e {
 		t.Errorf("delete %s failed, %v", target, e)
 		t.FailNow()
 	}
-	if resp.StatusCode != 200 {
-		t.Errorf("delete %s failed, %v, %v", target, resp.StatusCode, readAll(resp.Body))
-		t.FailNow()
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
 	}
 }
 
 func deleteBy(t *testing.T, target string, params map[string]string) {
-	url := "http://127.0.0.1:7071/mdb/" + target + "/query?"
-	for k, v := range params {
-		url += ("@" + k + "=" + v + "&")
-	}
-	resp, e := httpDelete(url[:len(url)-1])
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	_, e := client.DeleteBy(target, params)
 	if nil != e {
-		t.Errorf("delete %s failed, %v", t, e)
+		t.Errorf("delete %s failed, %v", target, e)
 		t.FailNow()
 	}
-	if resp.StatusCode != 200 {
-		t.Errorf("delete %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
-		t.FailNow()
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
 	}
 }
 
-func count(t string, params map[string]string) (int, error) {
-	url := "http://127.0.0.1:7071/mdb/" + t + "/count?"
-	for k, v := range params {
-		url += ("@" + k + "=" + v + "&")
-	}
-	resp, e := http.Get(url[:len(url)-1])
+func count(t *testing.T, target string, params map[string]string) int {
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	i, e := client.Count(target, params)
 	if nil != e {
-		return -1, fmt.Errorf("count %s failed, %v", t, e)
+		t.Errorf("count %s failed, %v", target, e)
+		t.FailNow()
 	}
-	if resp.StatusCode != 200 {
-		return -1, fmt.Errorf("count %s failed, %v, %v", t, resp.StatusCode, readAll(resp.Body))
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
 	}
-	result := map[string]interface{}{}
-	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
-
-	if nil != e {
-		return -1, fmt.Errorf("count %s failed, %v", t, e)
-	}
-	res := result["value"].(float64)
-	return int(res), nil
+	return i
 }
 
 func findOne(t *testing.T, target string, params map[string]string) map[string]interface{} {
@@ -467,47 +425,47 @@ func TestDeviceDeleteCascadeAll(t *testing.T) {
 
 	deleteById(t, "device", "all")
 
-	if c, err := count("interface", map[string]string{}); 0 != c {
-		t.Errorf("16 != len(all.interfaces), actual is %d, %v", c, err)
+	if c := count(t, "interface", map[string]string{}); 0 != c {
+		t.Errorf("16 != len(all.interfaces), actual is %d", c)
 	}
 }
 
 func checkMetricRuleCount(t *testing.T, id1, id2, id3, id4 string, all, d1, d2, d3, d4 int) {
 	tName := "metric_rule"
-	if c, err := count(tName, map[string]string{}); all != c {
-		t.Errorf("%d != len(all.rules), actual is %d, %v", all, c, err)
+	if c := count(t, tName, map[string]string{}); all != c {
+		t.Errorf("%d != len(all.rules), actual is %d", all, c)
 	}
-	if c, err := count(tName, map[string]string{"parent_type": "device", "parent_id": id1}); d1 != c {
-		t.Errorf("%d != len(d1.rules), actual is %d, %v", d1, c, err)
+	if c := count(t, tName, map[string]string{"parent_type": "device", "parent_id": id1}); d1 != c {
+		t.Errorf("%d != len(d1.rules), actual is %d", d1, c)
 	}
-	if c, err := count(tName, map[string]string{"parent_type": "device", "parent_id": id2}); d2 != c {
-		t.Errorf("%d != len(d2.rules), actual is %d, %v", d2, c, err)
+	if c := count(t, tName, map[string]string{"parent_type": "device", "parent_id": id2}); d2 != c {
+		t.Errorf("%d != len(d2.rules), actual is %d", d2, c)
 	}
-	if c, err := count(tName, map[string]string{"parent_type": "device", "parent_id": id3}); d3 != c {
-		t.Errorf("%d != len(d3.rules), actual is %d, %v", d3, c, err)
+	if c := count(t, tName, map[string]string{"parent_type": "device", "parent_id": id3}); d3 != c {
+		t.Errorf("%d != len(d3.rules), actual is %d", d3, c)
 	}
-	if c, err := count(tName, map[string]string{"parent_type": "device", "parent_id": id4}); d4 != c {
-		t.Errorf("%d != len(d4.rules), actual is %d, %v", d4, c, err)
+	if c := count(t, tName, map[string]string{"parent_type": "device", "parent_id": id4}); d4 != c {
+		t.Errorf("%d != len(d4.rules), actual is %d", d4, c)
 	}
 }
 func checkInterfaceCount(t *testing.T, id1, id2, id3, id4 string, all, d1, d2, d3, d4 int) {
 	checkCount(t, "device_id", "interface", id1, id2, id3, id4, all, d1, d2, d3, d4)
 }
 func checkCount(t *testing.T, field, tName, id1, id2, id3, id4 string, all, d1, d2, d3, d4 int) {
-	if c, err := count(tName, map[string]string{}); all != c {
-		t.Errorf("%d != len(all.interfaces), actual is %d, %v", all, c, err)
+	if c := count(t, tName, map[string]string{}); all != c {
+		t.Errorf("%d != len(all.interfaces), actual is %d", all, c)
 	}
-	if c, err := count(tName, map[string]string{field: id1}); d1 != c {
-		t.Errorf("%d != len(d1.interfaces), actual is %d, %v", d1, c, err)
+	if c := count(t, tName, map[string]string{field: id1}); d1 != c {
+		t.Errorf("%d != len(d1.interfaces), actual is %d", d1, c)
 	}
-	if c, err := count(tName, map[string]string{field: id2}); d2 != c {
-		t.Errorf("%d != len(d2.interfaces), actual is %d, %v", d2, c, err)
+	if c := count(t, tName, map[string]string{field: id2}); d2 != c {
+		t.Errorf("%d != len(d2.interfaces), actual is %d", d2, c)
 	}
-	if c, err := count(tName, map[string]string{field: id3}); d3 != c {
-		t.Errorf("%d != len(d3.interfaces), actual is %d, %v", d3, c, err)
+	if c := count(t, tName, map[string]string{field: id3}); d3 != c {
+		t.Errorf("%d != len(d3.interfaces), actual is %d", d3, c)
 	}
-	if c, err := count(tName, map[string]string{field: id4}); d4 != c {
-		t.Errorf("%d != len(d4.interfaces), actual is %d, %v", d4, c, err)
+	if c := count(t, tName, map[string]string{field: id4}); d4 != c {
+		t.Errorf("%d != len(d4.interfaces), actual is %d", d4, c)
 	}
 }
 

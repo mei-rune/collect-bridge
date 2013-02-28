@@ -179,7 +179,6 @@ func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) (
 	if nil != err {
 		return nil, err
 	}
-	fmt.Println(cls.CollectionName(), s)
 
 	q := self.session.C(cls.CollectionName()).Find(s)
 	if nil == q {

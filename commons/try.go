@@ -1,0 +1,191 @@
+package commons
+
+import (
+	"commons/as"
+)
+
+var MultipleValuesError = NewRuntimeError(NotAcceptableCode, "Multiple values meet the conditions")
+
+func nilError(key string) RuntimeError {
+	return NewRuntimeError(InternalErrorCode, "value of '"+key+"'is nil.")
+}
+
+func typeError(key, t string) RuntimeError {
+	return NewRuntimeError(InternalErrorCode, "value of '"+key+"'is not a "+t+".")
+}
+
+func TryGetBool(attributes map[string]interface{}, key string) (bool, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return false, NotFound(key)
+	}
+	if nil == v {
+		return false, nilError(key)
+	}
+	b, e := as.AsBool(v)
+	if nil != e {
+		return false, typeError(key, "bool")
+	}
+	return b, nil
+}
+
+func TryGetInt(attributes map[string]interface{}, key string) (int, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return 0, NotFound(key)
+	}
+	if nil == v {
+		return 0, nilError(key)
+	}
+	i, e := as.AsInt(v)
+	if nil != e {
+		return 0, typeError(key, "int")
+	}
+	return i, nil
+}
+
+func TryGetUint(attributes map[string]interface{}, key string) (uint, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return 0, NotFound(key)
+	}
+	if nil == v {
+		return 0, nilError(key)
+	}
+	ui, e := as.AsUint(v)
+	if nil != e {
+		return 0, typeError(key, "uint")
+	}
+	return ui, nil
+}
+func TryGetFloat(attributes map[string]interface{}, key string) (float64, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return 0, NotFound(key)
+	}
+	if nil == v {
+		return 0, nilError(key)
+	}
+	f, e := as.AsFloat64(v)
+	if nil != e {
+		return 0, typeError(key, "float")
+	}
+	return f, nil
+}
+
+func TryGetInt64(attributes map[string]interface{}, key string) (int64, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return 0, NotFound(key)
+	}
+	if nil == v {
+		return 0, nilError(key)
+	}
+	i64, e := as.AsInt64(v)
+	if nil != e {
+		return 0, typeError(key, "int64")
+	}
+	return i64, nil
+}
+
+func TryGetUint64(attributes map[string]interface{}, key string) (uint64, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return 0, NotFound(key)
+	}
+	if nil == v {
+		return 0, nilError(key)
+	}
+	ui64, e := as.AsUint64(v)
+	if nil != e {
+		return 0, typeError(key, "uint64")
+	}
+	return ui64, nil
+}
+
+func TryGetString(attributes map[string]interface{}, key string) (string, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return "", NotFound(key)
+	}
+	if nil == v {
+		return "", nilError(key)
+	}
+	s, e := as.AsString(v)
+	if nil != e {
+		return "", typeError(key, "string")
+	}
+	return s, nil
+}
+
+// type MatchFunc func(key string, actual interface{}) bool
+
+// func (self MatchFunc) Match(key string, actual interface{}) bool {
+//	return self(key, actual, expected)
+// }
+
+type Matcher interface {
+	Match(key string, actual interface{}) bool
+}
+
+type IntMatcher int
+
+func (self *IntMatcher) Match(key string, actual interface{}) bool {
+	i, e := as.AsInt(actual)
+	if nil != e {
+		return false
+	}
+	return i == int(*self)
+}
+
+func EqualInt(v int) Matcher {
+	m := IntMatcher(v)
+	return &m
+}
+
+func SearchBy(instance interface{}, query map[string]interface{}) []map[string]interface{} {
+	if nil == instance {
+		return nil
+	}
+	results := make([]map[string]interface{}, 0, 10)
+	Each(instance, func(k interface{}, v interface{}) {
+		r := v.(map[string]interface{})
+		all := true
+		for n, m := range query {
+			value, ok := r[n]
+			if !ok {
+				all = false
+				break
+			}
+			if matcher, ok := m.(Matcher); ok {
+				if !matcher.Match(n, value) {
+					all = false
+					break
+				}
+				continue
+			}
+			if m != value {
+				all = false
+				break
+			}
+		}
+		if all {
+			results = append(results, r)
+		}
+	}, ThrowPanic)
+	if 0 == len(results) {
+		return nil
+	}
+	return results
+}
+
+func SearchOneBy(instance interface{}, query map[string]interface{}) map[string]interface{} {
+	res := SearchBy(instance, query)
+	if nil == res {
+		return nil
+	}
+	if 1 != len(res) {
+		return nil
+	}
+	return res[0]
+}

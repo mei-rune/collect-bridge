@@ -2,8 +2,33 @@ package as
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
+)
+
+var (
+	IsNotMap       = errors.New("type assertion to map[string]interface{} failed")
+	IsNotArray     = errors.New("type assertion to []interface{} failed")
+	IsNotBool      = errors.New("type assertion to bool failed")
+	IsNotInt8      = errors.New("type assertion to int8 failed")
+	IsNotInt16     = errors.New("type assertion to int16 failed")
+	IsNotInt32     = errors.New("type assertion to int32 failed")
+	IsNotInt64     = errors.New("type assertion to int64 failed")
+	Int8OutRange   = errors.New("type assertion to int8 failed, out range")
+	Int16OutRange  = errors.New("type assertion to int16 failed, out range")
+	Int32OutRange  = errors.New("type assertion to int32 failed, out range")
+	Int64OutRange  = errors.New("type assertion to int64 failed, out range")
+	IsNotUint8     = errors.New("type assertion to uint8 failed")
+	IsNotUint16    = errors.New("type assertion to uint16 failed")
+	IsNotUint32    = errors.New("type assertion to uint32 failed")
+	IsNotUint64    = errors.New("type assertion to uint64 failed")
+	Uint8OutRange  = errors.New("type assertion to uint8 failed, out range")
+	Uint16OutRange = errors.New("type assertion to uint16 failed, out range")
+	Uint32OutRange = errors.New("type assertion to uint32 failed, out range")
+	Uint64OutRange = errors.New("type assertion to uint64 failed, out range")
+
+	IsNotFloat32 = errors.New("type assertion to float32 failed")
+	IsNotFloat64 = errors.New("type assertion to float64 failed")
+	IsNotString  = errors.New("type assertion to string failed")
 )
 
 // Map type AsSerts to `map`
@@ -11,7 +36,7 @@ func AsMap(value interface{}) (map[string]interface{}, error) {
 	if m, ok := value.(map[string]interface{}); ok {
 		return m, nil
 	}
-	return nil, errors.New("type Assertion to map[string]interface{} failed")
+	return nil, IsNotMap
 }
 
 // Array type AsSerts to an `array`
@@ -19,7 +44,7 @@ func AsArray(value interface{}) ([]interface{}, error) {
 	if a, ok := value.([]interface{}); ok {
 		return a, nil
 	}
-	return nil, errors.New("type Assertion to []interface{} failed")
+	return nil, IsNotArray
 }
 
 // Bool type AsSerts to `bool`
@@ -35,7 +60,7 @@ func AsBool(value interface{}) (bool, error) {
 			return false, nil
 		}
 	}
-	return false, errors.New("type Assertion to bool failed")
+	return false, IsNotBool
 }
 
 // Bool type AsSerts to `bool`
@@ -102,16 +127,16 @@ func AsInt64(value interface{}) (int64, error) {
 			return i64, nil
 		}
 	}
-	return 0, errors.New("type Assertion to int64 failed")
+	return 0, IsNotInt64
 }
 
 func AsInt32(value interface{}) (int32, error) {
 	i64, err := AsInt64(value)
 	if nil != err {
-		return 0, errors.New("type Assertion to int32 failed")
+		return 0, IsNotInt32
 	}
 	if -2147483648 > i64 || 2147483647 < i64 {
-		return 0, errors.New("type Assertion to int32 failed, it is too big.")
+		return 0, Int32OutRange
 	}
 	return int32(i64), nil
 }
@@ -119,10 +144,10 @@ func AsInt32(value interface{}) (int32, error) {
 func AsInt16(value interface{}) (int16, error) {
 	i64, err := AsInt64(value)
 	if nil != err {
-		return 0, errors.New("type Assertion to int16 failed")
+		return 0, IsNotInt16
 	}
 	if -32768 > i64 || 32767 < i64 {
-		return 0, errors.New("type Assertion to int16 failed, it is too big.")
+		return 0, Int16OutRange
 	}
 	return int16(i64), nil
 }
@@ -130,10 +155,10 @@ func AsInt16(value interface{}) (int16, error) {
 func AsInt8(value interface{}) (int8, error) {
 	i64, err := AsInt64(value)
 	if nil != err {
-		return 0, errors.New("type Assertion to int8 failed")
+		return 0, IsNotInt8
 	}
 	if -128 > i64 || 127 < i64 {
-		return 0, errors.New("type Assertion to int8 failed, it is too big.")
+		return 0, Int8OutRange
 	}
 	return int8(i64), nil
 }
@@ -186,16 +211,16 @@ func AsUint64(value interface{}) (uint64, error) {
 		}
 		return i64, err
 	}
-	return 0, errors.New("type AsUint64 to uint64 failed")
+	return 0, IsNotUint64
 }
 
 func AsUint32(value interface{}) (uint32, error) {
 	ui64, err := AsUint64(value)
 	if nil != err {
-		return 0, errors.New("type AsUint32 to uint32 failed")
+		return 0, IsNotUint32
 	}
 	if 4294967295 < ui64 {
-		return 0, errors.New("type AsUint32 to uint32 failed, it is too big.")
+		return 0, Uint32OutRange
 	}
 	return uint32(ui64), nil
 }
@@ -203,10 +228,10 @@ func AsUint32(value interface{}) (uint32, error) {
 func AsUint16(value interface{}) (uint16, error) {
 	ui64, err := AsUint64(value)
 	if nil != err {
-		return 0, errors.New("type AsUint16 to uint16 failed")
+		return 0, IsNotUint16
 	}
 	if 65535 < ui64 {
-		return 0, errors.New("type AsUint16 to uint16 failed, it is too big.")
+		return 0, Uint16OutRange
 	}
 	return uint16(ui64), nil
 }
@@ -214,10 +239,10 @@ func AsUint16(value interface{}) (uint16, error) {
 func AsUint8(value interface{}) (uint8, error) {
 	ui64, err := AsUint64(value)
 	if nil != err {
-		return 0, errors.New("type AsUint8 to uint8 failed")
+		return 0, IsNotUint8
 	}
 	if 255 < ui64 {
-		return 0, errors.New("type AsUint8 to uint8 failed, it is too big.")
+		return 0, Uint8OutRange
 	}
 	return uint8(ui64), nil
 }
@@ -256,13 +281,13 @@ func AsFloat64(value interface{}) (float64, error) {
 		}
 		return f64, err
 	}
-	return 0, errors.New("type AsFloat64 to float64 failed")
+	return 0, IsNotFloat64
 }
 
 func AsFloat32(value interface{}) (float32, error) {
 	f64, err := AsFloat64(value)
 	if nil != err {
-		return 0, errors.New("type AsFloat64 to float32 failed")
+		return 0, IsNotFloat32
 	}
 	return float32(f64), nil
 }
@@ -297,5 +322,5 @@ func AsString(value interface{}) (string, error) {
 	case float64:
 		return strconv.FormatFloat(float64(v), 'e', -1, 64), nil
 	}
-	return "", fmt.Errorf("[%T]`%v` to string failed", value, value)
+	return "", IsNotString
 }

@@ -129,8 +129,8 @@ func validMockWbem(t *testing.T, factor string, drv map[string]interface{}) {
 }
 
 func checkHierarchyCount(t *testing.T, tName string, all int) {
-	if c, err := count(tName, map[string]string{}); all != c {
-		t.Errorf("%d != len(all.%s), actual is %d, %v", all, tName, c, err)
+	if c := count(t, tName, map[string]string{}); all != c {
+		t.Errorf("%d != len(all.%s), actual is %d", all, tName, c)
 	}
 }
 

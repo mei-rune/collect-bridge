@@ -247,11 +247,11 @@ func (self *mdb_server) createChildren(cls *ClassDefinition, id interface{}, att
 			} else {
 				attrs[foreignKey] = id
 			}
-			_, err = self.Create(lcls, attrs)
+			_, err = self.Create(lcls, map[string]string{}, attrs)
 			if nil != err {
 				warnings = append(warnings, fmt.Sprintf("save '%s.%s' failed, %v - %v", k, ck, err, attrs))
 			}
-		}, func() {
+		}, func(instance interface{}) {
 			warnings = append(warnings, fmt.Sprintf("value of '%s' is not []interface{} or map[string]interface{}", k))
 		})
 	}
@@ -261,7 +261,7 @@ func (self *mdb_server) createChildren(cls *ClassDefinition, id interface{}, att
 	return warnings
 }
 
-func (self *mdb_server) Create(cls *ClassDefinition, attributes map[string]interface{}) (interface{}, error) {
+func (self *mdb_server) Create(cls *ClassDefinition, params map[string]string, attributes map[string]interface{}) (interface{}, error) {
 	new_attributes, errs := self.preWrite(cls, attributes, false)
 	if nil != errs {
 		return nil, errs
@@ -271,7 +271,7 @@ func (self *mdb_server) Create(cls *ClassDefinition, attributes map[string]inter
 		if nil != err {
 			return nil, err
 		}
-		changeInfo, err := Upsert(s, new_attributes)
+		changeInfo, err := self.session.C(cls.CollectionName()).Upsert(s, new_attributes)
 		if nil != err {
 			return nil, err
 		}
@@ -291,31 +291,36 @@ func (self *mdb_server) Create(cls *ClassDefinition, attributes map[string]inter
 	return id, nil
 }
 
-func (self *mdb_server) Update(cls *ClassDefinition, id string, params map[string]string, updated_attributes map[string]interface{}) error {
+func (self *mdb_server) Update(cls *ClassDefinition, id string, params map[string]string,
+	updated_attributes map[string]interface{}) (int, error) {
 
 	new_attributes, errs := self.preWrite(cls, updated_attributes, true)
 	if nil != errs {
-		return errs
+		return -1, errs
 	}
 	switch id {
 	case "all", "query":
 		s, err := self.buildQueryStatement(cls, params)
 		if nil != err {
-			return err
+			return -1, err
 		}
 
-		fmt.Println(cls.Name, new_attributes)
-		_, err = self.session.C(cls.CollectionName()).UpdateAll(s, bson.M{"$set": new_attributes})
+		changeInfo, err := self.session.C(cls.CollectionName()).UpdateAll(s, bson.M{"$set": new_attributes})
 		if nil != err {
-			return err
+			return -1, err
 		}
-		return nil
+		return changeInfo.Updated, nil
 	}
 
 	oid, err := parseObjectIdHex(id)
 	if nil != err {
-		return errutils.BadRequest("id is not a objectId")
+		return -1, errutils.BadRequest("id is not a objectId")
 	}
 
-	return self.session.C(cls.CollectionName()).UpdateId(oid, bson.M{"$set": new_attributes})
+	err = self.session.C(cls.CollectionName()).UpdateId(oid, bson.M{"$set": new_attributes})
+	if nil != err {
+		return -1, err
+	}
+
+	return 1, nil
 }

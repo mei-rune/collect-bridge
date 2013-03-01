@@ -82,11 +82,11 @@ func (self *Client) invoke(action, url string, msg []byte, exceptedCode int) (ma
 	result := map[string]interface{}{}
 	e = json.Unmarshal(resp_body, &result)
 	if nil != e {
-		// Please remove it after refactor DELETE action
-		if "OK" == string(resp_body) {
-			return commons.Return(1), nil
-		}
-		fmt.Println(string(resp_body))
+		// // Please remove it after refactor DELETE action
+		// if "OK" == string(resp_body) {
+		//	return commons.Return(1), nil
+		// }
+		//fmt.Println(string(resp_body))
 		return nil, unmarshalError(e)
 	}
 	if warnings, ok := result["warnings"]; ok {

@@ -196,8 +196,33 @@
       </restriction>
     </property>
   </class>
-  <class name="RedisMapAction" base="Action">
-    <property name="collection_name">
+  <class name="RedisAction" base="Action">
+    <property name="command">
+      <restriction base="string">
+        <maxLength>10</maxLength>
+      </restriction>
+    </property>
+    <property name="arg0">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="arg1">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="arg2">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="arg3">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="arg4">
       <restriction base="string">
         <maxLength>200</maxLength>
       </restriction>

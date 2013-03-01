@@ -180,8 +180,27 @@ func save(drv map[string]interface{}) (string, string, error) {
 	if warnings, ok := result["warnings"]; ok {
 		fmt.Println(warnings)
 	}
-	return commons.GetReturn(result).(string), action, nil
+	return fmt.Sprint(commons.GetReturn(result)), action, nil
 }
+
+func createTriggers(attributes map[string]interface{}) interface{} {
+	return []interface{}{map[string]interface{}{"type": "metric_rule",
+		"expression": "@every 15s",
+		"name":       "cpu-" + fmt.Sprint(attributes["address"]),
+		"metric":     "cpu",
+		"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "command": "set", "arg0": "aa", "arg1": "cc"}}},
+		map[string]interface{}{"type": "metric_rule",
+			"expression": "@every 15s",
+			"name":       "mem-" + fmt.Sprint(attributes["address"]),
+			"metric":     "mem",
+			"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "command": "set", "arg0": "aa", "arg1": "cc"}}},
+		map[string]interface{}{"type": "metric_rule",
+			"expression": "@every 15s",
+			"name":       "interface-" + fmt.Sprint(attributes["address"]),
+			"metric":     "interface",
+			"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "command": "set", "arg0": "aa", "arg1": "cc"}}}}
+}
+
 func main() {
 
 	flag.Parse()
@@ -247,7 +266,9 @@ func main() {
 		devices, ok := res.(map[string]interface{})
 		if ok {
 			for k, drv := range devices {
-				_, action, e := save(drv.(map[string]interface{}))
+				attributes := drv.(map[string]interface{})
+				attributes["$trigger"] = createTriggers(attributes)
+				_, action, e := save(attributes)
 				if nil != e {
 					fmt.Println(action, k, e)
 				} else {

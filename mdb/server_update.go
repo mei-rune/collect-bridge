@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var ChildrenUpdateError = errors.New("don`t save children while update object.")
+
 func checkValue(pr *PropertyDefinition, attributes map[string]interface{}, value interface{}, errs *[]error) (interface{}, bool) {
 	new_value, err := pr.Type.Convert(value)
 	if nil != err {
@@ -33,7 +35,7 @@ func checkValue(pr *PropertyDefinition, attributes map[string]interface{}, value
 	return new_value, false
 }
 
-func doMagic(k string, attributes, new_attributes map[string]interface{},
+func doCreatedAtAndUpdatedAt(k string, attributes, new_attributes map[string]interface{},
 	is_update bool, errs *[]error) bool {
 	if k == "updated_at" {
 		_, ok := attributes[k]
@@ -112,7 +114,7 @@ func (self *mdb_server) preWrite(cls *ClassDefinition, uattributes map[string]in
 
 	for k, pr := range cls.Properties {
 
-		if doMagic(k, attributes, new_attributes, is_update, &errs) {
+		if doCreatedAtAndUpdatedAt(k, attributes, new_attributes, is_update, &errs) {
 			continue
 		}
 
@@ -261,12 +263,29 @@ func (self *mdb_server) createChildren(cls *ClassDefinition, id interface{}, att
 	return warnings
 }
 
+func (self *mdb_server) checkChildren(attributes map[string]interface{}) error {
+	for k, _ := range attributes {
+		if 0 == len(k) {
+			continue
+		}
+
+		if '$' == k[0] {
+			return ChildrenUpdateError
+		}
+	}
+	return nil
+}
+
 func (self *mdb_server) Create(cls *ClassDefinition, params map[string]string, attributes map[string]interface{}) (interface{}, error) {
 	new_attributes, errs := self.preWrite(cls, attributes, false)
 	if nil != errs {
 		return nil, errs
 	}
 	if "true" == attributes["save"] {
+		err := self.checkChildren(attributes)
+		if nil != err {
+			return nil, err
+		}
 		s, err := self.buildQueryStatement(cls, params)
 		if nil != err {
 			return nil, err
@@ -298,6 +317,12 @@ func (self *mdb_server) Update(cls *ClassDefinition, id string, params map[strin
 	if nil != errs {
 		return -1, errs
 	}
+
+	err := self.checkChildren(updated_attributes)
+	if nil != err {
+		return -1, err
+	}
+
 	switch id {
 	case "all", "query":
 		s, err := self.buildQueryStatement(cls, params)

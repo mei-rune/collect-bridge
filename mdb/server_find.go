@@ -3,6 +3,7 @@ package mdb
 import (
 	"commons"
 	"commons/as"
+	"commons/errutils"
 	"commons/stringutils"
 	"errors"
 	"fmt"
@@ -138,7 +139,7 @@ func (self *mdb_server) loadIncludes(cls *ClassDefinition, id interface{}, res m
 	return nil
 }
 
-func (self *mdb_server) FindById(cls *ClassDefinition, id interface{}, params map[string]string) (
+func (self *mdb_server) findById(cls *ClassDefinition, id interface{}, params map[string]string) (
 	map[string]interface{}, error) {
 	var q *mgo.Query
 	var result map[string]interface{}
@@ -168,7 +169,7 @@ func (self *mdb_server) FindById(cls *ClassDefinition, id interface{}, params ma
 	return res, err
 }
 
-func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) (
+func (self *mdb_server) findBy(cls *ClassDefinition, params map[string]string) (
 	[]map[string]interface{}, error) {
 	s, err := self.buildQueryStatement(cls, params)
 	if nil != err {
@@ -225,7 +226,7 @@ func (self *mdb_server) FindBy(cls *ClassDefinition, params map[string]string) (
 	return results, nil
 }
 
-func (self *mdb_server) Count(cls *ClassDefinition, params map[string]string) (int, error) {
+func (self *mdb_server) count(cls *ClassDefinition, params map[string]string) (int, error) {
 	s, err := self.buildQueryStatement(cls, params)
 	if nil != err {
 		return -1, err
@@ -235,4 +236,36 @@ func (self *mdb_server) Count(cls *ClassDefinition, params map[string]string) (i
 		return -1, errors.New("return nil result")
 	}
 	return q.Count()
+}
+
+func (self *mdb_server) Get(cls *ClassDefinition, id string, params map[string]string) (interface{}, commons.RuntimeError) {
+
+	switch id {
+	case "", "query":
+		results, err := self.findBy(cls, params)
+		if err != nil {
+			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
+		}
+		return results, nil
+	case "count":
+		count, err := self.count(cls, params)
+		if err != nil {
+			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
+		}
+		return count, nil
+	}
+	oid, err := parseObjectIdHex(id)
+	if nil != err {
+		return nil, errutils.BadRequest("id is not a objectId")
+	}
+	result, err := self.findById(cls, oid, params)
+	if err != nil {
+		if "not found" == err.Error() {
+			return nil, errutils.RecordNotFound(id)
+		}
+
+		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
+	}
+
+	return result, nil
 }

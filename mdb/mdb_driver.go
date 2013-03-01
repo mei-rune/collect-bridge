@@ -171,32 +171,13 @@ func (self *MdbDriver) Get(params map[string]string) (commons.Result, commons.Ru
 	}
 
 	id, _ := params["id"]
-	switch id {
-	case "", "query":
-		results, err := self.FindBy(definition, params)
-		if err != nil {
-			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
-		}
-		return commons.Return(results), nil
-	case "count":
-		count, err := self.Count(definition, params)
-		if err != nil {
-			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
-		}
-		return commons.Return(count), nil
+	if "" == id {
+		return nil, commons.IdNotExists
 	}
-	oid, err := parseObjectIdHex(id)
+
+	res, err := self.mdb_server.Get(definition, id, params)
 	if nil != err {
-		return nil, errutils.BadRequest("id is not a objectId")
+		return nil, err
 	}
-	result, err := self.FindById(definition, oid, params)
-	if err != nil {
-		if "not found" == err.Error() {
-			return nil, errutils.RecordNotFound(id)
-		}
-
-		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
-	}
-
-	return commons.Return(result), nil
+	return commons.Return(res), nil
 }

@@ -34,7 +34,7 @@ func findHasOne(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interf
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasOne.", assoc))
 	}
-	return s.FindBy(peer, map[string]string{"@" + hasOne.ForeignKey: IdString(id)})
+	return s.findBy(peer, map[string]string{"@" + hasOne.ForeignKey: IdString(id)})
 }
 
 func deleteHasOne(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) error {
@@ -82,10 +82,10 @@ func findHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition, id inter
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
 	}
 	if hasMany.Polymorphic {
-		return s.FindBy(peer, map[string]string{
+		return s.findBy(peer, map[string]string{
 			"@parent_type": stringutils.Underscore(cls.Name), "@parent_id": IdString(id)})
 	}
-	return s.FindBy(peer, map[string]string{"@" + hasMany.ForeignKey: IdString(id)})
+	return s.findBy(peer, map[string]string{"@" + hasMany.ForeignKey: IdString(id)})
 }
 
 func deleteHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) error {
@@ -167,7 +167,7 @@ func findMany2Many(s *mdb_server, assoc Assocation, cls *ClassDefinition, id int
 
 	results := make([]map[string]interface{}, 0, 10)
 	for _, id := range idlist {
-		o, e := s.FindById(hasBelongsToMany1.TargetClass, id, map[string]string{})
+		o, e := s.findById(hasBelongsToMany1.TargetClass, id, map[string]string{})
 		if nil != e {
 			return nil, e
 		}

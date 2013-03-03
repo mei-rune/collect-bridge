@@ -456,6 +456,7 @@ func encodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) SnmpCodeError
 	for i, vb := range vbs.All() {
 		err := oidWrite(&internal.bindings[i].oid, &vb.Oid)
 		if nil != err {
+			internal.nbindings = C.u_int(i) + 1 // free
 			return err
 		}
 
@@ -475,11 +476,13 @@ func encodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) SnmpCodeError
 		case SNMP_SYNTAX_OID:
 			err = oidWrite(C.snmp_value_get_oid(&internal.bindings[i].v), vb.Value)
 			if nil != err {
+				internal.nbindings = C.u_int(i) + 1 // free
 				return err
 			}
 		case SNMP_SYNTAX_IPADDRESS:
 			bytes := vb.Value.GetBytes()
 			if 4 != len(bytes) {
+				internal.nbindings = C.u_int(i) + 1 // free
 				return Errorf(SNMP_CODE_FAILED, "ip address is error, it's length is %d, excepted length is 4, value is %s",
 					len(bytes), vb.Value.String())
 			}
@@ -498,6 +501,7 @@ func encodeBindings(internal *C.snmp_pdu_t, vbs *VariableBindings) SnmpCodeError
 			// C.snmp_value_put_uint64_str(&internal.bindings[i].v, cs)
 			C.snmp_value_put_uint64(&internal.bindings[i].v, C.uint64_t(vb.Value.GetUint64()))
 		default:
+			internal.nbindings = C.u_int(i) + 1 // free
 			return Errorf(SNMP_CODE_FAILED, "unsupported type - %v", vb.Value)
 		}
 	}

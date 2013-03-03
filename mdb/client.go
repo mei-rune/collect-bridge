@@ -230,6 +230,39 @@ func (self *Client) FindById(target, id string) (map[string]interface{},
 	return self.FindByIdWithIncludes(target, id, "")
 }
 
+func (self *Client) FindBy(target string, s map[string]string) (map[string]interface{},
+	commons.RuntimeError) {
+	return self.FindByWithIncludes(target, s, "")
+}
+
+func (self *Client) FindByWithIncludes(target string, s map[string]string, includes string) (
+	map[string]interface{}, commons.RuntimeError) {
+	url := self.url + target + "/query?"
+	if nil != s {
+		for k, v := range s {
+			url += (k + "=" + v + "&")
+		}
+	}
+	if "" != includes {
+		url += ("includes=" + includes + "&")
+	}
+
+	res, e := self.invoke("GET", url[:len(url)-1], nil, 200)
+	if nil != e {
+		return nil, e
+	}
+	v := commons.GetReturn(res)
+	if nil == v {
+		return nil, commons.ValueIsNil
+	}
+
+	if result, ok := v.(map[string]interface{}); ok {
+		return result, nil
+	}
+
+	return nil, typeError("result", "map[string]interface{}")
+}
+
 func (self *Client) FindByIdWithIncludes(target, id string, includes string) (
 	map[string]interface{}, commons.RuntimeError) {
 	url := self.url + target + "/" + id

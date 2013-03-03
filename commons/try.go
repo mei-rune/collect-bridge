@@ -14,6 +14,14 @@ func typeError(key, t string) RuntimeError {
 	return NewRuntimeError(InternalErrorCode, "value of '"+key+"'is not a "+t+".")
 }
 
+func GetBool(attributes map[string]interface{}, key string, defaultValue bool) bool {
+	res, e := TryGetBool(attributes, key)
+	if nil != e {
+		return defaultValue
+	}
+	return res
+}
+
 func TryGetBool(attributes map[string]interface{}, key string) (bool, error) {
 	v, ok := attributes[key]
 	if !ok {
@@ -27,6 +35,14 @@ func TryGetBool(attributes map[string]interface{}, key string) (bool, error) {
 		return false, typeError(key, "bool")
 	}
 	return b, nil
+}
+
+func GetInt(attributes map[string]interface{}, key string, defaultValue int) int {
+	res, e := TryGetInt(attributes, key)
+	if nil != e {
+		return defaultValue
+	}
+	return res
 }
 
 func TryGetInt(attributes map[string]interface{}, key string) (int, error) {
@@ -44,6 +60,14 @@ func TryGetInt(attributes map[string]interface{}, key string) (int, error) {
 	return i, nil
 }
 
+func GetUint(attributes map[string]interface{}, key string, defaultValue uint) uint {
+	res, e := TryGetUint(attributes, key)
+	if nil != e {
+		return defaultValue
+	}
+	return res
+}
+
 func TryGetUint(attributes map[string]interface{}, key string) (uint, error) {
 	v, ok := attributes[key]
 	if !ok {
@@ -58,6 +82,15 @@ func TryGetUint(attributes map[string]interface{}, key string) (uint, error) {
 	}
 	return ui, nil
 }
+
+func GetFloat(attributes map[string]interface{}, key string, defaultValue float64) float64 {
+	res, e := TryGetFloat(attributes, key)
+	if nil != e {
+		return defaultValue
+	}
+	return res
+}
+
 func TryGetFloat(attributes map[string]interface{}, key string) (float64, error) {
 	v, ok := attributes[key]
 	if !ok {
@@ -71,6 +104,14 @@ func TryGetFloat(attributes map[string]interface{}, key string) (float64, error)
 		return 0, typeError(key, "float")
 	}
 	return f, nil
+}
+
+func GetInt64(attributes map[string]interface{}, key string, defaultValue int64) int64 {
+	res, e := TryGetInt64(attributes, key)
+	if nil != e {
+		return defaultValue
+	}
+	return res
 }
 
 func TryGetInt64(attributes map[string]interface{}, key string) (int64, error) {
@@ -88,6 +129,13 @@ func TryGetInt64(attributes map[string]interface{}, key string) (int64, error) {
 	return i64, nil
 }
 
+func GetUint64(attributes map[string]interface{}, key string, defaultValue uint64) uint64 {
+	res, e := TryGetUint64(attributes, key)
+	if nil != e {
+		return defaultValue
+	}
+	return res
+}
 func TryGetUint64(attributes map[string]interface{}, key string) (uint64, error) {
 	v, ok := attributes[key]
 	if !ok {
@@ -102,7 +150,13 @@ func TryGetUint64(attributes map[string]interface{}, key string) (uint64, error)
 	}
 	return ui64, nil
 }
-
+func GetString(attributes map[string]interface{}, key string, defaultValue string) string {
+	res, e := TryGetString(attributes, key)
+	if nil != e {
+		return defaultValue
+	}
+	return res
+}
 func TryGetString(attributes map[string]interface{}, key string) (string, error) {
 	v, ok := attributes[key]
 	if !ok {

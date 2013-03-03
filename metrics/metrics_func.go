@@ -37,7 +37,7 @@ func (self *Base) Init(params map[string]interface{}, drvName string) commons.Ru
 	return nil
 }
 
-func (self *Base) GetStringMetric(params map[string]string, metric string) (string, commons.RuntimeError) {
+func (self *Base) GetMetricAsString(params map[string]string, metric string) (string, commons.RuntimeError) {
 	if s, ok := params[metric]; ok {
 		return s, nil
 	}
@@ -60,7 +60,7 @@ func (self *Base) GetStringMetric(params map[string]string, metric string) (stri
 	return s, nil
 }
 
-func (self *Base) GetInt32Metric(params map[string]string, metric string, defaultValue int32) (int32, commons.RuntimeError) {
+func (self *Base) GetMetricAsInt32(params map[string]string, metric string, defaultValue int32) (int32, commons.RuntimeError) {
 	if s, ok := params[metric]; ok {
 		i, e := strconv.ParseInt(s, 10, 32)
 		if nil != e {
@@ -86,7 +86,7 @@ func (self *Base) GetInt32Metric(params map[string]string, metric string, defaul
 	return i, nil
 }
 
-func (self *Base) GetUint32Metric(params map[string]string, metric string, defaultValue uint32) (uint32, commons.RuntimeError) {
+func (self *Base) GetMetricAsUint32(params map[string]string, metric string, defaultValue uint32) (uint32, commons.RuntimeError) {
 	if s, ok := params[metric]; ok {
 		i, e := strconv.ParseUint(s, 10, 64)
 		if nil != e {
@@ -509,7 +509,7 @@ func (self *systemInfo) Get(params map[string]string) (commons.Result, commons.R
 		params["sys.oid"] = oid
 		params["sys.services"] = strconv.FormatUint(uint64(services), 10)
 
-		t, e := self.GetStringMetric(params, "sys.type")
+		t, e := self.GetMetricAsString(params, "sys.type")
 		if nil == e {
 			new_row["sys.type"] = t
 		}
@@ -625,7 +625,7 @@ func (self *systemType) Init(params map[string]interface{}, drvName string) comm
 
 func (self *systemType) Get(params map[string]string) (
 	commons.Result, commons.RuntimeError) {
-	oid, e := self.GetStringMetric(params, "sys.oid")
+	oid, e := self.GetMetricAsString(params, "sys.oid")
 	if nil == e {
 		if dt, ok := self.device2id[oid]; ok {
 			return commons.Return(dt), nil
@@ -655,7 +655,7 @@ func (self *systemType) Get(params map[string]string) (
 		return commons.Return(t >> 1), nil
 	}
 SERVICES:
-	services, e := self.GetInt32Metric(params, "sys.services", 0)
+	services, e := self.GetMetricAsInt32(params, "sys.services", 0)
 	if nil != e {
 		return nil, e
 	}
@@ -813,7 +813,7 @@ func (self *dispatcherBase) Init(params map[string]interface{}, drvName string) 
 }
 
 func (self *dispatcherBase) invoke(params map[string]string, funcs map[uint]map[string]DispatchFunc) (commons.Result, commons.RuntimeError) {
-	oid, e := self.GetStringMetric(params, "sys.oid")
+	oid, e := self.GetMetricAsString(params, "sys.oid")
 	if nil != e {
 		return nil, commons.NewRuntimeError(e.Code(), "get system oid failed, "+e.Error())
 	}

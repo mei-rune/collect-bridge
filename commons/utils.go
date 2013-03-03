@@ -168,7 +168,7 @@ func SearchFile(pattern string) string {
 
 const time_format = "time format error with valuw is '%s', excepted format is 'xxx[unit]', xxx is a number, unit must is in (ms, s, m)."
 
-func ParseTime(s string) (time.Duration, error) {
+func ParseDuration(s string) (time.Duration, error) {
 	idx := strings.IndexFunc(s, func(r rune) bool {
 		switch r {
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':

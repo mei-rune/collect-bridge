@@ -139,6 +139,42 @@ func GetReturn(params Result) interface{} {
 	return nil
 }
 
+func GetReturnAsMap(params Result) (map[string]interface{}, error) {
+	v, ok := params["value"]
+	if !ok {
+		return nil, NotFound("value")
+	}
+	res, ok := v.(map[string]interface{})
+	if !ok {
+		return nil, typeError("value", "map[string]interface{}")
+	}
+	return res, nil
+}
+
+func GetReturnAsBool(params Result) (bool, error) {
+	return params.TryGetBool("value")
+}
+
+func GetReturnAsInt(params Result) (int, error) {
+	return params.TryGetInt("value")
+}
+
+func GetReturnAsInt64(params Result) (int64, error) {
+	return params.TryGetInt64("value")
+}
+
+func GetReturnAsUint(params Result) (uint, error) {
+	return params.TryGetUint("value")
+}
+
+func GetReturnAsUint64(params Result) (uint64, error) {
+	return params.TryGetUint64("value")
+}
+
+func GetReturnAsString(params Result) (string, error) {
+	return params.TryGetString("value")
+}
+
 func GetReturnCode(params Result) int {
 	v, ok := params["code"]
 	if ok {
@@ -150,6 +186,8 @@ func GetReturnCode(params Result) int {
 	}
 	return -1
 }
+
+const ReturnValue = "value"
 
 func Return(value interface{}) Result {
 	return Result{"value": value}

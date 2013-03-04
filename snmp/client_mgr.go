@@ -3,6 +3,7 @@ package snmp
 import (
 	"commons"
 	"errors"
+	"strconv"
 	"time"
 )
 
@@ -16,6 +17,7 @@ type ClientManager struct {
 }
 
 func (svc *ClientManager) Init() {
+	svc.Name = "client_manager" + strconv.Itoa(time.Now().Second())
 	svc.clients = make(map[string]Client)
 	svc.Set(func() {
 		go svc.heartbeat()
@@ -65,7 +67,7 @@ func (svc *ClientManager) heartbeat() {
 }
 
 func (mgr *ClientManager) GetClient(host string) (client Client, err error) {
-	values := mgr.Call(5*time.Minute, func() (Client, error) { return mgr.createClient(host) })
+	values := mgr.SafelyCall(5*time.Minute, func() (Client, error) { return mgr.createClient(host) })
 	if nil != values[0] {
 		client = values[0].(Client)
 	}

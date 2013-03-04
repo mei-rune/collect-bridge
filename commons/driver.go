@@ -240,6 +240,57 @@ func (self Result) TryGetString(key string) (string, error) {
 	return TryGetString(self, key)
 }
 
+func (self Result) TryGetObject(key string) (map[string]interface{}, error) {
+	v, ok := self[key]
+	if !ok {
+		return nil, NotFound(key)
+	}
+
+	if nil == v {
+		return nil, ValueIsNil
+	}
+
+	res, ok := v.(map[string]interface{})
+	if !ok {
+		return nil, typeError(key, "map[string]interface{}")
+	}
+	return res, nil
+}
+
+func (self Result) TryGetObjects(key string) ([]map[string]interface{}, error) {
+	v, ok := self[key]
+	if !ok {
+		return nil, NotFound(key)
+	}
+
+	if nil == v {
+		return nil, ValueIsNil
+	}
+
+	results := make([]map[string]interface{}, 0, 10)
+	switch value := v.(type) {
+	case []interface{}:
+		for i, o := range value {
+			attributes, ok := o.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("'%v' of '%s' is not a map[string]interface{}", i, key)
+			}
+			results = append(results, attributes)
+		}
+	case map[string]interface{}:
+		for k, o := range value {
+			attributes, ok := o.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("'%v' of '%s' is not a map[string]interface{}", k, key)
+			}
+			results = append(results, attributes)
+		}
+	default:
+		return nil, typeError(key, "[]interface{} or map[string]interface{}")
+	}
+	return results, nil
+}
+
 func (self Result) GetEffected() int {
 	i, e := self.TryGetInt("effected")
 	if nil != e {
@@ -254,4 +305,52 @@ func (self Result) Get(key string) interface{} {
 
 func (self Result) GetWarnings() interface{} {
 	return self["warnings"]
+}
+
+func (self Result) GetReturn() interface{} {
+	v, ok := self["value"]
+	if ok {
+		return v
+	}
+	return nil
+}
+
+func (self Result) GetReturnAsObject() (map[string]interface{}, error) {
+	return self.TryGetObject("value")
+}
+
+func (self Result) GetReturnAsObjects() ([]map[string]interface{}, error) {
+	return self.TryGetObjects("value")
+}
+
+func (self Result) GetReturnAsBool() (bool, error) {
+	return self.TryGetBool("value")
+}
+
+func (self Result) GetReturnAsInt() (int, error) {
+	return self.TryGetInt("value")
+}
+
+func (self Result) GetReturnAsInt64() (int64, error) {
+	return self.TryGetInt64("value")
+}
+
+func (self Result) GetReturnAsUint() (uint, error) {
+	return self.TryGetUint("value")
+}
+
+func (self Result) GetReturnAsUint64() (uint64, error) {
+	return self.TryGetUint64("value")
+}
+
+func (self Result) GetReturnAsString() (string, error) {
+	return self.TryGetString("value")
+}
+
+func (self Result) GetReturnCode() int {
+	i, err := self.TryGetInt("code")
+	if nil != err {
+		return -1
+	}
+	return i
 }

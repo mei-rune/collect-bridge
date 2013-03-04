@@ -82,7 +82,7 @@ func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 		return nil, errutils.IsRequired("expression")
 	}
 
-	if !strings.HasPrefix(expression, every) {
+	if strings.HasPrefix(expression, every) {
 		interval, err := commons.ParseDuration(expression[len(every):])
 		if nil != err {
 			return nil, errutils.BadRequest(ExpressionSyntexError.Error() + ", " + err.Error())
@@ -174,5 +174,8 @@ func (self *IntervalTrigger) timeout() {
 			self.ERROR.Print(buffer.String())
 		}
 	}()
+
+	fmt.Printf("timeout %s - %s - %v\n", self.Name, self.interval, self.Callback)
+	self.INFO.Printf("timeout %s - %s", self.Name, self.interval)
 	self.Callback(time.Now())
 }

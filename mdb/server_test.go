@@ -212,7 +212,7 @@ func TestSimpleFindByidByServer(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		db_attributes, err := srv.FindById(person, id, map[string]string{})
+		db_attributes, err := srv.findById(person, id, map[string]string{})
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -259,7 +259,7 @@ func TestSimpleQueryByServer(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		results, err := srv.FindBy(person, map[string]string{"_id": id.(bson.ObjectId).Hex()})
+		results, err := srv.findBy(person, map[string]string{"_id": id.(bson.ObjectId).Hex()})
 		if nil != err {
 			t.Errorf(err.Error())
 			return

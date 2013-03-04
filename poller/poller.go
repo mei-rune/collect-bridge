@@ -5,14 +5,16 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"mdb"
 	"os"
 	"web"
 )
 
 var (
-	redisAddress  = flag.String("redis", ":7076", "the address of redis")
-	listenAddress = flag.String("http", ":7076", "the address of http")
+	redisAddress  = flag.String("redis", "127.0.0.1:6379", "the address of redis")
+	listenAddress = flag.String("listen", ":7076", "the address of http")
+	mdbUrl        = flag.String("mdb", "http://127.0.0.1:7071/mdb", "the address of mdb")
 	address       = flag.String("url", "http://127.0.0.1:7070", "the address of bridge")
 	directory     = flag.String("directory", ".", "the static directory of http")
 	cookies       = flag.String("cookies", "", "the static directory of http")
@@ -30,7 +32,8 @@ func mainHandle(rw *web.Context) {
 	rw.WriteString("Hello, World!")
 }
 
-func main() {
+func Runforever() {
+	commons.Log.InitLoggerWithWriter(os.Stdout, "poller", log.LstdFlags)
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
@@ -44,8 +47,9 @@ func main() {
 	svr.Config.CookieSecret = *cookies
 	svr.Get("/", mainHandle)
 
+	client := mdb.NewClient(*mdbUrl)
 	drvMgr := commons.NewDriverManager()
-	drv, e := NewKPIDriver(*address + "/" + "metric/")
+	drv, e := NewKPIDriver(*address+"/"+"metric/", client)
 	if nil != e {
 		fmt.Println(e)
 		return
@@ -58,8 +62,7 @@ func main() {
 		return
 	}
 
-	client := mdb.NewClient(*address + "/" + "mdb/")
-	res, err := client.FindByWithIncludes("trigger", nil, "$action")
+	res, err := client.FindByWithIncludes("trigger", nil, "action")
 	if nil != err {
 		fmt.Println("load triggers failed, %v", err)
 		return
@@ -68,25 +71,21 @@ func main() {
 		"redis_channel": redis_channel}
 
 	jobs := make([]Job, 0, 100)
-	commons.Each(commons.GetReturn(res), func(k interface{}, v interface{}) {
-		attributes, ok := v.(map[string]interface{})
-		if !ok {
-			fmt.Println("'%v' is not a map[string]interface{}", k)
-			return
-		}
+	for _, attributes := range res {
 		job, e := NewJob(attributes, ctx)
 		if nil != e {
-			fmt.Println("create '%v' failed, %v", k, e)
+			fmt.Printf("create '%v' failed, %v\n", attributes["name"], e)
 			return
 		}
 		e = job.Start()
 		if nil != e {
-			fmt.Println("start '%v' failed, %v", k, e)
+			fmt.Printf("start '%v' failed, %v\n", attributes["name"], e)
 			return
 		}
 
+		fmt.Printf("load '%v' is ok\n", attributes["name"])
 		jobs = append(jobs, job)
-	}, nil)
+	}
 
 	svr.Run()
 }

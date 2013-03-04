@@ -28,6 +28,8 @@ type metricJob struct {
 }
 
 func (self *metricJob) Run(t time.Time) {
+	fmt.Printf("read metric - %s\n", self.Name)
+	self.INFO.Printf("read metric - %s", self.Name)
 	res, e := self.drv.Get(self.params)
 	if nil != e {
 		self.WARN.Printf("read metric '%s' failed, %v", self.metric, e)
@@ -36,7 +38,7 @@ func (self *metricJob) Run(t time.Time) {
 	self.CallActions(t, commons.GetReturn(res))
 }
 
-func createMetricJob(attributes, ctx map[string]interface{}) (commons.Startable, error) {
+func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 	metric, e := commons.TryGetString(attributes, "metric")
 	if nil != e {
 		return nil, errors.New("'metric' is required, " + e.Error())
@@ -49,9 +51,9 @@ func createMetricJob(attributes, ctx map[string]interface{}) (commons.Startable,
 	if nil != e {
 		return nil, errors.New("'parent_id' is required, " + e.Error())
 	}
-	drvMgr, ok := ctx["drvMgr"].(commons.DriverManager)
+	drvMgr, ok := ctx["drvMgr"].(*commons.DriverManager)
 	if !ok {
-		return nil, errors.New("'drvMgr' is required, " + e.Error())
+		return nil, errors.New("'drvMgr' is required")
 	}
 	drv, _ := drvMgr.Connect("kpi")
 	if nil == drv {
@@ -59,10 +61,13 @@ func createMetricJob(attributes, ctx map[string]interface{}) (commons.Startable,
 	}
 
 	job := &metricJob{metric: metric,
-		params: map[string]string{"device_type": parentType, "device_id": parentId, "metric": metric},
+		params: map[string]string{"managed_type": parentType, "managed_id": parentId, "metric": metric},
 		drv:    drv}
 
-	job.Trigger, e = NewTrigger(attributes, func(t time.Time) { job.Run(t) }, ctx)
+	job.Trigger, e = NewTrigger(attributes, func(t time.Time) {
+		fmt.Printf("timeout %s", job.Name)
+		job.Run(t)
+	}, ctx)
 	return job, e
 }
 

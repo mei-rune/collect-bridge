@@ -10,8 +10,9 @@ import (
 )
 
 type Redis struct {
-	Address string
-	ch      chan []string
+	Address   string
+	ch        chan []string
+	is_runing bool
 }
 
 func (self *Redis) run() {
@@ -26,10 +27,10 @@ func (self *Redis) run() {
 	}
 }
 
-func (self *Redis) readCommands() [][]string {
+func (self *Redis) recvCommands() [][]string {
 	commands := make([][]string, 0, 30)
 	interval := 10 * time.Millisecond
-	for {
+	for self.is_runing {
 		select {
 		case c := <-self.ch:
 			interval = 10 * time.Millisecond
@@ -66,8 +67,8 @@ func (self *Redis) runOnce() {
 		commons.Log.ERROR.Print("[redis] connect to '%s' failed, %v", self.Address, err)
 		return
 	}
-	for {
-		commands := self.readCommands()
+	for self.is_runing {
+		commands := self.recvCommands()
 		for _, cmd := range commands {
 			switch len(cmd) {
 			case 1:
@@ -90,7 +91,7 @@ func (self *Redis) runOnce() {
 }
 
 func NewRedis(address string) (chan []string, error) {
-	redis := &Redis{Address: address, ch: make(chan []string, 3000)}
+	redis := &Redis{Address: address, ch: make(chan []string, 3000), is_runing: true}
 	go redis.run()
 	return redis.ch, nil
 }

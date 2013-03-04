@@ -100,7 +100,7 @@ func (self *mdb_server) postRead(raw_cls *ClassDefinition,
 func (self *mdb_server) collectIncludes(cls *ClassDefinition, params map[string]string) (
 	map[*ClassDefinition]Assocation, error) {
 	includes, ok := params["includes"]
-	if !ok {
+	if !ok || 0 == len(includes) {
 		return nil, nil
 	}
 	assocations := make(map[*ClassDefinition]Assocation, 10)

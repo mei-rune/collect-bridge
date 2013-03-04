@@ -1,5 +1,9 @@
 package main
 
+import (
+	"poller"
+)
+
 func main() {
-	poller.run()
+	poller.Runforever()
 }

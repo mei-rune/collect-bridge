@@ -16,7 +16,25 @@ var (
 	ThrowPanic = func(instance interface{}) {
 		panic(fmt.Sprintf("it is not []interface{} or map[string]interface{}, actual is [%T]%v", instance, instance))
 	}
+	TypeError = errors.New("it is not []interface{} or map[string]interface{}")
 )
+
+func Iterator(instance interface{}) ([][2]interface{}, error) {
+	results := make([][2]interface{}, 0, 10)
+	switch values := instance.(type) {
+	case map[string]interface{}:
+		for ck, r := range values {
+			results = append(results, [2]interface{}{ck, r})
+		}
+	case []interface{}:
+		for ck, r := range values {
+			results = append(results, [2]interface{}{ck, r})
+		}
+	default:
+		return nil, TypeError
+	}
+	return results, nil
+}
 
 func Each(instance interface{}, cb func(k interface{}, v interface{}), default_cb func(instance interface{})) {
 	switch values := instance.(type) {

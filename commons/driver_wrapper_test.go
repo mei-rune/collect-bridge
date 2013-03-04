@@ -50,11 +50,11 @@ func (svc *mock_driver) Create(params map[string]string) (Result, RuntimeError) 
 	return Result{"result": a - b}, nil
 }
 
-func (svc *mock_driver) Delete(params map[string]string) (bool, RuntimeError) {
+func (svc *mock_driver) Delete(params map[string]string) (Result, RuntimeError) {
 	a, _ := params["a"]
 	b, _ := params["b"]
 
-	return true, NewRuntimeError(500, a+b)
+	return Result{"result": a + b}, NewRuntimeError(500, a+b)
 }
 
 func TestDriverWrapperStartFailed(t *testing.T) {
@@ -127,9 +127,9 @@ func TestDriverWrapper(t *testing.T) {
 	if !reflect.DeepEqual(Result{"result": 6}, result) {
 		t.Errorf("create error, excepted is %v, actual is %v", result, Result{"result": 6})
 	}
-	b, e := mock.Delete(map[string]string{"a": "9", "b": "3"})
+	result, e = mock.Delete(map[string]string{"a": "9", "b": "3"})
 
-	if !b || nil == e {
+	if nil == e {
 		t.Errorf("delete error! %v", e)
 	} else {
 		if e.Error() != "93" {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mdb"
 	"net/http"
 	"os"
 	"strings"
@@ -143,62 +144,37 @@ func findDevice(params map[string]string) ([]map[string]interface{}, error) {
 	return results, nil
 }
 
-func save(drv map[string]interface{}) (string, string, error) {
+func save(attributes map[string]interface{}) (string, string, error) {
+	client := mdb.NewClient("http://" + *dbproxy + "/mdb")
 
-	var resp *http.Response
-	js, err := json.Marshal(drv)
-	if nil != err {
-		return "", "", fmt.Errorf("marshal device to json failed, %s", err.Error())
-	}
-
-	old, err := findDeviceByAddress(drv["address"].(string))
-	if nil != err {
-		fmt.Println(err)
+	id, e := client.SaveBy("device", map[string]string{"address": fmt.Sprint(attributes["address"])}, attributes)
+	if nil != e {
+		return "", "", e
 	}
 
-	action := "create"
-	if old == nil || nil == old["_id"] {
-		resp, err = http.Post("http://"+*dbproxy+"/mdb/device", "application/json", bytes.NewBuffer([]byte(js)))
-	} else {
-
-		action = "update"
-		resp, err = httpPut("http://"+*dbproxy+"/mdb/device/"+fmt.Sprint(old["_id"]), "application/json", bytes.NewBuffer([]byte(js)))
+	if nil != client.Warnings {
+		fmt.Println(client.Warnings)
 	}
 
-	if nil != err {
-		return "", action, fmt.Errorf("create device failed, %v", err)
-	}
-	if resp.StatusCode != 201 && resp.StatusCode != 200 {
-		return "", action, fmt.Errorf("create device failed, %v, %v", resp.StatusCode, readAll(resp.Body))
-	}
-	result := map[string]interface{}{}
-	err = json.Unmarshal([]byte(readAll(resp.Body)), &result)
-
-	if nil != err {
-		return "", action, fmt.Errorf("create device failed, %v", err)
-	}
-	if warnings, ok := result["warnings"]; ok {
-		fmt.Println(warnings)
-	}
-	return fmt.Sprint(commons.GetReturn(result)), action, nil
+	return id, "unknow", nil
 }
 
-func createTriggers(attributes map[string]interface{}) interface{} {
-	return []interface{}{map[string]interface{}{"type": "metric_rule",
+func createTriggers(attributes map[string]interface{}) []map[string]interface{} {
+	return []map[string]interface{}{map[string]interface{}{"type": "metric_rule",
 		"expression": "@every 15s",
 		"name":       "cpu-" + fmt.Sprint(attributes["address"]),
 		"metric":     "cpu",
-		"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "command": "set", "arg0": "aa", "arg1": "cc"}}},
+		"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "name": "redis-cpu-" + fmt.Sprint(attributes["address"]), "command": "SET", "arg0": "cpu:" + fmt.Sprint(attributes["address"])}}},
 		map[string]interface{}{"type": "metric_rule",
 			"expression": "@every 15s",
 			"name":       "mem-" + fmt.Sprint(attributes["address"]),
 			"metric":     "mem",
-			"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "command": "set", "arg0": "aa", "arg1": "cc"}}},
+			"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "name": "redis-mem-" + fmt.Sprint(attributes["address"]), "command": "SET", "arg0": "mem:" + fmt.Sprint(attributes["address"])}}},
 		map[string]interface{}{"type": "metric_rule",
 			"expression": "@every 15s",
 			"name":       "interface-" + fmt.Sprint(attributes["address"]),
 			"metric":     "interface",
-			"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "command": "set", "arg0": "aa", "arg1": "cc"}}}}
+			"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "name": "redis-interface-" + fmt.Sprint(attributes["address"]), "command": "SET", "arg0": "interface:" + fmt.Sprint(attributes["address"])}}}}
 }
 
 func main() {

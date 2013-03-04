@@ -241,54 +241,11 @@ func (self Result) TryGetString(key string) (string, error) {
 }
 
 func (self Result) TryGetObject(key string) (map[string]interface{}, error) {
-	v, ok := self[key]
-	if !ok {
-		return nil, NotFound(key)
-	}
-
-	if nil == v {
-		return nil, ValueIsNil
-	}
-
-	res, ok := v.(map[string]interface{})
-	if !ok {
-		return nil, typeError(key, "map[string]interface{}")
-	}
-	return res, nil
+	return TryGetObject(self, key)
 }
 
 func (self Result) TryGetObjects(key string) ([]map[string]interface{}, error) {
-	v, ok := self[key]
-	if !ok {
-		return nil, NotFound(key)
-	}
-
-	if nil == v {
-		return nil, ValueIsNil
-	}
-
-	results := make([]map[string]interface{}, 0, 10)
-	switch value := v.(type) {
-	case []interface{}:
-		for i, o := range value {
-			attributes, ok := o.(map[string]interface{})
-			if !ok {
-				return nil, fmt.Errorf("'%v' of '%s' is not a map[string]interface{}", i, key)
-			}
-			results = append(results, attributes)
-		}
-	case map[string]interface{}:
-		for k, o := range value {
-			attributes, ok := o.(map[string]interface{})
-			if !ok {
-				return nil, fmt.Errorf("'%v' of '%s' is not a map[string]interface{}", k, key)
-			}
-			results = append(results, attributes)
-		}
-	default:
-		return nil, typeError(key, "[]interface{} or map[string]interface{}")
-	}
-	return results, nil
+	return TryGetObjects(self, key)
 }
 
 func (self Result) GetEffected() int {

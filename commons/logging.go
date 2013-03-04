@@ -42,6 +42,29 @@ func (self *Logger) InitLoggerWithWriter(wr io.Writer, prefix string, flag int) 
 	self.initLogger(wr, nil, prefix, flag)
 }
 
+func (self *Logger) InitLoggerWith(attributes map[string]interface{}, prefix string) {
+	var outputCallback LogCallback = nil
+	var outputWriter io.Writer = nil
+
+	switch v := attributes[prefix+"out"].(type) {
+	case LogCallback:
+		outputCallback = v
+	case io.Writer:
+		outputWriter = v
+	}
+
+	prefixName := GetString(attributes, prefix+"prefix", "app")
+	logFlag := GetInt(attributes, prefix+"flag", log.LstdFlags)
+
+	if nil != outputCallback {
+		self.InitLoggerWithCallback(outputCallback, prefixName, logFlag)
+	} else if nil != outputWriter {
+		self.InitLoggerWithWriter(outputWriter, prefixName, logFlag)
+	} else {
+		self.InitLoggerWithWriter(os.Stdout, prefixName, logFlag)
+	}
+}
+
 func (self *Logger) initLogger(wr io.Writer, cb LogCallback, prefix string, flag int) {
 	self.DEBUG = &nullWriter{super: self, level: "DEBUG"}
 	self.INFO = &internalWriter{super: self, level: "INFO"}

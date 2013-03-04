@@ -82,6 +82,19 @@ func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 		return nil, errutils.IsRequired("expression")
 	}
 
+	action_specs, e := commons.TryGetObjects(attributes, "$action")
+	if nil != e {
+		return nil, errutils.IsRequired("$action")
+	}
+	actions := make([]ExecuteAction, 0, 10)
+	for _, spec := range action_specs {
+		action, e := NewAction(spec, ctx)
+		if nil != e {
+			return nil, e
+		}
+		actions = append(actions, action)
+	}
+
 	if strings.HasPrefix(expression, every) {
 		interval, err := commons.ParseDuration(expression[len(every):])
 		if nil != err {
@@ -97,6 +110,7 @@ func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 			Attachment:  commons.GetString(attributes, "attachment", ""),
 			Description: commons.GetString(attributes, "description", ""),
 			Callback:    callback,
+			Actions:     actions,
 			start: func(t *Trigger) error {
 				go intervalTrigger.run()
 				return nil
@@ -106,6 +120,7 @@ func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 				<-intervalTrigger.control_resp_ch
 			}}
 		intervalTrigger.Trigger = trigger
+		trigger.InitLoggerWith(ctx, "log.")
 		return trigger, nil
 	}
 	return nil, ExpressionSyntexError
@@ -175,7 +190,6 @@ func (self *IntervalTrigger) timeout() {
 		}
 	}()
 
-	fmt.Printf("timeout %s - %s - %v\n", self.Name, self.interval, self.Callback)
-	self.INFO.Printf("timeout %s - %s", self.Name, self.interval)
+	self.DEBUG.Printf("timeout %s - %s", self.Name, self.interval)
 	self.Callback(time.Now())
 }

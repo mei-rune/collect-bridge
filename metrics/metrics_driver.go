@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"commons"
+	"time"
 )
 
 var MetricNotExists = commons.NewRuntimeError(commons.BadRequestCode, "'metric' is required.")
@@ -40,7 +41,11 @@ func (self *Metrics) Get(params map[string]string) (commons.Result, commons.Runt
 	if !ok {
 		return nil, MetricNotDefined(id)
 	}
-	return driver.Get(params)
+	res, e := driver.Get(params)
+	if _, ok := res["created_at"]; !ok {
+		res["created_at"] = time.Now()
+	}
+	return res, e
 }
 
 func (self *Metrics) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
@@ -53,7 +58,11 @@ func (self *Metrics) Put(params map[string]string) (commons.Result, commons.Runt
 	if !ok {
 		return nil, MetricNotDefined(id)
 	}
-	return driver.Put(params)
+	res, e := driver.Put(params)
+	if _, ok := res["created_at"]; !ok {
+		res["created_at"] = time.Now()
+	}
+	return res, e
 }
 
 func (self *Metrics) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
@@ -66,7 +75,11 @@ func (self *Metrics) Create(params map[string]string) (commons.Result, commons.R
 	if !ok {
 		return nil, MetricNotDefined(id)
 	}
-	return driver.Create(params)
+	res, e := driver.Create(params)
+	if _, ok := res["created_at"]; !ok {
+		res["created_at"] = time.Now()
+	}
+	return res, e
 }
 
 func (self *Metrics) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {

@@ -22,7 +22,6 @@ func (self *Redis) run() {
 	}()
 
 	for {
-		time.Sleep(1 * time.Second)
 		self.runOnce()
 	}
 }
@@ -64,7 +63,7 @@ func (self *Redis) runOnce() {
 
 	c, err := redis.DialTimeout("tcp", self.Address, 0, 1*time.Second, 1*time.Second)
 	if err != nil {
-		commons.Log.ERROR.Print("[redis] connect to '%s' failed, %v", self.Address, err)
+		commons.Log.ERROR.Printf("[redis] connect to '%s' failed, %v", self.Address, err)
 		return
 	}
 	for self.is_runing {
@@ -83,7 +82,7 @@ func (self *Redis) runOnce() {
 				_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4])
 			}
 			if nil != err {
-				commons.Log.ERROR.Print("[redis] do command '%s' failed, %v", cmd[0], err)
+				commons.Log.ERROR.Printf("[redis] do command '%s' failed, %v", cmd[0], err)
 				return
 			}
 		}

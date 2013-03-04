@@ -28,14 +28,13 @@ type metricJob struct {
 }
 
 func (self *metricJob) Run(t time.Time) {
-	fmt.Printf("read metric - %s\n", self.Name)
-	self.INFO.Printf("read metric - %s", self.Name)
 	res, e := self.drv.Get(self.params)
 	if nil != e {
 		self.WARN.Printf("read metric '%s' failed, %v", self.metric, e)
 		return
 	}
-	self.CallActions(t, commons.GetReturn(res))
+	v := res.GetReturn()
+	self.CallActions(t, v)
 }
 
 func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
@@ -64,10 +63,7 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		params: map[string]string{"managed_type": parentType, "managed_id": parentId, "metric": metric},
 		drv:    drv}
 
-	job.Trigger, e = NewTrigger(attributes, func(t time.Time) {
-		fmt.Printf("timeout %s", job.Name)
-		job.Run(t)
-	}, ctx)
+	job.Trigger, e = NewTrigger(attributes, func(t time.Time) { job.Run(t) }, ctx)
 	return job, e
 }
 

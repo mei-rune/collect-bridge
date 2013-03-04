@@ -2,6 +2,7 @@ package mdb
 
 import (
 	"bytes"
+	"commons/stringutils"
 )
 
 //"commons/stringutils"
@@ -154,6 +155,19 @@ func (self *ClassDefinition) GetAssocationByCollectionName(nm string) Assocation
 	}
 	for _, assoc := range self.Assocations {
 		if nm == assoc.Target().CollectionName() {
+			return assoc
+		}
+	}
+	return nil
+}
+
+func (self *ClassDefinition) GetAssocationByTargetClass(nm string) Assocation {
+	if nil == self.Assocations {
+		return nil
+	}
+	for _, assoc := range self.Assocations {
+		if nm == assoc.Target().Name ||
+			nm == stringutils.Underscore(assoc.Target().Name) {
 			return assoc
 		}
 	}

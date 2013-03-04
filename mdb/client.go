@@ -24,7 +24,7 @@ func (self *Client) Create(target string, body map[string]interface{}) (string, 
 }
 
 func (self *Client) SaveBy(target string, params map[string]string, body map[string]interface{}) (string, commons.RuntimeError) {
-	url := self.CreateUrl().Concat(target, "query").WithQueries(params, "@").WithQuery("save", "true").ToUrl()
+	url := self.CreateUrl().Concat(target).WithQueries(params, "@").WithQuery("save", "true").ToUrl()
 
 	msg, e := json.Marshal(body)
 	if nil != e {

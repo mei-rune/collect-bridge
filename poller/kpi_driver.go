@@ -38,15 +38,23 @@ func (self *KPIDriver) Get(params map[string]string) (commons.Result, commons.Ru
 		return nil, commons.NotFound(id)
 	}
 
-	access_params, ok := mo["$access_params"].(map[string]interface{})
-	if !ok {
-		return nil, errutils.BadRequest(fmt.Sprintf("get access params failed - %v", mo["$access_params"]))
+	access_params, e := commons.TryGetObjects(mo, "$snmp_params")
+	if nil != e {
+		return nil, errutils.InternalError(fmt.Sprintf("fetch access params failed - %v", e))
 	}
-	if "snmp_params" == access_params["type"] {
-		return nil, errutils.BadRequest(fmt.Sprintf("get access params failed - it is not a snmp params"))
+	if nil == access_params || 0 == len(access_params) {
+		return nil, errutils.InternalError("access params is not exists.")
 	}
 
-	url := self.client.CreateUrl().Concat("metric", id).WithQueries(params, "").WithAnyQueries(access_params, "snmp.").ToUrl()
+	snmp_params := access_params[0]
+	if "snmp_params" != snmp_params["type"] {
+		return nil, errutils.InternalError("get access params failed - it is not a snmp params")
+	}
+
+	if charset := params["charset"]; "" == charset {
+		params["charset"] = "gb18030"
+	}
+	url := self.client.CreateUrl().Concat("metric", params["metric"], id).WithQueries(params, "").WithAnyQueries(snmp_params, "snmp.").ToUrl()
 	return self.client.Invoke("GET", url, nil, 200)
 }
 

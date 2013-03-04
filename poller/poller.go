@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"mdb"
 	"os"
 	"web"
@@ -33,7 +32,6 @@ func mainHandle(rw *web.Context) {
 }
 
 func Runforever() {
-	commons.Log.InitLoggerWithWriter(os.Stdout, "poller", log.LstdFlags)
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
@@ -49,7 +47,7 @@ func Runforever() {
 
 	client := mdb.NewClient(*mdbUrl)
 	drvMgr := commons.NewDriverManager()
-	drv, e := NewKPIDriver(*address+"/"+"metric/", client)
+	drv, e := NewKPIDriver(*address, client)
 	if nil != e {
 		fmt.Println(e)
 		return

@@ -2,6 +2,7 @@ package commons
 
 import (
 	"commons/as"
+	"fmt"
 )
 
 var MultipleValuesError = NewRuntimeError(NotAcceptableCode, "Multiple values meet the conditions")
@@ -170,6 +171,57 @@ func TryGetString(attributes map[string]interface{}, key string) (string, error)
 		return "", typeError(key, "string")
 	}
 	return s, nil
+}
+
+func TryGetObject(attributes map[string]interface{}, key string) (map[string]interface{}, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return nil, NotFound(key)
+	}
+
+	if nil == v {
+		return nil, ValueIsNil
+	}
+
+	res, ok := v.(map[string]interface{})
+	if !ok {
+		return nil, typeError(key, "map[string]interface{}")
+	}
+	return res, nil
+}
+
+func TryGetObjects(attributes map[string]interface{}, key string) ([]map[string]interface{}, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return nil, NotFound(key)
+	}
+
+	if nil == v {
+		return nil, ValueIsNil
+	}
+
+	results := make([]map[string]interface{}, 0, 10)
+	switch value := v.(type) {
+	case []interface{}:
+		for i, o := range value {
+			r, ok := o.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("'%v' of '%s' is not a map[string]interface{}", i, key)
+			}
+			results = append(results, r)
+		}
+	case map[string]interface{}:
+		for k, o := range value {
+			r, ok := o.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("'%v' of '%s' is not a map[string]interface{}", k, key)
+			}
+			results = append(results, r)
+		}
+	default:
+		return nil, typeError(key, "[]interface{} or map[string]interface{}")
+	}
+	return results, nil
 }
 
 // type MatchFunc func(key string, actual interface{}) bool

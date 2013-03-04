@@ -211,11 +211,13 @@ func (self *mdb_server) createChildren(cls *ClassDefinition, id interface{}, att
 			continue
 		}
 
-		assoc := cls.GetAssocationByCollectionName(ccls.CollectionName())
+		assoc := cls.RootClass().GetAssocationByCollectionName(ccls.CollectionName())
 		if nil == assoc {
-			warnings = append(warnings, fmt.Sprintf("class '%s' is not contains child that name is '%s' at the '%s'", cls.Name, k[1:], k))
+			warnings = append(warnings, fmt.Sprintf("class '%s' is not contains child that name is '%s' and collection is %s at the '%s'",
+				cls.Name, k[1:], ccls.CollectionName(), k))
 			continue
 		}
+
 		foreignKey := ""
 		is_polymorphic := false
 		switch a := assoc.(type) {
@@ -249,9 +251,15 @@ func (self *mdb_server) createChildren(cls *ClassDefinition, id interface{}, att
 			} else {
 				attrs[foreignKey] = id
 			}
-			_, err = self.Create(lcls, map[string]string{}, attrs)
+			sid, err := self.Create(lcls, map[string]string{}, attrs)
 			if nil != err {
-				warnings = append(warnings, fmt.Sprintf("save '%s.%s' failed, %v - %v", k, ck, err, attrs))
+				warnings = append(warnings, fmt.Sprintf("save '%v.%v' failed, %v - %v", k, ck, err, attrs))
+			}
+			child_warnings := self.createChildren(lcls, sid, attrs)
+			if nil != child_warnings && 0 != len(child_warnings) {
+				for _, s := range child_warnings {
+					warnings = append(warnings, "    "+s)
+				}
 			}
 		}, func(instance interface{}) {
 			warnings = append(warnings, fmt.Sprintf("value of '%s' is not []interface{} or map[string]interface{}", k))

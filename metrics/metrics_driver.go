@@ -41,13 +41,7 @@ func (self *Metrics) Get(params map[string]string) (commons.Result, commons.Runt
 	if !ok {
 		return nil, MetricNotDefined(id)
 	}
-	res, e := driver.Get(params)
-	if nil != res {
-		if _, ok := res["created_at"]; !ok {
-			res["created_at"] = time.Now()
-		}
-	}
-	return res, e
+	return driver.Get(params)
 }
 
 func (self *Metrics) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
@@ -60,13 +54,7 @@ func (self *Metrics) Put(params map[string]string) (commons.Result, commons.Runt
 	if !ok {
 		return nil, MetricNotDefined(id)
 	}
-	res, e := driver.Put(params)
-	if nil != res {
-		if _, ok := res["created_at"]; !ok {
-			res["created_at"] = time.Now()
-		}
-	}
-	return res, e
+	return driver.Put(params)
 }
 
 func (self *Metrics) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
@@ -79,13 +67,7 @@ func (self *Metrics) Create(params map[string]string) (commons.Result, commons.R
 	if !ok {
 		return nil, MetricNotDefined(id)
 	}
-	res, e := driver.Create(params)
-	if nil != res {
-		if _, ok := res["created_at"]; !ok {
-			res["created_at"] = time.Now()
-		}
-	}
-	return res, e
+	return driver.Create(params)
 }
 
 func (self *Metrics) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {

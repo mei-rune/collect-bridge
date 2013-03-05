@@ -3,6 +3,7 @@ package commons
 import (
 	"commons/as"
 	"fmt"
+	"time"
 )
 
 type DriverManager map[string]Driver
@@ -190,7 +191,7 @@ func GetReturnCode(params Result) int {
 const ReturnValue = "value"
 
 func Return(value interface{}) Result {
-	return Result{"value": value}
+	return Result{"value": value, "created_at": time.Now()}
 }
 
 func (self Result) Return(value interface{}) Result {

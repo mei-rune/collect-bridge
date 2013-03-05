@@ -7,6 +7,7 @@
 #include "bsnmp/asn1.h"
 #include "bsnmp/snmp.h"
 
+#include "_cgo_export.h"
 
 size_t get_buffer_length(asn_buf_t* u, const u_char* buf) {
   return u->asn_cptr - buf;
@@ -31,6 +32,12 @@ int32_t snmp_value_get_int32(snmp_values_t* value) {
 void snmp_value_put_octets(snmp_values_t* value, void *octets, u_int octets_len) {
   value->octetstring.len = octets_len;
   if ( 0 != octets_len ) {
+    if (0 != value->octetstring.octets) {
+      free(value->octetstring.octets);
+      DecrementMemory();
+    }
+
+    IncrementMemory();
     value->octetstring.octets = (u_char*)malloc(octets_len*sizeof(u_char));
     memcpy(value->octetstring.octets, octets, octets_len*sizeof(u_char));
   }

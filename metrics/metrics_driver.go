@@ -42,8 +42,10 @@ func (self *Metrics) Get(params map[string]string) (commons.Result, commons.Runt
 		return nil, MetricNotDefined(id)
 	}
 	res, e := driver.Get(params)
-	if _, ok := res["created_at"]; !ok {
-		res["created_at"] = time.Now()
+	if nil != res {
+		if _, ok := res["created_at"]; !ok {
+			res["created_at"] = time.Now()
+		}
 	}
 	return res, e
 }
@@ -59,8 +61,10 @@ func (self *Metrics) Put(params map[string]string) (commons.Result, commons.Runt
 		return nil, MetricNotDefined(id)
 	}
 	res, e := driver.Put(params)
-	if _, ok := res["created_at"]; !ok {
-		res["created_at"] = time.Now()
+	if nil != res {
+		if _, ok := res["created_at"]; !ok {
+			res["created_at"] = time.Now()
+		}
 	}
 	return res, e
 }
@@ -76,8 +80,10 @@ func (self *Metrics) Create(params map[string]string) (commons.Result, commons.R
 		return nil, MetricNotDefined(id)
 	}
 	res, e := driver.Create(params)
-	if _, ok := res["created_at"]; !ok {
-		res["created_at"] = time.Now()
+	if nil != res {
+		if _, ok := res["created_at"]; !ok {
+			res["created_at"] = time.Now()
+		}
 	}
 	return res, e
 }

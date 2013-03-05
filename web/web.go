@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
+	"expvar"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -429,11 +430,26 @@ func (s *Server) initServer() {
 	}
 }
 
+func expvarHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, "{\n")
+	first := true
+	expvar.Do(func(kv expvar.KeyValue) {
+		if !first {
+			fmt.Fprintf(w, ",\n")
+		}
+		first = false
+		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+	})
+	fmt.Fprintf(w, "\n}\n")
+}
+
 //Runs the web application and serves http requests
 func (s *Server) Run() {
 	s.initServer()
 
 	mux := http.NewServeMux()
+	mux.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
 	mux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
 	mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
 	for _, pf := range rpprof.Profiles() {

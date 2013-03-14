@@ -33,8 +33,7 @@ func (self *metricJob) Run(t time.Time) {
 		self.WARN.Printf("read metric '%s' failed, %v", self.metric, e)
 		return
 	}
-	v := res.GetReturn()
-	self.CallActions(t, v)
+	self.CallActions(t, res.ToJson())
 }
 
 func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {

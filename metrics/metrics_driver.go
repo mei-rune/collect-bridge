@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"commons"
-	"time"
 )
 
 var MetricNotExists = commons.NewRuntimeError(commons.BadRequestCode, "'metric' is required.")

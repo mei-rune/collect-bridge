@@ -148,7 +148,7 @@ func (self *Discoverer) readMetric(drv Device, name string) (interface{}, error)
 		if nil != e {
 			return nil, e
 		}
-		return commons.GetReturn(res), nil
+		return res.GetReturn(), nil
 	}
 	return nil, fmt.Errorf("snmp params of %v is not exists.", drv["address"])
 }

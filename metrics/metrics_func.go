@@ -49,13 +49,9 @@ func (self *Base) GetMetricAsString(params map[string]string, metric string) (st
 	if nil == res || nil != err {
 		return "", err
 	}
-	value := commons.GetReturn(res)
-	if nil == value {
-		return "", commons.ValueIsNil
-	}
-	s, e := as.AsString(value)
+	s, e := res.GetReturnAsString()
 	if nil != e {
-		return "", commons.NewRuntimeError(commons.InternalErrorCode, e.Error())
+		return s, errutils.InternalError(e.Error())
 	}
 	return s, nil
 }
@@ -75,13 +71,10 @@ func (self *Base) GetMetricAsInt32(params map[string]string, metric string, defa
 	if nil == res || nil != err {
 		return defaultValue, err
 	}
-	value := commons.GetReturn(res)
-	if nil == value {
-		return defaultValue, commons.ValueIsNil
-	}
-	i, e := as.AsInt32(value)
+
+	i, e := res.GetReturnAsInt32()
 	if nil != e {
-		return defaultValue, commons.NewRuntimeError(commons.InternalErrorCode, e.Error())
+		return defaultValue, errutils.InternalError(e.Error())
 	}
 	return i, nil
 }
@@ -101,15 +94,12 @@ func (self *Base) GetMetricAsUint32(params map[string]string, metric string, def
 	if nil == res || nil != err {
 		return defaultValue, err
 	}
-	value := commons.GetReturn(res)
-	if nil == value {
-		return defaultValue, commons.ValueIsNil
-	}
-	i, e := as.AsUint32(value)
+
+	ui, e := res.GetReturnAsUint32()
 	if nil != e {
-		return defaultValue, commons.NewRuntimeError(commons.InternalErrorCode, e.Error())
+		return defaultValue, errutils.InternalError(e.Error())
 	}
-	return i, nil
+	return ui, nil
 }
 
 type SnmpBase struct {
@@ -131,7 +121,7 @@ func (self *SnmpBase) GetStringValue(params map[string]string, oid string) (comm
 	if nil == res || nil != err {
 		return res, "", err
 	}
-	rv := commons.GetReturn(res)
+	rv := res.GetReturn()
 	if nil == rv {
 		return res, "", commons.ValueIsNil
 	}
@@ -162,7 +152,7 @@ func (self *SnmpBase) GetOidValue(params map[string]string, oid string) (commons
 	if nil == res || nil != err {
 		return res, "", err
 	}
-	rv := commons.GetReturn(res)
+	rv := res.GetReturn()
 	if nil == rv {
 		return res, "", commons.ValueIsNil
 	}
@@ -193,7 +183,7 @@ func (self *SnmpBase) GetInt32Value(params map[string]string, oid string, defaul
 	if nil == res || nil != err {
 		return res, defaultValue, err
 	}
-	rv := commons.GetReturn(res)
+	rv := res.GetReturn()
 	if nil == rv {
 		return res, defaultValue, commons.ValueIsNil
 	}
@@ -224,7 +214,7 @@ func (self *SnmpBase) GetInt64Value(params map[string]string, oid string, defaul
 	if nil == res || nil != err {
 		return res, defaultValue, err
 	}
-	rv := commons.GetReturn(res)
+	rv := res.GetReturn()
 	if nil == rv {
 		return res, defaultValue, commons.ValueIsNil
 	}
@@ -255,7 +245,7 @@ func (self *SnmpBase) GetUint32Value(params map[string]string, oid string, defau
 	if nil == res || nil != err {
 		return res, defaultValue, err
 	}
-	rv := commons.GetReturn(res)
+	rv := res.GetReturn()
 	if nil == rv {
 		return res, defaultValue, commons.ValueIsNil
 	}
@@ -286,7 +276,7 @@ func (self *SnmpBase) GetValues(params map[string]string, oids []string) (common
 	if nil == res || nil != err {
 		return res, nil, err
 	}
-	rv := commons.GetReturn(res)
+	rv := res.GetReturn()
 	if nil == rv {
 		return res, nil, commons.ValueIsNil
 	}
@@ -306,7 +296,7 @@ func (self *SnmpBase) GetUint64Value(params map[string]string, oid string,
 	if nil == res || nil != err {
 		return res, defaultValue, err
 	}
-	rv := commons.GetReturn(res)
+	rv := res.GetReturn()
 	if nil == rv {
 		return res, defaultValue, commons.ValueIsNil
 	}
@@ -347,7 +337,7 @@ func (self *SnmpBase) GetTableValue(params map[string]string, oid, columns strin
 	if nil == res || nil != err {
 		return res, nil, err
 	}
-	rv := commons.GetReturn(res)
+	rv := res.GetReturn()
 	if nil == rv {
 		return res, nil, err
 	}
@@ -396,7 +386,7 @@ func (self *SnmpBase) GetOneValue(params map[string]string, oid, columns string,
 	if nil == res || nil != err {
 		return res, nil, err
 	}
-	rv := commons.GetReturn(res)
+	rv := res.GetReturn()
 	if nil == rv {
 		return res, nil, err
 	}

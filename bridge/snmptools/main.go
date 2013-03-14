@@ -412,12 +412,12 @@ func metric_invoke() error {
 		return errors.New(string(bytes))
 	}
 
-	returnObject := map[string]interface{}{}
+	returnObject := commons.Result{}
 	err = json.Unmarshal(bytes, &returnObject)
 	if nil != err {
 		return errors.New("unmarshal failed - " + err.Error() + "\n" + string(bytes))
 	}
-	value := commons.GetReturn(returnObject)
+	value := returnObject.GetReturn()
 	if nil == value {
 		return errors.New("result is empty.\n" + string(bytes))
 	}
@@ -481,13 +481,16 @@ func invoke(action, oid string) (string, error) {
 		return "", errors.New(string(bytes))
 	}
 
-	returnObject := map[string]interface{}{}
+	returnObject := commons.Result{}
 	err = json.Unmarshal(bytes, &returnObject)
 	if nil != err {
 		return "", errors.New("unmarshal failed - " + err.Error() + "\n" + string(bytes))
 	}
-	value := commons.GetReturn(returnObject)
-	vbs := value.(map[string]interface{})
+	vbs, err := returnObject.GetReturnAsObject()
+	if nil != err {
+		return "", errors.New("type failed - " + err.Error() + "\n" + string(bytes))
+	}
+
 	if 0 == len(vbs) {
 		return "", errors.New("result is empty." + "\n" + string(bytes))
 	}
@@ -535,12 +538,12 @@ func invokeTable(action, oid string) error {
 		return errors.New(string(bytes))
 	}
 
-	returnObject := map[string]interface{}{}
+	returnObject := commons.Result{}
 	err = json.Unmarshal(bytes, &returnObject)
 	if nil != err {
 		return errors.New("unmarshal failed - " + err.Error() + "\n" + string(bytes))
 	}
-	value := commons.GetReturn(returnObject)
+	value := returnObject.GetReturn()
 	if nil == value {
 		return errors.New("result is empty." + "\n" + string(bytes))
 	}

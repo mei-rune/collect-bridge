@@ -60,13 +60,13 @@ func discoveryCreate(params map[string]interface{}) (string, error) {
 	if resp.StatusCode != 201 {
 		return "", fmt.Errorf("create discovery failed, %v, %v", resp.StatusCode, readAll(resp.Body))
 	}
-	result := map[string]interface{}{}
+	result := commons.Result{}
 	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
 
 	if nil != e {
 		return "", fmt.Errorf("create discovery failed, %v", e)
 	}
-	return commons.GetReturn(result).(string), nil
+	return result.GetReturnAsString()
 }
 
 func discoveryGet(id string, params map[string]string) (interface{}, error) {
@@ -82,14 +82,13 @@ func discoveryGet(id string, params map[string]string) (interface{}, error) {
 		return "", fmt.Errorf("get discovery message failed, %v, %v", resp.StatusCode, readAll(resp.Body))
 	}
 	body := readAll(resp.Body)
-	result := map[string]interface{}{}
+	result := commons.Result{}
 	e = json.Unmarshal([]byte(body), &result)
-
 	if nil != e {
 		return "", fmt.Errorf("get discovery message failed, %v", e)
 	}
 
-	return commons.GetReturn(result), nil
+	return result.GetReturn(), nil
 }
 func discoveryDelete(id string) error {
 	resp, e := httpDelete("http://" + *proxy + "/discovery/" + id)
@@ -126,16 +125,16 @@ func findDevice(params map[string]string) ([]map[string]interface{}, error) {
 		return nil, fmt.Errorf("get device message failed, %v, %v", resp.StatusCode, readAll(resp.Body))
 	}
 	body := readAll(resp.Body)
-	result := map[string]interface{}{}
+	result := commons.Result{}
 	e = json.Unmarshal([]byte(body), &result)
 
 	if nil != e {
 		return nil, fmt.Errorf("get device message failed, %v", e)
 	}
 
-	res, ok := commons.GetReturn(result).([]interface{})
+	res, ok := result.GetReturn().([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("get device message failed, result is not []interface{}, %T", commons.GetReturn(result))
+		return nil, fmt.Errorf("get device message failed, result is not []interface{}, %T", result.GetReturn())
 	}
 	results := make([]map[string]interface{}, 0, len(res))
 	for _, r := range res {

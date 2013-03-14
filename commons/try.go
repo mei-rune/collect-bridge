@@ -107,6 +107,29 @@ func TryGetFloat(attributes map[string]interface{}, key string) (float64, error)
 	return f, nil
 }
 
+func GetInt32(attributes map[string]interface{}, key string, defaultValue int32) int32 {
+	res, e := TryGetInt32(attributes, key)
+	if nil != e {
+		return defaultValue
+	}
+	return res
+}
+
+func TryGetInt32(attributes map[string]interface{}, key string) (int32, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return 0, NotFound(key)
+	}
+	if nil == v {
+		return 0, nilError(key)
+	}
+	i32, e := as.AsInt32(v)
+	if nil != e {
+		return 0, typeError(key, "int32")
+	}
+	return i32, nil
+}
+
 func GetInt64(attributes map[string]interface{}, key string, defaultValue int64) int64 {
 	res, e := TryGetInt64(attributes, key)
 	if nil != e {
@@ -128,6 +151,29 @@ func TryGetInt64(attributes map[string]interface{}, key string) (int64, error) {
 		return 0, typeError(key, "int64")
 	}
 	return i64, nil
+}
+
+func GetUint32(attributes map[string]interface{}, key string, defaultValue uint32) uint32 {
+	res, e := TryGetUint32(attributes, key)
+	if nil != e {
+		return defaultValue
+	}
+	return res
+}
+
+func TryGetUint32(attributes map[string]interface{}, key string) (uint32, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return 0, NotFound(key)
+	}
+	if nil == v {
+		return 0, nilError(key)
+	}
+	ui32, e := as.AsUint32(v)
+	if nil != e {
+		return 0, typeError(key, "uint32")
+	}
+	return ui32, nil
 }
 
 func GetUint64(attributes map[string]interface{}, key string, defaultValue uint64) uint64 {

@@ -169,6 +169,35 @@ func (self *mdb_server) findById(cls *ClassDefinition, id interface{}, params ma
 	return res, err
 }
 
+func (self *mdb_server) findByParent(cls *ClassDefinition, params map[string]string) (
+	[]map[string]interface{}, error) {
+	parent_id := params["parent_id"]
+	parent_type := params["parent_type"]
+	if "" == parent_type {
+		return nil, errors.New("'parent_type' is emtpy")
+	}
+	if "" == parent_id {
+		return nil, errors.New("'parent_id' is emtpy")
+	}
+	assoc := cls.GetAssocationByTargetClassAndAssocationType(parent_type, BELONGS_TO)
+	if nil != assoc {
+		belongsTo := assoc.(*BelongsTo)
+		params["@"+belongsTo.Name.Name] = parent_id
+		return self.findBy(cls, params)
+	}
+
+	pcls := self.definitions.FindByUnderscoreName(parent_type)
+	if nil == pcls {
+		return nil, errors.New("class '" + parent_type + "' is not defined.")
+	}
+	assoc = pcls.GetAssocationByTargetClassAndAssocationType(cls.UnderscoreName, HAS_MANG, HAS_ONE)
+	if nil == assoc {
+		return nil, fmt.Errorf("assocation of between class '%s' and '%s' is not defined.", parent_type, cls.UnderscoreName)
+	}
+
+	return assocationOps[assoc.Type()].findOp(self, assoc, pcls, parent_id, cls)
+}
+
 func (self *mdb_server) findBy(cls *ClassDefinition, params map[string]string) (
 	[]map[string]interface{}, error) {
 	s, err := self.buildQueryStatement(cls, params)
@@ -247,6 +276,18 @@ func (self *mdb_server) Get(cls *ClassDefinition, id string, params map[string]s
 			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
 		}
 		return results, nil
+	case "by_parent":
+		results, err := self.findByParent(cls, params)
+		if err != nil {
+			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
+		}
+		return results, nil
+	// case "parent":
+	// 	results, err := self.parent(cls, params)
+	// 	if err != nil {
+	// 		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
+	// 	}
+	// 	return results, nil
 	case "count":
 		count, err := self.count(cls, params)
 		if err != nil {

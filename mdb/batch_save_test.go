@@ -2,6 +2,7 @@ package mdb
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 )
 
@@ -170,6 +171,29 @@ func TestIntQueryByParent(t *testing.T) {
 	checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
 	checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
 	checkSnmpParams(t, findOneFrom(t, drv, "snmp_params", map[string]string{"device_id": id, "address": "192.168.1.9"}), snmp_params)
+}
+
+func TestIntQueryByParent2(t *testing.T) {
+
+	deleteById(t, "device", "all")
+	deleteById(t, "interface", "all")
+	deleteById(t, "trigger", "all")
+
+	id := create(t, "device", js)
+	interfaces := findByParent(t, "device", id, "interface", nil)
+
+	bs, e := json.MarshalIndent(interfaces, "", "  ")
+	if nil != e {
+		t.Error(e)
+	} else {
+		t.Log(string(bs))
+	}
+
+	d1 := searchBy(interfaces, func(r map[string]interface{}) bool { return fmt.Sprint(r["ifIndex"]) == "1" })
+	d2 := searchBy(interfaces, func(r map[string]interface{}) bool { return fmt.Sprint(r["ifIndex"]) == "9" })
+
+	checkInterface(t, d1, if1)
+	checkInterface(t, d2, if2)
 }
 
 // func TestIntQueryByChild(t *testing.T) {

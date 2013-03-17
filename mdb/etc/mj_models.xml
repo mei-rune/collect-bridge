@@ -49,6 +49,60 @@
 		<has_many foreignKey="device_id" >Interface</has_many>
     <has_many foreignKey="device_id" >Address</has_many>
     <has_many polymorphic="true" >Trigger</has_many>
+
+    <has_many foreignKey="device1_id" >Link</has_many>
+    <has_many foreignKey="device2_id" >Link</has_many>
+  </class>
+
+  <class name="Link">
+    <property name="name">
+      <restriction base="string">
+        <required />
+        <minLength>1</minLength>
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="description">
+      <restriction base="string">
+        <maxLength>2000</maxLength>
+      </restriction>
+    </property>
+    <property name="device1">
+      <restriction base="objectId">
+        <required />
+      </restriction>
+    </property>
+    <property name="ifIndex1">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="device2">
+      <restriction base="objectId">
+        <required />
+      </restriction>
+    </property>
+    <property name="ifIndex2">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="sampling_direct">
+      <restriction base="integer">
+        <enumeration value="1" />
+        <enumeration value="2" />
+      </restriction>
+    </property>
+    <property name="created_at">
+      <restriction base="datetime">
+        <readonly />
+      </restriction>
+    </property>
+    <property name="updated_at">
+      <restriction base="datetime">
+      </restriction>
+    </property>
+
+    <has_many polymorphic="true" >Trigger</has_many>
+
   </class>
   <class name="AccessParams">
     <property name="description">

@@ -155,3 +155,19 @@ func (self *Client) FindByIdWithIncludes(target, id string, includes string) (
 	}
 	return result, nil
 }
+
+func (self *Client) Children(parent, parent_id, target string, params map[string]string) ([]map[string]interface{},
+	commons.RuntimeError) {
+	url := self.CreateUrl().
+		Concat(parent, parent_id, "children", target).
+		WithQueries(params, "@").ToUrl()
+	res, e := self.Invoke("GET", url, nil, 200)
+	if nil != e {
+		return nil, e
+	}
+	result, err := res.GetReturnAsObjects()
+	if nil != err {
+		return nil, errutils.InternalError(err.Error())
+	}
+	return result, nil
+}

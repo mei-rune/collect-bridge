@@ -98,6 +98,7 @@ type PropertyDefinition struct {
 type ClassDefinition struct {
 	Super            *ClassDefinition
 	Name             string
+	UnderscoreName   string
 	collectionName   string
 	HierarchicalType *HierarchicalEnumeration
 	OwnProperties    map[string]*PropertyDefinition
@@ -166,6 +167,31 @@ func (self *ClassDefinition) GetAssocationByTargetClass(nm string) Assocation {
 		return nil
 	}
 	for _, assoc := range self.Assocations {
+		if nm == assoc.Target().Name ||
+			nm == stringutils.Underscore(assoc.Target().Name) {
+			return assoc
+		}
+	}
+	return nil
+}
+
+func (self *ClassDefinition) GetAssocationByTargetClassAndAssocationType(nm string, assocationTypes ...AssocationType) Assocation {
+	if nil == self.Assocations {
+		return nil
+	}
+
+	for _, assoc := range self.Assocations {
+		found := false
+		for _, assocationType := range assocationTypes {
+			if assocationType == assoc.Type() {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			continue
+		}
 		if nm == assoc.Target().Name ||
 			nm == stringutils.Underscore(assoc.Target().Name) {
 			return assoc

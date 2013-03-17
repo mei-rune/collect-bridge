@@ -390,6 +390,18 @@ func findByQueryWithIncludes(t *testing.T, target string, params map[string]stri
 	}
 	return results
 }
+func findByParent(t *testing.T, parent, parent_id, target string, params map[string]string) []map[string]interface{} {
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	res, e := client.Children(parent, parent_id, target, params)
+	if nil != e {
+		t.Errorf("find %s failed, %v", target, e)
+		t.FailNow()
+	}
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
+	}
+	return res
+}
 
 func TestDeviceDeleteCascadeAll(t *testing.T) {
 	deleteById(t, "device", "all")

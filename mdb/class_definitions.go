@@ -555,11 +555,12 @@ func LoadXml(nm string) (*ClassDefinitions, error) {
 		}
 
 		cls := &ClassDefinition{Name: xmlDefinition.Name,
+			UnderscoreName: stringutils.Underscore(xmlDefinition.Name),
 			collectionName: stringutils.Tableize(xmlDefinition.Name)}
 		errs = loadOwnProperties(self, &xmlDefinition, cls, errs)
 
 		self.clsDefinitions[cls.Name] = cls
-		self.underscore2Definitions[stringutils.Underscore(cls.Name)] = cls
+		self.underscore2Definitions[cls.UnderscoreName] = cls
 	}
 
 	// load super class and own assocations

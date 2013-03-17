@@ -163,28 +163,16 @@
 					</xs:annotation>
 					<xs:complexType>
 						<xs:sequence>
-							<!--xs:element name="derivedFrom" minOccurs="0">
-								<xs:annotation>
-									<xs:documentation>父类列表</xs:documentation>
-								</xs:annotation>
+							<xs:element name="belongs_to" minOccurs="0">
 								<xs:complexType>
-									<xs:sequence>
-										<xs:element name="ref" minOccurs="0" maxOccurs="unbounded">
-											<xs:annotation>
-												<xs:documentation>指向一个classDefinition作为它的父类</xs:documentation>
-											</xs:annotation>
-											<xs:complexType>
-												<xs:attribute name="id" type="xs:IDREF" use="required">
-													<xs:annotation>
-														<xs:documentation>其值应是某个classDefinition实例的name值</xs:documentation>
-													</xs:annotation>
-												</xs:attribute>
-											</xs:complexType>
-										</xs:element>
-									</xs:sequence>
+									<xs:simpleContent>
+										<xs:extension base="xs:IDREF">
+											<xs:attribute name="name" type="xs:string"/>
+										</xs:extension>
+									</xs:simpleContent>
 								</xs:complexType>
-							</xs:element-->
-							<xs:element name="belongs_to" type="xs:IDREF" minOccurs="0"/>
+							</xs:element>
+
 							<xs:element name="has_many" minOccurs="0">
 								<xs:complexType>
 									<xs:simpleContent>

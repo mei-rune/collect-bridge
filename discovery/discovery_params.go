@@ -16,4 +16,5 @@ type DiscoveryParams struct {
 	Communities  []string `json:"communities"`
 	SnmpV3Params []string `json:"snmpv3_params"`
 	Depth        int      `json:"discovery_depth"`
+	IsReadLocal  bool     `json:"is_read_local"`
 }

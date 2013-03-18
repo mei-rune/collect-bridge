@@ -53,6 +53,9 @@ var (
 	rule1 = map[string]interface{}{"name": "rule1", "type": "metric_rule", "expression": "d111", "metric": "2221"}
 	rule2 = map[string]interface{}{"name": "rule2", "type": "metric_rule", "expression": "d222", "metric": "2222"}
 
+	action1 = map[string]interface{}{"name": "action1", "type": "redis_action", "command": "c111", "arg0": "2221"}
+	action2 = map[string]interface{}{"name": "action2", "type": "redis_action", "command": "c222", "arg0": "3332"}
+
 	js = map[string]interface{}{
 		"$access_params": []map[string]interface{}{snmp_params, wbem_params},
 		"$address":       map[string]interface{}{"127.0.0.1": ip1, "169.254.67.142": ip2, "192.168.1.9": ip3},
@@ -119,8 +122,12 @@ func checkSnmpParams(t *testing.T, actual, excepted map[string]interface{}) {
 }
 
 func checkHistoryRule(t *testing.T, actual, excepted map[string]interface{}) {
-	//{"name": "rule2", "type": "history_rule", "expression": "d222", "metric": "2222"}
 	for _, name := range []string{"name", "type", "expression", "metric"} {
+		checkStringField(t, actual, excepted, name)
+	}
+}
+func checkRedisAction(t *testing.T, actual, excepted map[string]interface{}) {
+	for _, name := range []string{"name", "type", "command", "arg0"} {
 		checkStringField(t, actual, excepted, name)
 	}
 }
@@ -178,22 +185,46 @@ func TestIntQueryByParent2(t *testing.T) {
 	deleteById(t, "device", "all")
 	deleteById(t, "interface", "all")
 	deleteById(t, "trigger", "all")
+	deleteById(t, "action", "all")
 
 	id := create(t, "device", js)
 	interfaces := findByParent(t, "device", id, "interface", nil)
-
-	bs, e := json.MarshalIndent(interfaces, "", "  ")
-	if nil != e {
-		t.Error(e)
-	} else {
-		t.Log(string(bs))
-	}
 
 	d1 := searchBy(interfaces, func(r map[string]interface{}) bool { return fmt.Sprint(r["ifIndex"]) == "1" })
 	d2 := searchBy(interfaces, func(r map[string]interface{}) bool { return fmt.Sprint(r["ifIndex"]) == "9" })
 
 	checkInterface(t, d1, if1)
 	checkInterface(t, d2, if2)
+
+	triggers := findByParent(t, "device", id, "metric_rule", nil)
+
+	r1 := searchBy(triggers, func(r map[string]interface{}) bool { return fmt.Sprint(r["name"]) == "rule1" })
+	r2 := searchBy(triggers, func(r map[string]interface{}) bool { return fmt.Sprint(r["name"]) == "rule2" })
+	checkHistoryRule(t, r1, rule1)
+	checkHistoryRule(t, r2, rule2)
+
+	tr1 := fmt.Sprint(r1["_id"])
+	action1["parent_type"] = "metric_rule"
+	action1["parent_id"] = tr1
+	action2["parent_type"] = "metric_rule"
+	action2["parent_id"] = tr1
+
+	create(t, "redis_action", action1)
+	create(t, "redis_action", action2)
+
+	actions := findByParent(t, "metric_rule", tr1, "redis_action", nil)
+	a1 := searchBy(actions, func(r map[string]interface{}) bool { return fmt.Sprint(r["name"]) == "action1" })
+	a2 := searchBy(actions, func(r map[string]interface{}) bool { return fmt.Sprint(r["name"]) == "action2" })
+
+	bs, e := json.MarshalIndent(actions, "", "  ")
+	if nil != e {
+		t.Error(e)
+	} else {
+		t.Log(string(bs))
+	}
+
+	checkRedisAction(t, a1, action1)
+	checkRedisAction(t, a2, action2)
 }
 
 // func TestIntQueryByChild(t *testing.T) {

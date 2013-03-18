@@ -99,6 +99,8 @@ func deleteHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition, id int
 	} else {
 		qc = bson.M{hasMany.ForeignKey: id}
 	}
+
+	fmt.Println(qc)
 	it := s.session.C(hasMany.Target().CollectionName()).Find(qc).Select(bson.M{"_id": 1}).Iter()
 	var result map[string]interface{}
 	for it.Next(&result) {

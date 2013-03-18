@@ -84,16 +84,16 @@ func (self *mdb_server) doInheritance(cls *ClassDefinition, attributes, new_attr
 	}
 
 	t, ok = attributes["parent_type"]
-	if ok {
-		if nm, ok := t.(string); ok {
-			pcls := self.definitions.FindByUnderscoreName(nm)
-			if nil == pcls {
-				*errs = append(*errs, fmt.Errorf("parent class '%s' is not found", nm))
-				return
-			}
-			attributes["parent_type"] = getRootClassName(pcls)
-		}
-	}
+	// if ok {
+	// 	if nm, ok := t.(string); ok {
+	// 		pcls := self.definitions.FindByUnderscoreName(nm)
+	// 		if nil == pcls {
+	// 			*errs = append(*errs, fmt.Errorf("parent class '%s' is not found", nm))
+	// 			return
+	// 		}
+	// 		attributes["parent_type"] = getRootClassName(pcls)
+	// 	}
+	// }
 
 }
 

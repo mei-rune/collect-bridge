@@ -263,8 +263,15 @@ func (self *Discoverer) detectNewAddress(table interface{}) {
 			ip_list[row["address"].(string)] = 0
 		}
 	}
-
+	range_list := make([]string, 0, len(ip_list))
 	for ip, _ := range ip_list {
+		range_list = append(range_list, ip)
+	}
+	self.detectNewRange(range_list)
+}
+
+func (self *Discoverer) detectNewRange(range_list []string) {
+	for _, ip := range range_list {
 		if netutils.IsInvalidAddress(ip) {
 			self.log(DEBUG, "skip invalid address - "+ip)
 			continue
@@ -314,13 +321,15 @@ func (self *Discoverer) serve() {
 		self.ch <- END_TOKEN
 	}()
 
-	local, e := self.readLocal()
-	if nil != e {
-		self.log(FATAL, e.Error())
-		return
+	if self.params.IsReadLocal {
+		local, e := self.readLocal()
+		if nil != e {
+			self.log(FATAL, e.Error())
+			return
+		}
+		self.detectNewAddress(local)
 	}
-
-	self.detectNewAddress(local)
+	self.detectNewRange(self.params.IP_Range)
 
 	for d := 0; ; d++ {
 		pending_drvs := make([]Device, 0, 10)

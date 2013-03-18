@@ -179,18 +179,20 @@ func (self *mdb_server) findByParent(cls *ClassDefinition, params map[string]str
 	if "" == parent_id {
 		return nil, errors.New("'parent_id' is emtpy")
 	}
-	assoc := cls.GetAssocationByTargetClassAndAssocationType(parent_type, BELONGS_TO)
+
+	pcls := self.definitions.FindByUnderscoreName(parent_type)
+	if nil == pcls {
+		return nil, errors.New("class '" + parent_type + "' is not defined.")
+	}
+
+	assoc := cls.GetAssocationByTargetClassAndAssocationType(pcls, BELONGS_TO)
 	if nil != assoc {
 		belongsTo := assoc.(*BelongsTo)
 		params["@"+belongsTo.Name.Name] = parent_id
 		return self.findBy(cls, params)
 	}
 
-	pcls := self.definitions.FindByUnderscoreName(parent_type)
-	if nil == pcls {
-		return nil, errors.New("class '" + parent_type + "' is not defined.")
-	}
-	assoc = pcls.GetAssocationByTargetClassAndAssocationType(cls.UnderscoreName, HAS_MANG, HAS_ONE)
+	assoc = pcls.GetAssocationByTargetClassAndAssocationType(cls, HAS_MANG, HAS_ONE)
 	if nil == assoc {
 		return nil, fmt.Errorf("assocation of between class '%s' and '%s' is not defined.", parent_type, cls.UnderscoreName)
 	}

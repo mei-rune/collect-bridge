@@ -2,7 +2,6 @@ package mdb
 
 import (
 	"bytes"
-	"commons/stringutils"
 )
 
 //"commons/stringutils"
@@ -131,9 +130,22 @@ func (self *ClassDefinition) RootClass() *ClassDefinition {
 	return s
 }
 
+func (self *ClassDefinition) IsSubclassOf(cls *ClassDefinition) bool {
+	s := self
+	for nil != s {
+		if s == cls {
+			return true
+		}
+
+		s = s.Super
+	}
+	return false
+}
+
 func (self *ClassDefinition) IsInheritance() bool {
 	return (nil != self.Super) || (nil != self.Children && 0 != len(self.Children))
 }
+
 func (self *ClassDefinition) InheritanceFrom(cls *ClassDefinition) bool {
 	for s := self; nil != s; s = s.Super {
 		if s == cls {
@@ -162,40 +174,40 @@ func (self *ClassDefinition) GetAssocationByCollectionName(nm string) Assocation
 	return nil
 }
 
-func (self *ClassDefinition) GetAssocationByTargetClass(nm string) Assocation {
-	if nil == self.Assocations {
-		return nil
-	}
-	for _, assoc := range self.Assocations {
-		if nm == assoc.Target().Name ||
-			nm == stringutils.Underscore(assoc.Target().Name) {
-			return assoc
+func (self *ClassDefinition) GetAssocationByTargetClass(cls *ClassDefinition) Assocation {
+	if nil != self.Assocations {
+		for _, assoc := range self.Assocations {
+			if cls.IsSubclassOf(assoc.Target()) {
+				return assoc
+			}
 		}
+	}
+	if nil != self.Super {
+		return self.Super.GetAssocationByTargetClass(cls)
 	}
 	return nil
 }
 
-func (self *ClassDefinition) GetAssocationByTargetClassAndAssocationType(nm string, assocationTypes ...AssocationType) Assocation {
-	if nil == self.Assocations {
-		return nil
-	}
-
-	for _, assoc := range self.Assocations {
-		found := false
-		for _, assocationType := range assocationTypes {
-			if assocationType == assoc.Type() {
-				found = true
-				break
+func (self *ClassDefinition) GetAssocationByTargetClassAndAssocationType(cls *ClassDefinition, assocationTypes ...AssocationType) Assocation {
+	if nil != self.Assocations {
+		for _, assoc := range self.Assocations {
+			found := false
+			for _, assocationType := range assocationTypes {
+				if assocationType == assoc.Type() {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+			if cls.IsSubclassOf(assoc.Target()) {
+				return assoc
 			}
 		}
-
-		if !found {
-			continue
-		}
-		if nm == assoc.Target().Name ||
-			nm == stringutils.Underscore(assoc.Target().Name) {
-			return assoc
-		}
+	}
+	if nil != self.Super {
+		return self.Super.GetAssocationByTargetClassAndAssocationType(cls, assocationTypes...)
 	}
 	return nil
 }

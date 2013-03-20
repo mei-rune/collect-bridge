@@ -89,28 +89,28 @@ func (msg *message) Reply(results ...interface{}) {
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //var maxChannelCache = flag.Int("maxChannelCache", 1000, "set max size of channel cache")
-var freeChannelList = make(chan *message, 1000)
+//var freeChannelList = make(chan *message, 1000)
 
 func getCachedChannel() (msg *message) {
-	select {
-	case msg = <-freeChannelList:
-	default:
-		msg = &message{ch: make(chan *message)}
-	}
-	msg.isAsyncReply = false
+	// select {
+	// case msg = <-freeChannelList:
+	// default:
+	msg = &message{ch: make(chan *message)}
+	// }
+	// msg.isAsyncReply = false
 	return
 }
 
 func putCachedChannel(msg *message) {
-	msg.request.args = nil
-	msg.request.function = nil
-	msg.response.results = nil
-	msg.response.panicResult = nil
-	msg.isAsyncReply = false
-	select {
-	case freeChannelList <- msg:
-	default:
-	}
+	// msg.request.args = nil
+	// msg.request.function = nil
+	// msg.response.results = nil
+	// msg.response.panicResult = nil
+	// msg.isAsyncReply = false
+	// select {
+	// case freeChannelList <- msg:
+	// default:
+	// }
 }
 
 const (

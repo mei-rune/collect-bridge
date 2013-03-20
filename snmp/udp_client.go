@@ -60,9 +60,15 @@ type UdpClient struct {
 
 func NewSnmpClient(host string) (Client, SnmpCodeError) {
 	cl := &UdpClient{host: NormalizeAddress(host), lastActive: time.Now()}
-	cl.Set(nil, func() { cl.safelyKillConnection() }, nil)
+	cl.Set(nil, func() {
+		cl.safelyKillConnection()
+	}, nil)
 	cl.pendings = make(map[int]*Request)
 	return cl, nil
+}
+
+func (client *UdpClient) Stats() string {
+	return fmt.Sprintf("%d", len(client.pendings))
 }
 
 func (client *UdpClient) Test() error {

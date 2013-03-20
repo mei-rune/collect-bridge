@@ -73,12 +73,12 @@ func Runforever() {
 		job, e := NewJob(attributes, ctx)
 		if nil != e {
 			fmt.Printf("create '%v' failed, %v\n", attributes["name"], e)
-			return
+			continue
 		}
 		e = job.Start()
 		if nil != e {
 			fmt.Printf("start '%v' failed, %v\n", attributes["name"], e)
-			return
+			continue
 		}
 
 		fmt.Printf("load '%v' is ok\n", attributes["name"])

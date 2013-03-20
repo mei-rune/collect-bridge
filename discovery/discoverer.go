@@ -53,6 +53,9 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 	if nil == params {
 		return nil, errutils.InternalError("params is nil.")
 	}
+	if 0 >= params.Timeout {
+		params.Timeout = 10
+	}
 
 	if nil == params.Communities {
 		params.Communities = []string{"public"}
@@ -265,26 +268,29 @@ func (self *Discoverer) detectNewAddress(table interface{}) {
 	}
 	range_list := make([]string, 0, len(ip_list))
 	for ip, _ := range ip_list {
-		range_list = append(range_list, ip)
+		range_list = append(range_list, ip+"/24")
 	}
 	self.detectNewRange(range_list)
 }
 
 func (self *Discoverer) detectNewRange(range_list []string) {
 	for _, ip := range range_list {
+		if 0 == len(ip) {
+			continue
+		}
 		if netutils.IsInvalidAddress(ip) {
 			self.log(DEBUG, "skip invalid address - "+ip)
 			continue
 		}
 
-		ip_range, err := netutils.ParseIPRange(ip + "/24")
+		ip_range, err := netutils.ParseIPRange(ip)
 		if nil != err {
-			self.log(DEBUG, "parse ip range '"+ip+"/24' failed, "+err.Error())
+			self.log(DEBUG, "parse ip range '"+ip+"' failed, "+err.Error())
 			continue
 		}
 
 		if self.is_scanned(ip_range.String()) {
-			self.log(DEBUG, "ip range '"+ip+"/24' is scanned")
+			self.log(DEBUG, "ip range '"+ip+"' is scanned")
 			continue
 		}
 
@@ -347,7 +353,7 @@ func (self *Discoverer) serve() {
 			case drv := <-self.drv_ch:
 				self.addDevice(drv)
 				pending_drvs = append(pending_drvs, drv)
-			case <-time.After(1 * time.Minute):
+			case <-time.After(time.Duration(self.params.Timeout) * time.Second):
 				running = false
 			}
 		}
@@ -356,7 +362,7 @@ func (self *Discoverer) serve() {
 			self.log(INFO, "pending device is empty and exit.")
 			break
 		}
-		if d > self.params.Depth {
+		if d >= self.params.Depth {
 			self.logf(INFO, "Reach the specified depth '%d' and exit.", self.params.Depth)
 			break
 		}

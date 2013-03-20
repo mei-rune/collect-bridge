@@ -16,7 +16,7 @@ import (
 
 var (
 	depth       = flag.Int("depth", 5, "the depth")
-	timeout     = flag.Int("timeout", 5, "the timeout")
+	timeout     = flag.Int("timeout", 10, "the timeout")
 	network     = flag.String("ip-range", "", "the ip range")
 	communities = flag.String("communities", "public;public1", "the community")
 	proxy       = flag.String("proxy", "127.0.0.1:7070", "the address of bridge proxy")
@@ -196,6 +196,8 @@ func main() {
 		params["ip-range"] = network2
 	}
 	params["depth"] = *depth
+	params["timeout"] = *timeout
+	params["is_read_local"] = true
 
 	id, err := discoveryCreate(params)
 	if nil != err {

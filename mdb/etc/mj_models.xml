@@ -166,6 +166,7 @@
   <class name="Address">
     <property name="address">
       <restriction base="ipAddress">
+        <required />
       </restriction>
     </property>
     <property name="ifIndex">

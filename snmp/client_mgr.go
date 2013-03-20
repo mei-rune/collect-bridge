@@ -1,8 +1,11 @@
 package snmp
 
 import (
+	"bytes"
 	"commons"
 	"errors"
+	"expvar"
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -20,6 +23,21 @@ func (svc *ClientManager) Init() {
 	svc.Name = "client_manager" + strconv.Itoa(time.Now().Second())
 	svc.clients = make(map[string]Client)
 	svc.Set(func() {
+		expvar.Publish("clients", expvar.Func(func() interface{} {
+			return fmt.Sprint(len(svc.clients))
+		}))
+
+		expvar.Publish("requests", expvar.Func(func() interface{} {
+			var buf bytes.Buffer
+			for id, client := range svc.clients {
+				buf.WriteString(id)
+				buf.WriteString(":")
+				buf.WriteString(client.Stats())
+				buf.WriteString("\r\n")
+			}
+			return buf.String()
+		}))
+
 		go svc.heartbeat()
 	}, nil, func() {
 		svc.Test()
@@ -147,6 +165,9 @@ func (self *TestClient) Stop() {
 	self.stop = true
 }
 
+func (self *TestClient) Stats() string {
+	return "test"
+}
 func (self *TestClient) Test() error {
 	self.test = true
 	return errors.New("time out")

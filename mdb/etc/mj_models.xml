@@ -13,9 +13,22 @@
         <required />
       </restriction>
     </property>
+    <property name="custom_name">
+      <restriction base="name">
+      </restriction>
+    </property>
+    <property name="custom_level">
+      <restriction base="integer">
+      </restriction>
+    </property>
+
+    <property name="manufacturer">
+      <restriction base="integer">
+      </restriction>
+    </property>
     <property name="description">
       <restriction base="string">
-				<maxLength>2000</maxLength>
+        <maxLength>2000</maxLength>
       </restriction>
     </property>
     <property name="catalog">
@@ -35,7 +48,13 @@
       <restriction base="string">
 				<maxLength>2000</maxLength>
       </restriction>
+
     </property>
+        <property name="type">
+      <restriction base="integer">
+      </restriction>
+    </property>
+
     <property name="created_at">
       <restriction base="datetime">
         <readonly />
@@ -60,6 +79,14 @@
         <required />
         <minLength>1</minLength>
         <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="custom_speed_up">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="custom_speed_down">
+      <restriction base="integer">
       </restriction>
     </property>
     <property name="description">

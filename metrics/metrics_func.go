@@ -497,7 +497,7 @@ func (self *systemInfo) Get(params map[string]string) (commons.Result, commons.R
 		new_row["sys.services"] = services
 
 		params["sys.oid"] = oid
-		params["sys.services"] = strconv.FormatUint(uint64(services), 10)
+		params["sys.services"] = services
 
 		t, e := self.GetMetricAsString(params, "sys.type")
 		if nil == e {

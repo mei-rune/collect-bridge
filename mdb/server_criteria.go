@@ -94,13 +94,6 @@ func appendIdCriteria(q bson.M, exp string) error {
 // 		}
 // 	}
 // }
-func getRootClassName(cls *ClassDefinition) string {
-	return stringutils.Underscore(cls.RootClass().Name)
-}
-
-func buildClassQueryStatment(cls *ClassDefinition) string {
-	return stringutils.Underscore(cls.RootClass().Name)
-}
 
 func buildInheritanceQuery(cls *ClassDefinition) bson.M {
 	if !cls.IsInheritance() {
@@ -122,7 +115,6 @@ func buildInheritanceQuery(cls *ClassDefinition) bson.M {
 }
 
 func buildClassQuery(cls *ClassDefinition) interface{} {
-
 	cm := stringutils.Underscore(cls.Name)
 	if !cls.IsInheritance() {
 		return cm

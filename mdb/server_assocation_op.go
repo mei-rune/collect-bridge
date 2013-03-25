@@ -25,7 +25,7 @@ func init() {
 	assocationOps[HAS_MANG] = &assocationOp{deleteOp: deleteHasMany,
 		deleteAllOp: deleteAllHasMany, findOp: findHasMany}
 	assocationOps[HAS_AND_BELONGS_TO_MANY] = &assocationOp{deleteOp: deleteMany2Many,
-		deleteAllOp: deleteAllMany2Many, findOp: findMany2Many}
+		deleteAllOp: deleteAllMany2Many}
 }
 
 func findHasOne(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{},
@@ -137,45 +137,6 @@ func deleteAllHasMany(s *mdb_server, assoc Assocation, cls *ClassDefinition) err
 		return fmt.Errorf("delete '%s' collection failed, %v", cn, err)
 	}
 	return nil
-}
-
-func findMany2Many(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{},
-	peer *ClassDefinition) ([]map[string]interface{}, error) {
-	hasBelongsToMany1, ok := assoc.(*HasAndBelongsToMany)
-	if !ok {
-		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
-	}
-	hasBelongsToMany2 := hasBelongsToMany1.TargetClass.GetAssocationByCollectionName(
-		hasBelongsToMany1.CollectionName).(*HasAndBelongsToMany)
-	if nil == hasBelongsToMany2 {
-		panic(fmt.Sprintf("xxx.", assoc))
-	}
-
-	it := s.session.C(hasBelongsToMany1.CollectionName).Find(bson.M{hasBelongsToMany1.ForeignKey: id}).
-		Select(bson.M{hasBelongsToMany2.ForeignKey: 1}).Iter()
-	idlist := make([]interface{}, 0, 10)
-	var result map[string]interface{}
-	for it.Next(&result) {
-		o, ok := result[hasBelongsToMany2.ForeignKey]
-		if !ok {
-			continue
-		}
-		idlist = append(idlist, o)
-	}
-
-	if nil != it.Err() {
-		return nil, it.Err()
-	}
-
-	results := make([]map[string]interface{}, 0, 10)
-	for _, id := range idlist {
-		o, e := s.findById(hasBelongsToMany1.TargetClass, id, map[string]string{})
-		if nil != e {
-			return nil, e
-		}
-		results = append(results, o)
-	}
-	return results, nil
 }
 
 func deleteMany2Many(s *mdb_server, assoc Assocation, cls *ClassDefinition, id interface{}) error {

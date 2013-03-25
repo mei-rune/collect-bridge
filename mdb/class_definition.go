@@ -162,18 +162,6 @@ func (self *ClassDefinition) CollectionName() string {
 	return self.Super.CollectionName()
 }
 
-func (self *ClassDefinition) GetAssocationByCollectionName(nm string) Assocation {
-	if nil == self.Assocations {
-		return nil
-	}
-	for _, assoc := range self.Assocations {
-		if nm == assoc.Target().CollectionName() {
-			return assoc
-		}
-	}
-	return nil
-}
-
 func (self *ClassDefinition) GetAssocationByTargetClass(cls *ClassDefinition) Assocation {
 	if nil != self.Assocations {
 		for _, assoc := range self.Assocations {

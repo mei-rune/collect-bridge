@@ -227,6 +227,27 @@ func TestIntQueryByParent2(t *testing.T) {
 	checkRedisAction(t, a2, action2)
 }
 
+func TestIntQueryByChild(t *testing.T) {
+	deleteById(t, "device", "all")
+	deleteById(t, "interface", "all")
+	deleteById(t, "trigger", "all")
+	deleteById(t, "action", "all")
+
+	id := create(t, "device", js)
+
+	ifc1 := findOne(t, "interface", map[string]string{"device_id": id, "ifIndex": "1"})
+	ifc2 := findOne(t, "interface", map[string]string{"device_id": id, "ifIndex": "9"})
+
+	checkDevice(t, findByChild(t, "device", "interface", fmt.Sprint(ifc1["_id"])), js)
+	checkDevice(t, findByChild(t, "device", "interface", fmt.Sprint(ifc2["_id"])), js)
+
+	tr1 := findOne(t, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"})
+	tr2 := findOne(t, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"})
+
+	checkDevice(t, findByChild(t, "device", "trigger", fmt.Sprint(tr1["_id"])), js)
+	checkDevice(t, findByChild(t, "device", "trigger", fmt.Sprint(tr2["_id"])), js)
+}
+
 // func TestIntQueryByChild(t *testing.T) {
 // 	deleteById(t, "device", "all")
 // 	deleteById(t, "interface", "all")

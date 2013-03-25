@@ -109,7 +109,7 @@ func (self *mdb_server) collectIncludes(cls *ClassDefinition, params map[string]
 		if nil == peer {
 			return nil, errors.New("class '" + s + "' is not found in the includes.")
 		}
-		assoc := cls.GetAssocationByCollectionName(peer.CollectionName())
+		assoc := cls.GetAssocationByTargetClass(peer)
 		if nil == assoc {
 			return nil, errors.New("assocation that to '" + s + "' is not found in the includes.")
 		}
@@ -167,6 +167,54 @@ func (self *mdb_server) findById(cls *ClassDefinition, id interface{}, params ma
 		return nil, err
 	}
 	return res, err
+}
+
+func (self *mdb_server) parent(cls *ClassDefinition, params map[string]string) (
+	map[string]interface{}, error) {
+	child_id := params["child_id"]
+	child_type := params["child_type"]
+	if "" == child_type {
+		return nil, errors.New("'child_type' is emtpy")
+	}
+	if "" == child_id {
+		return nil, errors.New("'child_id' is emtpy")
+	}
+	oid, err := parseObjectIdHex(child_id)
+	if nil != err {
+		return nil, errutils.BadRequest("id is not a objectId")
+	}
+
+	child_cls := self.definitions.FindByUnderscoreName(child_type)
+	if nil == child_cls {
+		return nil, errors.New("class '" + child_type + "' is not defined.")
+	}
+
+	empty := map[string]string{}
+
+	child, e := self.findById(child_cls, oid, empty)
+	if nil != e {
+		return nil, errors.New("find '" + child_cls.UnderscoreName + "' that id is '" + child_id + "' is not found - " + e.Error())
+	}
+
+	assoc := child_cls.GetAssocationByTargetClassAndAssocationType(cls, BELONGS_TO)
+	if nil != assoc {
+		return self.findById(cls, child[assoc.(*BelongsTo).Name.Name], empty)
+	}
+
+	assoc = cls.GetAssocationByTargetClassAndAssocationType(child_cls, HAS_MANG, HAS_ONE)
+	if nil == assoc {
+		return nil, fmt.Errorf("assocation of between class '%s' and '%s' is not defined.", child_type, cls.UnderscoreName)
+	}
+
+	switch ass := assoc.(type) {
+	case *HasMany:
+		fmt.Println("child  type = %s, child id = %s", child_type, child_id, ass.ForeignKey)
+		return self.findById(cls, child[ass.ForeignKey], empty)
+	case *HasOne:
+		return self.findById(cls, child[ass.ForeignKey], empty)
+	}
+
+	return nil, fmt.Errorf("assocation of between class '%s' and '%s' is not supported - %v.", child_type, cls.UnderscoreName, assoc)
 }
 
 func (self *mdb_server) findByParent(cls *ClassDefinition, params map[string]string) (
@@ -284,12 +332,12 @@ func (self *mdb_server) Get(cls *ClassDefinition, id string, params map[string]s
 			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
 		}
 		return results, nil
-	// case "parent":
-	// 	results, err := self.parent(cls, params)
-	// 	if err != nil {
-	// 		return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
-	// 	}
-	// 	return results, nil
+	case "by_child":
+		results, err := self.parent(cls, params)
+		if err != nil {
+			return nil, commons.NewRuntimeError(commons.InternalErrorCode, "query result from db, "+err.Error())
+		}
+		return results, nil
 	case "count":
 		count, err := self.count(cls, params)
 		if err != nil {

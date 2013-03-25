@@ -79,12 +79,28 @@ func main() {
 		}
 	})
 
-
 	svr.Get("/mdb/([^/]*)/([^/]*)/children/([^/]*)", func(ctx *web.Context, t, id, child string) {
 		ctx.Params["mdb.type"] = child
 		ctx.Params["id"] = "by_parent"
 		ctx.Params["parent_id"] = id
 		ctx.Params["parent_type"] = t
+
+		obj, e := driver.Get(ctx.Params)
+		if nil != e {
+			ctx.Abort(e.Code(), e.Error())
+			return
+		}
+		ctx.Status(getStatus(obj, 200))
+		err := json.NewEncoder(ctx).Encode(obj)
+		if nil != err {
+			ctx.Abort(500, "encode failed, "+err.Error())
+		}
+	})
+	svr.Get("/mdb/([^/]*)/([^/]*)/parent/([^/]*)", func(ctx *web.Context, t, id, child string) {
+		ctx.Params["mdb.type"] = child
+		ctx.Params["id"] = "by_child"
+		ctx.Params["child_id"] = id
+		ctx.Params["child_type"] = t
 
 		obj, e := driver.Get(ctx.Params)
 		if nil != e {

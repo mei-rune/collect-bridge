@@ -390,6 +390,20 @@ func findByQueryWithIncludes(t *testing.T, target string, params map[string]stri
 	}
 	return results
 }
+
+func findByChild(t *testing.T, target, child, child_id string) map[string]interface{} {
+	client := NewClient("http://127.0.0.1:7071/mdb/")
+	res, e := client.Parent(child, child_id, target)
+	if nil != e {
+		t.Errorf("find %s failed, %v", target, e)
+		t.FailNow()
+	}
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
+	}
+	return res
+}
+
 func findByParent(t *testing.T, parent, parent_id, target string, params map[string]string) []map[string]interface{} {
 	client := NewClient("http://127.0.0.1:7071/mdb/")
 	res, e := client.Children(parent, parent_id, target, params)

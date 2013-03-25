@@ -174,19 +174,31 @@ func loadOwnHierarchicalType(self *ClassDefinitions, pr *XMLPropertyDefinition, 
 
 	min, err := strconv.Atoi(pr.Restrictions.MinValue)
 	if nil != err {
-		errs = append(errs, errors.New(" 'minValue' of 'type' is not a number - "+pr.Restrictions.MinValue))
+		if "" == pr.Restrictions.MinValue {
+			errs = append(errs, errors.New(" 'minValue' of 'type' is empty"))
+		} else {
+			errs = append(errs, errors.New(" 'minValue' of 'type' is not a number - "+pr.Restrictions.MinValue))
+		}
 		ok = false
 	}
 
 	max, err := strconv.Atoi(pr.Restrictions.MaxValue)
 	if nil != err {
-		errs = append(errs, errors.New(" 'maxValue' of 'type' is not a number - "+pr.Restrictions.MaxValue))
+		if "" == pr.Restrictions.MaxValue {
+			errs = append(errs, errors.New(" 'maxValue' of 'type' is empty"))
+		} else {
+			errs = append(errs, errors.New(" 'maxValue' of 'type' is not a number - "+pr.Restrictions.MaxValue))
+		}
 		ok = false
 	}
 
 	dvalue, err := strconv.Atoi(pr.Restrictions.DefaultValue)
 	if nil != err {
-		errs = append(errs, errors.New(" 'defaultValue' of 'type' is not a number - "+pr.Restrictions.DefaultValue))
+		if "" == pr.Restrictions.DefaultValue {
+			errs = append(errs, errors.New(" 'defaultValue' of 'type' is empty"))
+		} else {
+			errs = append(errs, errors.New(" 'defaultValue' of 'type' is not a number - "+pr.Restrictions.DefaultValue))
+		}
 		ok = false
 	}
 
@@ -384,6 +396,8 @@ func makeAssocation(self *ClassDefinitions, cls *ClassDefinition, errs *[]error,
 					" 'foreignKey' must is not present .", t, tName, cls.Name))
 				return nil
 			}
+			fKey = "parent_id"
+
 			pr, ok := target.OwnProperties["parent_id"]
 			if !ok {
 				pr = &PropertyDefinition{Name: "parent_id", Type: &objectIdType, Collection: COLLECTION_UNKNOWN}

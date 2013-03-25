@@ -14,7 +14,7 @@
       </restriction>
     </property>
     <property name="custom_name">
-      <restriction base="name">
+      <restriction base="string">
       </restriction>
     </property>
     <property name="custom_level">
@@ -47,11 +47,6 @@
     <property name="location">
       <restriction base="string">
 				<maxLength>2000</maxLength>
-      </restriction>
-
-    </property>
-        <property name="type">
-      <restriction base="integer">
       </restriction>
     </property>
 

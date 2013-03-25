@@ -211,7 +211,7 @@ func (self *mdb_server) createChildren(cls *ClassDefinition, id interface{}, att
 			continue
 		}
 
-		assoc := cls.RootClass().GetAssocationByCollectionName(ccls.CollectionName())
+		assoc := cls.GetAssocationByTargetClass(ccls)
 		if nil == assoc {
 			warnings = append(warnings, fmt.Sprintf("class '%s' is not contains child that name is '%s' and collection is %s at the '%s'",
 				cls.Name, k[1:], ccls.CollectionName(), k))
@@ -246,7 +246,7 @@ func (self *mdb_server) createChildren(cls *ClassDefinition, id interface{}, att
 				lcls = ccls
 			}
 			if is_polymorphic {
-				attrs["parent_type"] = getRootClassName(cls)
+				attrs["parent_type"] = cls.UnderscoreName
 				attrs["parent_id"] = id
 			} else {
 				attrs[foreignKey] = id

@@ -171,3 +171,18 @@ func (self *Client) Children(parent, parent_id, target string, params map[string
 	}
 	return result, nil
 }
+
+func (self *Client) Parent(child, child_id, target string) (map[string]interface{},
+	commons.RuntimeError) {
+	url := self.CreateUrl().
+		Concat(child, child_id, "parent", target).ToUrl()
+	res, e := self.Invoke("GET", url, nil, 200)
+	if nil != e {
+		return nil, e
+	}
+	result, err := res.GetReturnAsObject()
+	if nil != err {
+		return nil, errutils.InternalError(err.Error())
+	}
+	return result, nil
+}

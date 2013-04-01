@@ -10,24 +10,28 @@ import (
 
 type UrlBuilder struct {
 	bytes.Buffer
-	is_query bool
+	has_quest  bool
+	has_params bool
 }
 
 func NewUrlBuilder(base string) *UrlBuilder {
-	builder := &UrlBuilder{is_query: false}
+	builder := &UrlBuilder{has_quest: false, has_params: false}
 	if '/' == base[len(base)-1] {
 		builder.WriteString(base[:len(base)-1])
 	} else {
 		builder.WriteString(base)
 	}
 	if strings.ContainsRune(base, '?') {
-		builder.is_query = true
+		builder.has_quest = true
+	}
+	if !strings.HasSuffix(base, "?") {
+		builder.has_params = true
 	}
 	return builder
 }
 
 func (self *UrlBuilder) Concat(paths ...string) *UrlBuilder {
-	if self.is_query {
+	if self.has_quest {
 		panic("[panic] don`t append path to the query")
 	}
 
@@ -49,16 +53,24 @@ func (self *UrlBuilder) Concat(paths ...string) *UrlBuilder {
 	return self
 }
 
+func (self *UrlBuilder) closePath() *UrlBuilder {
+	if !self.has_quest {
+		self.WriteString("?")
+		self.has_quest = true
+	} else if self.has_params {
+		self.WriteString("&")
+	} else {
+		self.has_params = true
+	}
+	return self
+}
+
 func (self *UrlBuilder) WithQuery(key, value string) *UrlBuilder {
 	if 0 == len(key) {
 		return self
 	}
-	if !self.is_query {
-		self.WriteString("?")
-		self.is_query = true
-	} else {
-		self.WriteString("&")
-	}
+	self.closePath()
+
 	self.WriteString(key)
 	self.WriteString("=")
 	self.WriteString(value)
@@ -69,12 +81,8 @@ func (self *UrlBuilder) WithQueries(params map[string]string, prefix string) *Ur
 	if 0 == len(params) {
 		return self
 	}
-	if !self.is_query {
-		self.WriteString("?")
-		self.is_query = true
-	} else {
-		self.WriteString("&")
-	}
+	self.closePath()
+
 	for k, v := range params {
 		self.WriteString(prefix)
 		self.WriteString(k)
@@ -90,12 +98,8 @@ func (self *UrlBuilder) WithAnyQueries(params map[string]interface{}, prefix str
 	if 0 == len(params) {
 		return self
 	}
-	if !self.is_query {
-		self.WriteString("?")
-		self.is_query = true
-	} else {
-		self.WriteString("&")
-	}
+	self.closePath()
+
 	for k, v := range params {
 		self.WriteString(prefix)
 		self.WriteString(k)

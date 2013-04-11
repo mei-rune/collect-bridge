@@ -497,7 +497,7 @@ func (self *systemInfo) Get(params map[string]string) (commons.Result, commons.R
 		new_row["sys.services"] = services
 
 		params["sys.oid"] = oid
-		params["sys.services"] = services
+		params["sys.services"] = strconv.Itoa(int(services))
 
 		t, e := self.GetMetricAsString(params, "sys.type")
 		if nil == e {

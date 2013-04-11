@@ -83,7 +83,7 @@ func (self *mdb_server) doInheritance(cls *ClassDefinition, attributes, new_attr
 		}
 	}
 
-	t, ok = attributes["parent_type"]
+	//t, ok = attributes["parent_type"]
 	// if ok {
 	// 	if nm, ok := t.(string); ok {
 	// 		pcls := self.definitions.FindByUnderscoreName(nm)

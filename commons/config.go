@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func LoadConfig(nm string, flagSet *flag.FlagSet) error {
+func LoadConfig(nm string, flagSet *flag.FlagSet, isOverride bool) error {
 	f, e := os.Open(nm)
 	if nil != e {
 		return fmt.Errorf("load config '%s' failed, %v", nm, e)
@@ -20,18 +20,18 @@ func LoadConfig(nm string, flagSet *flag.FlagSet) error {
 		return fmt.Errorf("load config '%s' failed, %v", nm, e)
 	}
 
-	e = assignFlagSet("", res, flagSet)
+	e = assignFlagSet("", res, flagSet, isOverride)
 	if nil != e {
 		return fmt.Errorf("load config '%s' failed, %v", nm, e)
 	}
 	return nil
 }
 
-func assignFlagSet(prefix string, res map[string]interface{}, flagSet *flag.FlagSet) error {
+func assignFlagSet(prefix string, res map[string]interface{}, flagSet *flag.FlagSet, isOverride bool) error {
 	for k, v := range res {
 		switch value := v.(type) {
 		case map[string]interface{}:
-			e := assignFlagSet(combineName(prefix, k), value, flagSet)
+			e := assignFlagSet(combineName(prefix, k), value, flagSet, isOverride)
 			if nil != e {
 				return e
 			}
@@ -51,6 +51,10 @@ func assignFlagSet(prefix string, res map[string]interface{}, flagSet *flag.Flag
 			log.Printf("flag '%s' is not defined.\n", combineName(prefix, k))
 			continue
 		}
+		if !isOverride && g.Value.String() != g.DefValue {
+			continue
+		}
+
 		err := g.Value.Set(fmt.Sprint(v))
 		if nil != err {
 			return err

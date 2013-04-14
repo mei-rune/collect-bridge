@@ -122,10 +122,9 @@
       <restriction base="datetime">
       </restriction>
     </property>
-
     <has_many polymorphic="true" >Trigger</has_many>
-
   </class>
+
   <class name="AccessParams">
     <property name="description">
       <restriction base="string">
@@ -133,6 +132,7 @@
       </restriction>
     </property>
   </class>
+
   <class name="EndpointParams" base="AccessParams">
     <property name="address">
       <restriction base="ipAddress">
@@ -145,6 +145,7 @@
       </restriction>
     </property>
   </class>
+
   <class name="SnmpParams" base="EndpointParams">
     <property name="version">
       <restriction base="string">
@@ -160,6 +161,7 @@
       </restriction>
     </property>
   </class>
+
   <class name="SshParams" base="EndpointParams">
     <property name="user">
       <restriction base="string">
@@ -170,6 +172,7 @@
       </restriction>
     </property>
   </class>
+
   <class name="WbemParams" base="AccessParams">
     <property name="url">
       <restriction base="string">
@@ -185,6 +188,7 @@
       </restriction>
     </property>
   </class>
+
   <class name="Address">
     <property name="address">
       <restriction base="ipAddress">
@@ -208,6 +212,7 @@
       </restriction>
     </property>
   </class>
+
   <class name="Interface">
     <property name="ifIndex">
       <restriction base="integer">
@@ -236,6 +241,7 @@
       </restriction>
     </property>
   </class>
+
   <class name="Trigger">
     <property name="name">
       <restriction base="string">
@@ -260,6 +266,7 @@
     </property>
     <has_many polymorphic="true">Action</has_many>
   </class>
+
   <class name="Action">
     <property name="name">
       <restriction base="string">
@@ -273,6 +280,7 @@
       </restriction>
     </property>
   </class>
+
   <class name="RedisAction" base="Action">
     <property name="command">
       <restriction base="string">
@@ -305,6 +313,7 @@
       </restriction>
     </property>
   </class>
+
   <class name="MetricRule" base="Trigger">
     <property name="metric">
       <restriction base="string">
@@ -312,6 +321,7 @@
       </restriction>
     </property>
   </class>
+  
   <!-- For Test as Follow
    * Magazine       extends PrintedDocument extends Document{documents}
    * Book    extends PrintedDocument extends Document{documents}

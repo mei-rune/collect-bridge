@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	//"fmt"
 	//"go/build"
 	"os"
 	//"path/filepath"
@@ -11,13 +11,47 @@ import (
 	"code.google.com/p/go.exp/ssa"
 	"code.google.com/p/go.exp/ssa/interp"
 	"flag"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"log"
 )
+
 // interop "package main; func execute(args map[string]interface{}) { println(args[\"a\"]);}
-//
+//package interp
+
+// import (
+// 	"fmt"
+// 	"go/ast"
+// 	"go/parser"
+// 	"go/token"
+// 	"os"
+
+// 	"code.google.com/p/go.exp/ssa"
+// 	"runtime"
+// )
+
+// func ParseString(fset *token.FileSet, src string) (parsed []*ast.File, err error) {
+// 	var f *ast.File
+// 	f, err = parser.ParseFile(fset, "", src, parser.DeclarationErrors)
+// 	if nil == err {
+// 		parsed = append(parsed, f)
+// 		return
+// 	}
+
+// 	stmt := `package main
+
+// func Execute(args interface{}) (ok bool, res map[string]interface{}) {
+// ` + src + `
+//   return
+// }`
+
+// 	f, err = parser.ParseFile(fset, "", stmt, parser.DeclarationErrors)
+// 	if nil == err {
+// 		parsed = append(parsed, f)
+// 		return
+// 	}
+// 	fmt.Println(stmt)
+// 	return
+// }
+
 // func CreateScript(mainpkg *ssa.Package, mode Mode, filename string, args []string) (exitCode int, ir interface{}, fn interface{}) {
 // 	i := &interpreter{
 // 		prog:    mainpkg.Prog,
@@ -85,22 +119,16 @@ import (
 // 		default:
 // 			fmt.Fprintf(os.Stderr, "panic: unexpected type: %T\n", p)
 // 		}
-
-// 		// TODO(adonovan): dump panicking interpreter goroutine?
-// 		// buf := make([]byte, 0x10000)
-// 		// runtime.Stack(buf, false)
-// 		// fmt.Fprintln(os.Stderr, string(buf))
-// 		// (Or dump panicking target goroutine?)
 // 	}()
 
 // 	// Run!
 // 	call(i, nil, token.NoPos, mainpkg.Init, nil)
-// 	if mainFn := mainpkg.Func("execute"); mainFn != nil {
+// 	if mainFn := mainpkg.Func("Execute"); mainFn != nil {
 // 		ir = i
 // 		fn = mainFn
 // 		exitCode = 0
 // 	} else {
-// 		fmt.Fprintln(os.Stderr, "No execute function.")
+// 		fmt.Fprintln(os.Stderr, "No Execute function.")
 // 		exitCode = 1
 // 	}
 // 	return
@@ -128,59 +156,38 @@ import (
 // 		default:
 // 			fmt.Fprintf(os.Stderr, "panic: unexpected type: %T\n", p)
 // 		}
-
-// 		// TODO(adonovan): dump panicking interpreter goroutine?
-// 		// buf := make([]byte, 0x10000)
-// 		// runtime.Stack(buf, false)
-// 		// fmt.Fprintln(os.Stderr, string(buf))
-// 		// (Or dump panicking target goroutine?)
 // 	}()
 
 // 	values := map[value]value{}
 // 	for k, v := range args {
 // 		values[k] = v
 // 	}
+// 	//values := args
 
 // 	call(i, nil, token.NoPos, fn.(value), array{values})
 // 	exitCode = 0
 // 	return
 // }
 
-func ParseString(fset *token.FileSet, src string) (parsed []*ast.File, err error) {
-	var f *ast.File
-	f, err = parser.ParseFile(fset, "", src, parser.DeclarationErrors)
-	if err != nil {
-		return // parsing failed
-	}
-	parsed = append(parsed, f)
-	return
-}
-
 func run(input string) (ret bool) {
-	fmt.Printf("Input: %s\n", input)
-
-	// var inputs []string
-	// for _, i := range strings.Split(input, " ") {
-	// 	inputs = append(inputs, dir+i)
-	// }
 
 	b := ssa.NewBuilder(ssa.SanityCheckFunctions, ssa.GorootLoader, nil)
-	files, err := ParseString(b.Prog.Files, input)
+	files, err := interp.ParseString(b.Prog.Files, input)
 	if err != nil {
 		log.Printf("ParseString(%s) failed: %s\n", input, err.Error())
 		return false
 	}
 
-	// Print a helpful hint if we don't make it to the end.
-	var hint string
-	defer func() {
-		if hint != "" {
-			fmt.Println("FAIL")
-			fmt.Println(hint)
-		} else {
-			fmt.Println("PASS")
-		}
-	}()
+	// // Print a helpful hint if we don't make it to the end.
+	// var hint string
+	// defer func() {
+	// 	if hint != "" {
+	// 		fmt.Println("FAIL")
+	// 		fmt.Println(hint)
+	// 	} else {
+	// 		fmt.Println("PASS")
+	// 	}
+	// }()
 
 	mainpkg, err := b.CreatePackage("main", files)
 	if err != nil {

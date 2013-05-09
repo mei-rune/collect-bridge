@@ -68,6 +68,9 @@
     <has_many foreignKey="device2_id" >Link</has_many>
   </class>
 
+  <class name="Switch">
+  </class>
+
   <class name="Link">
     <property name="name">
       <restriction base="string">
@@ -314,12 +317,37 @@
     </property>
   </class>
 
+
+  <class name="AlertAction" base="Action">
+    <property name="max_repeated">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="expression_style">
+      <restriction base="string">
+        <maxLength>50</maxLength>
+      </restriction>
+    </property>
+    <property name="expression_code">
+      <restriction base="string">
+        <maxLength>50</maxLength>
+        <!-- 
+          json:
+            attribute string 
+            operator  string  
+            value     string 
+        -->
+      </restriction>
+    </property>
+  </clas>
+
   <class name="MetricRule" base="Trigger">
     <property name="metric">
       <restriction base="string">
         <required />
       </restriction>
     </property>
+    <belongs_to>Device</belongs_to>
   </class>
   
   <!-- For Test as Follow

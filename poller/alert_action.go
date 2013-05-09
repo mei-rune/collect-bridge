@@ -2,6 +2,7 @@ package poller
 
 import (
 	"commons"
+	"commons/errutils"
 	"fmt"
 	"time"
 
@@ -9,9 +10,8 @@ import (
 )
 
 type AlertAction struct {
-	Name        string
-	Description string
-	MaxRepeated int
+	name        string
+	maxRepeated int
 
 	result  map[string]interface{}
 	channel chan map[string]interface{}
@@ -39,33 +39,40 @@ func (self *AlertAction) Run(t time.Time, value interface{}) {
 
 	current := self.checker.Run(t, value, self.result)
 
+	if self.repeated == self.maxRepeated {
+		evt := map[string]interface{}{}
+		for k, v := range self.result {
+			evt[k] = v
+		}
+
+		if _, found := evt["triggered_at"]; !found {
+			evt["triggered_at"] = t
+		}
+
+		evt["status"] = current
+		self.channel <- evt
+	}
+
+end:
+
 	if current == self.lastStatus {
 		self.repeated++
 
 		if self.repeated > 2147483646 || self.repeated < 0 { // inhebit overflow
-			self.repeated = self.MaxRepeated + 10
+			self.repeated = self.maxRepeated + 10
 		}
 	} else {
 		self.repeated = 0
 		self.lastStatus = current
 	}
-
-	if self.repeated < self.MaxRepeated {
-		return
-	}
-
-	evt := map[string]interface{}{}
-	for k, v := range self.result {
-		evt[k] = v
-	}
-
-	if _, found := evt["triggered_at"]; !found {
-		evt["triggered_at"] = t
-	}
-
-	evt["status"] = current
-	self.channel <- evt
 }
+
+var (
+	ExpressionStyleIsRequired    = errutils.IsRequired("expression_style")
+	ExpressionCodeIsRequired     = errutils.IsRequired("expression_code")
+	NotificationChannelIsNil     = errutils.BadRequest("'notification_channel' is nil")
+	NotificationChannelTypeError = errutils.BadRequest("'notification_channel' is not a chan map[string]interface{}")
+)
 
 func NewAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, error) {
 	name, e := commons.TryGetString(attributes, "name")
@@ -75,26 +82,40 @@ func NewAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, erro
 
 	c := ctx["notification_channel"]
 	if nil == c {
-		return nil, errors.New("'notification_channel' is nil")
+		return nil, NotificationChannelIsNil
 	}
 	channel, ok := c.(chan map[string]interface{})
 	if !ok {
-		return nil, errors.New("'notification_channel' is not a chan map[string]interface{}")
+		return nil, NotificationChannelTypeError
 	}
 
 	checker, e := makeChecker(attributes)
 	if nil != e {
-		return nil, fmt.Errorf("create checker failed - %v", e)
+		return nil, e
 	}
 
-	return &AlertAction{Name: name,
-		Description: commons.GetString(attributes, "description", ""),
-		MaxRepeated: commons.GetInt(attributes, "max_repeated", 0),
+	return &AlertAction{name: name,
+		//description: commons.GetString(attributes, "description", ""),
+		maxRepeated: commons.GetInt(attributes, "max_repeated", 0),
 		result:      map[string]interface{}{"name": name},
 		channel:     channel,
 		checker:     checker}, nil
 }
 
-func makeChecker(attributes, ctx map[string]interface{}) Checker {
+func makeChecker(attributes, ctx map[string]interface{}) (Checker, error) {
+	style, e := commons.TryGetString(attributes, "expression_style")
+	if nil != e {
+		return nil, ExpressionStyleIsRequired
+	}
 
+	code, e := commons.TryGetString(attributes, "expression_code")
+	if nil != e {
+		return nil, ExpressionCodeIsRequired
+	}
+
+	switch {
+	case "json":
+		return makeJsonChecker(code)
+	}
+	return nil, errutils.BadRequest("expression style '" + style + "' is unknown")
 }

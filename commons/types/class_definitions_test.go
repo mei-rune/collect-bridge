@@ -94,7 +94,7 @@ func TestLoadXml(t *testing.T) {
 		Restrictions: []Validator{&IntegerValidator{
 			MinValue: 3, MaxValue: 313}}}, 3)
 
-	dateValidator, _ := datetimeType.CreateRangeValidator("2009-12-11T10:23:23+06:00",
+	dateValidator, _ := GetTypeDefinition("datetime").CreateRangeValidator("2009-12-11T10:23:23+06:00",
 		"2009-12-13T12:23:23+06:00")
 
 	assertProperty(person.Attributes["Day"], &AttributeDefinition{Name: "Day",
@@ -114,7 +114,7 @@ func TestLoadXml(t *testing.T) {
 		Type:         GetTypeDefinition("physicalAddress"),
 		DefaultValue: mac}, 7)
 
-	enumValidator, _ := stringType.CreateEnumerationValidator([]string{"male", "female"})
+	enumValidator, _ := GetTypeDefinition("string").CreateEnumerationValidator([]string{"male", "female"})
 
 	assertProperty(person.Attributes["Sex"], &AttributeDefinition{Name: "Sex",
 		Type:         GetTypeDefinition("string"),

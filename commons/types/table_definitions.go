@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+func makeIdColumn() *ColumnDefinition {
+	return &ColumnDefinition{AttributeDefinition{Name: "id", Type: GetTypeDefinition("objectId"),
+		Collection: COLLECTION_UNKNOWN}}
+}
+
 func loadParentColumns(self *TableDefinitions, cls *TableDefinition, errs *[]string) {
 	if nil != cls.Attributes {
 		return
@@ -65,6 +70,12 @@ func loadOwnColumns(xmlCls *XMLClassDefinition, cls *TableDefinition) (errs []st
 			continue
 		}
 
+		if "id" == pr.Name {
+			errs = append(errs, "load column '"+pr.Name+"' of class '"+
+				xmlCls.Name+"' failed, it is reserved")
+			continue
+		}
+
 		var cpr *AttributeDefinition = nil
 		cpr, msgs := loadOwnAttribute(&pr)
 		if nil != cpr {
@@ -104,27 +115,27 @@ func makeAssocation(self *TableDefinitions, cls *TableDefinition,
 		fKey = "parent_id"
 		pr, ok := target.OwnAttributes["parent_id"]
 		if !ok {
-			pr = &ColumnDefinition{AttributeDefinition{Name: "parent_id", Type: &objectIdType,
+			pr = &ColumnDefinition{AttributeDefinition{Name: "parent_id", Type: GetTypeDefinition("objectId"),
 				Collection: COLLECTION_UNKNOWN}}
 
 			target.OwnAttributes["parent_id"] = pr
 		} else {
-			if _, ok := pr.Type.(*ObjectIdTypeDefinition); !ok {
+			if "objectId" != pr.Type.Name() {
 				return nil, errors.New("'parent_id' is not objectId type")
 			}
 		}
 
 		pr, ok = target.OwnAttributes["parent_type"]
 		if !ok {
-			pr = &ColumnDefinition{AttributeDefinition{Name: "parent_type", Type: &stringType,
+			pr = &ColumnDefinition{AttributeDefinition{Name: "parent_type", Type: GetTypeDefinition("string"),
 				Collection: COLLECTION_UNKNOWN}}
 			target.OwnAttributes["parent_type"] = pr
 		} else {
-			if _, ok := pr.Type.(*StringTypeDefinition); !ok {
-				return nil, errors.New("'parent_type' is not string type")
+			if "string" != pr.Type.Name() {
+				return nil, errors.New("'parent_type' is reserved and must is a string type")
 			}
 			if pr.Collection.IsCollection() {
-				return nil, errors.New("'parent_type' is a collection")
+				return nil, errors.New("'parent_type' is reserved and is a collection")
 			}
 		}
 	} else {
@@ -133,11 +144,11 @@ func makeAssocation(self *TableDefinitions, cls *TableDefinition,
 		}
 		pr, ok := target.OwnAttributes[fKey]
 		if !ok {
-			pr = &ColumnDefinition{AttributeDefinition{Name: fKey, Type: &objectIdType,
+			pr = &ColumnDefinition{AttributeDefinition{Name: fKey, Type: GetTypeDefinition("objectId"),
 				Collection: COLLECTION_UNKNOWN}}
 			target.OwnAttributes[fKey] = pr
 		} else {
-			if _, ok := pr.Type.(*ObjectIdTypeDefinition); !ok {
+			if "objectId" != pr.Type.Name() {
 				return nil, errors.New("'foreignKey' is not objectId type")
 			}
 			if pr.Collection.IsCollection() {
@@ -305,8 +316,22 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 
 	// load the properties of super class
 	for _, cls := range self.definitions {
+		if nil != cls.Super {
+			continue
+		}
+		cls.Id = makeIdColumn()
+		cls.OwnAttributes[cls.Id.Name] = cls.Id
+	}
+
+	// load the properties of super class
+	for _, cls := range self.definitions {
 		loadParentColumns(self, cls, &errs)
 	}
+
+	// change collection name
+	// for _, cls := range self.definitions {
+	// 	SetCollectionName(self, cls, &errs)
+	// }
 
 	// // check hierarchical of type
 	// for _, cls := range self.definitions {

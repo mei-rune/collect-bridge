@@ -113,12 +113,12 @@ func loadOwnAttribute(pr *XMLAttributeDefinition) (cpr *AttributeDefinition, err
 	}
 
 	if "created_at" == pr.Name || "updated_at" == pr.Name {
-		if _, ok := cpr.Type.(*DateTimeTypeDefinition); !ok {
-			errs = append(errs, "it must is a dateTime")
+		if "datetime" != cpr.Type.Name() {
+			errs = append(errs, "it is reserved and must is a dateTime")
 		}
 
-		if COLLECTION_UNKNOWN != cpr.Collection {
-			errs = append(errs, "it must not is a collection")
+		if cpr.Collection.IsCollection() {
+			errs = append(errs, "it is reserved and must not is a collection")
 		}
 	}
 
@@ -139,7 +139,7 @@ func loadOwnAttribute(pr *XMLAttributeDefinition) (cpr *AttributeDefinition, err
 			errs = append(errs, "collection has not defaultValue ")
 		} else {
 			var err error
-			cpr.DefaultValue, err = cpr.Type.Convert(pr.Restrictions.DefaultValue)
+			cpr.DefaultValue, err = cpr.Type.ToInternal(pr.Restrictions.DefaultValue)
 			if nil != err {
 				errs = append(errs, "parse defaultValue '"+
 					pr.Restrictions.DefaultValue+"' failed, "+err.Error())

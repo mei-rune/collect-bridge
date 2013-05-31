@@ -33,9 +33,9 @@ func TestLoadTableDefinitions(t *testing.T) {
 	a.Check(t, person.Super, a.IsNil, a.Commentf("check super of Class person"))
 	a.Check(t, company.Super, a.IsNil, a.Commentf("check super of Class company"))
 
-	a.Assert(t, len(employee.Attributes), a.Equals, 12, a.Commentf("check len of Attributes of employee"))
-	a.Assert(t, len(person.Attributes), a.Equals, 10, a.Commentf("check len of Attributes of person"))
-	a.Assert(t, len(company.Attributes), a.Equals, 1, a.Commentf("check len of Attributes of company"))
+	a.Assert(t, len(employee.Attributes), a.Equals, 13, a.Commentf("check len of Attributes of employee"))
+	a.Assert(t, len(person.Attributes), a.Equals, 11, a.Commentf("check len of Attributes of person"))
+	a.Assert(t, len(company.Attributes), a.Equals, 2, a.Commentf("check len of Attributes of company"))
 
 	assertProperty := func(p1, p2 *ColumnDefinition, comment int) {
 		a.Check(t, p1.Name, a.Equals, p2.Name, a.Commentf("check Name of properties[%d]", comment))
@@ -94,7 +94,7 @@ func TestLoadTableDefinitions(t *testing.T) {
 		Restrictions: []Validator{&IntegerValidator{
 			MinValue: 3, MaxValue: 313}}}}, 3)
 
-	dateValidator, _ := datetimeType.CreateRangeValidator("2009-12-11T10:23:23+06:00",
+	dateValidator, _ := GetTypeDefinition("datetime").CreateRangeValidator("2009-12-11T10:23:23+06:00",
 		"2009-12-13T12:23:23+06:00")
 
 	assertProperty(person.Attributes["Day"], &ColumnDefinition{AttributeDefinition{Name: "Day",
@@ -114,7 +114,7 @@ func TestLoadTableDefinitions(t *testing.T) {
 		Type:         GetTypeDefinition("physicalAddress"),
 		DefaultValue: mac}}, 7)
 
-	enumValidator, _ := stringType.CreateEnumerationValidator([]string{"male", "female"})
+	enumValidator, _ := GetTypeDefinition("string").CreateEnumerationValidator([]string{"male", "female"})
 
 	assertProperty(person.Attributes["Sex"], &ColumnDefinition{AttributeDefinition{Name: "Sex",
 		Type:         GetTypeDefinition("string"),
@@ -132,7 +132,7 @@ func TestLoadTableDefinitions(t *testing.T) {
 
 	a.Check(t, company.Name, a.Equals, "Company", a.Commentf("check Class name"))
 
-	a.Assert(t, len(company.Attributes), a.Equals, 1, a.Commentf("check len of Attributes"))
+	a.Assert(t, len(company.Attributes), a.Equals, 2, a.Commentf("check len of Attributes of company"))
 
 	assertProperty(company.Attributes["Name"], &ColumnDefinition{AttributeDefinition{Name: "Name",
 		Type:         GetTypeDefinition("string"),

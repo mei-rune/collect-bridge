@@ -1,77 +1,33 @@
 package types
 
-import (
-	"net"
-)
+// import (
+// 	"net"
+// )
 
-// type ObjectId struct {
-// 	definition *ClassDefinition
-// 	id         string
+// type Password string
+// type IPAddress string
+// type PhysicalAddress string
+
+// func (self *IPAddress) GetBSON() (interface{}, error) {
+// 	return string(*self), nil
 // }
 
-// type Iter interface {
-// 	Next(result interface{}) bool
-// 	Err() error
+// func (self *IPAddress) String() string {
+// 	return string(*self)
 // }
 
-// type Query interface {
-// 	Select(fields ...string) Query
-// 	Count() (n int, err error)
-// 	Skip(offest int) Query
-// 	Limit(n int) Query
-// 	Sort(fields ...string) Query
-// 	Iter() Iter
-// 	Explain(ers interface{}) error
+// func (self *IPAddress) MarshalJSON() ([]byte, error) {
+// 	return []byte("\"" + string(*self) + "\""), nil
 // }
 
-// type Driver interface {
-// 	Insert(cls *ClassDefinition, attributes map[string]interface{}) (interface{}, error)
-// 	Update(cls *ClassDefinition, id interface{}, updated_attributes map[string]interface{}) error
-// 	Query(cls string, attributes map[string]interface{}) Query
-// 	FindBy(cls *ClassDefinition, attributes map[string]interface{}) Query
-// 	FindById(cls *ClassDefinition, id interface{}) (map[string]interface{}, error)
-// 	Delete(cls *ClassDefinition, id interface{}) error
+// func (self *PhysicalAddress) GetBSON() (interface{}, error) {
+// 	return string(*self), nil
 // }
 
-// type SqlInteger32 int32
-// type int64 int64
-// type SqlDecimal float64
-// type SqlString string
-type SqlPassword string
-
-//type SqlDateTime time.Time
-
-type SqlIPAddress net.IP
-type SqlPhysicalAddress net.HardwareAddr
-
-// func (self *SqlDateTime) GetBSON() (interface{}, error) {
-// 	return time.Time(*self), nil
+// func (self *PhysicalAddress) String() string {
+// 	return string(*self)
 // }
 
-// func (self *SqlDateTime) String() string {
-// 	return time.Time(*self).Format(time.RFC3339)
+// func (self *PhysicalAddress) MarshalJSON() ([]byte, error) {
+// 	return []byte("\"" + string(*self) + "\""), nil
 // }
-
-func (self *SqlIPAddress) GetBSON() (interface{}, error) {
-	return net.IP(*self).String(), nil
-}
-
-func (self *SqlIPAddress) String() string {
-	return net.IP(*self).String()
-}
-
-func (self *SqlIPAddress) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + net.IP(*self).String() + "\""), nil
-}
-
-func (self *SqlPhysicalAddress) GetBSON() (interface{}, error) {
-	return net.HardwareAddr(*self).String(), nil
-}
-
-func (self *SqlPhysicalAddress) String() string {
-	return net.HardwareAddr(*self).String()
-}
-
-func (self *SqlPhysicalAddress) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + net.HardwareAddr(*self).String() + "\""), nil
-}

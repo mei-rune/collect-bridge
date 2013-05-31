@@ -1,32 +1,45 @@
 package types
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
-	"labix.org/v2/mgo/bson"
+	//"labix.org/v2/mgo/bson"
 	"net"
 	"regexp"
 	"strconv"
 	"time"
 )
 
+type Password string
+type IPAddress string
+type PhysicalAddress string
+
 type TypeDefinition interface {
 	Name() string
+	MakeValue() interface{}
 	CreateEnumerationValidator(values []string) (Validator, error)
 	CreatePatternValidator(pattern string) (Validator, error)
 	CreateRangeValidator(minValue, maxValue string) (Validator, error)
 	CreateLengthValidator(minLength, maxLength string) (Validator, error)
-	Convert(v interface{}) (interface{}, error)
+	Parse(v string) (interface{}, error)
+	ToInternal(v interface{}) (interface{}, error)
+	ToExternal(v interface{}) interface{}
 }
 
-type IntegerTypeDefinition struct {
+type integerType struct {
 }
 
-func (self *IntegerTypeDefinition) Name() string {
+func (self *integerType) Name() string {
 	return "integer"
 }
 
-func (self *IntegerTypeDefinition) CreateEnumerationValidator(ss []string) (Validator, error) {
+func (self *integerType) MakeValue() interface{} {
+	return &sql.NullInt64{Int64: 0, Valid: false}
+}
+
+func (self *integerType) CreateEnumerationValidator(ss []string) (Validator, error) {
 	if nil == ss || 0 == len(ss) {
 		return nil, errors.New("values is null or empty.")
 	}
@@ -42,11 +55,11 @@ func (self *IntegerTypeDefinition) CreateEnumerationValidator(ss []string) (Vali
 	return &EnumerationValidator{Values: values}, nil
 }
 
-func (self *IntegerTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+func (self *integerType) CreatePatternValidator(pattern string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *IntegerTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+func (self *integerType) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
 	var min, max int64
 	var err error
 	hasMin := false
@@ -71,12 +84,12 @@ func (self *IntegerTypeDefinition) CreateRangeValidator(minValue, maxValue strin
 		HasMin: hasMin, MinValue: min}, nil
 }
 
-func (self *IntegerTypeDefinition) CreateLengthValidator(minLength,
+func (self *integerType) CreateLengthValidator(minLength,
 	maxLength string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *IntegerTypeDefinition) Convert(value interface{}) (interface{}, error) {
+func (self *integerType) ToInternal(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
 	case int:
 		return int64(v), nil
@@ -113,20 +126,40 @@ func (self *IntegerTypeDefinition) Convert(value interface{}) (interface{}, erro
 		if nil == err {
 			return int64(i64), nil
 		}
+	case []byte:
+		i64, err := strconv.ParseInt(string(v), 10, 64)
+		if nil == err {
+			return int64(i64), nil
+		}
 	case *int64:
 		return *v, nil
+	case *sql.NullInt64:
+		return v.Value()
 	}
-	return int64(0), errors.New("convert to int64 failed")
+	return int64(0), errors.New("ToInternal to int64 failed")
 }
 
-type DecimalTypeDefinition struct {
+func (self *integerType) ToExternal(value interface{}) interface{} {
+	return value
 }
 
-func (self *DecimalTypeDefinition) Name() string {
+func (self *integerType) Parse(s string) (interface{}, error) {
+	i64, e := strconv.ParseInt(s, 10, 64)
+	return i64, e
+}
+
+type decimalType struct {
+}
+
+func (self *decimalType) Name() string {
 	return "decimal"
 }
 
-func (self *DecimalTypeDefinition) CreateEnumerationValidator(ss []string) (Validator, error) {
+func (self *decimalType) MakeValue() interface{} {
+	return &sql.NullFloat64{Float64: 0, Valid: false}
+}
+
+func (self *decimalType) CreateEnumerationValidator(ss []string) (Validator, error) {
 	if nil == ss || 0 == len(ss) {
 		return nil, errors.New("values is null or empty.")
 	}
@@ -142,11 +175,11 @@ func (self *DecimalTypeDefinition) CreateEnumerationValidator(ss []string) (Vali
 	return &EnumerationValidator{Values: values}, nil
 }
 
-func (self *DecimalTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+func (self *decimalType) CreatePatternValidator(pattern string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *DecimalTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+func (self *decimalType) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
 	var min, max float64
 	var err error
 	hasMin := false
@@ -170,11 +203,11 @@ func (self *DecimalTypeDefinition) CreateRangeValidator(minValue, maxValue strin
 	return &DecimalValidator{HasMax: hasMax, MaxValue: max, HasMin: hasMin, MinValue: min}, nil
 }
 
-func (self *DecimalTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+func (self *decimalType) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *DecimalTypeDefinition) Convert(value interface{}) (interface{}, error) {
+func (self *decimalType) ToInternal(value interface{}) (interface{}, error) {
 
 	switch v := value.(type) {
 	case uint:
@@ -207,20 +240,40 @@ func (self *DecimalTypeDefinition) Convert(value interface{}) (interface{}, erro
 			return float64(f64), nil
 		}
 		return float64(0), err
+	case []byte:
+		i64, err := strconv.ParseFloat(string(v), 64)
+		if nil == err {
+			return float64(i64), nil
+		}
 	case *float64:
 		return *v, nil
+	case *sql.NullFloat64:
+		return v.Value()
 	}
-	return float64(0), errors.New("convert to float64 failed")
+	return float64(0), errors.New("ToInternal to float64 failed")
 }
 
-type StringTypeDefinition struct {
+func (self *decimalType) ToExternal(value interface{}) interface{} {
+	return value
+	}
+
+func (self *decimalType) Parse(s string) (interface{}, error) {
+	f64, e := strconv.ParseFloat(s, 64)
+	return f64, e
 }
 
-func (self *StringTypeDefinition) Name() string {
+type stringType struct {
+}
+
+func (self *stringType) Name() string {
 	return "string"
 }
 
-func (self *StringTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
+func (self *stringType) MakeValue() interface{} {
+	return &sql.NullString{String: "", Valid: false}
+}
+
+func (self *stringType) CreateEnumerationValidator(values []string) (Validator, error) {
 	if nil == values || 0 == len(values) {
 		return nil, errors.New("values is null or empty")
 	}
@@ -235,7 +288,7 @@ func (self *StringTypeDefinition) CreateEnumerationValidator(values []string) (V
 	return &StringEnumerationValidator{Values: new_values}, nil
 }
 
-func (self *StringTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+func (self *stringType) CreatePatternValidator(pattern string) (Validator, error) {
 	if "" == pattern {
 		return nil, errors.New("pattern is empty")
 	}
@@ -247,11 +300,11 @@ func (self *StringTypeDefinition) CreatePatternValidator(pattern string) (Valida
 	return &PatternValidator{Pattern: p}, nil
 }
 
-func (self *StringTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+func (self *stringType) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *StringTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+func (self *stringType) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
 	var err error
 	var min int64 = -1
 	var max int64 = -1
@@ -272,12 +325,14 @@ func (self *StringTypeDefinition) CreateLengthValidator(minLength, maxLength str
 	return &StringLengthValidator{MaxLength: int(max), MinLength: int(min)}, nil
 }
 
-func (self *StringTypeDefinition) Convert(value interface{}) (interface{}, error) {
+func (self *stringType) ToInternal(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
 	case string:
 		return v, nil
 	case *string:
 		return *v, nil
+	case []byte:
+		return string(v), nil
 	case uint:
 		return strconv.FormatUint(uint64(v), 10), nil
 	case uint8:
@@ -302,20 +357,61 @@ func (self *StringTypeDefinition) Convert(value interface{}) (interface{}, error
 		return strconv.FormatFloat(float64(v), 'e', -1, 64), nil
 	case float64:
 		return strconv.FormatFloat(float64(v), 'e', -1, 64), nil
+	case *sql.NullString:
+		return v.Value()
 	}
-	return "", errors.New("convert to SqlString failed")
+	return "", errors.New("ToInternal to SqlString failed")
 }
 
-type DateTimeTypeDefinition struct {
+func (self *stringType) ToExternal(value interface{}) interface{} {
+	return value
+	}
+
+func (self *stringType) Parse(s string) (interface{}, error) {
+	return s, nil
+}
+
+type dateTimeType struct {
 	Layout string //"2006-01-02 15:04:05"
 	name   string //datetime
 }
 
-func (self *DateTimeTypeDefinition) Name() string {
+func (self *dateTimeType) Name() string {
 	return self.name
 }
 
-func (self *DateTimeTypeDefinition) CreateEnumerationValidator(ss []string) (Validator, error) {
+// NullTime represents an time that may be null.
+// NullTime implements the Scanner interface so
+// it can be used as a scan destination, similar to NullTime.
+type NullTime struct {
+	Time  time.Time
+	Valid bool // Valid is true if Int64 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullTime) Scan(value interface{}) error {
+	if value == nil {
+		n.Time, n.Valid = time.Time{}, false
+		return nil
+	}
+
+	n.Time, n.Valid = value.(time.Time)
+	return nil
+}
+
+// Value implements the driver Valuer interface.
+func (n NullTime) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.Time, nil
+}
+
+func (self *dateTimeType) MakeValue() interface{} {
+	return &NullTime{Valid: false}
+}
+
+func (self *dateTimeType) CreateEnumerationValidator(ss []string) (Validator, error) {
 	if nil == ss || 0 == len(ss) {
 		return nil, errors.New("values is null or empty.")
 	}
@@ -331,11 +427,11 @@ func (self *DateTimeTypeDefinition) CreateEnumerationValidator(ss []string) (Val
 	return &EnumerationValidator{Values: values}, nil
 }
 
-func (self *DateTimeTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+func (self *dateTimeType) CreatePatternValidator(pattern string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *DateTimeTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+func (self *dateTimeType) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
 	var min, max time.Time
 	var err error
 	hasMin := false
@@ -359,11 +455,11 @@ func (self *DateTimeTypeDefinition) CreateRangeValidator(minValue, maxValue stri
 	return &DateValidator{HasMax: hasMax, MaxValue: max, HasMin: hasMin, MinValue: min}, nil
 }
 
-func (self *DateTimeTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+func (self *dateTimeType) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *DateTimeTypeDefinition) Convert(v interface{}) (interface{}, error) {
+func (self *dateTimeType) ToInternal(v interface{}) (interface{}, error) {
 	switch value := v.(type) {
 	case string:
 		t, err := time.Parse(self.Layout, value)
@@ -381,31 +477,83 @@ func (self *DateTimeTypeDefinition) Convert(v interface{}) (interface{}, error) 
 		return value, nil
 	case *time.Time:
 		return *value, nil
+	case *NullTime:
+		return value.Value()
 	}
 
-	return nil, errors.New("syntex error, it is not a string")
+	return nil, errors.New("syntex error, it is not a datetime")
+	}
+
+func (self *dateTimeType) ToExternal(value interface{}) interface{} {
+	return value
 }
 
-type IpAddressTypeDefinition struct {
+func (self *dateTimeType) Parse(s string) (interface{}, error) {
+	t, e := time.Parse(self.Layout, s)
+	return t, e
 }
 
-func (self *IpAddressTypeDefinition) Name() string {
+type ipAddressType struct {
+}
+
+func (self *ipAddressType) Name() string {
 	return "ipAddress"
 }
 
-func (self *IpAddressTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
+// NullIPAddress represents an ip address that may be null.
+// NullIPAddress implements the Scanner interface so
+// it can be used as a scan destination, similar to NullIPAddress.
+type NullIPAddress struct {
+	String string
+	Valid  bool // Valid is true if Int64 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullIPAddress) Scan(value interface{}) error {
+	if value == nil {
+		n.Valid = false
+		return nil
+	}
+
+	var nullString sql.NullString
+	e := nullString.Scan(value)
+	if nil == e {
+		n.Valid = nullString.Valid
+		n.String = nullString.String
+	}
+	return e
+}
+
+// Value implements the driver Valuer interface.
+func (n NullIPAddress) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+
+	ip := net.ParseIP(n.String)
+	if nil == ip {
+		return nil, errors.New("syntex error, it is not IP.")
+	}
+	return IPAddress(ip.String()), nil
+}
+
+func (self *ipAddressType) MakeValue() interface{} {
+	return &NullIPAddress{Valid: false}
+}
+
+func (self *ipAddressType) CreateEnumerationValidator(values []string) (Validator, error) {
 	panic("not supported")
 }
-func (self *IpAddressTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+func (self *ipAddressType) CreatePatternValidator(pattern string) (Validator, error) {
 	panic("not supported")
 }
-func (self *IpAddressTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+func (self *ipAddressType) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
 	panic("not supported")
 }
-func (self *IpAddressTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+func (self *ipAddressType) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
 	panic("not supported")
 }
-func (self *IpAddressTypeDefinition) Convert(v interface{}) (interface{}, error) {
+func (self *ipAddressType) ToInternal(v interface{}) (interface{}, error) {
 	if nil == v {
 		return nil, nil
 	}
@@ -417,54 +565,126 @@ func (self *IpAddressTypeDefinition) Convert(v interface{}) (interface{}, error)
 			return nil, errors.New("syntex error, it is not IP.")
 		}
 
-		addr := SqlIPAddress(ip)
-		return &addr, nil
+		addr := IPAddress(ip.String())
+		return addr, nil
 	case *string:
 		ip := net.ParseIP(*value)
 		if nil == ip {
 			return nil, errors.New("syntex error, it is not IP.")
 		}
-		addr := SqlIPAddress(ip)
-		return &addr, nil
+		addr := IPAddress(ip.String())
+		return addr, nil
+	case []byte:
+		ip := net.ParseIP(string(value))
+		if nil == ip {
+			return nil, errors.New("syntex error, it is not IP.")
+		}
+		addr := IPAddress(ip.String())
+		return addr, nil
 	case net.IP:
-		addr := SqlIPAddress(value)
-		return &addr, nil
+		addr := IPAddress(value.String())
+		return addr, nil
 	case *net.IP:
-		addr := SqlIPAddress(*value)
-		return &addr, nil
-	case SqlIPAddress:
-		return &value, nil
-	case *SqlIPAddress:
+		addr := IPAddress(value.String())
+		return addr, nil
+	case IPAddress:
 		return value, nil
+	case *IPAddress:
+		return *value, nil
+	case *NullIPAddress:
+		return value.Value()
 	}
 
-	return nil, errors.New("syntex error, it is not a string")
+	return nil, errors.New("syntex error, it is not a ipAddress")
 }
 
-type PhysicalAddressTypeDefinition struct {
+func (self *ipAddressType) ToExternal(value interface{}) interface{} {
+	switch v := value.(type) {
+	case string:
+		return v
+	case IPAddress:
+		return string(v)
+	default:
+		panic("syntex error, it is not a ipAddress")
+	}
 }
 
-func (self *PhysicalAddressTypeDefinition) Name() string {
+func (self *ipAddressType) Parse(s string) (interface{}, error) {
+	ip := net.ParseIP(s)
+	if nil == ip {
+		return nil, errors.New("syntex error, it is not IP.")
+	}
+	return IPAddress(ip.String()), nil
+}
+
+type physicalAddressType struct {
+	}
+
+// NullIPAddress represents an ip address that may be null.
+// NullIPAddress implements the Scanner interface so
+// it can be used as a scan destination, similar to NullIPAddress.
+type NullPhysicalAddress struct {
+	String string
+	Valid  bool // Valid is true if Int64 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullPhysicalAddress) Scan(value interface{}) error {
+	if value == nil {
+		n.Valid = false
+		return nil
+}
+
+	var nullString sql.NullString
+	e := nullString.Scan(value)
+	if nil == e {
+		n.Valid = nullString.Valid
+		n.String = nullString.String
+	}
+	return e
+}
+
+// Value implements the driver Valuer interface.
+func (n NullPhysicalAddress) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+
+	if 0 == len(n.String) {
+		return nil, nil
+	}
+	mac, err := net.ParseMAC(n.String)
+	if nil != err {
+		return nil, err
+	}
+	return PhysicalAddress(mac.String()), nil
+}
+
+func (self *physicalAddressType) MakeValue() interface{} {
+	return &NullPhysicalAddress{Valid: false}
+}
+
+func (self *physicalAddressType) Name() string {
 	return "physicalAddress"
 }
 
-func (self *PhysicalAddressTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
+func (self *physicalAddressType) CreateEnumerationValidator(values []string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *PhysicalAddressTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+func (self *physicalAddressType) CreatePatternValidator(pattern string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *PhysicalAddressTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+func (self *physicalAddressType) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *PhysicalAddressTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+func (self *physicalAddressType) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *PhysicalAddressTypeDefinition) Convert(v interface{}) (interface{}, error) {
+func (self *physicalAddressType) ToInternal(v interface{}) (interface{}, error) {
 	if nil == v {
 		return nil, nil
 	}
@@ -477,8 +697,7 @@ func (self *PhysicalAddressTypeDefinition) Convert(v interface{}) (interface{}, 
 		if nil != err {
 			return nil, err
 		}
-		addr := SqlPhysicalAddress(mac)
-		return &addr, nil
+		return PhysicalAddress(mac.String()), nil
 	case *string:
 		if "" == *value {
 			return nil, nil
@@ -487,144 +706,140 @@ func (self *PhysicalAddressTypeDefinition) Convert(v interface{}) (interface{}, 
 		if nil != err {
 			return nil, err
 		}
-		addr := SqlPhysicalAddress(mac)
-		return &addr, nil
+		return PhysicalAddress(mac.String()), nil
+	case []byte:
+		if nil == value || 0 == len(value) {
+			return nil, nil
+		}
+		mac, err := net.ParseMAC(string(value))
+		if nil != err {
+			return nil, err
+		}
+		return PhysicalAddress(mac.String()), nil
 	case net.HardwareAddr:
-		addr := SqlPhysicalAddress(value)
-		return &addr, nil
+		return PhysicalAddress(value.String()), nil
 	case *net.HardwareAddr:
-		addr := SqlPhysicalAddress(*value)
-		return &addr, nil
-	case SqlPhysicalAddress:
-		return &value, nil
-	case *SqlPhysicalAddress:
+		return PhysicalAddress(value.String()), nil
+	case PhysicalAddress:
 		return value, nil
+	case *PhysicalAddress:
+		return *value, nil
+	case *NullPhysicalAddress:
+		return value.Value()
 	}
 
-	return nil, errors.New("syntex error, it is not a string")
+	return nil, errors.New("syntex error, it is not a physicalAddress")
 }
 
-type BooleanTypeDefinition struct {
+func (self *physicalAddressType) ToExternal(value interface{}) interface{} {
+	switch v := value.(type) {
+	case string:
+		return v
+	case PhysicalAddress:
+		return string(v)
+	default:
+		panic("syntex error, it is not a physicalAddress")
+	}
+	}
+
+func (self *physicalAddressType) Parse(s string) (interface{}, error) {
+	mac, e := net.ParseMAC(s)
+	return mac, e
 }
 
-func (self *BooleanTypeDefinition) Name() string {
+type booleanType struct {
+}
+
+func (self *booleanType) Name() string {
 	return "boolean"
 }
 
-func (self *BooleanTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
+func (self *booleanType) MakeValue() interface{} {
+	return &sql.NullBool{Valid: false}
+}
+
+func (self *booleanType) CreateEnumerationValidator(values []string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *BooleanTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+func (self *booleanType) CreatePatternValidator(pattern string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *BooleanTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+func (self *booleanType) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *BooleanTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+func (self *booleanType) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
 	panic("not supported")
 }
 
-func (self *BooleanTypeDefinition) Convert(v interface{}) (interface{}, error) {
+func (self *booleanType) ToInternal(v interface{}) (interface{}, error) {
 	switch value := v.(type) {
 	case string:
-		switch value {
-		case "true", "True", "TRUE", "yes", "Yes", "YES":
-			return true, nil
-		case "false", "False", "FALSE", "no", "No", "NO":
-			return false, nil
-		}
+		return self.Parse(value)
 	case *string:
-		switch *value {
-		case "true", "True", "TRUE", "yes", "Yes", "YES":
-			return true, nil
-		case "false", "False", "FALSE", "no", "No", "NO":
-			return false, nil
-		}
+		return self.Parse(*value)
+	case []byte:
+		return self.Parse(string(value))
 	case bool:
 		return value, nil
 	case *bool:
 		return *value, nil
+	case *sql.NullBool:
+		return value.Value()
 	}
 
 	return nil, errors.New("syntex error, it is not a boolean")
 }
 
-type ObjectIdTypeDefinition struct {
+func (self *booleanType) ToExternal(v interface{}) interface{} {
+	return v
+	}
+
+func (self *booleanType) Parse(s string) (interface{}, error) {
+	switch s {
+	case "true", "True", "TRUE", "yes", "Yes", "YES", "1":
+		return true, nil
+	case "false", "False", "FALSE", "no", "No", "NO", "0":
+		return false, nil
+	default:
+	return nil, errors.New("syntex error, it is not a boolean")
+}
 }
 
-func (self *ObjectIdTypeDefinition) Name() string {
+type objectIdType struct {
+	TypeDefinition
+		}
+
+func (self *objectIdType) Name() string {
 	return "objectId"
 }
 
-func (self *ObjectIdTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
-	panic("not supported")
-}
-
-func (self *ObjectIdTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
-	panic("not supported")
-}
-
-func (self *ObjectIdTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
-	panic("not supported")
-}
-
-func (self *ObjectIdTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
-	panic("not supported")
-}
-
-func (self *ObjectIdTypeDefinition) Convert(v interface{}) (interface{}, error) {
-	switch value := v.(type) {
-	case string:
-		return parseObjectIdHex(value)
-	case *string:
-		return parseObjectIdHex(*value)
-	case bson.ObjectId:
-		return value, nil
-	case *bson.ObjectId:
-		return *value, nil
-	}
-
-	return nil, errors.New("syntex error, it is not a boolean")
-}
-
-func parseObjectIdHex(s string) (id bson.ObjectId, err error) {
-	defer func() {
-		if e := recover(); nil != e {
-			err = errors.New(fmt.Sprint(e))
-		}
-	}()
-
-	v := bson.ObjectIdHex(s)
-	return v, nil
-}
-
-// type ObjectIdTypeDefinition struct {
+// type objectIdType struct {
 // }
 
-// func (self *ObjectIdTypeDefinition) Name() string {
+// func (self *objectIdType) Name() string {
 // 	return "objectId"
 // }
 
-// func (self *ObjectIdTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
+// func (self *objectIdType) CreateEnumerationValidator(values []string) (Validator, error) {
 // 	panic("not supported")
 // }
 
-// func (self *ObjectIdTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+// func (self *objectIdType) CreatePatternValidator(pattern string) (Validator, error) {
 // 	panic("not supported")
 // }
 
-// func (self *ObjectIdTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+// func (self *objectIdType) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
 // 	panic("not supported")
 // }
 
-// func (self *ObjectIdTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+// func (self *objectIdType) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
 // 	panic("not supported")
 // }
 
-// func (self *ObjectIdTypeDefinition) Convert(v interface{}) (interface{}, error) {
+// func (self *objectIdType) ToInternal(v interface{}) (interface{}, error) {
 // 	switch value := v.(type) {
 // 	case string:
 // 		return parseObjectIdHex(value)
@@ -639,51 +854,179 @@ func parseObjectIdHex(s string) (id bson.ObjectId, err error) {
 // 	return nil, errors.New("syntex error, it is not a boolean")
 // }
 
-type PasswordTypeDefinition struct {
-	StringTypeDefinition
+type SqlIdTypeDefinition struct {
 }
 
-func (self *PasswordTypeDefinition) Name() string {
+func (self *SqlIdTypeDefinition) Name() string {
+	return "objectId"
+}
+
+func (self *SqlIdTypeDefinition) MakeValue() interface{} {
+	return &sql.NullInt64{Valid: false}
+}
+
+func (self *SqlIdTypeDefinition) CreateEnumerationValidator(values []string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *SqlIdTypeDefinition) CreatePatternValidator(pattern string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *SqlIdTypeDefinition) CreateRangeValidator(minValue, maxValue string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *SqlIdTypeDefinition) CreateLengthValidator(minLength, maxLength string) (Validator, error) {
+	panic("not supported")
+}
+
+func (self *SqlIdTypeDefinition) ToInternal(v interface{}) (interface{}, error) {
+	switch value := v.(type) {
+	case string:
+		i64, e := strconv.ParseInt(value, 10, 0)
+		return int(i64), e
+	case *string:
+		i64, e := strconv.ParseInt(*value, 10, 0)
+		return int(i64), e
+	case []byte:
+		i64, e := strconv.ParseInt(string(value), 10, 0)
+		return int(i64), e
+	case int:
+		return value, nil
+	case *int:
+		return *value, nil
+	case int32:
+		return value, nil
+	case *int32:
+		return *value, nil
+	case int64:
+		return value, nil
+	case *int64:
+		return *value, nil
+	case *sql.NullInt64:
+		return value.Value()
+	}
+
+	return nil, errors.New("syntex error, it is not a objectId")
+}
+
+func (self *SqlIdTypeDefinition) ToExternal(v interface{}) interface{} {
+	return v
+}
+
+func (self *SqlIdTypeDefinition) Parse(s string) (interface{}, error) {
+	i64, e := strconv.ParseInt(s, 10, 64)
+	return i64, e
+}
+
+type passwordType struct {
+	stringType
+}
+
+func (self *passwordType) Name() string {
 	return "password"
 }
 
-func (self *PasswordTypeDefinition) Convert(v interface{}) (interface{}, error) {
-	switch value := v.(type) {
-	case string:
-		return SqlPassword(value), nil
-	case SqlPassword:
-		return value, nil
-	case *SqlPassword:
-		return *value, nil
+// NullIPAddress represents an ip address that may be null.
+// NullIPAddress implements the Scanner interface so
+// it can be used as a scan destination, similar to NullIPAddress.
+type NullPassword struct {
+	String string
+	Valid  bool // Valid is true if Int64 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullPassword) Scan(value interface{}) error {
+	if value == nil {
+		n.Valid = false
+		return nil
 	}
 
-	return nil, errors.New("syntex error, it is not a string")
+	var nullString sql.NullString
+	e := nullString.Scan(value)
+	if nil == e {
+		n.Valid = nullString.Valid
+		n.String = nullString.String
+	}
+	return e
+}
+
+// Value implements the driver Valuer interface.
+func (n NullPassword) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+
+	return Password(n.String), nil
+}
+
+func (self *passwordType) MakeValue() interface{} {
+	return &NullPassword{Valid: false}
+}
+
+func (self *passwordType) ToInternal(v interface{}) (interface{}, error) {
+	switch value := v.(type) {
+	case string:
+		return Password(value), nil
+	case *string:
+		return Password(*value), nil
+	case []byte:
+		return Password(string(value)), nil
+	case Password:
+		return value, nil
+	case *Password:
+		return *value, nil
+	case *NullPassword:
+		return value.Value()
+	}
+
+	return nil, errors.New("syntex error, it is not a password")
+}
+
+func (self *passwordType) ToExternal(value interface{}) interface{} {
+	switch v := value.(type) {
+	case string:
+		return v
+	case Password:
+		return string(v)
+	default:
+		panic("syntex error, it is not a password")
+	}
+	}
+
+func (self *passwordType) Parse(s string) (interface{}, error) {
+	return Password(s), nil
 }
 
 var (
-	booleanType         BooleanTypeDefinition
-	integerType         IntegerTypeDefinition
-	decimalType         DecimalTypeDefinition
-	stringType          StringTypeDefinition
-	datetimeType        DateTimeTypeDefinition
-	ipAddressType       IpAddressTypeDefinition
-	physicalAddressType PhysicalAddressTypeDefinition
-	passwordType        PasswordTypeDefinition
-	objectIdType        ObjectIdTypeDefinition
+	BooleanType         booleanType
+	IntegerType         integerType
+	DecimalType         decimalType
+	StringType          stringType
+	DateTimeType        dateTimeType
+	IPAddressType       ipAddressType
+	PhysicalAddressType physicalAddressType
+	PasswordType        passwordType
+	ObjectIdType        objectIdType
 
-	types = map[string]TypeDefinition{"boolean": &booleanType,
-		"integer":         &integerType,
-		"decimal":         &decimalType,
-		"string":          &stringType,
-		"datetime":        &datetimeType,
-		"ipAddress":       &ipAddressType,
-		"physicalAddress": &physicalAddressType,
-		"password":        &passwordType,
-		"objectId":        &objectIdType}
+	DATETIMELAYOUT string
+
+	types = map[string]TypeDefinition{"boolean": &BooleanType,
+		"integer":         &IntegerType,
+		"decimal":         &DecimalType,
+		"string":          &StringType,
+		"datetime":        &DateTimeType,
+		"ipAddress":       &IPAddressType,
+		"physicalAddress": &PhysicalAddressType,
+		"password":        &PasswordType,
+		"objectId":        &ObjectIdType}
 )
 
 func init() {
-	datetimeType.Layout = time.RFC3339 // `"` + time.RFC3339 + `"`
+	DATETIMELAYOUT = time.RFC3339
+	DateTimeType.Layout = DATETIMELAYOUT // `"` + time.RFC3339 + `"`
+	ObjectIdType.TypeDefinition = &SqlIdTypeDefinition{}
 }
 
 func RegisterTypeDefinition(t TypeDefinition) {

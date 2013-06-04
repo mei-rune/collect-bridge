@@ -11,7 +11,6 @@ package lua_binding
 import "C"
 import (
 	"commons"
-	"commons/errutils"
 	"fmt"
 	"log"
 	"os"
@@ -207,7 +206,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Error = errutils.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Error = commons.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
@@ -219,7 +218,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Error = errutils.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Error = commons.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
@@ -231,7 +230,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Error = errutils.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Error = commons.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
@@ -243,7 +242,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Error = errutils.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Error = commons.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
@@ -288,7 +287,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 			var e error
 			ctx.Any, e = commons.EnumerateFiles(ctx.StringValue)
 			if nil != e {
-				ctx.Error = errutils.InternalError(e.Error())
+				ctx.Error = commons.InternalError(e.Error())
 			}
 		}}, &NativeMethod{
 		Name: "io_ext.file_exists",
@@ -357,13 +356,13 @@ func (self *LuaDriver) CallbackWith(methods ...*NativeMethod) error {
 			return nil
 		}
 		if "" == m.Name {
-			return errutils.InternalError("'name' is empty.")
+			return commons.InternalError("'name' is empty.")
 		}
 		if nil == m.Callback && nil == m.Write {
-			return errutils.InternalError("'callback' of '" + m.Name + "' is nil.")
+			return commons.InternalError("'callback' of '" + m.Name + "' is nil.")
 		}
 		if _, ok := self.methods[m.Name]; ok {
-			return errutils.InternalError("'" + m.Name + "' is already exists.")
+			return commons.InternalError("'" + m.Name + "' is already exists.")
 		}
 		//if nil != self.DEBUG {
 		//	self.DEBUG.Printf("register function '%s'", m.Name)
@@ -528,7 +527,7 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 			if nil != ctx.Error {
 				ctx.status = LUA_EXECUTE_FAILED
 				ctx.IntValue = C.LUA_ERRERR
-				ctx.Error = errutils.InternalError("push arguments failed - " + ctx.Error.Error())
+				ctx.Error = commons.InternalError("push arguments failed - " + ctx.Error.Error())
 				return ctx
 			}
 		} else {
@@ -552,19 +551,19 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 			ctx.status = LUA_EXECUTE_YIELD
 			if 0 == C.lua_gettop(ls) {
 				ctx.IntValue = int(ret)
-				ctx.Error = errutils.InternalError("script execute failed - return arguments is empty.")
+				ctx.Error = commons.InternalError("script execute failed - return arguments is empty.")
 				return ctx
 			}
 
 			action, err := toString(ls, 1)
 			if nil != err {
 				ctx.IntValue = int(ret)
-				ctx.Error = errutils.InternalError("script execute failed, read action failed, " + err.Error())
+				ctx.Error = commons.InternalError("script execute failed, read action failed, " + err.Error())
 				return ctx
 			}
 			ctx.method, ok = self.methods[action]
 			if !ok {
-				ctx.Error = errutils.InternalError(fmt.Sprintf("unsupport action '%s'", action))
+				ctx.Error = commons.InternalError(fmt.Sprintf("unsupport action '%s'", action))
 				ctx.Any = nil
 				ctx.method = method_missing
 			}
@@ -600,13 +599,13 @@ func toContinuous(values []interface{}) (ctx *Continuous, err commons.RuntimeErr
 		ctx, ok = values[0].(*Continuous)
 		if !ok {
 			if nil != err {
-				err = errutils.InternalError(fmt.Sprintf("oooooooo! It is not a Continuous - %v\n%v", values[0], err))
+				err = commons.InternalError(fmt.Sprintf("oooooooo! It is not a Continuous - %v\n%v", values[0], err))
 			} else {
-				err = errutils.InternalError(fmt.Sprintf("oooooooo! It is not a Continuous - %v", values[0]))
+				err = commons.InternalError(fmt.Sprintf("oooooooo! It is not a Continuous - %v", values[0]))
 			}
 		}
 	} else if nil == err {
-		err = errutils.InternalError("oooooooo! return a nil")
+		err = commons.InternalError("oooooooo! return a nil")
 	}
 	return
 }
@@ -614,7 +613,7 @@ func toContinuous(values []interface{}) (ctx *Continuous, err commons.RuntimeErr
 func (self *LuaDriver) newContinuous(action string, params map[string]string) *Continuous {
 	if nil == self.LS {
 		return &Continuous{status: LUA_EXECUTE_FAILED,
-			Error: errutils.InternalError("lua status is nil.")}
+			Error: commons.InternalError("lua status is nil.")}
 	}
 
 	method := &NativeMethod{
@@ -633,17 +632,17 @@ func (self *LuaDriver) newContinuous(action string, params map[string]string) *C
 	switch ctx.status {
 	case LUA_EXECUTE_CONTINUE:
 		ctx.status = LUA_EXECUTE_FAILED
-		ctx.Error = errutils.InternalError("synchronization call is prohibited while the process of creating thread.")
+		ctx.Error = commons.InternalError("synchronization call is prohibited while the process of creating thread.")
 		return ctx
 	case LUA_EXECUTE_END:
 		ctx.status = LUA_EXECUTE_FAILED
-		ctx.Error = errutils.InternalError("'core.lua' is directly exited.")
+		ctx.Error = commons.InternalError("'core.lua' is directly exited.")
 		return ctx
 	case LUA_EXECUTE_YIELD:
 		new_th, err := toThread(self.LS, -1)
 		if nil != err {
 			ctx.status = LUA_EXECUTE_FAILED
-			ctx.Error = errutils.InternalError("main fiber return error by yeild, " + err.Error())
+			ctx.Error = commons.InternalError("main fiber return error by yeild, " + err.Error())
 			return ctx
 		}
 
@@ -658,9 +657,9 @@ func (self *LuaDriver) newContinuous(action string, params map[string]string) *C
 	default:
 		ctx.status = LUA_EXECUTE_FAILED
 		if nil == ctx.Error {
-			ctx.Error = errutils.InternalError("switch to main fiber failed.")
+			ctx.Error = commons.InternalError("switch to main fiber failed.")
 		} else {
-			ctx.Error = errutils.InternalError("switch to main fiber failed, " + ctx.Error.Error())
+			ctx.Error = commons.InternalError("switch to main fiber failed, " + ctx.Error.Error())
 		}
 		return ctx
 	}
@@ -711,7 +710,7 @@ func (driver *LuaDriver) invoke(action string, params map[string]string) (interf
 	return nil, ctx.Error
 }
 
-func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]string) (commons.Result, commons.RuntimeError) {
+func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]string) commons.Result {
 	ret, err := driver.invoke(action, params)
 	if nil == ret {
 		return nil, err
@@ -724,18 +723,18 @@ func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]str
 	return res, err
 }
 
-func (driver *LuaDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (driver *LuaDriver) Get(params map[string]string) commons.Result {
 	return driver.invokeAndReturnMap("get", params)
 }
 
-func (driver *LuaDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (driver *LuaDriver) Put(params map[string]string) commons.Result {
 	return driver.invokeAndReturnMap("put", params)
 }
 
-func (driver *LuaDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (driver *LuaDriver) Create(params map[string]string) commons.Result {
 	return driver.invokeAndReturnMap("create", params)
 }
 
-func (driver *LuaDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (driver *LuaDriver) Delete(params map[string]string) commons.Result {
 	return driver.invokeAndReturnMap("delete", params)
 }

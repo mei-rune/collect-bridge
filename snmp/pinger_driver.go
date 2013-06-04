@@ -2,7 +2,6 @@ package snmp
 
 import (
 	"commons"
-	"commons/errutils"
 	"commons/netutils"
 	"encoding/json"
 	"net"
@@ -38,14 +37,14 @@ func NewPingerDriver(drvMgr *commons.DriverManager) *PingerDriver {
 // 	return self.Start()
 // }
 
-func (self *PingerDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *PingerDriver) Get(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return nil, commons.IdNotExists
+		return commons.ReturnWithError(commons.IdNotExists)
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return nil, errutils.RecordNotFound(id)
+		return commons.ReturnWithError(commons.RecordNotFound(id))
 	}
 
 	values := make([][2]string, 0, 10)
@@ -55,22 +54,22 @@ func (self *PingerDriver) Get(params map[string]string) (commons.Result, commons
 			if commons.IsTimeout(e) {
 				break
 			}
-			return nil, errutils.InternalError(e.Error())
+			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		}
 		values = append(values, [2]string{addr.String(), version.String()})
 	}
-	return commons.Return(values), nil
+	return commons.Return(values)
 }
 
-func (self *PingerDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *PingerDriver) Put(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return nil, commons.IdNotExists
+		return commons.ReturnWithError(commons.IdNotExists)
 	}
 
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return nil, errutils.RecordNotFound(id)
+		return commons.ReturnWithError(commons.RecordNotFound(id))
 	}
 
 	port, ok := params["snmp.port"]
@@ -80,15 +79,16 @@ func (self *PingerDriver) Put(params map[string]string) (commons.Result, commons
 
 	body, ok := params["body"]
 	if !ok {
-		return nil, commons.BodyNotExists
+		return commons.ReturnWithError(commons.BodyNotExists)
 	}
 	if "" == body {
-		return nil, errutils.IsRequired("body")
+		return commons.ReturnWithError(commons.IsRequired("body"))
 	}
 	ipList := make([]string, 0, 100)
 	e := json.Unmarshal([]byte(body), &ipList)
 	if nil != e {
-		return nil, errutils.BadRequest("read body failed, it is not []string of json - " + e.Error() + body)
+		return commons.ReturnError(commons.BadRequestCode,
+			"read body failed, it is not []string of json - "+e.Error()+body)
 	}
 
 	communities := params["snmp.communities"]
@@ -108,7 +108,7 @@ func (self *PingerDriver) Put(params map[string]string) (commons.Result, commons
 	for _, ip_raw := range ipList {
 		ip_range, e := netutils.ParseIPRange(ip_raw)
 		if nil != e {
-			return nil, errutils.InternalError(e.Error())
+			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		}
 
 		for i, v := range versions {
@@ -125,16 +125,16 @@ func (self *PingerDriver) Put(params map[string]string) (commons.Result, commons
 				for ip_range.HasNext() {
 					e = pinger.Send(net.JoinHostPort(ip_range.Current().String(), port), v, community)
 					if nil != e {
-						return nil, errutils.InternalError(e.Error())
+						return commons.ReturnError(commons.InternalErrorCode, e.Error())
 					}
 				}
 			}
 		}
 	}
-	return commons.Return(true), nil
+	return commons.Return(true)
 }
 
-func (self *PingerDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *PingerDriver) Create(params map[string]string) commons.Result {
 	body, _ := params["body"]
 	if "" == body {
 		body = "{}"
@@ -143,13 +143,13 @@ func (self *PingerDriver) Create(params map[string]string) (commons.Result, comm
 	params2 := make(map[string]string)
 	e := json.Unmarshal([]byte(body), &params2)
 	if nil != e {
-		return nil, errutils.BadRequest("read body failed, it is not map[string]string of json - " + e.Error())
+		return commons.ReturnError(commons.BadRequestCode, "read body failed, it is not map[string]string of json - "+e.Error())
 	}
 	network, _ := params2["network"]
 	if "" == network {
 		network, _ = params["network"]
 		if "" == network {
-			return nil, errutils.IsRequired("network")
+			return commons.ReturnWithError(commons.IsRequired("network"))
 		}
 	}
 
@@ -161,28 +161,29 @@ func (self *PingerDriver) Create(params map[string]string) (commons.Result, comm
 	id := network + "," + address
 	_, ok := self.pingers[id]
 	if ok {
-		return nil, errutils.RecordAlreadyExists(id)
+		return commons.ReturnWithError(commons.RecordAlreadyExists(id))
 	}
 
 	pinger, err := NewPinger(network, address, 256)
 	if nil != err {
-		return nil, commons.NewRuntimeError(500, err.Error())
+		return commons.ReturnError(500, err.Error())
 	}
 	self.pingers[id] = pinger
-	return commons.Return(id), nil
+	return commons.Return(id)
 }
 
-func (self *PingerDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *PingerDriver) Delete(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return commons.Return(false), commons.IdNotExists
+		return commons.ReturnWithError(commons.IdNotExists).SetValue(false)
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.Return(false), errutils.RecordNotFound(id)
+		return commons.ReturnWithError(commons.RecordNotFound(id)).SetValue(false)
+
 	}
 	delete(self.pingers, id)
 	pinger.Close()
 
-	return commons.Return(true), nil
+	return commons.Return(true)
 }

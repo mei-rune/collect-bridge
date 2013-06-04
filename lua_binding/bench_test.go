@@ -2,7 +2,6 @@ package lua_binding
 
 import (
 	"commons"
-	"commons/errutils"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -108,8 +107,8 @@ func BenchmarkGet(b *testing.B) {
 	drv.Start()
 
 	td := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
-		create: false, delete: false, create_error: errutils.InternalError("create test cb ok test1whj23"),
-		delete_error: errutils.InternalError("delete test cb ok test1whj23")}
+		create: false, delete: false, create_error: commons.InternalError("create test cb ok test1whj23"),
+		delete_error: commons.InternalError("delete test cb ok test1whj23")}
 	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {
@@ -138,8 +137,8 @@ func BenchmarkGetWithCallback(b *testing.B) {
 	drv.Start()
 
 	td := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
-		create: false, delete: false, create_error: errutils.InternalError("create test cb ok test1whj23"),
-		delete_error: errutils.InternalError("delete test cb ok test1whj23")}
+		create: false, delete: false, create_error: commons.InternalError("create test cb ok test1whj23"),
+		delete_error: commons.InternalError("delete test cb ok test1whj23")}
 	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {
@@ -168,8 +167,8 @@ func BenchmarkDirectGet(b *testing.B) {
 	drv.Start()
 
 	dd := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
-		create: false, delete: false, create_error: errutils.InternalError("create test cb ok test1whj23"),
-		delete_error: errutils.InternalError("delete test cb ok test1whj23")}
+		create: false, delete: false, create_error: commons.InternalError("create test cb ok test1whj23"),
+		delete_error: commons.InternalError("delete test cb ok test1whj23")}
 	td := commons.Wrap(dd, 1*time.Second)
 	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 

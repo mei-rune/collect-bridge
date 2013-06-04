@@ -49,7 +49,7 @@ func mainHandle(req *restful.Request, resp *restful.Response) {
 
 func main() {
 	flag.Parse()
-
+	
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
 		return
@@ -65,7 +65,7 @@ func main() {
 		return
 	}
 
-	svr.Get("/mdb/{mdb.type}/{id}", func(ctx *web.Context, t, id string) {
+	svr.Get("/mdb/{mdb.type}/{id}", func(req *restful.Request, resp *restful.Response) {
 		ctx.Params["mdb.type"] = t
 		ctx.Params["id"] = id
 

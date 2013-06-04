@@ -11,21 +11,21 @@ type RuntimeError interface {
 	Code() int
 }
 
-type ApplicationError struct {
-	code    int
-	message string
+type applicationError struct {
+	code    int    `json:"code"`
+	message string `json:"message"`
 }
 
-func (err *ApplicationError) Code() int {
+func (err *applicationError) Code() int {
 	return err.code
 }
 
-func (err *ApplicationError) Error() string {
+func (err *applicationError) Error() string {
 	return err.message
 }
 
 func NewRuntimeError(code int, message string) RuntimeError {
-	return &ApplicationError{code: code, message: message}
+	return &applicationError{code: code, message: message}
 }
 
 func GetCode(e error, default_code int) int {
@@ -166,3 +166,27 @@ var (
 	ValueIsNil         = NewRuntimeError(InternalErrorCode, "value is nil.")
 	NotIntValue        = NewRuntimeError(InternalErrorCode, "it is not a int.")
 )
+
+func InternalError(message string) RuntimeError {
+	return NewRuntimeError(InternalErrorCode, message)
+}
+
+func BadRequest(message string) RuntimeError {
+	return NewRuntimeError(BadRequestCode, message)
+}
+
+func NotAcceptable(message string) RuntimeError {
+	return NewRuntimeError(NotAcceptableCode, message)
+}
+
+func IsRequired(name string) RuntimeError {
+	return NewRuntimeError(BadRequestCode, "'"+name+"' is required.")
+}
+
+func RecordNotFound(id string) RuntimeError {
+	return NotFound(id)
+}
+
+func RecordAlreadyExists(id string) RuntimeError {
+	return NewRuntimeError(NotAcceptableCode, "'"+id+"' is already exists.")
+}

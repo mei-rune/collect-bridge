@@ -2,7 +2,6 @@ package snmp
 
 import (
 	"commons"
-	"commons/errutils"
 	"fmt"
 	"strconv"
 	"strings"
@@ -51,7 +50,7 @@ func parseVersion(v string) (SnmpVersion, commons.RuntimeError) {
 	case "v3", "V3", "3":
 		return SNMP_V3, nil
 	}
-	return SNMP_Verr, errutils.BadRequest("Unsupported version - " + v)
+	return SNMP_Verr, commons.BadRequest("Unsupported version - " + v)
 }
 
 func getAction(params map[string]string) (SnmpType, commons.RuntimeError) {
@@ -71,18 +70,25 @@ func getAction(params map[string]string) (SnmpType, commons.RuntimeError) {
 	case "set", "Set", "SET", "put", "Put", "PUT":
 		return SNMP_PDU_SET, nil
 	}
-	return SNMP_PDU_GET, errutils.BadRequest(fmt.Sprintf("error pdu type: %s", v))
+	return SNMP_PDU_GET, commons.BadRequest(fmt.Sprintf("error pdu type: %s", v))
 }
 
 func internalError(msg string, err error) commons.RuntimeError {
 	if nil == err {
-		return commons.NewRuntimeError(500, msg)
+		return commons.InternalError(msg)
 	}
-	return commons.NewRuntimeError(500, msg+"-"+err.Error())
+	return commons.InternalError(msg + "-" + err.Error())
 }
 
-var HostIsRequired = errutils.IsRequired("snmp.host")
-var OidIsRequired = errutils.IsRequired("snmp.oid")
+func internalErrorResult(msg string, err error) commons.Result {
+	if nil == err {
+		return commons.ReturnError(commons.InternalErrorCode, msg)
+	}
+	return commons.ReturnError(commons.InternalErrorCode, msg+"-"+err.Error())
+}
+
+var HostIsRequired = commons.IsRequired("snmp.host")
+var OidIsRequired = commons.IsRequired("snmp.oid")
 
 func getHost(params map[string]string) (string, commons.RuntimeError) {
 	host, ok := params["snmp.host"]
@@ -101,20 +107,20 @@ func getHost(params map[string]string) (string, commons.RuntimeError) {
 	return host, nil
 }
 
-func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) commons.Result {
 	host, e := getHost(params)
 	if nil != e {
-		return nil, e
+		return commons.ReturnWithError(e)
 	}
 
 	oid, ok := params["snmp.oid"]
 	if !ok {
-		return nil, OidIsRequired
+		return commons.ReturnWithError(OidIsRequired)
 	}
 
 	client, err := self.GetClient(host)
 	if nil != err {
-		return nil, internalError("create client failed", err)
+		return internalErrorResult("create client failed", err)
 	}
 
 	if SNMP_PDU_TABLE == action {
@@ -129,17 +135,17 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 
 	version, e := getVersion(params)
 	if SNMP_Verr == version {
-		return nil, e
+		return commons.ReturnWithError(e)
 	}
 
 	req, err := client.CreatePDU(action, version)
 	if nil != err {
-		return nil, internalError("create pdu failed", err)
+		return internalErrorResult("create pdu failed", err)
 	}
 
 	err = req.Init(params)
 	if nil != err {
-		return nil, internalError("init pdu failed", err)
+		return internalErrorResult("init pdu failed", err)
 	}
 
 	switch action {
@@ -165,45 +171,45 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) (map[s
 	}
 
 	if nil != err {
-		return nil, internalError("append vb failed", err)
+		return internalErrorResult("append vb failed", err)
 	}
 	resp, err := client.SendAndRecv(req, getTimeout(params, self.timeout))
 	if nil != err {
-		return nil, internalError("snmp failed", err)
+		return internalErrorResult("snmp failed", err)
 	}
 
 	if 0 == resp.GetVariableBindings().Len() {
-		return nil, internalError("result is empty", nil)
+		return internalErrorResult("result is empty", nil)
 	}
 	results := make(map[string]interface{})
 	for _, vb := range resp.GetVariableBindings().All() {
 		if vb.Value.IsError() && 1 == req.GetVariableBindings().Len() {
-			return nil, internalError("result is error", nil)
+			return internalErrorResult("result is error", nil)
 		}
 
 		results[vb.Oid.GetString()] = vb.Value
 	}
 
-	return commons.Return(results), nil
+	return commons.Return(results)
 }
 
-func (self *SnmpDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *SnmpDriver) Get(params map[string]string) commons.Result {
 	action, err := getAction(params)
 	if nil != err {
-		return nil, internalError("get action failed", err)
+		return internalErrorResult("get action failed", err)
 	}
 	return self.invoke(action, params)
 }
 
-func (self *SnmpDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *SnmpDriver) Put(params map[string]string) commons.Result {
 	return self.invoke(SNMP_PDU_SET, params)
 }
 
-func (self *SnmpDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *SnmpDriver) Create(params map[string]string) commons.Result {
+	return commons.NotImplementedResult
 }
 
-func (self *SnmpDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *SnmpDriver) Delete(params map[string]string) commons.Result {
 	action, ok := params["snmp.action"]
 	if ok && "remove_client" == action {
 		host, _ := getHost(params)
@@ -213,10 +219,10 @@ func (self *SnmpDriver) Delete(params map[string]string) (commons.Result, common
 			self.RemoveAllClients()
 		}
 
-		return commons.Return(true), nil
+		return commons.Return(true)
 	}
 
-	return nil, commons.NotImplemented
+	return commons.ReturnWithError(commons.NotImplemented)
 }
 
 var (
@@ -255,16 +261,15 @@ func (self *SnmpDriver) getNext(params map[string]string, client Client, next_oi
 }
 
 func (self *SnmpDriver) tableGet(params map[string]string, client Client,
-	oid string) (map[string]interface{}, commons.RuntimeError) {
-
+	oid string) commons.Result {
 	start_oid, err := ParseOidFromString(oid)
 	if nil != err {
-		return nil, internalError("param 'oid' is error", err)
+		return internalErrorResult("param 'oid' is error", err)
 	}
 	oid_s := start_oid.GetString()
 	version, e := getVersion(params)
 	if SNMP_Verr == version {
-		return nil, e
+		return commons.ReturnWithError(e)
 	}
 
 	timeout := getTimeout(params, self.timeout)
@@ -273,7 +278,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 	for {
 		vb, err := self.getNext(params, client, next_oid, version, timeout)
 		if nil != err {
-			return nil, err
+			return commons.ReturnWithError(err)
 		}
 
 		if !strings.HasPrefix(vb.Oid.GetString(), oid_s) {
@@ -282,8 +287,9 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 
 		sub := vb.Oid.GetUint32s()[len(start_oid):]
 		if 2 > len(sub) {
-			return nil, errutils.InternalError(fmt.Sprintf("read '%s' return '%s', it is incorrect - value is %s",
-				next_oid.GetString(), vb.Oid.GetString(), vb.Value.String()))
+			return commons.ReturnError(commons.InternalErrorCode,
+				fmt.Sprintf("read '%s' return '%s', it is incorrect - value is %s",
+					next_oid.GetString(), vb.Oid.GetString(), vb.Value.String()))
 		}
 
 		idx := strconv.FormatUint(uint64(sub[0]), 10)
@@ -299,27 +305,27 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 		next_oid = vb.Oid
 	}
 	if 0 == len(results) {
-		return nil, internalError("result is empty", nil)
+		return internalErrorResult("result is empty", nil)
 	}
 
-	return commons.Return(results), nil
+	return commons.Return(results)
 }
 
 func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Client,
-	oid, columns_str string) (map[string]interface{}, commons.RuntimeError) {
+	oid, columns_str string) commons.Result {
 
 	start_oid, err := ParseOidFromString(oid)
 	if nil != err {
-		return nil, internalError("param 'oid' is error", err)
+		return internalErrorResult("param 'oid' is error", err)
 	}
 	columns, err := commons.ConvertToIntList(columns_str, ",")
 	if nil != err {
-		return nil, internalError("param 'columns' is error", err)
+		return internalErrorResult("param 'columns' is error", err)
 	}
 
 	version, e := getVersion(params)
 	if SNMP_Verr == version {
-		return nil, e
+		return commons.ReturnWithError(e)
 	}
 
 	timeout := getTimeout(params, self.timeout)
@@ -337,28 +343,28 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 		var req PDU
 		req, err = client.CreatePDU(SNMP_PDU_GETNEXT, version)
 		if nil != err {
-			return nil, internalError("create pdu failed", err)
+			return internalErrorResult("create pdu failed", err)
 		}
 
 		err = req.Init(params)
 		if nil != err {
-			return nil, internalError("init pdu failed", err)
+			return internalErrorResult("init pdu failed", err)
 		}
 
 		for _, next_oid := range next_oids {
 			err = req.GetVariableBindings().AppendWith(next_oid, NewSnmpNil())
 			if nil != err {
-				return nil, internalError("append vb failed", err)
+				return internalErrorResult("append vb failed", err)
 			}
 		}
 
 		resp, err := client.SendAndRecv(req, timeout)
 		if nil != err {
-			return nil, internalError("snmp failed", err)
+			return internalErrorResult("snmp failed", err)
 		}
 
 		if len(next_oids) != resp.GetVariableBindings().Len() {
-			return nil, internalError(fmt.Sprintf("number of result is mismatch, excepted is %d, actual is %d",
+			return internalErrorResult(fmt.Sprintf("number of result is mismatch, excepted is %d, actual is %d",
 				len(next_oids), resp.GetVariableBindings().Len()), nil)
 		}
 
@@ -371,8 +377,9 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 
 			sub := vb.Oid.GetUint32s()[len(start_oid)+1:]
 			if 1 > len(sub) {
-				return nil, errutils.InternalError(fmt.Sprintf("read '%s' return '%s', it is incorrect - value is %s",
-					start_oid.GetString(), vb.Oid.GetString(), vb.Value.String()))
+				return commons.ReturnError(commons.InternalErrorCode,
+					fmt.Sprintf("read '%s' return '%s', it is incorrect - value is %s",
+						start_oid.GetString(), vb.Oid.GetString(), vb.Value.String()))
 			}
 
 			keys := NewOid(sub).GetString()
@@ -401,7 +408,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 		next_oids = next_oids[0:offset]
 	}
 	if 0 == len(results) {
-		return nil, internalError("result is empty", nil)
+		return internalErrorResult("result is empty", nil)
 	}
-	return commons.Return(results), nil
+	return commons.Return(results)
 }

@@ -30,31 +30,31 @@ func (svc *mock_driver) Stop() {
 	}
 }
 
-func (svc *mock_driver) Get(params map[string]string) (Result, RuntimeError) {
+func (svc *mock_driver) Get(params map[string]string) Result {
 	resp, _ := strconv.Atoi(params["a"])
 	resp++
-	return Result{"result": resp}, nil
+	return Return(nil).SetOption("result", resp)
 }
 
-func (svc *mock_driver) Put(params map[string]string) (Result, RuntimeError) {
+func (svc *mock_driver) Put(params map[string]string) Result {
 	a, _ := strconv.Atoi(params["a"])
 	b, _ := strconv.Atoi(params["b"])
 
-	return Result{"result": a + b}, nil
+	return Return(nil).SetOption("result", a+b)
 }
 
-func (svc *mock_driver) Create(params map[string]string) (Result, RuntimeError) {
+func (svc *mock_driver) Create(params map[string]string) Result {
 	a, _ := strconv.Atoi(params["a"])
 	b, _ := strconv.Atoi(params["b"])
 
-	return Result{"result": a - b}, nil
+	return Return(nil).SetOption("result", a-b)
 }
 
-func (svc *mock_driver) Delete(params map[string]string) (Result, RuntimeError) {
+func (svc *mock_driver) Delete(params map[string]string) Result {
 	a, _ := params["a"]
 	b, _ := params["b"]
 
-	return Result{"result": a + b}, NewRuntimeError(500, a+b)
+	return Return(nil).SetOption("result", a+b).SetError(500, a+b)
 }
 
 func TestDriverWrapperStartFailed(t *testing.T) {
@@ -106,34 +106,33 @@ func TestDriverWrapper(t *testing.T) {
 	mock.Start()
 	defer mock.Stop()
 
-	result, e := mock.Get(map[string]string{"a": "1"})
-	if nil != e {
-		t.Errorf("get error! %v", e)
+	result := mock.Get(map[string]string{"a": "1"})
+	if result.HasError() {
+		t.Errorf("get error! %v", result.ErrorMessage())
 	}
-	if !reflect.DeepEqual(Result{"result": 2}, result) {
-		t.Errorf("get error, excepted is %v, actual is %v", result, Result{"result": 2})
+	if !reflect.DeepEqual(Return(nil).SetOption("result", 2), result) {
+		t.Errorf("get error, excepted is %v, actual is %v", result, Return(nil).SetOption("result", 2))
 	}
-	result, e = mock.Put(map[string]string{"a": "1", "b": "3"})
-	if nil != e {
-		t.Errorf("put error! %v", e)
+	result = mock.Put(map[string]string{"a": "1", "b": "3"})
+	if result.HasError() {
+		t.Errorf("put error! %v", result.ErrorMessage())
 	}
-	if !reflect.DeepEqual(Result{"result": 4}, result) {
-		t.Errorf("put error, excepted is %v, actual is %v", result, Result{"result": 4})
+	if !reflect.DeepEqual(Return(nil).SetOption("result", 4), result) {
+		t.Errorf("put error, excepted is %v, actual is %v", result, Return(nil).SetOption("result", 4))
 	}
-	result, e = mock.Create(map[string]string{"a": "9", "b": "3"})
-	if nil != e {
-		t.Errorf("create error! %v", e)
+	result = mock.Create(map[string]string{"a": "9", "b": "3"})
+	if result.HasError() {
+		t.Errorf("create error! %v", result.ErrorMessage())
 	}
-	if !reflect.DeepEqual(Result{"result": 6}, result) {
-		t.Errorf("create error, excepted is %v, actual is %v", result, Result{"result": 6})
+	if !reflect.DeepEqual(Return(nil).SetOption("result", 6), result) {
+		t.Errorf("create error, excepted is %v, actual is %v", result, Return(nil).SetOption("result", 6))
 	}
-	result, e = mock.Delete(map[string]string{"a": "9", "b": "3"})
-
-	if nil == e {
-		t.Errorf("delete error! %v", e)
+	result = mock.Delete(map[string]string{"a": "9", "b": "3"})
+	if !result.HasError() {
+		t.Errorf("delete error! %v", result.ErrorMessage())
 	} else {
-		if e.Error() != "93" {
-			t.Errorf("create error, excepted is %v, actual is %v", e.Error(), "93")
+		if result.ErrorMessage() != "93" {
+			t.Errorf("create error, excepted is %v, actual is %v", result.ErrorMessage(), "93")
 		}
 	}
 

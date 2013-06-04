@@ -1,5 +1,9 @@
 package main
 
-func readConfigs(root, conf string) (manager, error) {
+import (
+	"errors"
+)
 
+func readConfigs(root, conf string) (*manager, error) {
+	return nil, errors.New("not implemented")
 }

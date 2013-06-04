@@ -31,6 +31,37 @@ func replaceQuestion(buffer *bytes.Buffer, str string, idx int) *bytes.Buffer {
 	return buffer
 }
 
+func FindByParams(drv string, db *sql.DB, table *types.TableDefinition,
+	params map[string]string) (Query, error) {
+	var buffer bytes.Buffer
+	isNumParams := "pg" == drv
+	builder := &statementBuilder{table: table,
+		idx:          1,
+		isFirst:      true,
+		buffer:       &buffer,
+		operators:    default_operators,
+		add_argument: (*statementBuilder).appendNumericArguments}
+
+	if isNumParams {
+		builder.add_argument = (*statementBuilder).appendNumericArguments
+	} else {
+		builder.add_argument = (*statementBuilder).appendSimpleArguments
+	}
+
+	e := builder.build(params)
+	if nil != e {
+		return nil, e
+	}
+
+	//fmt.Printf("%v, %v\r\n", buffer.String(), builder.params)
+
+	return &QueryImpl{drv: drv,
+		db:         db,
+		table:      table,
+		where:      buffer.String(),
+		parameters: builder.params}, nil
+}
+
 func Where(drv string, db *sql.DB, table *types.TableDefinition,
 	queryString string, args ...interface{}) Query {
 

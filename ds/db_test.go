@@ -3,6 +3,7 @@ package ds
 import (
 	"commons/types"
 	"database/sql"
+	"fmt"
 	_ "github.com/lib/pq"
 	"os"
 	"reflect"
@@ -99,7 +100,7 @@ func simpleTest(t *testing.T, cb func(drv string, conn *sql.DB, definitions *typ
 	cb("pg", conn, definitions)
 }
 
-func TestSimpleInsertByServer(t *testing.T) {
+func TestSimpleInsert(t *testing.T) {
 	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
@@ -139,7 +140,7 @@ func TestSimpleInsertByServer(t *testing.T) {
 	})
 }
 
-func TestSimpleUpdateByServer(t *testing.T) {
+func TestSimpleUpdate(t *testing.T) {
 	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
@@ -193,7 +194,7 @@ func TestSimpleUpdateByServer(t *testing.T) {
 	})
 }
 
-func TestSimpleFindByIdByServer(t *testing.T) {
+func TestSimpleFindById(t *testing.T) {
 	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
@@ -229,7 +230,7 @@ func TestSimpleFindByIdByServer(t *testing.T) {
 	})
 }
 
-func TestSimpleQueryByServer(t *testing.T) {
+func TestSimpleWhere(t *testing.T) {
 	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
@@ -286,7 +287,70 @@ func TestSimpleQueryByServer(t *testing.T) {
 	})
 }
 
-func TestSimpleDeleteByidByServer(t *testing.T) {
+func TestSimpleFindByParams(t *testing.T) {
+	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
+		person := definitions.Find("Person")
+		if nil == person {
+			t.Error("Person is not defined")
+			return
+		}
+
+		id, err := Insert(drv, conn, person, person1_attributes)
+		if nil != err {
+			t.Errorf(err.Error())
+			return
+		}
+
+		query, err := FindByParams(drv, conn, person, map[string]string{"@id": fmt.Sprint(id)})
+		if nil != err {
+			t.Errorf(err.Error())
+			return
+		}
+
+		it, err := query.Iter()
+		if nil != err {
+			t.Errorf(err.Error())
+			return
+		}
+
+		results := make([]map[string]interface{}, 0)
+		for {
+			res := map[string]interface{}{}
+			if !it.Next(res) {
+				break
+			}
+
+			results = append(results, res)
+		}
+
+		if nil != it.Err() {
+			t.Error(it.Err())
+			return
+		}
+
+		if 1 != len(results) {
+			t.Errorf("result is empty")
+			return
+		}
+
+		db_attributes := results[0]
+		for k, v2 := range db_attributes {
+			if person.Id.Name == k {
+				continue
+			}
+
+			v1, ok := person1_saved_attributes[k]
+			if !ok {
+				t.Error("'" + k + "' is not exists.")
+			} else if !reflect.DeepEqual(v1, v2) {
+				t.Errorf("'"+k+"' is not equals, excepted is [%T]%v, actual is [%T]%v.",
+					v1, v1, v2, v2)
+			}
+		}
+	})
+}
+
+func TestSimpleDeleteById(t *testing.T) {
 
 	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")

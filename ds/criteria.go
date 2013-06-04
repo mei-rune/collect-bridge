@@ -33,23 +33,25 @@ import (
 // 	return buildClassQuery(cls), nil
 // }
 
+type op_func func(self *statementBuilder, column *types.ColumnDefinition, v string) error
+
 var (
-	operators = make(map[string]func(self *statementBuilder, column *types.ColumnDefinition, v string) error)
+	default_operators = make(map[string]op_func)
 )
 
 func init() {
-	operators["exists"] = (*statementBuilder).exists
-	operators["in"] = (*statementBuilder).in
-	operators["nin"] = (*statementBuilder).nin
-	operators["gt"] = (*statementBuilder).gt
-	operators["gte"] = (*statementBuilder).gte
-	operators["eq"] = (*statementBuilder).eq
-	operators["ne"] = (*statementBuilder).ne
-	operators["lt"] = (*statementBuilder).lt
-	operators["lte"] = (*statementBuilder).lte
-	operators["between"] = (*statementBuilder).between
-	operators["is"] = (*statementBuilder).is
-	operators["like"] = (*statementBuilder).like
+	default_operators["exists"] = (*statementBuilder).exists
+	default_operators["in"] = (*statementBuilder).in
+	default_operators["nin"] = (*statementBuilder).nin
+	default_operators["gt"] = (*statementBuilder).gt
+	default_operators["gte"] = (*statementBuilder).gte
+	default_operators["eq"] = (*statementBuilder).eq
+	default_operators["ne"] = (*statementBuilder).ne
+	default_operators["lt"] = (*statementBuilder).lt
+	default_operators["lte"] = (*statementBuilder).lte
+	default_operators["between"] = (*statementBuilder).between
+	default_operators["is"] = (*statementBuilder).is
+	default_operators["like"] = (*statementBuilder).like
 }
 
 type statementBuilder struct {
@@ -59,11 +61,27 @@ type statementBuilder struct {
 
 	buffer *bytes.Buffer
 	params []interface{}
+
+	operators    map[string]op_func
+	add_argument func(self *statementBuilder)
 }
 
 func (self *statementBuilder) appendArguments() {
+	if nil != self.add_argument {
+		self.add_argument(self)
+	} else {
+		self.appendSimpleArguments()
+	}
+}
+
+func (self *statementBuilder) appendNumericArguments() {
 	self.buffer.WriteString(" $")
 	self.buffer.WriteString(fmt.Sprint(self.idx))
+	self.idx++
+}
+
+func (self *statementBuilder) appendSimpleArguments() {
+	self.buffer.WriteString(" ?")
 	self.idx++
 }
 
@@ -114,9 +132,9 @@ func (self *statementBuilder) in(column *types.ColumnDefinition, s string) error
 	switch column.Type.Name() {
 	case "ipAddress", "physicalAddress", "string":
 		ss := strings.Split(s, ",")
-		return self.append(column.Name, "in ( '", strings.Join(ss, "', '"), "' )")
+		return self.append(column.Name, "IN ( '"+strings.Join(ss, "', '")+"' )")
 	case "objectId", "integer", "decimal":
-		return self.append(column.Name, "in (", s, ")")
+		return self.append(column.Name, "IN (", s, ")")
 	default:
 		return fmt.Errorf("'in' is not supported for the column '%v' ", column.Name)
 	}
@@ -126,9 +144,9 @@ func (self *statementBuilder) nin(column *types.ColumnDefinition, s string) erro
 	switch column.Type.Name() {
 	case "ipAddress", "physicalAddress", "string":
 		ss := strings.Split(s, ",")
-		return self.append(column.Name, "not in ( '", strings.Join(ss, "', '"), "' )")
+		return self.append(column.Name, "NOT IN ( '"+strings.Join(ss, "', '")+"' )")
 	case "objectId", "integer", "decimal":
-		return self.append(column.Name, "not in (", s, ")")
+		return self.append(column.Name, "NOT IN (", s, ")")
 	default:
 		return fmt.Errorf("'in' is not supported for the column '%v' ", column.Name)
 	}
@@ -201,17 +219,18 @@ func (self *statementBuilder) between(column *types.ColumnDefinition, s string) 
 
 	if self.isFirst {
 		self.isFirst = false
-		self.buffer.WriteString(" ")
+		self.buffer.WriteString(" (")
 	} else {
-		self.buffer.WriteString(" and")
+		self.buffer.WriteString(" AND (")
 	}
 
 	self.buffer.WriteString(column.Name)
-	self.buffer.WriteString(" BETWEEN ")
+	self.buffer.WriteString(" BETWEEN")
 	self.appendArguments()
 
-	self.buffer.WriteString(" AND  ")
+	self.buffer.WriteString(" AND")
 	self.appendArguments()
+	self.buffer.WriteString(")")
 
 	self.params = append(self.params, column.Type.ToExternal(v1))
 	self.params = append(self.params, column.Type.ToExternal(v2))
@@ -265,7 +284,10 @@ func split(exp string) (string, string) {
 	}
 
 	idx := strings.IndexRune(exp[1:], ']')
-	return exp[1:idx], exp[idx+1:]
+	if -1 == idx {
+		return "eq", exp
+	}
+	return exp[1 : idx+1], exp[idx+2:]
 }
 
 func (self *statementBuilder) build(params map[string]string) error {
@@ -284,7 +306,7 @@ func (self *statementBuilder) build(params map[string]string) error {
 		}
 
 		op, v := split(exp)
-		f, _ := operators[op]
+		f, _ := self.operators[op]
 		if nil == f {
 			return errors.New("'" + op + "' is unsupported operator for the column '" + nm[1:] + "'.")
 		}

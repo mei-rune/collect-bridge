@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 )
 
 type manager struct {
@@ -14,7 +16,7 @@ func (self *manager) rpel() {
 	signal.Notify(c, os.Interrupt, os.Kill)
 
 	go func() {
-    for 
+
 	}()
 	select {
 	case s := <-c:

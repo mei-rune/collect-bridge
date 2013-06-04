@@ -17,7 +17,7 @@ func TestKillProcess(t *testing.T) {
 	e = kp.Kill()
 
 	if nil != e {
-		//t.Error(e)
+		t.Error(e)
 		pr.Process.Kill()
 		return
 	}

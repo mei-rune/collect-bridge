@@ -5,7 +5,9 @@ import (
 	"commons/types"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // func buildClassQuery(cls *ClassDefinition) interface{} {
@@ -33,40 +35,41 @@ import (
 // 	return buildClassQuery(cls), nil
 // }
 
-type op_func func(self *statementBuilder, column *types.ColumnDefinition, v string) error
+type op_func func(self *queryBuilder, column *types.ColumnDefinition, v string) error
 
 var (
 	default_operators = make(map[string]op_func)
 )
 
 func init() {
-	default_operators["exists"] = (*statementBuilder).exists
-	default_operators["in"] = (*statementBuilder).in
-	default_operators["nin"] = (*statementBuilder).nin
-	default_operators["gt"] = (*statementBuilder).gt
-	default_operators["gte"] = (*statementBuilder).gte
-	default_operators["eq"] = (*statementBuilder).eq
-	default_operators["ne"] = (*statementBuilder).ne
-	default_operators["lt"] = (*statementBuilder).lt
-	default_operators["lte"] = (*statementBuilder).lte
-	default_operators["between"] = (*statementBuilder).between
-	default_operators["is"] = (*statementBuilder).is
-	default_operators["like"] = (*statementBuilder).like
+	default_operators["exists"] = (*queryBuilder).exists
+	default_operators["in"] = (*queryBuilder).in
+	default_operators["nin"] = (*queryBuilder).nin
+	default_operators["gt"] = (*queryBuilder).gt
+	default_operators["gte"] = (*queryBuilder).gte
+	default_operators["eq"] = (*queryBuilder).eq
+	default_operators["ne"] = (*queryBuilder).ne
+	default_operators["lt"] = (*queryBuilder).lt
+	default_operators["lte"] = (*queryBuilder).lte
+	default_operators["between"] = (*queryBuilder).between
+	default_operators["is"] = (*queryBuilder).is
+	default_operators["like"] = (*queryBuilder).like
 }
 
-type statementBuilder struct {
+type queryBuilder struct {
 	table   *types.TableDefinition
 	idx     int
 	isFirst bool
+	prefix  string
 
 	buffer *bytes.Buffer
 	params []interface{}
 
 	operators    map[string]op_func
-	add_argument func(self *statementBuilder)
+	add_argument func(self *queryBuilder)
 }
 
-func (self *statementBuilder) appendArguments() {
+func (self *queryBuilder) appendArguments() {
 	if nil != self.add_argument {
 		self.add_argument(self)
 	} else {
@@ -74,23 +77,26 @@ func (self *statementBuilder) appendArguments() {
 	}
 }
 
-func (self *statementBuilder) appendNumericArguments() {
+func (self *queryBuilder) appendNumericArguments() {
 	self.buffer.WriteString(" $")
 	self.buffer.WriteString(fmt.Sprint(self.idx))
 	self.idx++
 }
 
-func (self *statementBuilder) appendSimpleArguments() {
+func (self *queryBuilder) appendSimpleArguments() {
 	self.buffer.WriteString(" ?")
 	self.idx++
 }
 
-func (self *statementBuilder) append(ss ...string) error {
+func (self *queryBuilder) append(ss ...string) error {
 	if 0 == len(ss) {
 		return nil
 	}
 	if self.isFirst {
 		self.isFirst = false
+		if 0 != len(self.prefix) {
+			self.buffer.WriteString(self.prefix)
+		}
 	} else {
 		self.buffer.WriteString(" AND ")
 	}
@@ -101,7 +107,7 @@ func (self *statementBuilder) append(ss ...string) error {
 	return nil
 }
 
-func (self *statementBuilder) add(column *types.ColumnDefinition, op, s string) error {
+func (self *queryBuilder) add(column *types.ColumnDefinition, op, s string) error {
 	v, e := column.Type.Parse(s)
 	if nil != e {
 		return fmt.Errorf("column '%v' convert '%v' to '%v' failed, %v",
@@ -110,6 +116,9 @@ func (self *statementBuilder) add(column *types.ColumnDefinition, op, s string) 
 
 	if self.isFirst {
 		self.isFirst = false
+		if 0 != len(self.prefix) {
+			self.buffer.WriteString(self.prefix)
+		}
 		self.buffer.WriteString(" ")
 	} else {
 		self.buffer.WriteString(" AND ")
@@ -124,11 +133,11 @@ func (self *statementBuilder) add(column *types.ColumnDefinition, op, s string) 
 	return nil
 }
 
-func (self *statementBuilder) exists(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) exists(column *types.ColumnDefinition, s string) error {
 	return errors.New("not implemented")
 }
 
-func (self *statementBuilder) in(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) in(column *types.ColumnDefinition, s string) error {
 	switch column.Type.Name() {
 	case "ipAddress", "physicalAddress", "string":
 		ss := strings.Split(s, ",")
@@ -140,7 +149,7 @@ func (self *statementBuilder) in(column *types.ColumnDefinition, s string) error
 	}
 }
 
-func (self *statementBuilder) nin(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) nin(column *types.ColumnDefinition, s string) error {
 	switch column.Type.Name() {
 	case "ipAddress", "physicalAddress", "string":
 		ss := strings.Split(s, ",")
@@ -152,31 +161,31 @@ func (self *statementBuilder) nin(column *types.ColumnDefinition, s string) erro
 	}
 }
 
-func (self *statementBuilder) gt(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) gt(column *types.ColumnDefinition, s string) error {
 	return self.add(column, ">", s)
 }
 
-func (self *statementBuilder) gte(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) gte(column *types.ColumnDefinition, s string) error {
 	return self.add(column, ">=", s)
 }
 
-func (self *statementBuilder) eq(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) eq(column *types.ColumnDefinition, s string) error {
 	return self.add(column, "=", s)
 }
 
-func (self *statementBuilder) ne(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) ne(column *types.ColumnDefinition, s string) error {
 	return self.add(column, "!=", s)
 }
 
-func (self *statementBuilder) lt(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) lt(column *types.ColumnDefinition, s string) error {
 	return self.add(column, "<", s)
 }
 
-func (self *statementBuilder) lte(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) lte(column *types.ColumnDefinition, s string) error {
 	return self.add(column, "<=", s)
 }
 
-func (self *statementBuilder) is(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) is(column *types.ColumnDefinition, s string) error {
 	switch s {
 	case "null", "NULL":
 		return self.append(column.Name, "IS NULL")
@@ -191,7 +200,7 @@ func (self *statementBuilder) is(column *types.ColumnDefinition, s string) error
 	}
 }
 
-func (self *statementBuilder) like(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) like(column *types.ColumnDefinition, s string) error {
 	if "string" == column.Type.Name() {
 		return fmt.Errorf("'like' is not supported for the column '%v', it must is a string type", column.Name)
 	}
@@ -199,7 +208,7 @@ func (self *statementBuilder) like(column *types.ColumnDefinition, s string) err
 	return self.append(column.Name, " LIKE '"+s+"'")
 }
 
-func (self *statementBuilder) between(column *types.ColumnDefinition, s string) error {
+func (self *queryBuilder) between(column *types.ColumnDefinition, s string) error {
 	i := strings.IndexRune(s, ',')
 	if -1 == i {
 		return errors.New("column '" + column.Name + "' syntex error, it must has two value - '" + s + "'")
@@ -219,6 +228,9 @@ func (self *statementBuilder) between(column *types.ColumnDefinition, s string) 
 
 	if self.isFirst {
 		self.isFirst = false
+		if 0 != len(self.prefix) {
+			self.buffer.WriteString(self.prefix)
+		}
 		self.buffer.WriteString(" (")
 	} else {
 		self.buffer.WriteString(" AND (")
@@ -237,7 +249,7 @@ func (self *statementBuilder) between(column *types.ColumnDefinition, s string) 
 	return nil
 }
 
-func (self *statementBuilder) equalClass(column string, table *types.TableDefinition) {
+func (self *queryBuilder) equalClass(column string, table *types.TableDefinition) {
 	if !table.IsInheritanced() {
 		return
 	}
@@ -255,6 +267,9 @@ func (self *statementBuilder) equalClass(column string, table *types.TableDefini
 
 	if self.isFirst {
 		self.isFirst = false
+		if 0 != len(self.prefix) {
+			self.buffer.WriteString(self.prefix)
+		}
 	} else {
 		self.buffer.WriteString(" AND ")
 	}
@@ -290,7 +305,7 @@ func split(exp string) (string, string) {
 	return exp[1 : idx+1], exp[idx+2:]
 }
 
-func (self *statementBuilder) build(params map[string]string) error {
+func (self *queryBuilder) build(params map[string]string) error {
 	if nil == params || 0 == len(params) {
 		return nil
 	}
@@ -317,4 +332,114 @@ func (self *statementBuilder) build(params map[string]string) error {
 		}
 	}
 	return nil
+}
+
+type updateBuilder struct {
+	table           *types.TableDefinition
+	idx             int
+	isNumericParams bool
+	buffer          *bytes.Buffer
+	params          []interface{}
+}
+
+func (self *updateBuilder) buildUpdate(updated_attributes map[string]interface{}) error {
+	self.buffer.WriteString("UPDATE ")
+	self.buffer.WriteString(self.table.CollectionName)
+	self.buffer.WriteString(" SET ")
+	isFirst := true
+	for _, attribute := range self.table.Attributes {
+		//////////////////////////////////////////
+		// TODO: refactor it?
+		if attribute.IsSerial() {
+			continue
+		}
+		var value interface{} = nil
+		switch attribute.Name {
+		case "created_at":
+			continue
+		case "updated_at":
+			value = time.Now()
+		default:
+			v := updated_attributes[attribute.Name]
+			if nil == v {
+				continue
+			}
+			if attribute.IsReadOnly {
+				return fmt.Errorf("column '%v' is readonly.", attribute.Name)
+			}
+			value = attribute.Type.ToExternal(v)
+		}
+
+		//////////////////////////////////////////
+
+		if isFirst {
+			isFirst = false
+		} else {
+			self.buffer.WriteString(", ")
+		}
+
+		self.buffer.WriteString(attribute.Name)
+		if self.isNumericParams {
+			self.buffer.WriteString("= $")
+			self.buffer.WriteString(strconv.FormatInt(int64(self.idx), 10))
+		} else {
+			self.buffer.WriteString(" = ?")
+		}
+
+		self.params = append(self.params, value)
+
+		self.idx++
+	}
+	return nil
+}
+
+func (self *updateBuilder) buildWhereWithString(queryString string, params []interface{}) {
+	if 0 == len(queryString) {
+		return
+	}
+
+	self.buffer.WriteString(" WHERE ")
+	if self.isNumericParams {
+		self.buffer, self.idx = replaceQuestion(self.buffer, queryString, self.idx)
+	} else {
+		self.buffer.WriteString(queryString)
+	}
+	if nil != params && 0 != len(params) {
+		self.params = append(self.params, params...)
+	}
+}
+
+func (self *updateBuilder) buildWhereById(id interface{}) {
+	self.buffer.WriteString(" WHERE ")
+	self.buffer.WriteString(self.table.Id.Name)
+	if self.isNumericParams {
+		self.buffer.WriteString(" = $")
+		self.buffer.WriteString(strconv.FormatInt(int64(self.idx), 10))
+		self.idx++
+	} else {
+		self.buffer.WriteString(" = ?")
+	}
+
+	self.params = append(self.params, self.table.Id.Type.ToExternal(id))
+}
+
+func (self *updateBuilder) buildWhere(params map[string]string) error {
+	builder := &queryBuilder{table: self.table,
+		idx:       self.idx,
+		isFirst:   true,
+		prefix:    " WHERE",
+		buffer:    self.buffer,
+		params:    self.params,
+		operators: default_operators}
+
+	if self.isNumericParams {
+		builder.add_argument = (*queryBuilder).appendNumericArguments
+	} else {
+		builder.add_argument = (*queryBuilder).appendSimpleArguments
+	}
+
+	e := builder.build(params)
+	self.params = builder.params
+	self.idx = builder.idx
+	return e
 }

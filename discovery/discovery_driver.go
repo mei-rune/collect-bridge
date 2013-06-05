@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"commons"
-	"commons/errutils"
 	"encoding/json"
 	"time"
 )
@@ -29,14 +28,14 @@ func NewDiscoveryDriver(timeout time.Duration, drvMgr *commons.DriverManager) *D
 	return &DiscoveryDriver{drvMgr: drvMgr, discoverers: make(map[string]*Discoverer)}
 }
 
-func (self *DiscoveryDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *DiscoveryDriver) Get(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return nil, commons.IdNotExists
+		return commons.ReturnWithError(commons.IdNotExists)
 	}
 	discoverer, ok := self.discoverers[id]
 	if !ok {
-		return nil, errutils.RecordNotFound(id)
+		return commons.ReturnWithError(commons.RecordNotFound(id))
 	}
 
 	dst, ok := params["dst"]
@@ -49,35 +48,35 @@ func (self *DiscoveryDriver) Get(params map[string]string) (commons.Result, comm
 			}
 			messages = append(messages, message)
 		}
-		return commons.Return(messages), nil
+		return commons.Return(messages)
 	}
 	if discoverer.IsCompleted() {
-		return commons.Return(discoverer.Result()), nil
+		return commons.Return(discoverer.Result())
 	}
-	return nil, commons.NewRuntimeError(503, "discovering, try again later.")
+	return commons.ReturnError(503, "discovering, try again later.")
 }
 
-func (self *DiscoveryDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *DiscoveryDriver) Put(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return nil, commons.IdNotExists
+		return commons.ReturnWithError(commons.IdNotExists)
 	}
 	discoverer, ok := self.discoverers[id]
 	if !ok {
-		return nil, errutils.RecordNotFound(id)
+		return commons.ReturnWithError(commons.RecordNotFound(id))
 	}
 
 	body, ok := params["body"]
 	if !ok {
-		return nil, commons.BodyNotExists
+		return commons.ReturnWithError(commons.BodyNotExists)
 	}
 	if "" == body {
-		return nil, commons.BodyIsEmpty
+		return commons.ReturnWithError(commons.BodyIsEmpty)
 	}
 	params2 := make(map[string]interface{})
 	e := json.Unmarshal([]byte(body), &params2)
 	if nil != e {
-		return nil, errutils.BadRequest("read body failed, it is not a map[string]interface{} - " + e.Error() + body)
+		return commons.ReturnWithError(commons.BadRequest("read body failed, it is not a map[string]interface{} - " + e.Error() + body))
 	}
 	for k, v := range params {
 		params2[k] = v
@@ -85,46 +84,46 @@ func (self *DiscoveryDriver) Put(params map[string]string) (commons.Result, comm
 
 	err := discoverer.Control(params2)
 	if nil != err {
-		return nil, err
+		return commons.ReturnWithError(err)
 	}
-	return commons.Return(true), nil
+	return commons.Return(true)
 }
 
-func (self *DiscoveryDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *DiscoveryDriver) Create(params map[string]string) commons.Result {
 	body, _ := params["body"]
 	if "" == body {
-		return nil, commons.BodyIsEmpty
+		return commons.ReturnWithError(commons.BodyIsEmpty)
 	}
 
 	discovery_params := &DiscoveryParams{}
 	e := json.Unmarshal([]byte(body), discovery_params)
 	if nil != e {
-		return nil, errutils.BadRequest("read body failed, it is not DiscoveryParams - " + e.Error())
+		return commons.ReturnWithError(commons.BadRequest("read body failed, it is not DiscoveryParams - " + e.Error()))
 	}
 
 	discoverer, err := NewDiscoverer(discovery_params, self.drvMgr)
 	if nil != err {
-		return nil, commons.NewRuntimeError(500, err.Error())
+		return commons.ReturnError(500, err.Error())
 	}
 	id := time.Now().UTC().String()
 	if _, ok := self.discoverers[id]; ok {
-		return nil, commons.ServiceUnavailable
+		return commons.ReturnWithError(commons.ServiceUnavailable)
 	}
 	self.discoverers[id] = discoverer
-	return commons.Return(id), nil
+	return commons.Return(id)
 }
 
-func (self *DiscoveryDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *DiscoveryDriver) Delete(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return nil, commons.IdNotExists
+		return commons.ReturnWithError(commons.IdNotExists)
 	}
 	discoverer, ok := self.discoverers[id]
 	if !ok {
-		return nil, errutils.RecordNotFound(id)
+		return commons.ReturnWithError(commons.RecordNotFound(id))
 	}
 	delete(self.discoverers, id)
 	discoverer.Close()
 
-	return commons.Return(true), nil
+	return commons.Return(true)
 }

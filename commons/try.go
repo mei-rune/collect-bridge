@@ -219,6 +219,40 @@ func TryGetString(attributes map[string]interface{}, key string) (string, error)
 	return s, nil
 }
 
+func GetArray(attributes map[string]interface{}, key string) []interface{} {
+	v, ok := attributes[key]
+	if !ok {
+		return nil
+	}
+
+	if nil == v {
+		return nil
+	}
+
+	res, ok := v.([]interface{})
+	if !ok {
+		return nil
+	}
+	return res
+}
+
+func GetObject(attributes map[string]interface{}, key string) map[string]interface{} {
+	v, ok := attributes[key]
+	if !ok {
+		return nil
+	}
+
+	if nil == v {
+		return nil
+	}
+
+	res, ok := v.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	return res
+}
+
 func TryGetObject(attributes map[string]interface{}, key string) (map[string]interface{}, error) {
 	v, ok := attributes[key]
 	if !ok {
@@ -234,6 +268,40 @@ func TryGetObject(attributes map[string]interface{}, key string) (map[string]int
 		return nil, typeError(key, "map[string]interface{}")
 	}
 	return res, nil
+}
+
+func GetObjects(attributes map[string]interface{}, key string) []map[string]interface{} {
+	v, ok := attributes[key]
+	if !ok {
+		return nil
+	}
+
+	if nil == v {
+		return nil
+	}
+
+	results := make([]map[string]interface{}, 0, 10)
+	switch value := v.(type) {
+	case []interface{}:
+		for _, o := range value {
+			r, ok := o.(map[string]interface{})
+			if !ok {
+				return nil
+			}
+			results = append(results, r)
+		}
+	case map[string]interface{}:
+		for _, o := range value {
+			r, ok := o.(map[string]interface{})
+			if !ok {
+				return nil
+			}
+			results = append(results, r)
+		}
+	default:
+		return nil
+	}
+	return results
 }
 
 func TryGetObjects(attributes map[string]interface{}, key string) ([]map[string]interface{}, error) {

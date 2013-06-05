@@ -107,23 +107,23 @@ type SnmpBase struct {
 }
 
 func (self *SnmpBase) GetString(params map[string]string, oid string) (map[string]interface{}, commons.RuntimeError) {
-	res, s, err := self.GetStringValue(params, oid)
-	if nil == err {
-		return res.Return(s), err
+	res, s := self.GetStringValue(params, oid)
+	if !res.HasError() {
+		return res.Return(s)
 	}
-	return res, err
+	return res
 }
 
-func (self *SnmpBase) GetStringValue(params map[string]string, oid string) (commons.Result, string, commons.RuntimeError) {
+func (self *SnmpBase) GetStringValue(params map[string]string, oid string) (commons.Result, string) {
 	params["snmp.oid"] = oid
 	params["snmp.action"] = "get"
 	res, err := self.drv.Get(params)
-	if nil == res || nil != err {
-		return res, "", err
+	if res.HasError() {
+		return res, ""
 	}
-	rv := res.GetReturn()
+	rv := res.InterfaceValue()
 	if nil == rv {
-		return res, "", commons.ValueIsNil
+		return commons.Return(nil).SetError(commons.ValueIsNil.Code(), commons.ValueIsNil.Error())
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
@@ -137,24 +137,24 @@ func (self *SnmpBase) GetStringValue(params map[string]string, oid string) (comm
 	return res, value, commons.NewRuntimeError(commons.InternalErrorCode, e.Error())
 }
 
-func (self *SnmpBase) GetOid(params map[string]string, oid string) (commons.Result, commons.RuntimeError) {
-	res, s, err := self.GetOidValue(params, oid)
-	if nil == err {
-		return res.Return(s), err
+func (self *SnmpBase) GetOid(params map[string]string, oid string) commons.Result {
+	res, s := self.GetOidValue(params, oid)
+	if !res.HasError() {
+		return res.Return(s)
 	}
-	return res, err
+	return res
 }
 
-func (self *SnmpBase) GetOidValue(params map[string]string, oid string) (commons.Result, string, commons.RuntimeError) {
+func (self *SnmpBase) GetOidValue(params map[string]string, oid string) (commons.Result, string) {
 	params["snmp.oid"] = oid
 	params["snmp.action"] = "get"
-	res, err := self.drv.Get(params)
-	if nil == res || nil != err {
-		return res, "", err
+	res := self.drv.Get(params)
+	if res.HasError() {
+		return res, ""
 	}
-	rv := res.GetReturn()
+	rv := res.InterfaceValue()
 	if nil == rv {
-		return res, "", commons.ValueIsNil
+		return commons.Return(nil).SetError(commons.ValueIsNil.Code(), commons.ValueIsNil.Error())
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
@@ -168,24 +168,24 @@ func (self *SnmpBase) GetOidValue(params map[string]string, oid string) (commons
 	return res, value, commons.NewRuntimeError(commons.InternalErrorCode, e.Error())
 }
 
-func (self *SnmpBase) GetInt32(params map[string]string, oid string) (commons.Result, commons.RuntimeError) {
-	res, i, err := self.GetInt32Value(params, oid, -1)
-	if nil == err {
-		return res.Return(i), err
+func (self *SnmpBase) GetInt32(params map[string]string, oid string) commons.Result {
+	res, i := self.GetInt32Value(params, oid, -1)
+	if !res.HasError() {
+		return res.Return(s)
 	}
-	return res, err
+	return res
 }
 
-func (self *SnmpBase) GetInt32Value(params map[string]string, oid string, defaultValue int32) (commons.Result, int32, commons.RuntimeError) {
+func (self *SnmpBase) GetInt32Value(params map[string]string, oid string, defaultValue int32) (commons.Result, int32) {
 	params["snmp.oid"] = oid
 	params["snmp.action"] = "get"
 	res, err := self.drv.Get(params)
-	if nil == res || nil != err {
-		return res, defaultValue, err
+	if res.HasError() {
+		return res, defaultValue
 	}
-	rv := res.GetReturn()
+	rv := res.InterfaceValue()
 	if nil == rv {
-		return res, defaultValue, commons.ValueIsNil
+		return commons.Return(defaultValue).SetError(commons.ValueIsNil.Code(), commons.ValueIsNil.Error())
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
@@ -199,24 +199,24 @@ func (self *SnmpBase) GetInt32Value(params map[string]string, oid string, defaul
 	return res, value, commons.NewRuntimeError(commons.InternalErrorCode, e.Error())
 }
 
-func (self *SnmpBase) GetInt64(params map[string]string, oid string) (commons.Result, commons.RuntimeError) {
-	res, i, err := self.GetInt64Value(params, oid, -1)
-	if nil == err {
-		return res.Return(i), err
+func (self *SnmpBase) GetInt64(params map[string]string, oid string) commons.Result {
+	res, i := self.GetInt64Value(params, oid, -1)
+	if !res.HasError() {
+		return res.Return(i)
 	}
-	return res, err
+	return res
 }
 
-func (self *SnmpBase) GetInt64Value(params map[string]string, oid string, defaultValue int64) (commons.Result, int64, commons.RuntimeError) {
+func (self *SnmpBase) GetInt64Value(params map[string]string, oid string, defaultValue int64) (commons.Result, int64) {
 	params["snmp.oid"] = oid
 	params["snmp.action"] = "get"
 	res, err := self.drv.Get(params)
-	if nil == res || nil != err {
-		return res, defaultValue, err
+	if res.HasError() {
+		return res, defaultValue
 	}
-	rv := res.GetReturn()
+	rv := res.InterfaceValue()
 	if nil == rv {
-		return res, defaultValue, commons.ValueIsNil
+		return commons.Return(defaultValue).SetError(commons.ValueIsNil.Code(), commons.ValueIsNil.Error())
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
@@ -230,24 +230,24 @@ func (self *SnmpBase) GetInt64Value(params map[string]string, oid string, defaul
 	return res, value, commons.NewRuntimeError(commons.InternalErrorCode, e.Error())
 }
 
-func (self *SnmpBase) GetUint32(params map[string]string, oid string) (map[string]interface{}, commons.RuntimeError) {
-	res, i, err := self.GetUint32Value(params, oid, 0)
-	if nil == err {
-		return res.Return(i), err
+func (self *SnmpBase) GetUint32(params map[string]string, oid string) commons.Result {
+	res, i := self.GetUint32Value(params, oid, 0)
+	if !res.HasError() {
+		return res.Return(i)
 	}
-	return res, err
+	return res
 }
 
-func (self *SnmpBase) GetUint32Value(params map[string]string, oid string, defaultValue uint32) (commons.Result, uint32, commons.RuntimeError) {
+func (self *SnmpBase) GetUint32Value(params map[string]string, oid string, defaultValue uint32) (commons.Result, uint32) {
 	params["snmp.oid"] = oid
 	params["snmp.action"] = "get"
 	res, err := self.drv.Get(params)
-	if nil == res || nil != err {
-		return res, defaultValue, err
+	if res.HasError() {
+		return res, defaultValue
 	}
-	rv := res.GetReturn()
+	rv := res.InterfaceValue()
 	if nil == rv {
-		return res, defaultValue, commons.ValueIsNil
+		return commons.Return(defaultValue).SetError(commons.ValueIsNil.Code(), commons.ValueIsNil.Error())
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
@@ -256,29 +256,21 @@ func (self *SnmpBase) GetUint32Value(params map[string]string, oid string, defau
 	}
 	value, e := TryGetUint32(params, values, oid, defaultValue)
 	if nil == e {
-		return res, value, nil
+		return res, value
 	}
 	return res, value, commons.NewRuntimeError(commons.InternalErrorCode, e.Error())
 }
 
-func (self *SnmpBase) GetUint64(params map[string]string, oid string) (commons.Result, commons.RuntimeError) {
-	res, i, err := self.GetUint64Value(params, oid, 0)
-	if nil == err {
-		return res.Return(i), err
-	}
-	return res, err
-}
-
-func (self *SnmpBase) GetValues(params map[string]string, oids []string) (commons.Result, map[string]interface{}, commons.RuntimeError) {
+func (self *SnmpBase) GetValues(params map[string]string, oids []string) (commons.Result, map[string]interface{}) {
 	params["snmp.oid"] = strings.Join(oids, "|")
 	params["snmp.action"] = "bulk"
 	res, err := self.drv.Get(params)
-	if nil == res || nil != err {
-		return res, nil, err
+	if res.HasError() {
+		return res, defaultValue
 	}
-	rv := res.GetReturn()
+	rv := res.InterfaceValue()
 	if nil == rv {
-		return res, nil, commons.ValueIsNil
+		return commons.Return(defaultValue).SetError(commons.ValueIsNil.Code(), commons.ValueIsNil.Error())
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
@@ -288,17 +280,24 @@ func (self *SnmpBase) GetValues(params map[string]string, oids []string) (common
 	return res, values, nil
 }
 
+func (self *SnmpBase) GetUint64(params map[string]string, oid string) commons.Result {
+	res, i := self.GetUint64Value(params, oid, 0)
+	if !res.HasError() {
+		return res.Return(i)
+	}
+	return res
+}
 func (self *SnmpBase) GetUint64Value(params map[string]string, oid string,
-	defaultValue uint64) (commons.Result, uint64, commons.RuntimeError) {
+	defaultValue uint64) (commons.Result, uint64) {
 	params["snmp.oid"] = oid
 	params["snmp.action"] = "get"
 	res, err := self.drv.Get(params)
-	if nil == res || nil != err {
-		return res, defaultValue, err
+	if res.HasError() {
+		return res, defaultValue
 	}
-	rv := res.GetReturn()
+	rv := res.InterfaceValue()
 	if nil == rv {
-		return res, defaultValue, commons.ValueIsNil
+		return commons.Return(defaultValue).SetError(commons.ValueIsNil.Code(), commons.ValueIsNil.Error())
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
@@ -313,16 +312,16 @@ func (self *SnmpBase) GetUint64Value(params map[string]string, oid string,
 }
 
 func (self *SnmpBase) GetTable(params map[string]string, oid, columns string,
-	cb TABLE_CB) (commons.Result, commons.RuntimeError) {
-	res, t, err := self.GetTableValue(params, oid, columns, cb)
-	if nil == err {
-		return res.Return(t), err
+	cb TABLE_CB) commons.Result {
+	res, t := self.GetTableValue(params, oid, columns, cb)
+	if !res.HasError() {
+		return res.Return(t)
 	}
-	return res, err
+	return res
 }
 
 func (self *SnmpBase) GetTableValue(params map[string]string, oid, columns string,
-	cb TABLE_CB) (result commons.Result, sv map[string]interface{}, re commons.RuntimeError) {
+	cb TABLE_CB) (result commons.Result, sv map[string]interface{}) {
 
 	defer func() {
 		if e := recover(); nil != e {
@@ -334,12 +333,12 @@ func (self *SnmpBase) GetTableValue(params map[string]string, oid, columns strin
 	params["snmp.action"] = "table"
 	params["snmp.columns"] = columns
 	res, err := self.drv.Get(params)
-	if nil == res || nil != err {
-		return res, nil, err
+	if res.HasError() {
+		return res, defaultValue
 	}
-	rv := res.GetReturn()
+	rv := res.InterfaceValue()
 	if nil == rv {
-		return res, nil, err
+		return commons.Return(defaultValue).SetError(commons.ValueIsNil.Code(), commons.ValueIsNil.Error())
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
@@ -363,15 +362,15 @@ func (self *SnmpBase) GetTableValue(params map[string]string, oid, columns strin
 	return res, table, err
 }
 
-func (self *SnmpBase) GetOne(params map[string]string, oid, columns string, cb ONE_CB) (commons.Result, commons.RuntimeError) {
-	res, t, err := self.GetOneValue(params, oid, columns, cb)
-	if nil == err {
-		return res.Return(t), err
+func (self *SnmpBase) GetOne(params map[string]string, oid, columns string, cb ONE_CB) commons.Result {
+	res, t := self.GetOneValue(params, oid, columns, cb)
+	if !res.HasError() {
+		return res.Return(t)
 	}
-	return res, err
+	return res
 }
 
-func (self *SnmpBase) GetOneValue(params map[string]string, oid, columns string, cb ONE_CB) (result commons.Result, sv map[string]interface{}, re commons.RuntimeError) {
+func (self *SnmpBase) GetOneValue(params map[string]string, oid, columns string, cb ONE_CB) (result commons.Result, sv map[string]interface{}) {
 
 	defer func() {
 		if e := recover(); nil != e {
@@ -383,12 +382,12 @@ func (self *SnmpBase) GetOneValue(params map[string]string, oid, columns string,
 	params["snmp.action"] = "table"
 	params["snmp.columns"] = columns
 	res, err := self.drv.Get(params)
-	if nil == res || nil != err {
-		return res, nil, err
+	if res.HasError() {
+		return res, defaultValue
 	}
-	rv := res.GetReturn()
+	rv := res.InterfaceValue()
 	if nil == rv {
-		return res, nil, err
+		return commons.Return(defaultValue).SetError(commons.ValueIsNil.Code(), commons.ValueIsNil.Error())
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
@@ -413,27 +412,27 @@ func (self *SnmpBase) GetOneValue(params map[string]string, oid, columns string,
 		"Record not found - getonevalue")
 }
 
-func (self *SnmpBase) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *SnmpBase) Get(params map[string]string) commons.Result {
+	return commons.ReturnError(commons.NotImplementedCode, "not implemented")
 }
 
-func (self *SnmpBase) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *SnmpBase) Put(params map[string]string) commons.Result {
+	return commons.ReturnError(commons.NotImplementedCode, "not implemented")
 }
 
-func (self *SnmpBase) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *SnmpBase) Create(params map[string]string) commons.Result {
+	return commons.ReturnError(commons.NotImplementedCode, "not implemented")
 }
 
-func (self *SnmpBase) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *SnmpBase) Delete(params map[string]string) commons.Result {
+	return commons.ReturnError(commons.NotImplementedCode, "not implemented")
 }
 
 type systemOid struct {
 	SnmpBase
 }
 
-func (self *systemOid) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *systemOid) Get(params map[string]string) commons.Result {
 	return self.GetOid(params, "1.3.6.1.2.1.1.2.0")
 }
 
@@ -441,7 +440,7 @@ type systemDescr struct {
 	SnmpBase
 }
 
-func (self *systemDescr) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *systemDescr) Get(params map[string]string) commons.Result {
 	return self.GetString(params, "1.3.6.1.2.1.1.1.0")
 }
 
@@ -449,7 +448,7 @@ type systemName struct {
 	SnmpBase
 }
 
-func (self *systemName) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *systemName) Get(params map[string]string) commons.Result {
 	return self.GetString(params, "1.3.6.1.2.1.1.5.0")
 }
 
@@ -457,7 +456,7 @@ type systemUpTime struct {
 	SnmpBase
 }
 
-func (self *systemUpTime) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *systemUpTime) Get(params map[string]string) commons.Result {
 	return self.GetUint32(params, "1.3.6.1.2.1.1.3.0")
 }
 
@@ -465,7 +464,7 @@ type systemLocation struct {
 	SnmpBase
 }
 
-func (self *systemLocation) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *systemLocation) Get(params map[string]string) commons.Result {
 	return self.GetString(params, "1.3.6.1.2.1.1.6.0")
 }
 
@@ -473,7 +472,7 @@ type systemServices struct {
 	SnmpBase
 }
 
-func (self *systemServices) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *systemServices) Get(params map[string]string) commons.Result {
 	return self.GetInt32(params, "1.3.6.1.2.1.1.7.0")
 }
 
@@ -481,7 +480,7 @@ type systemInfo struct {
 	SnmpBase
 }
 
-func (self *systemInfo) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *systemInfo) Get(params map[string]string) commons.Result {
 	return self.GetOne(params, "1.3.6.1.2.1.1", "", func(old_row map[string]interface{}) (map[string]interface{}, commons.RuntimeError) {
 
 		oid := GetOid(params, old_row, "2")
@@ -512,7 +511,7 @@ type interfaceAll struct {
 	SnmpBase
 }
 
-func (self *interfaceAll) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *interfaceAll) Get(params map[string]string) commons.Result {
 	//params["columns"] = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21"
 
 	return self.GetTable(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
@@ -548,7 +547,7 @@ type interfaceDescr struct {
 	SnmpBase
 }
 
-func (self *interfaceDescr) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *interfaceDescr) Get(params map[string]string) commons.Result {
 	//params["columns"] = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21"
 
 	return self.GetTable(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6",
@@ -696,7 +695,7 @@ func init() {
 
 }
 
-type DispatchFunc func(params map[string]string) (commons.Result, commons.RuntimeError)
+type DispatchFunc func(params map[string]string) commons.Result
 
 var emptyResult = make(map[string]interface{})
 
@@ -802,7 +801,7 @@ func (self *dispatcherBase) Init(params map[string]interface{}, drvName string) 
 	return self.SnmpBase.Init(params, drvName)
 }
 
-func (self *dispatcherBase) invoke(params map[string]string, funcs map[uint]map[string]DispatchFunc) (commons.Result, commons.RuntimeError) {
+func (self *dispatcherBase) invoke(params map[string]string, funcs map[uint]map[string]DispatchFunc) commons.Result {
 	oid, e := self.GetMetricAsString(params, "sys.oid")
 	if nil != e {
 		return nil, commons.NewRuntimeError(e.Code(), "get system oid failed, "+e.Error())
@@ -834,10 +833,10 @@ func (self *dispatcherBase) invoke(params map[string]string, funcs map[uint]map[
 	return nil, errutils.NotAcceptable("Unsupported device - " + oid)
 }
 
-func (self *dispatcherBase) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *dispatcherBase) Get(params map[string]string) commons.Result {
 	return self.invoke(params, self.get_methods)
 }
 
-func (self *dispatcherBase) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
+func (self *dispatcherBase) Put(params map[string]string) commons.Result {
 	return self.invoke(params, self.set_methods)
 }

@@ -67,7 +67,8 @@ end
 
 function mj.log(level, msg)
   if "number" ~= type(level) then
-    return nil, "'params' is not a table."
+    coroutine.yield("log", mj.SYSTEM, msg)
+    return
   end
 
   coroutine.yield("log", level, msg)
@@ -115,7 +116,7 @@ end
 
 function mj.execute(schema, action, params)
   if "table" ~= type(params) then
-     return nil, "'params' is not a table."
+     return {error_message= "'params' is not a table."}
   end
   return coroutine.yield(action, schema, params)
 end
@@ -123,11 +124,11 @@ end
 function mj.execute_module(module_name, action, params)
   module = require(module_name)
   if nil == module then
-    return nil, "module '"..module_name.."' is not exists."
+    return {error_message=  "module '"..module_name.."' is not exists."}
   end
   func = module[action]
   if nil == func then
-    return nil, "method '"..action.."' is not implemented in module '"..module_name.."'."
+    return {error_message= "method '"..action.."' is not implemented in module '"..module_name.."'."}
   end
 
   return func(params)
@@ -135,7 +136,7 @@ end
 
 function mj.execute_script(action, script, params)
   if 'string' ~= type(script) then
-    return nil, "'script' is not a string."
+    return {error_message= "'script' is not a string."}
   end
   local env = {["mj"] = mj,
    ["action"] = action,
@@ -152,14 +153,14 @@ function mj.execute_task(action, params)
 
   return coroutine.create(function()
       if nil == params then
-        return nil, "'params' is nil."
+        return {error_message= "'params' is nil."}
       end
       if "table" ~= type(params) then
-        return nil, "'params' is not a table, actual is '"..type(params).."'." 
+        return  {error_message= "'params' is not a table, actual is '"..type(params).."'." }
       end
       schema = params["schema"]
       if nil == schema then
-        return nil, "'schema' is nil"
+        return {error_message= "'schema' is nil"}
       elseif "script" == schema then
         return mj.execute_script(action, params["script"], params)
       else
@@ -172,8 +173,7 @@ function mj.loop()
   mj.log(mj.SYSTEM, "lua enter looping")
   local action, params = mj.receive()  -- get new value
   while "__exit__" ~= action do
-    mj.log(mj.SYSTEM, "lua vm receive - '"..action.."'")
-
+    -- mj.log(mj.SYSTEM, "lua vm receive - '"..action.."'")
     co = mj.execute_task(action, params)
     action, params = mj.send_and_recv(co)
   end

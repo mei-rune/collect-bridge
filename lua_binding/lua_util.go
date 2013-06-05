@@ -18,6 +18,17 @@ const (
 	LUA_TTABLE = C.LUA_TTABLE
 )
 
+var (
+	cs_error_code    = C.CString("error_code")
+	cs_error_message = C.CString("error_message")
+	cs_value         = C.CString("value")
+	cs_options       = C.CString("options")
+	cs_warnings      = C.CString("warnings")
+	cs_effected      = C.CString("effected")
+	cs_lastInsertId  = C.CString("lastInsertId")
+	cs_created_at    = C.CString("created_at")
+)
+
 func fileExists(dir string) bool {
 	info, err := os.Stat(dir)
 	if err != nil {
@@ -412,10 +423,10 @@ func pushAny(ls *C.lua_State, any interface{}) {
 		pushError(ls, v)
 	case []interface{}:
 		pushArray(ls, v)
-	case map[string]interface{}:
-		pushMap(ls, v)
 	case commons.Result:
 		pushResult(ls, v)
+	case map[string]interface{}:
+		pushMap(ls, v)
 	default:
 		val := reflect.ValueOf(any)
 		switch val.Kind() {
@@ -472,47 +483,39 @@ func pushResult(ls *C.lua_State, params commons.Result) {
 	C.lua_createtable(ls, 10, 10)
 
 	if params.HasError() {
-		cs = C.CString("code")
 		C.lua_pushinteger(ls, C.lua_Integer(params.ErrorCode()))
-		C.lua_setfield(ls, -2, cs)
-		C.free(unsafe.Pointer(cs))
-		cs = nil
+		C.lua_setfield(ls, -2, cs_error_code)
 
-		cs = C.CString("message")
 		pushString(ls, params.ErrorMessage())
-		C.lua_setfield(ls, -2, cs)
-		C.free(unsafe.Pointer(cs))
-		cs = nil
+		C.lua_setfield(ls, -2, cs_error_message)
 	}
 	if nil != params.InterfaceValue() {
-		cs = C.CString("value")
 		pushAny(ls, params.InterfaceValue())
-		C.lua_setfield(ls, -2, cs)
-		C.free(unsafe.Pointer(cs))
-		cs = nil
+		C.lua_setfield(ls, -2, cs_value)
 	}
 
 	if params.HasOptions() {
-		cs = C.CString("value")
 		pushMap(ls, params.Options().ToMap())
-		C.lua_setfield(ls, -2, cs)
-		C.free(unsafe.Pointer(cs))
-		cs = nil
+		C.lua_setfield(ls, -2, cs_options)
 	}
 
 	if nil != params.Warnings() {
-		cs = C.CString("warnings")
 		pushAny(ls, params.Warnings())
-		C.lua_setfield(ls, -2, cs)
-		C.free(unsafe.Pointer(cs))
-		cs = nil
+		C.lua_setfield(ls, -2, cs_warnings)
 	}
 
-	cs = C.CString("created_at")
+	if -1 != params.Effected() {
+		C.lua_pushinteger(ls, C.lua_Integer(params.Effected()))
+		C.lua_setfield(ls, -2, cs_effected)
+	}
+
+	if nil != params.LastInsertId() {
+		pushAny(ls, params.LastInsertId())
+		C.lua_setfield(ls, -2, cs_lastInsertId)
+	}
+
 	C.lua_pushinteger(ls, C.lua_Integer(params.CreatedAt().Unix()))
-	C.lua_setfield(ls, -2, cs)
-	C.free(unsafe.Pointer(cs))
-	cs = nil
+	C.lua_setfield(ls, -2, cs_created_at)
 }
 
 func pushMap(ls *C.lua_State, params map[string]interface{}) {

@@ -1,17 +1,17 @@
 module("test_invoke_module_failed",  package.seeall)
 
 function get(params)
-	return nil, "get error for test_invoke_module_failed"
+	return {error_message= "get error for test_invoke_module_failed"}
 end
 
 function put(params)
-	return nil, "put error for test_invoke_module_failed"
+	return {error_message= "put error for test_invoke_module_failed"}
 end
 
 function create(params)
-	return nil, "record not found"
+	return {error_message="record not found"}
 end
 
 function delete(params)
-	return nil, "delete failed"
+	return {error_message="delete failed"}
 end

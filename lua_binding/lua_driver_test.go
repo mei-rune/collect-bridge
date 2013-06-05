@@ -272,7 +272,7 @@ func TestInvokeScript(t *testing.T) {
 		return
 	}
 
-	params := map[string]string{"schema": "script", "script": "return {value= action..' ok'}, nil"}
+	params := map[string]string{"schema": "script", "script": "return {value= action..' ok'}"}
 	v := drv.Get(params)
 	if v.HasError() {
 		t.Errorf("execute get failed, " + v.ErrorMessage())
@@ -308,34 +308,11 @@ func TestInvokeScriptFailed(t *testing.T) {
 	drv.drvMgr.Unregister("test")
 }
 
-type TestDriver struct {
-	create, get, put, delete interface{}
-	get_error, put_error     commons.RuntimeError
-
-	create_error, delete_error commons.RuntimeError
-}
-
-func (bridge *TestDriver) Get(params map[string]string) commons.Result {
-	return commons.Return(bridge.get).SetError(bridge.get_error.Code(), bridge.get_error.Error())
-}
-
-func (bridge *TestDriver) Put(params map[string]string) commons.Result {
-	return commons.Return(bridge.put).SetError(bridge.put_error.Code(), bridge.put_error.Error())
-}
-
-func (bridge *TestDriver) Create(map[string]string) commons.Result {
-	return commons.Return(bridge.create).SetError(bridge.create_error.Code(), bridge.create_error.Error())
-}
-
-func (bridge *TestDriver) Delete(map[string]string) commons.Result {
-	return commons.Return(bridge.delete).SetError(bridge.delete_error.Code(), bridge.delete_error.Error())
-}
-
 func TestInvokeAndCallback(t *testing.T) {
 	log.SetFlags(log.Flags() | log.Lshortfile)
 
 	drv := NewLuaDriver(1*time.Second, commons.NewDriverManager())
-	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "", 0)
+	drv.InitLoggerWithCallback(func(s []byte) { t.Log(string(s)) }, "TestInvokeAndCallback", 0)
 	drv.Name = "TestInvokeAndCallback"
 	drv.Start()
 
@@ -344,7 +321,7 @@ func TestInvokeAndCallback(t *testing.T) {
 		return
 	}
 
-	td := &TestDriver{get: "get12", put: "put12", create: true, delete: true}
+	td := &commons.DefaultDrv{GetValue: "get12", PutValue: "put12", CreateValue: true, DeleteValue: true}
 	drv.drvMgr.Register("test_dumy", td)
 
 	defer func() {
@@ -354,10 +331,10 @@ func TestInvokeAndCallback(t *testing.T) {
 
 	params := map[string]string{"schema": "script", "script": "mj.log(mj.DEBUG, 'log a test log.')\nreturn mj.execute('test_dumy', action, params)"}
 	res := drv.Get(params)
-	if !res.HasError() {
+	if res.HasError() {
 		t.Errorf("execute get failed, " + res.ErrorMessage())
 	} else if s, _ := res.Value().AsString(); "get12" != s {
-		t.Errorf("execute get failed, excepted value is 'ok', actual is %v", res)
+		t.Errorf("execute get failed, excepted value is 'get12', actual is %v", res.Value())
 	} else {
 		t.Log("execute get ok")
 	}
@@ -395,13 +372,13 @@ func TestInvokeModule(t *testing.T) {
 	}()
 	params := map[string]string{"schema": "test_invoke_module"}
 	v := drv.Get(params)
-	testResult(t, drv, commons.Return("get test ok test1whj23"), "", v)
+	testResult(t, drv, "get test ok test1whj23", "", v)
 	v = drv.Put(params)
-	testResult(t, drv, commons.Return("put test ok test1whj23"), "", v)
+	testResult(t, drv, "put test ok test1whj23", "", v)
 	v = drv.Create(params)
-	testResult(t, drv, commons.Return("2328"), "create test ok test1whj23", v)
+	testResult(t, drv, "2328", "create test ok test1whj23", v)
 	v = drv.Delete(params)
-	testResult(t, drv, commons.Return(false), "delete test ok test1whj23", v)
+	testResult(t, drv, false, "delete test ok test1whj23", v)
 }
 
 func TestInvokeModuleFailed(t *testing.T) {
@@ -436,9 +413,11 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	drv.Name = "TestInvokeModuleAndCallback"
 	drv.Start()
 
-	td := &TestDriver{get: "get test cb ok test1whj23", put: "put test cb ok test1whj23",
-		create: false, delete: false, create_error: commons.InternalError("create test cb ok test1whj23"),
-		delete_error: commons.InternalError("delete test cb ok test1whj23")}
+	td := &commons.DefaultDrv{GetValue: "get test cb ok test1whj23", PutValue: "put test cb ok test1whj23",
+		CreateValue: false, DeleteValue: false, CreateCode: commons.InternalErrorCode,
+		CreateErr:  "create test cb ok test1whj23",
+		DeleteCode: commons.InternalErrorCode,
+		DeleteErr:  "delete test cb ok test1whj23"}
 	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {
@@ -448,13 +427,13 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 
 	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}
 	v := drv.Get(params)
-	testResult(t, drv, commons.Return("get test cb ok test1whj23"), "", v)
+	testResult(t, drv, "get test cb ok test1whj23", "", v)
 	v = drv.Put(params)
-	testResult(t, drv, commons.Return("put test cb ok test1whj23"), "", v)
+	testResult(t, drv, "put test cb ok test1whj23", "", v)
 	v = drv.Create(params)
-	testResult(t, drv, commons.Return(false), "create test cb ok test1whj23", v)
+	testResult(t, drv, false, "create test cb ok test1whj23", v)
 	b := drv.Delete(params)
-	testResult(t, drv, commons.Return(false), "delete test cb ok test1whj23", b)
+	testResult(t, drv, false, "delete test cb ok test1whj23", b)
 }
 
 func TestInvokeModuleAndCallbackFailed(t *testing.T) {
@@ -465,8 +444,9 @@ func TestInvokeModuleAndCallbackFailed(t *testing.T) {
 	drv.Name = "TestInvokeModuleAndCallbackFailed"
 	drv.Start()
 
-	td := &TestDriver{get_error: commons.InternalError("get test cb ok test1whj23"), put_error: commons.InternalError("put test cb ok test1whj23"),
-		create: false, delete: false}
+	td := &commons.DefaultDrv{GetCode: commons.InternalErrorCode, GetErr: "get test cb ok test1whj23",
+		PutCode: commons.InternalErrorCode, PutErr: "put test cb ok test1whj23",
+		CreateValue: false, DeleteValue: false}
 	drv.drvMgr.Register("test_dumy_TestInvokeModuleAndCallback", td)
 
 	defer func() {
@@ -482,10 +462,10 @@ func TestInvokeModuleAndCallbackFailed(t *testing.T) {
 	testResult(t, drv, nil, "put test cb ok test1whj23", v)
 
 	v = drv.Create(params)
-	testResult(t, drv, commons.Return(false), "", v)
+	testResult(t, drv, false, "", v)
 
 	b := drv.Delete(params)
-	testResult(t, drv, commons.Return(false), "", b)
+	testResult(t, drv, false, "", b)
 }
 
 func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
@@ -496,7 +476,7 @@ func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
 	drv.Name = "TestInvokeModuleAndCallbackFailed"
 	drv.Start()
 
-	td := &TestDriver{get: map[string]interface{}{"i8": int8(8), "i16": int16(16), "int32": int32(32), "int64": int64(64), "int": 128,
+	td := &commons.DefaultDrv{GetValue: map[string]interface{}{"i8": int8(8), "i16": int16(16), "int32": int32(32), "int64": int64(64), "int": 128,
 		"ui8": uint8(8), "ui16": uint16(16), "uint32": uint32(32), "uint64": uint64(64), "uint": uint(128),
 		"string":       "string_value",
 		"int_array":    []int{1, 2, 3, 4, 5},
@@ -520,7 +500,7 @@ func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
 		t.Errorf("execute failed - %s", v.ErrorMessage())
 		return
 	}
-	bytes1, err := json.Marshal(map[string]interface{}{"value": td.get})
+	bytes1, err := json.Marshal(td.GetValue)
 	if nil != err {
 		t.Errorf("excepted to json failed - %s", err.Error())
 		return
@@ -531,7 +511,7 @@ func TestDeliveryComplexBetweenGOAndLua(t *testing.T) {
 		t.Errorf("excepted parse json failed - %s", err.Error())
 		return
 	}
-	bytes2, err := json.Marshal(v)
+	bytes2, err := json.Marshal(v.InterfaceValue())
 	if nil != err {
 		t.Errorf("actual to json failed - %s", err.Error())
 		return

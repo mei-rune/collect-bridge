@@ -46,7 +46,7 @@ func init() {
 	person1_saved_attributes["MAC"], _ = types.GetTypeDefinition("physicalAddress").ToInternal("22:32:62:82:52:42")
 }
 
-func simpleTest(t *testing.T, cb func(drv string, conn *sql.DB, definitions *types.TableDefinitions)) {
+func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefinitions)) {
 
 	definitions, err := types.LoadTableDefinitions("etc/test1.xml")
 	if nil != err {
@@ -97,24 +97,24 @@ func simpleTest(t *testing.T, cb func(drv string, conn *sql.DB, definitions *typ
 		return
 	}
 
-	cb("pg", conn, definitions)
+	cb(&session{drv: "postgres", db: conn, isNumericParams: IsNumericParams("postgres")}, definitions)
 }
 
 func TestSimpleInsert(t *testing.T) {
-	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
+	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := Insert(drv, conn, person, person1_attributes)
+		id, err := db.insert(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
 		}
 
-		result, err := FindById(drv, conn, person, id)
+		result, err := db.findById(person, id)
 		if nil != err {
 			t.Error(err)
 		} else {
@@ -140,15 +140,15 @@ func TestSimpleInsert(t *testing.T) {
 	})
 }
 
-func TestSimpleUpdate(t *testing.T) {
-	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
+func TestSimpleUpdateById(t *testing.T) {
+	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := Insert(drv, conn, person, person1_attributes)
+		id, err := db.insert(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -156,13 +156,72 @@ func TestSimpleUpdate(t *testing.T) {
 
 		t.Log(id)
 
-		err = UpdateById(drv, conn, person, person1_update_attributes, id)
+		err = db.updateById(person, person1_update_attributes, id)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
 		}
 
-		result, err := FindById(drv, conn, person, id)
+		result, err := db.findById(person, id)
+		if nil != err {
+			t.Error(err)
+		} else {
+			if (len(person1_attributes) + 1) != len(result) {
+				t.Errorf("(len(person1_attributes)+1) != len(result), excepted is %d, actual is %d.",
+					len(person1_attributes), len(result))
+			}
+
+			for k, v2 := range result {
+				if person.Id.Name == k {
+					continue
+				}
+
+				v1, ok := person1_update_attributes[k]
+				if ok {
+					if v1 != v2 {
+						t.Errorf("'"+k+"' is not equals, excepted is [%T]%v, actual is [%T]%v.",
+							v1, v1, v2, v2)
+					}
+				} else if v1, ok = person1_attributes[k]; !ok {
+					t.Error("'" + k + "' is not exists.")
+				} else if v1 != v2 {
+					t.Errorf("'"+k+"' is not equals, excepted is [%T]%v, actual is [%T]%v.",
+						v1, v1, v2, v2)
+				}
+
+			}
+		}
+	})
+}
+
+func TestSimpleUpdateByParams(t *testing.T) {
+	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
+		person := definitions.Find("Person")
+		if nil == person {
+			t.Error("Person is not defined")
+			return
+		}
+
+		id, err := db.insert(person, person1_attributes)
+		if nil != err {
+			t.Errorf(err.Error())
+			return
+		}
+
+		t.Log(id)
+
+		affected, err := db.updateByParams(person, person1_update_attributes, map[string]string{"@id": fmt.Sprint(id)})
+		if nil != err {
+			t.Errorf(err.Error())
+			return
+		}
+
+		if 1 != affected {
+			t.Errorf("affected row is not equals 1, actual is %v", affected)
+			return
+		}
+
+		result, err := db.findById(person, id)
 		if nil != err {
 			t.Error(err)
 		} else {
@@ -195,20 +254,20 @@ func TestSimpleUpdate(t *testing.T) {
 }
 
 func TestSimpleFindById(t *testing.T) {
-	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
+	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := Insert(drv, conn, person, person1_attributes)
+		id, err := db.insert(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
 		}
 
-		db_attributes, err := FindById(drv, conn, person, id)
+		db_attributes, err := db.findById(person, id)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -231,20 +290,20 @@ func TestSimpleFindById(t *testing.T) {
 }
 
 func TestSimpleWhere(t *testing.T) {
-	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
+	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := Insert(drv, conn, person, person1_attributes)
+		id, err := db.insert(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
 		}
 
-		it, err := Where(drv, conn, person, "id = $1", id).Iter()
+		it, err := db.where(person, "id = $1", id).Iter()
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -288,20 +347,20 @@ func TestSimpleWhere(t *testing.T) {
 }
 
 func TestSimpleFindByParams(t *testing.T) {
-	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
+	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := Insert(drv, conn, person, person1_attributes)
+		id, err := db.insert(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
 		}
 
-		query, err := FindByParams(drv, conn, person, map[string]string{"@id": fmt.Sprint(id)})
+		query, err := db.findByParams(person, map[string]string{"@id": fmt.Sprint(id)})
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -352,26 +411,63 @@ func TestSimpleFindByParams(t *testing.T) {
 
 func TestSimpleDeleteById(t *testing.T) {
 
-	simpleTest(t, func(drv string, conn *sql.DB, definitions *types.TableDefinitions) {
+	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
 			return
 		}
 
-		id, err := Insert(drv, conn, person, person1_attributes)
+		id, err := db.insert(person, person1_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
 		}
 
-		err = DeleteById(drv, conn, person, id)
+		err = db.deleteById(person, id)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
 		}
 
-		_, err = FindById(drv, conn, person, id)
+		_, err = db.findById(person, id)
+		if nil == err {
+			t.Errorf(err.Error())
+			return
+		}
+		if sql.ErrNoRows != err {
+			t.Error(err)
+		}
+	})
+}
+
+func TestSimpleDeleteByParams(t *testing.T) {
+
+	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
+		person := definitions.Find("Person")
+		if nil == person {
+			t.Error("Person is not defined")
+			return
+		}
+
+		id, err := db.insert(person, person1_attributes)
+		if nil != err {
+			t.Errorf(err.Error())
+			return
+		}
+
+		affected, err := db.deleteByParams(person, map[string]string{"@id": fmt.Sprint(id)})
+		if nil != err {
+			t.Errorf(err.Error())
+			return
+		}
+
+		if 1 != affected {
+			t.Errorf("affected row is not equals 1, actual is %v", affected)
+			return
+		}
+
+		_, err = db.findById(person, id)
 		if nil == err {
 			t.Errorf(err.Error())
 			return

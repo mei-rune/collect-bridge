@@ -147,11 +147,11 @@ func (self *Discoverer) readMetric(drv Device, name string) (interface{}, error)
 			metric_params["snmp."+k] = fmt.Sprint(v)
 		}
 
-		res, e := self.metrics_drv.Get(metric_params)
-		if nil != e {
-			return nil, e
+		res := self.metrics_drv.Get(metric_params)
+		if res.HasError() {
+			return nil, res.Error()
 		}
-		return res.GetReturn(), nil
+		return res.InterfaceValue(), nil
 	}
 	return nil, fmt.Errorf("snmp params of %v is not exists.", drv["address"])
 }

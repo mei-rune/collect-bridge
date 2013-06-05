@@ -2,22 +2,21 @@ package main
 
 import (
 	"commons/as"
-	"encoding/json"
+	"ds"
 	"flag"
 	"fmt"
 	"github.com/emicklei/go-restful"
-	"io/ioutil"
-	"mdb"
+	"net/http"
 	"os"
-	"web"
+	"path"
 )
 
 var (
-	address   = flag.String("http", ":7071", "the address of http")
-	directory = flag.String("directory", ".", "the static directory of http")
-	cookies   = flag.String("cookies", "", "the static directory of http")
-	mgoUrl    = flag.String("mgo", "127.0.0.1", "the address of mongo server")
-	mgoDB     = flag.String("db", "test", "the db of mongo server")
+	address    = flag.String("http", ":7071", "the address of http")
+	directory  = flag.String("directory", ".", "the static directory of http")
+	dbUrl      = flag.String("dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk", "the db url")
+	drv        = flag.String("db", "postgres", "the db driver")
+	goroutines = flag.Int("connections", 10, "the db connection number")
 )
 
 func getStatus(params map[string]interface{}, default_code int) int {
@@ -44,134 +43,73 @@ func mainHandle(req *restful.Request, resp *restful.Response) {
 
 		return
 	}
-	resp.WriteString("Hello, World!")
+	resp.Write([]byte("Hello, World!"))
+}
+
+// http://localhost:8080/static/test.xml
+// http://localhost:8080/static/
+func staticFromPathParam(req *restful.Request, resp *restful.Response) {
+	fmt.Println("get " + path.Join(*directory, req.PathParameter("resource")))
+	http.ServeFile(
+		resp.ResponseWriter,
+		req.Request,
+		path.Join(*directory, req.PathParameter("resource")))
 }
 
 func main() {
 	flag.Parse()
-	
+
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
 		return
 	}
-
-	ws := new(restful.WebService)
-	ws.Route(ws.GET("/").To(mainHandle))
-
-	svr.Get("/", mainHandle)
-	driver, e := mdb.NewMdbDriver(*mgoUrl, *mgoDB, nil)
+	srv, e := ds.NewServer(*drv, *dbUrl, *goroutines)
 	if nil != e {
 		fmt.Println(e)
 		return
 	}
+	defer srv.Close()
 
-	svr.Get("/mdb/{mdb.type}/{id}", func(req *restful.Request, resp *restful.Response) {
-		ctx.Params["mdb.type"] = t
-		ctx.Params["id"] = id
+	ws := new(restful.WebService)
+	ws.Route(ws.GET("/").To(mainHandle))
+	ws.Route(ws.GET("/static/{resource}").To(staticFromPathParam))
 
-		obj, e := driver.FindById(ctx.Params)
-		if nil != e {
-			ctx.Abort(e.Code(), e.Error())
-			return
-		}
-		ctx.Status(getStatus(obj, 200))
-		err := json.NewEncoder(ctx).Encode(obj)
-		if nil != err {
-			ctx.Abort(500, "encode failed, "+err.Error())
-		}
-	})
+	//ws.Consumes(restful.MIME_XML, restful.MIME_JSON).
+	//	Produces(restful.MIME_JSON, restful.MIME_XML) // you can specify this per route as well
 
-	svr.Get("/mdb/([^/]*)/([^/]*)/children/([^/]*)", func(ctx *web.Context, t, id, child string) {
-		ctx.Params["mdb.type"] = child
-		ctx.Params["id"] = "by_parent"
-		ctx.Params["parent_id"] = id
-		ctx.Params["parent_type"] = t
+	ws.Route(ws.GET("/{type}/{id}").To(srv.FindById).
+		Doc("get a object instance").
+		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
+		Param(ws.PathParameter("id", "identifier of the instance").DataType("string"))) // on the response
 
-		obj, e := driver.Get(ctx.Params)
-		if nil != e {
-			ctx.Abort(e.Code(), e.Error())
-			return
-		}
-		ctx.Status(getStatus(obj, 200))
-		err := json.NewEncoder(ctx).Encode(obj)
-		if nil != err {
-			ctx.Abort(500, "encode failed, "+err.Error())
-		}
-	})
-	svr.Get("/mdb/([^/]*)/([^/]*)/parent/([^/]*)", func(ctx *web.Context, t, id, child string) {
-		ctx.Params["mdb.type"] = child
-		ctx.Params["id"] = "by_child"
-		ctx.Params["child_id"] = id
-		ctx.Params["child_type"] = t
+	// ws.Route(ws.GET("/{type}/{id}/parent/{parent-type}/").To(srv.FindById).
+	// 	Doc("get  a object instance").
+	// 	Param(ws.PathParameter("type", "type of the instance").DataType("string")).
+	// 	Param(ws.PathParameter("id", "identifier of the instance").DataType("string")).
+	// 	Writes(User{})) // on the response
 
-		obj, e := driver.Get(ctx.Params)
-		if nil != e {
-			ctx.Abort(e.Code(), e.Error())
-			return
-		}
-		ctx.Status(getStatus(obj, 200))
-		err := json.NewEncoder(ctx).Encode(obj)
-		if nil != err {
-			ctx.Abort(500, "encode failed, "+err.Error())
-		}
-	})
-	svr.Put("/mdb/([^/]*)/([^/]*)", func(ctx *web.Context, t, id string) {
-		ctx.Params["mdb.type"] = t
-		ctx.Params["id"] = id
+	// ws.Route(ws.GET("/{type}/{id}/children/{children-type}").To(srv.FindById).
+	// 	Doc("get a object instance").
+	// 	Param(ws.PathParameter("type", "type of the instance").DataType("string")).
+	// 	Param(ws.PathParameter("id", "identifier of the instance").DataType("string")).
+	// 	Writes(User{})) // on the response
 
-		txt, err := ioutil.ReadAll(ctx.Request.Body)
-		if nil != err {
-			ctx.Abort(500, "read body failed - "+err.Error())
-			return
-		}
+	ws.Route(ws.POST("/{type}").To(srv.Create).
+		Doc("create a object").
+		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
+		Param(ws.BodyParameter("object", "representation of a object instance").DataType("main.User"))) // from the request
 
-		ctx.Params["body"] = string(txt)
-		obj, e := driver.Put(ctx.Params)
-		if nil != e {
-			ctx.Abort(e.Code(), e.Error())
-			return
-		}
-		ctx.Status(getStatus(obj, 200))
-		err = json.NewEncoder(ctx).Encode(obj)
-		if nil != err {
-			ctx.Abort(500, "encode failed, "+err.Error())
-		}
-	})
-	svr.Delete("/mdb/([^/]*)/([^/]*)", func(ctx *web.Context, t, id string) {
-		ctx.Params["mdb.type"] = t
-		ctx.Params["id"] = id
-		obj, err := driver.Delete(ctx.Params)
-		if nil != err {
-			ctx.Abort(err.Code(), err.Error())
-			return
-		}
-		ctx.Status(getStatus(obj, 200))
-		e = json.NewEncoder(ctx).Encode(obj)
-		if nil != e {
-			ctx.Abort(500, "encode failed, "+e.Error())
-		}
-	})
-	svr.Post("/mdb/([^/]*)", func(ctx *web.Context, t string) {
-		ctx.Params["mdb.type"] = t
-		txt, err := ioutil.ReadAll(ctx.Request.Body)
-		ctx.Params["body"] = string(txt)
-		if nil != err {
-			ctx.Abort(500, "read body failed - "+err.Error())
-			return
-		}
-		obj, e := driver.Create(ctx.Params)
-		if nil != e {
-			ctx.Abort(e.Code(), e.Error())
-			return
-		}
+	ws.Route(ws.PUT("/{type}/{id}").To(srv.UpdateById).
+		Doc("update a object").
+		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
+		Param(ws.PathParameter("id", "identifier of the instance").DataType("string"))) // from the request
 
-		ctx.Status(getStatus(obj, 201))
-		err = json.NewEncoder(ctx).Encode(obj)
-		if nil != err {
-			ctx.Abort(500, "encode failed, "+err.Error())
-		}
-	})
+	ws.Route(ws.DELETE("/{type}/{id}").To(srv.DeleteById).
+		Doc("delete a object").
+		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
+		Param(ws.PathParameter("id", "identifier of the instance").DataType("string")))
 
+	println("[ds] serving files on http://localhost" + *address + "/static from local '" + *directory + "'")
 	restful.Add(ws)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(*address, nil)
 }

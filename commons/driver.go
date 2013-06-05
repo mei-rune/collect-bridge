@@ -94,13 +94,16 @@ type Startable interface {
 }
 
 type Result interface {
+	Return(value interface{}) Result
 	ErrorCode() int
 	ErrorMessage() string
 	HasError() bool
+	Error() RuntimeError
 	Warnings() interface{}
 	Value() Any
 	InterfaceValue() interface{}
-	Effected() int
+	Effected() int64
+	LastInsertId() interface{}
 	HasOptions() bool
 	Options() Map
 	CreatedAt() time.Time
@@ -131,6 +134,30 @@ type Any interface {
 }
 
 type Map interface {
+	Get(key string) interface{}
+
+	GetBool(key string, defaultValue bool) bool
+
+	GetInt(key string, defaultValue int) int
+
+	GetInt32(key string, defaultValue int32) int32
+
+	GetInt64(key string, defaultValue int64) int64
+
+	GetUint(key string, defaultValue uint) uint
+
+	GetUint32(key string, defaultValue uint32) uint32
+
+	GetUint64(key string, defaultValue uint64) uint64
+
+	GetString(key, defaultValue string) string
+
+	GetArray(key string) []interface{}
+
+	GetObject(key string) map[string]interface{}
+
+	GetObjects(key string) []map[string]interface{}
+
 	TryGetBool(key string) (bool, error)
 
 	TryGetInt(key string) (int, error)
@@ -146,10 +173,6 @@ type Map interface {
 	TryGetUint64(key string) (uint64, error)
 
 	TryGetString(key string) (string, error)
-
-	TryGetObject(key string) (map[string]interface{}, error)
-
-	TryGetObjects(key string) ([]map[string]interface{}, error)
 
 	ToMap() map[string]interface{}
 }
@@ -183,33 +206,44 @@ func (self *DefaultDrv) Delete(params map[string]string) Result {
 	return Return(self.DeleteValue).SetError(self.DeleteCode, self.DeleteErr)
 }
 
-type simpleResult struct {
-	err        *applicationError      `json:"error"`
-	warnings   interface{}            `json:"warnings"`
-	value      AnyValue               `json:"value"`
-	effected   int                    `json:"effected"`
-	options    map[string]interface{} `json:"options"`
-	created_at time.Time              `json:"created_at"`
+type SimpleResult struct {
+	err          *applicationError      `json:"error"`
+	warnings     interface{}            `json:"warnings"`
+	value        AnyValue               `json:"value"`
+	effected     int64                  `json:"effected"`
+	lastInsertId interface{}            `json:"lastInsertId"`
+	options      map[string]interface{} `json:"options"`
+	created_at   time.Time              `json:"created_at"`
 }
 
-func Return(value interface{}) *simpleResult {
-	return &simpleResult{value: AnyValue{Value: value}, created_at: time.Now()}
+func Return(value interface{}) *SimpleResult {
+	return &SimpleResult{value: AnyValue{Value: value}, created_at: time.Now(), effected: -1}
 }
 
-func ReturnError(code int, msg string) *simpleResult {
-	return &simpleResult{err: &applicationError{code: code, message: msg}, created_at: time.Now()}
+func ReturnError(code int, msg string) *SimpleResult {
+	return Return(nil).SetError(code, msg)
 }
 
-func ReturnWithError(e RuntimeError) *simpleResult {
+func ReturnWithError(e RuntimeError) *SimpleResult {
 	return ReturnError(e.Code(), e.Error())
 }
 
-func (self *simpleResult) SetValue(value interface{}) *simpleResult {
+func (self *SimpleResult) SetValue(value interface{}) *SimpleResult {
 	self.value.Value = value
 	return self
 }
 
-func (self *simpleResult) SetOption(key string, value interface{}) *simpleResult {
+func (self *SimpleResult) Return(value interface{}) Result {
+	self.value.Value = value
+	return self
+}
+
+func (self *SimpleResult) SetOptions(options map[string]interface{}) *SimpleResult {
+	self.options = options
+	return self
+}
+
+func (self *SimpleResult) SetOption(key string, value interface{}) *SimpleResult {
 	if nil == self.options {
 		self.options = make(map[string]interface{})
 	}
@@ -217,7 +251,10 @@ func (self *simpleResult) SetOption(key string, value interface{}) *simpleResult
 	return self
 }
 
-func (self *simpleResult) SetErrorMessage(msg string) *simpleResult {
+func (self *SimpleResult) SetErrorMessage(msg string) *SimpleResult {
+	if 0 == len(msg) {
+		return self
+	}
 	if nil == self.err {
 		self.err = &applicationError{code: 500, message: msg}
 	} else {
@@ -226,7 +263,11 @@ func (self *simpleResult) SetErrorMessage(msg string) *simpleResult {
 	return self
 }
 
-func (self *simpleResult) SetErrorCode(code int) *simpleResult {
+func (self *SimpleResult) SetErrorCode(code int) *SimpleResult {
+	if 0 == code {
+		return self
+	}
+
 	if nil == self.err {
 		self.err = &applicationError{code: code}
 	} else {
@@ -235,7 +276,11 @@ func (self *simpleResult) SetErrorCode(code int) *simpleResult {
 	return self
 }
 
-func (self *simpleResult) SetError(code int, msg string) *simpleResult {
+func (self *SimpleResult) SetError(code int, msg string) *SimpleResult {
+	if 0 == code && 0 == len(msg) {
+		return self
+	}
+
 	if nil == self.err {
 		self.err = &applicationError{code: code, message: msg}
 	} else {
@@ -245,57 +290,82 @@ func (self *simpleResult) SetError(code int, msg string) *simpleResult {
 	return self
 }
 
-func (self *simpleResult) SetWarnings(value interface{}) *simpleResult {
+func (self *SimpleResult) SetWarnings(value interface{}) *SimpleResult {
 	self.warnings = value
 	return self
 }
 
-func (self *simpleResult) SetEffected(effected int) *simpleResult {
+func (self *SimpleResult) SetEffected(effected int64) *SimpleResult {
 	self.effected = effected
 	return self
 }
 
-func (self *simpleResult) ErrorCode() int {
+func (self *SimpleResult) SetLastInsertId(id interface{}) *SimpleResult {
+	self.lastInsertId = id
+	return self
+}
+
+func (self *SimpleResult) ErrorCode() int {
 	if nil != self.err {
 		return self.err.code
 	}
 	return -1
 }
-func (self *simpleResult) ErrorMessage() string {
+
+func (self *SimpleResult) ErrorMessage() string {
 	if nil != self.err {
 		return self.err.message
 	}
 	return ""
 }
-func (self *simpleResult) HasError() bool {
+
+func (self *SimpleResult) HasError() bool {
 	return nil != self.err
 }
-func (self *simpleResult) Warnings() interface{} {
+
+func (self *SimpleResult) Error() RuntimeError {
+	if nil == self.err {
+		return nil
+	}
+	return self.err
+}
+
+func (self *SimpleResult) Warnings() interface{} {
 	return self.warnings
 }
-func (self *simpleResult) Value() Any {
+
+func (self *SimpleResult) Value() Any {
 	return &self.value
 }
-func (self *simpleResult) InterfaceValue() interface{} {
+
+func (self *SimpleResult) InterfaceValue() interface{} {
 	return self.value.Value
 }
-func (self *simpleResult) Effected() int {
+
+func (self *SimpleResult) Effected() int64 {
 	return self.effected
 }
-func (self *simpleResult) HasOptions() bool {
+
+func (self *SimpleResult) LastInsertId() interface{} {
+	return self.lastInsertId
+}
+
+func (self *SimpleResult) HasOptions() bool {
 	return nil != self.options && 0 != len(self.options)
 }
-func (self *simpleResult) Options() Map {
+
+func (self *SimpleResult) Options() Map {
 	if nil == self.options {
 		self.options = make(map[string]interface{})
 	}
 	return StringMap(self.options)
 }
-func (self *simpleResult) CreatedAt() time.Time {
+
+func (self *SimpleResult) CreatedAt() time.Time {
 	return self.created_at
 }
 
-func (self *simpleResult) ToJson() string {
+func (self *SimpleResult) ToJson() string {
 	bs, e := json.Marshal(self)
 	if nil != e {
 		panic(e.Error())
@@ -372,6 +442,54 @@ func (self *AnyValue) AsObjects() ([]map[string]interface{}, error) {
 }
 
 type StringMap map[string]interface{}
+
+func (self StringMap) Get(key string) interface{} {
+	return self[key]
+}
+
+func (self StringMap) GetBool(key string, defaultValue bool) bool {
+	return GetBool(self, key, defaultValue)
+}
+
+func (self StringMap) GetInt(key string, defaultValue int) int {
+	return GetInt(self, key, defaultValue)
+}
+
+func (self StringMap) GetInt32(key string, defaultValue int32) int32 {
+	return GetInt32(self, key, defaultValue)
+}
+
+func (self StringMap) GetInt64(key string, defaultValue int64) int64 {
+	return GetInt64(self, key, defaultValue)
+}
+
+func (self StringMap) GetUint(key string, defaultValue uint) uint {
+	return GetUint(self, key, defaultValue)
+}
+
+func (self StringMap) GetUint32(key string, defaultValue uint32) uint32 {
+	return GetUint32(self, key, defaultValue)
+}
+
+func (self StringMap) GetUint64(key string, defaultValue uint64) uint64 {
+	return GetUint64(self, key, defaultValue)
+}
+
+func (self StringMap) GetString(key, defaultValue string) string {
+	return GetString(self, key, defaultValue)
+}
+
+func (self StringMap) GetArray(key string) []interface{} {
+	return GetArray(self, key)
+}
+
+func (self StringMap) GetObject(key string) map[string]interface{} {
+	return GetObject(self, key)
+}
+
+func (self StringMap) GetObjects(key string) []map[string]interface{} {
+	return GetObjects(self, key)
+}
 
 func (self StringMap) ToMap() map[string]interface{} {
 	return map[string]interface{}(self)

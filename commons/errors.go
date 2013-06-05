@@ -154,6 +154,7 @@ var (
 	InsufficientStorageCode          = 507
 	NotExtendedCode                  = 510
 	NetworkErrorCode                 = 560
+	IsRequiredCode                   = BadRequestCode
 
 	ContinueError      = NewRuntimeError(ContinueCode, "continue")
 	NotImplemented     = NewRuntimeError(NotImplementedCode, "not implemented")

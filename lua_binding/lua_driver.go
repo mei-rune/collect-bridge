@@ -94,6 +94,7 @@ type Continuous struct {
 	IntValue    int
 	StringValue string
 	Params      map[string]string
+	Result      commons.Result
 	Any         interface{}
 }
 
@@ -103,6 +104,7 @@ func (self *Continuous) clear() {
 	self.IntValue = 0
 	self.StringValue = ""
 	self.Params = nil
+	self.Result = nil
 	self.Any = nil
 }
 
@@ -124,6 +126,11 @@ func (self *Continuous) ToStringParam(idx int) (string, commons.RuntimeError) {
 
 func (self *Continuous) ToIntParam(idx int) (int, commons.RuntimeError) {
 	return toInteger(self.LS, C.int(idx))
+}
+
+func (self *Continuous) PushResultParam(any commons.Result) commons.RuntimeError {
+	pushResult(self.LS, any)
+	return nil
 }
 
 func (self *Continuous) PushAnyParam(any interface{}) commons.RuntimeError {
@@ -155,6 +162,13 @@ func readCallArguments(drv *LuaDriver, ctx *Continuous) {
 }
 
 func writeCallResult(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
+	err := ctx.PushResultParam(ctx.Result)
+	if nil != err {
+		return -1, err
+	}
+	return 1, nil
+}
+func writeCallAnyResult(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
 	err := ctx.PushAnyParam(ctx.Any)
 	if nil != err {
 		return -1, err
@@ -167,11 +181,11 @@ func writeCallResult(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError
 }
 
 func readActionResult(drv *LuaDriver, ctx *Continuous) {
-	ctx.Any, ctx.Error = ctx.ToAnyParam(-2)
-	if nil != ctx.Error {
-		return
-	}
-	ctx.Error = ctx.ToErrorParam(-1)
+	ctx.Any, ctx.Error = ctx.ToAnyParam(-1)
+	//if nil != ctx.Error {
+	//	return
+	//}
+	//ctx.Error = ctx.ToErrorParam(-1)
 }
 
 func writeActionArguments(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
@@ -206,11 +220,11 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Error = commons.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Result = commons.ReturnError(commons.InternalErrorCode, fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
-			ctx.Any, ctx.Error = drv.Get(ctx.Params)
+			ctx.Result = drv.Get(ctx.Params)
 		}}, &NativeMethod{
 		Name:  "put",
 		Read:  readCallArguments,
@@ -218,11 +232,11 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Error = commons.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Result = commons.ReturnError(commons.InternalErrorCode, fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
-			ctx.Any, ctx.Error = drv.Put(ctx.Params)
+			ctx.Result = drv.Put(ctx.Params)
 		}}, &NativeMethod{
 		Name:  "create",
 		Read:  readCallArguments,
@@ -230,11 +244,11 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Error = commons.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Result = commons.ReturnError(commons.InternalErrorCode, fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
-			ctx.Any, ctx.Error = drv.Create(ctx.Params)
+			ctx.Result = drv.Create(ctx.Params)
 		}}, &NativeMethod{
 		Name:  "delete",
 		Read:  readCallArguments,
@@ -242,34 +256,40 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Error = commons.InternalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Result = commons.ReturnError(commons.InternalErrorCode, fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
-			ctx.Any, ctx.Error = drv.Delete(ctx.Params)
+			ctx.Result = drv.Delete(ctx.Params)
 		}}, &NativeMethod{
 		Name: "log",
 		Read: func(drv *LuaDriver, ctx *Continuous) {
+			// for i := 1; i < 5; i++ {
+			// 	any, _ := ctx.ToAnyParam(i)
+			// 	drv.INFO.Printf("log ================ [%v]【%T】%v", i, any, any)
+			// }
+
 			ctx.IntValue, _ = ctx.ToIntParam(2)
 			ctx.StringValue, _ = ctx.ToStringParam(3)
 		},
 		Write: func(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
+			drv.INFO.Printf("log ================ [%v]%v", ctx.IntValue, ctx.StringValue)
+			//drv.INFO.Print(ctx.StringValue)
 			switch {
-			case 9000 >= ctx.IntValue:
+			case 9000 <= ctx.IntValue:
 				drv.DEBUG.Print(ctx.StringValue)
-			case 6000 >= ctx.IntValue:
+			case 6000 <= ctx.IntValue:
 				drv.INFO.Print(ctx.StringValue)
-			case 4000 >= ctx.IntValue:
+			case 4000 <= ctx.IntValue:
 				drv.WARN.Print(ctx.StringValue)
-			case 2000 >= ctx.IntValue:
+			case 2000 <= ctx.IntValue:
 				drv.ERROR.Print(ctx.StringValue)
-			case 1000 >= ctx.IntValue:
+			case 1000 <= ctx.IntValue:
 				drv.FATAL.Panic(ctx.StringValue)
-			case 0 >= ctx.IntValue:
+			case 0 <= ctx.IntValue:
 				drv.INFO.Print(ctx.StringValue)
 			default:
 				drv.INFO.Print("[UNKNOWN LEVEL] " + ctx.StringValue)
-
 			}
 			return 0, nil
 		},
@@ -278,7 +298,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Read: func(drv *LuaDriver, ctx *Continuous) {
 			ctx.StringValue, ctx.Error = ctx.ToStringParam(2)
 		},
-		Write: writeCallResult,
+		Write: writeCallAnyResult,
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			if nil != ctx.Error {
 				ctx.Any = nil
@@ -294,7 +314,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Read: func(drv *LuaDriver, ctx *Continuous) {
 			ctx.StringValue, ctx.Error = ctx.ToStringParam(2)
 		},
-		Write: writeCallResult,
+		Write: writeCallAnyResult,
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			if nil != ctx.Error {
 				ctx.Any = nil
@@ -306,7 +326,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Read: func(drv *LuaDriver, ctx *Continuous) {
 			ctx.StringValue, ctx.Error = ctx.ToStringParam(2)
 		},
-		Write: writeCallResult,
+		Write: writeCallAnyResult,
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			if nil != ctx.Error {
 				ctx.Any = nil
@@ -318,7 +338,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Read: func(drv *LuaDriver, ctx *Continuous) {
 			ctx.StringValue, ctx.Error = ctx.ToStringParam(2)
 		},
-		Write: writeCallResult,
+		Write: writeCallAnyResult,
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			if nil != ctx.Error {
 				ctx.Any = nil
@@ -713,14 +733,25 @@ func (driver *LuaDriver) invoke(action string, params map[string]string) (interf
 func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]string) commons.Result {
 	ret, err := driver.invoke(action, params)
 	if nil == ret {
-		return nil, err
+		if nil == err {
+			return commons.ReturnError(commons.InternalErrorCode, "error is nil")
+		}
+		return commons.ReturnError(err.Code(), err.Error())
 	}
+
 	res, ok := ret.(map[string]interface{})
 	if !ok {
 		panic(fmt.Sprintf("type of result is not map[string]interface{} type - [%T]%v - %v", ret, ret, driver.Name))
 	}
 
-	return res, err
+	sm := commons.StringMap(res)
+	r := commons.Return(sm.Get("value"))
+	r.SetError(sm.GetInt("error_code", 0), sm.GetString("error_message", ""))
+	r.SetOptions(sm.GetObject("options"))
+	r.SetWarnings(sm.Get("warnings"))
+	r.SetEffected(sm.GetInt64("effected", -1))
+	r.SetLastInsertId(sm.Get("lastInsertId"))
+	return r
 }
 
 func (driver *LuaDriver) Get(params map[string]string) commons.Result {

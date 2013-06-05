@@ -123,7 +123,7 @@ func (self *Dispatcher) clear() {
 	self.instances = make(map[string]*Metric)
 }
 
-func (self *Dispatcher) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
+func (self *Dispatcher) Get(params map[string]string) commons.Result {
 	// id, ok := params["id"]
 	// if ok {
 	//	return nil, commons.IdNotExists
@@ -144,17 +144,17 @@ func (self *Dispatcher) Get(params map[string]string) (map[string]interface{}, c
 	// }
 	// return nil, errutils.InternalError("get failed.\n" + strings.Join(error, "\n"))
 
-	return nil, commons.NotImplemented
+	return commons.ReturnError(commons.NotImplementedCode, "not implemented")
 }
 
-func (self *Dispatcher) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *Dispatcher) Put(params map[string]string) commons.Result {
+	return commons.ReturnError(commons.NotImplementedCode, "not implemented")
 }
 
-func (self *Dispatcher) Create(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *Dispatcher) Create(params map[string]string) commons.Result {
+	return commons.ReturnError(commons.NotImplementedCode, "not implemented")
 }
 
-func (self *Dispatcher) Delete(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *Dispatcher) Delete(params map[string]string) commons.Result {
+	return commons.ReturnError(commons.NotImplementedCode, "not implemented")
 }

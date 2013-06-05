@@ -11,7 +11,19 @@ function put(params)
 end
 
 function create(params)
-	return mj.execute(params['dumy'], 'create', params)
+    mj.log(mj.SYSTEM, "create result is invode")
+	res = mj.execute(params['dumy'], 'create', params)
+	  if nil == res then 
+    mj.log(mj.SYSTEM, "create result is nil")
+  else 
+    mj.log(mj.SYSTEM, "create result is:")
+    for key, value in pairs(res) do
+      mj.log(mj.SYSTEM,  (key or "nil") .. "=" .. (value or "nil"))
+    end
+    mj.log(mj.SYSTEM, "====== end ======")
+  end
+
+	return res
 end
 
 function delete(params)

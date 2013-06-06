@@ -347,6 +347,8 @@ func (self *updateBuilder) buildUpdate(updated_attributes map[string]interface{}
 	self.buffer.WriteString(self.table.CollectionName)
 	self.buffer.WriteString(" SET ")
 	isFirst := true
+	var e error
+
 	for _, attribute := range self.table.Attributes {
 		//////////////////////////////////////////
 		// TODO: refactor it?
@@ -367,7 +369,12 @@ func (self *updateBuilder) buildUpdate(updated_attributes map[string]interface{}
 			if attribute.IsReadOnly {
 				return fmt.Errorf("column '%v' is readonly.", attribute.Name)
 			}
-			value = attribute.Type.ToExternal(v)
+			value, e = attribute.Type.ToInternal(v)
+			if nil != e {
+				return fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
+					attribute.Name, attribute.Type.Name(), v)
+			}
+			value = attribute.Type.ToExternal(value)
 		}
 
 		//////////////////////////////////////////

@@ -33,9 +33,9 @@ func snmpReset(driver commons.Driver, ctx *web.Context, host string) {
 	ctx.Params["snmp.host"] = host
 	ctx.Params["id"] = host
 
-	obj, err := driver.Delete(ctx.Params)
-	if nil != err {
-		ctx.Abort(err.Code(), err.Error())
+	obj := driver.Delete(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
 
@@ -52,9 +52,9 @@ func snmpGet(driver commons.Driver, ctx *web.Context, host, oid, action string) 
 	ctx.Params["snmp.oid"] = oid
 	ctx.Params["snmp.action"] = action
 
-	obj, e := driver.Get(ctx.Params)
-	if nil != e {
-		ctx.Abort(e.Code(), e.Error())
+	obj := driver.Get(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
 
@@ -73,10 +73,11 @@ func snmpPut(driver commons.Driver, ctx *web.Context, host, oid, action string) 
 		return
 	}
 
-	obj, e := driver.Put(ctx.Params)
-	if nil != e {
-		ctx.Abort(e.Code(), e.Error())
+	obj := driver.Put(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
+
 	json.NewEncoder(ctx).Encode(obj)
 }

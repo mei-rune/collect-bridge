@@ -29,7 +29,6 @@ func registerBridge(srv *web.Server, drvMgr *commons.DriverManager) {
 }
 
 func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManager) {
-
 	svr.Get("/"+schema+"/([^/]*)/([^/]*)", func(ctx *web.Context, name, id string) {
 		driver, ok := drvMgr.Connect(name)
 		if !ok {
@@ -38,12 +37,12 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 		}
 
 		ctx.Params["id"] = id
-		obj, e := driver.Get(ctx.Params)
-		if nil != e {
-			ctx.Abort(e.Code(), e.Error())
+		obj := driver.Get(ctx.Params)
+		if obj.HasError() {
+			ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 			return
 		}
-		ctx.Status(getStatus(obj, 200))
+		ctx.Status(200)
 		err := json.NewEncoder(ctx).Encode(obj)
 		if nil != err {
 			ctx.Abort(500, "encode failed, "+err.Error())
@@ -63,12 +62,12 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 
 		ctx.Params["id"] = id
 		ctx.Params["body"] = string(txt)
-		obj, e := driver.Put(ctx.Params)
-		if nil != e {
-			ctx.Abort(e.Code(), e.Error())
+		obj := driver.Put(ctx.Params)
+		if obj.HasError() {
+			ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 			return
 		}
-		ctx.Status(getStatus(obj, 200))
+		ctx.Status(200)
 		err = json.NewEncoder(ctx).Encode(obj)
 		if nil != err {
 			ctx.Abort(500, "encode failed, "+err.Error())
@@ -82,12 +81,11 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 			return
 		}
 		ctx.Params["id"] = id
-		obj, err := driver.Delete(ctx.Params)
-		if nil != err {
-			ctx.Abort(err.Code(), err.Error())
+		obj := driver.Delete(ctx.Params)
+		if obj.HasError() {
+			ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 			return
 		}
-
 		ctx.Status(200)
 		e := json.NewEncoder(ctx).Encode(obj)
 		if nil != e {
@@ -108,13 +106,12 @@ func registerDrivers(svr *web.Server, schema string, drvMgr *commons.DriverManag
 			return
 		}
 
-		obj, e := driver.Create(ctx.Params)
-		if nil != e {
-			ctx.Abort(e.Code(), e.Error())
+		obj := driver.Create(ctx.Params)
+		if obj.HasError() {
+			ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 			return
 		}
-
-		ctx.Status(getStatus(obj, 201))
+		ctx.Status(201)
 		err = json.NewEncoder(ctx).Encode(obj)
 		if nil != err {
 			ctx.Abort(500, "encode failed, "+err.Error())
@@ -133,12 +130,12 @@ func registerDriver(svr *web.Server, drvMgr *commons.DriverManager, schema strin
 func drvGet(driver commons.Driver, ctx *web.Context, id string) {
 	ctx.Params["id"] = id
 
-	obj, e := driver.Get(ctx.Params)
-	if nil != e {
-		ctx.Abort(e.Code(), e.Error())
+	obj := driver.Get(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
-	ctx.Status(getStatus(obj, 200))
+	ctx.Status(200)
 	err := json.NewEncoder(ctx).Encode(obj)
 	if nil != err {
 		ctx.Abort(500, "encode failed, "+err.Error())
@@ -155,12 +152,12 @@ func drvPut(driver commons.Driver, ctx *web.Context, id string) {
 	}
 
 	ctx.Params["body"] = string(txt)
-	obj, e := driver.Put(ctx.Params)
-	if nil != e {
-		ctx.Abort(e.Code(), e.Error())
+	obj := driver.Put(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
-	ctx.Status(getStatus(obj, 200))
+	ctx.Status(200)
 	err = json.NewEncoder(ctx).Encode(obj)
 	if nil != err {
 		ctx.Abort(500, "encode failed, "+err.Error())
@@ -170,12 +167,11 @@ func drvPut(driver commons.Driver, ctx *web.Context, id string) {
 func drvDelete(driver commons.Driver, ctx *web.Context, id string) {
 	ctx.Params["id"] = id
 
-	obj, err := driver.Delete(ctx.Params)
-	if nil != err {
-		ctx.Abort(err.Code(), err.Error())
+	obj := driver.Delete(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
-
 	ctx.Status(200)
 	e := json.NewEncoder(ctx).Encode(obj)
 	if nil != e {
@@ -190,13 +186,12 @@ func drvCreate(driver commons.Driver, ctx *web.Context) {
 		ctx.Abort(500, "read body failed - "+err.Error())
 		return
 	}
-	obj, e := driver.Create(ctx.Params)
-	if nil != e {
-		ctx.Abort(e.Code(), e.Error())
+	obj := driver.Create(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
-
-	ctx.Status(getStatus(obj, 201))
+	ctx.Status(201)
 	err = json.NewEncoder(ctx).Encode(obj)
 	if nil != err {
 		ctx.Abort(500, "encode failed, "+err.Error())

@@ -56,34 +56,23 @@ func (self *HttpClient) Invoke(action, url string, msg []byte, exceptedCode int)
 		return ReturnError(BadRequestCode, err.Error())
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
 	resp, e := http.DefaultClient.Do(req)
 	if nil != e {
 		return networkError(e.Error())
 	}
 
-	// found := false
-	// for _, code := range exceptedCode {
-	//  if resp.StatusCode == code {
-	//    found = true
-	//  }
-	// }
-	// if !found {
-	if resp.StatusCode != exceptedCode {
-		return httpError(resp.StatusCode, string(readAllBytes(resp.Body)))
-	}
 	resp_body := readAllBytes(resp.Body)
-	result := map[string]interface{}{}
+	if resp.StatusCode != exceptedCode {
+		if nil == resp_body || 0 == len(resp_body) {
+			return httpError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
+		}
+		return httpError(resp.StatusCode, string(resp_body))
+	}
+	var result SimpleResult
 	e = json.Unmarshal(resp_body, &result)
 	if nil != e {
-		// // Please remove it after refactor DELETE action
-		// if "OK" == string(resp_body) {
-		//  return commons.Return(1), nil
-		// }
-		//fmt.Println(string(resp_body))
 		return unmarshalError(e)
 	}
-	if warnings, ok := result["warnings"]; ok {
-		self.Warnings = warnings
-	}
-	return Return(result)
+	return &result
 }

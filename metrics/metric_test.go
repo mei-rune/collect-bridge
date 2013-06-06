@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"commons"
 	"log"
 	"lua_binding"
 	"testing"
@@ -19,14 +18,14 @@ func TestRoutes(t *testing.T) {
 		drv.Stop()
 	}()
 	params := map[string]string{"schema": "metric_tests", "target": "unit_test"}
-	v, e := drv.Get(params)
-	if nil != e {
-		t.Error(e)
+	v := drv.Get(params)
+	if v.HasError() {
+		t.Error(v.Error())
 		return
 	}
 
-	s, ok := commons.GetReturn(v).(string)
-	if !ok {
+	s, ok := v.Value().AsString()
+	if nil != ok {
 		t.Errorf("return is not a string, %T", v)
 		return
 	}

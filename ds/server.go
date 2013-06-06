@@ -36,6 +36,10 @@ func NewServer(drv, dbUrl, file string, goroutines int) (*server, error) {
 		return nil, fmt.Errorf("read file '%s' failed, %s", file, e.Error())
 	}
 
+	if 0 >= goroutines {
+		return nil, fmt.Errorf("goroutines must is greate 0")
+	}
+
 	srv := &server{drv: drv,
 		dbUrl:           dbUrl,
 		goroutines:      goroutines,
@@ -96,6 +100,7 @@ func (self *server) run(db *sql.DB) {
 			break
 		}
 	}
+	log.Println("server exit")
 }
 
 func (self *server) call(req *restful.Request,
@@ -127,6 +132,9 @@ func (self *server) call(req *restful.Request,
 	if res.HasError() {
 		resp.WriteErrorString(res.ErrorCode(), res.ErrorMessage())
 	} else {
+		if -1 != res.LastInsertId() {
+			resp.WriteHeader(commons.CreatedCode)
+		}
 		resp.WriteEntity(res)
 	}
 }
@@ -153,6 +161,31 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 		} else {
 			return commons.Return(res)
 		}
+	})
+}
+
+func (self *server) FindByParams(req *restful.Request, resp *restful.Response) {
+	self.call(req, resp, func(srv *server, db *session) commons.Result {
+		t := req.PathParameter("type")
+		if 0 == len(t) {
+			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
+		}
+		defintion := self.definitions.FindByUnderscoreName(t)
+		if nil == defintion {
+			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+		}
+
+		params := make(map[string]string)
+		for k, v := range req.Request.URL.Query() {
+			params[k] = v[len(v)-1]
+		}
+
+		res, e := db.findByParams(defintion, params)
+		if nil != e {
+			return commons.ReturnError(commons.InternalErrorCode, e.Error())
+		}
+
+		return commons.Return(res)
 	})
 }
 
@@ -237,7 +270,6 @@ func (self *server) UpdateByParams(req *restful.Request, resp *restful.Response)
 		if nil == defintion {
 			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
 		}
-
 		var attributes map[string]interface{}
 		e := req.ReadEntity(&attributes)
 		if nil != e {

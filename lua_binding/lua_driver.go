@@ -181,7 +181,7 @@ func writeCallAnyResult(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeEr
 }
 
 func readActionResult(drv *LuaDriver, ctx *Continuous) {
-	ctx.Any, ctx.Error = ctx.ToAnyParam(-1)
+	ctx.Any, ctx.Error = ctx.ToAnyParam(1)
 	//if nil != ctx.Error {
 	//	return
 	//}

@@ -24,12 +24,12 @@ func luaGet(driver commons.Driver, ctx *web.Context, script, id string) {
 	ctx.Params["schema"] = script
 	ctx.Params["id"] = id
 
-	obj, err := driver.Get(ctx.Params)
-	if nil != err {
-		ctx.Abort(err.Code(), err.Error())
+	obj := driver.Get(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
-	ctx.Status(getStatus(obj, 200))
+	ctx.Status(200)
 	json.NewEncoder(ctx).Encode(obj)
 }
 
@@ -44,12 +44,12 @@ func luaPut(driver commons.Driver, ctx *web.Context, script, id string) {
 		return
 	}
 
-	obj, e := driver.Put(ctx.Params)
-	if nil != e {
-		ctx.Abort(e.Code(), e.Error())
+	obj := driver.Put(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
-	ctx.Status(getStatus(obj, 200))
+	ctx.Status(200)
 	json.NewEncoder(ctx).Encode(obj)
 }
 
@@ -57,9 +57,9 @@ func luaDelete(driver commons.Driver, ctx *web.Context, script, id string) {
 	ctx.Params["schema"] = script
 	ctx.Params["id"] = id
 
-	obj, err := driver.Delete(ctx.Params)
-	if nil != err {
-		ctx.Abort(err.Code(), err.Error())
+	obj := driver.Delete(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
 	ctx.Status(200)
@@ -78,12 +78,12 @@ func luaCreate(driver commons.Driver, ctx *web.Context, script string) {
 		ctx.Abort(500, "read body failed - "+err.Error())
 		return
 	}
-	obj, e := driver.Create(ctx.Params)
-	if nil != e {
-		ctx.Abort(e.Code(), e.Error())
+	obj := driver.Create(ctx.Params)
+	if obj.HasError() {
+		ctx.Abort(obj.ErrorCode(), obj.ErrorMessage())
 		return
 	}
 
-	ctx.Status(getStatus(obj, 201))
+	ctx.Status(201)
 	json.NewEncoder(ctx).Encode(obj)
 }

@@ -18,8 +18,8 @@ type Iter interface {
 
 type Query interface {
 	One() (map[string]interface{}, error)
-	Limit(start int, size ...int) Query
-	Offset(offset int) Query
+	Limit(start int64, size ...int64) Query
+	Offset(offset int64) Query
 	OrderBy(order string) Query
 	Select(colums ...string) Query
 	GroupBy(keys string) Query
@@ -31,8 +31,8 @@ type QueryImpl struct {
 	drv        string
 	db         *sql.DB
 	table      *types.TableDefinition
-	limit      int
-	offset     int
+	limit      int64
+	offset     int64
 	where      string
 	parameters []interface{}
 	order      string
@@ -43,7 +43,7 @@ type QueryImpl struct {
 	err     error
 }
 
-func (orm *QueryImpl) Limit(start int, size ...int) Query {
+func (orm *QueryImpl) Limit(start int64, size ...int64) Query {
 	orm.limit = start
 	if len(size) > 0 {
 		orm.offset = size[0]
@@ -51,7 +51,7 @@ func (orm *QueryImpl) Limit(start int, size ...int) Query {
 	return orm
 }
 
-func (orm *QueryImpl) Offset(offset int) Query {
+func (orm *QueryImpl) Offset(offset int64) Query {
 	orm.offset = offset
 	return orm
 }
@@ -139,12 +139,12 @@ func (orm *QueryImpl) generateSql() string {
 	}
 	if orm.offset > 0 {
 		buffer.WriteString(" LIMIT ")
-		buffer.WriteString(strconv.FormatInt(int64(orm.offset), 10))
+		buffer.WriteString(strconv.FormatInt(orm.offset, 10))
 		buffer.WriteString(" , ")
-		buffer.WriteString(strconv.FormatInt(int64(orm.limit), 10))
+		buffer.WriteString(strconv.FormatInt(orm.limit, 10))
 	} else if orm.limit > 0 {
 		buffer.WriteString(" LIMIT ")
-		buffer.WriteString(strconv.FormatInt(int64(orm.limit), 10))
+		buffer.WriteString(strconv.FormatInt(orm.limit, 10))
 	}
 	return buffer.String()
 }

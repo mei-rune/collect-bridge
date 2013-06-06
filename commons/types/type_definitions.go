@@ -91,11 +91,12 @@ func (self *integerType) CreateLengthValidator(minLength,
 
 func (self *integerType) ToInternal(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
+	case string:
+		i64, err := strconv.ParseInt(v, 10, 64)
+		if nil == err {
+			return int64(i64), nil
+		}
 	case int:
-		return int64(v), nil
-	case int8:
-		return int64(v), nil
-	case int16:
 		return int64(v), nil
 	case int32:
 		return int64(v), nil
@@ -106,10 +107,6 @@ func (self *integerType) ToInternal(value interface{}) (interface{}, error) {
 			return int64(v), nil
 		}
 		return int64(0), errors.New("it is uint32, value is overflow.")
-	case uint8:
-		return int64(v), nil
-	case uint16:
-		return int64(v), nil
 	case uint32:
 		return int64(v), nil
 	case uint64:
@@ -121,11 +118,6 @@ func (self *integerType) ToInternal(value interface{}) (interface{}, error) {
 		return int64(v), nil
 	case float64:
 		return int64(v), nil
-	case string:
-		i64, err := strconv.ParseInt(v, 10, 64)
-		if nil == err {
-			return int64(i64), nil
-		}
 	case []byte:
 		i64, err := strconv.ParseInt(string(v), 10, 64)
 		if nil == err {
@@ -255,7 +247,7 @@ func (self *decimalType) ToInternal(value interface{}) (interface{}, error) {
 
 func (self *decimalType) ToExternal(value interface{}) interface{} {
 	return value
-	}
+}
 
 func (self *decimalType) Parse(s string) (interface{}, error) {
 	f64, e := strconv.ParseFloat(s, 64)
@@ -365,7 +357,7 @@ func (self *stringType) ToInternal(value interface{}) (interface{}, error) {
 
 func (self *stringType) ToExternal(value interface{}) interface{} {
 	return value
-	}
+}
 
 func (self *stringType) Parse(s string) (interface{}, error) {
 	return s, nil
@@ -482,7 +474,7 @@ func (self *dateTimeType) ToInternal(v interface{}) (interface{}, error) {
 	}
 
 	return nil, errors.New("syntex error, it is not a datetime")
-	}
+}
 
 func (self *dateTimeType) ToExternal(value interface{}) interface{} {
 	return value
@@ -618,7 +610,7 @@ func (self *ipAddressType) Parse(s string) (interface{}, error) {
 }
 
 type physicalAddressType struct {
-	}
+}
 
 // NullIPAddress represents an ip address that may be null.
 // NullIPAddress implements the Scanner interface so
@@ -633,7 +625,7 @@ func (n *NullPhysicalAddress) Scan(value interface{}) error {
 	if value == nil {
 		n.Valid = false
 		return nil
-}
+	}
 
 	var nullString sql.NullString
 	e := nullString.Scan(value)
@@ -740,7 +732,7 @@ func (self *physicalAddressType) ToExternal(value interface{}) interface{} {
 	default:
 		panic("syntex error, it is not a physicalAddress")
 	}
-	}
+}
 
 func (self *physicalAddressType) Parse(s string) (interface{}, error) {
 	mac, e := net.ParseMAC(s)
@@ -795,7 +787,7 @@ func (self *booleanType) ToInternal(v interface{}) (interface{}, error) {
 
 func (self *booleanType) ToExternal(v interface{}) interface{} {
 	return v
-	}
+}
 
 func (self *booleanType) Parse(s string) (interface{}, error) {
 	switch s {
@@ -804,13 +796,13 @@ func (self *booleanType) Parse(s string) (interface{}, error) {
 	case "false", "False", "FALSE", "no", "No", "NO", "0":
 		return false, nil
 	default:
-	return nil, errors.New("syntex error, it is not a boolean")
-}
+		return nil, errors.New("syntex error, it is not a boolean")
+	}
 }
 
 type objectIdType struct {
 	TypeDefinition
-		}
+}
 
 func (self *objectIdType) Name() string {
 	return "objectId"
@@ -993,7 +985,7 @@ func (self *passwordType) ToExternal(value interface{}) interface{} {
 	default:
 		panic("syntex error, it is not a password")
 	}
-	}
+}
 
 func (self *passwordType) Parse(s string) (interface{}, error) {
 	return Password(s), nil

@@ -11,21 +11,21 @@ type RuntimeError interface {
 	Code() int
 }
 
-type applicationError struct {
-	code    int    `json:"code"`
-	message string `json:"message"`
+type ApplicationError struct {
+	Vcode    int    `json:"code,omitempty"`
+	Vmessage string `json:"message,omitempty"`
 }
 
-func (err *applicationError) Code() int {
-	return err.code
+func (err *ApplicationError) Code() int {
+	return err.Vcode
 }
 
-func (err *applicationError) Error() string {
-	return err.message
+func (err *ApplicationError) Error() string {
+	return err.Vmessage
 }
 
 func NewRuntimeError(code int, message string) RuntimeError {
-	return &applicationError{code: code, message: message}
+	return &ApplicationError{Vcode: code, Vmessage: message}
 }
 
 func GetCode(e error, default_code int) int {

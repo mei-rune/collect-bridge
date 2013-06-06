@@ -47,7 +47,10 @@ func (self *memory) GetCiscoA(params map[string]string) commons.Result {
 		return res
 	}
 
-	return commons.Return(map[string]interface{}{"total": total, "used_per": float64(total-free) / float64(total), "used": total - free, "free": free}), nil
+	return commons.Return(map[string]interface{}{"total": total,
+		"used_per": float64(total-free) / float64(total),
+		"used":     total - free,
+		"free":     free})
 }
 
 func (self *memory) GetCiscoB(params map[string]string) commons.Result {
@@ -55,12 +58,15 @@ func (self *memory) GetCiscoB(params map[string]string) commons.Result {
 	if res.HasError() {
 		return res
 	}
-	res, free, e := self.GetInt64Value(params, "1.3.6.1.4.1.9.9.109.1.1.1.1.13.1", -1)
+	res, free := self.GetInt64Value(params, "1.3.6.1.4.1.9.9.109.1.1.1.1.13.1", -1)
 	if res.HasError() {
 		return res
 	}
 
-	return commons.Return(map[string]interface{}{"total": used + free, "used_per": float64(used) / float64(used+free), "used": used, "free": free}), nil
+	return commons.Return(map[string]interface{}{"total": used + free,
+		"used_per": float64(used) / float64(used+free),
+		"used":     used,
+		"free":     free})
 }
 
 func (self *memory) GetWindows(params map[string]string) commons.Result {
@@ -92,7 +98,7 @@ func (self *memory) GetWindows(params map[string]string) commons.Result {
 
 	used := uint64(float64(total) * used_per)
 	free := total - used
-	return commons.Return(map[string]interface{}{"total": total, "used_per": used_per, "used": used, "free": free}), nil
+	return commons.Return(map[string]interface{}{"total": total, "used_per": used_per, "used": used, "free": free})
 }
 
 func init() {

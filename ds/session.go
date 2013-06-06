@@ -43,7 +43,7 @@ func replaceQuestion(buffer *bytes.Buffer, str string, idx int) (*bytes.Buffer, 
 }
 
 func (self *session) findByParams(table *types.TableDefinition,
-	params map[string]string) (Query, error) {
+	params map[string]string) ([]map[string]interface{}, error) {
 	var buffer bytes.Buffer
 	builder := &queryBuilder{table: table,
 		idx:          1,
@@ -63,11 +63,49 @@ func (self *session) findByParams(table *types.TableDefinition,
 		return nil, e
 	}
 
-	return &QueryImpl{drv: self.drv,
+	q := &QueryImpl{drv: self.drv,
 		db:         self.db,
 		table:      table,
 		where:      buffer.String(),
-		parameters: builder.params}, nil
+		parameters: builder.params}
+
+	capacity := int64(10)
+	if limit, ok := params["limit"]; ok {
+		i, e := strconv.ParseInt(limit, 10, 64)
+		if nil != e {
+			return nil, fmt.Errorf("limit is not a number, actual value is '" + limit + "'")
+		}
+		q.Limit(i)
+		capacity = i
+	}
+
+	if offset, ok := params["offset"]; ok {
+		i, e := strconv.ParseInt(offset, 10, 64)
+		if nil != e {
+			return nil, fmt.Errorf("offset is not a number, actual value is '" + offset + "'")
+		}
+		q.Offset(i)
+	}
+
+	it, e := q.Iter()
+	if nil != e {
+		return nil, e
+	}
+
+	results := make([]map[string]interface{}, 0, capacity)
+	for {
+		res := map[string]interface{}{}
+		if !it.Next(res) {
+			break
+		}
+
+		results = append(results, res)
+	}
+
+	if nil != it.Err() {
+		return nil, it.Err()
+	}
+	return results, nil
 }
 
 func (self *session) where(table *types.TableDefinition,
@@ -103,6 +141,7 @@ func (self *session) insert(table *types.TableDefinition,
 	params := make([]interface{}, 0, len(table.Attributes))
 
 	idx := 1
+	var e error
 	for _, attribute := range table.Attributes {
 		//////////////////////////////////////////
 		// TODO: refactor it?
@@ -127,7 +166,13 @@ func (self *session) insert(table *types.TableDefinition,
 				}
 				v = attribute.DefaultValue
 			}
-			value = attribute.Type.ToExternal(v)
+
+			value, e = attribute.Type.ToInternal(v)
+			if nil != e {
+				return 0, fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
+					attribute.Name, attribute.Type.Name(), v)
+			}
+			value = attribute.Type.ToExternal(value)
 		}
 		//////////////////////////////////////////
 
@@ -152,7 +197,7 @@ func (self *session) insert(table *types.TableDefinition,
 
 	if "postgres" == self.drv {
 		var id int64
-		e := self.db.QueryRow(sql+" RETURNING "+table.Id.Name, params...).Scan(&id)
+		e = self.db.QueryRow(sql+" RETURNING "+table.Id.Name, params...).Scan(&id)
 		if nil != e {
 			return 0, e
 		}

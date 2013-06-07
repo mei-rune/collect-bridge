@@ -6,9 +6,10 @@ import (
 	"commons/types"
 	"database/sql"
 	"fmt"
-	"github.com/emicklei/go-restful"
+	"github.com/runner-mei/go-restful"
 	"log"
 	"runtime"
+	"sync/atomic"
 )
 
 type server struct {
@@ -17,6 +18,7 @@ type server struct {
 	goroutines      int
 	isNumericParams bool
 	definitions     *types.TableDefinitions
+	activedCount    int32
 
 	ch chan func(srv *server, db *session) bool
 }
@@ -45,6 +47,7 @@ func NewServer(drv, dbUrl, file string, goroutines int) (*server, error) {
 		goroutines:      goroutines,
 		isNumericParams: IsNumericParams(drv),
 		definitions:     definitions,
+		activedCount:    0,
 		ch:              make(chan func(srv *server, db *session) bool)}
 
 	conns := make([]*sql.DB, 0, goroutines)
@@ -88,7 +91,9 @@ func (self *server) run(db *sql.DB) {
 		}
 
 		db.Close()
+		atomic.AddInt32(&self.activedCount, -1)
 	}()
+	atomic.AddInt32(&self.activedCount, 1)
 
 	sess := &session{drv: self.drv, db: db, isNumericParams: self.isNumericParams}
 	for {
@@ -106,6 +111,11 @@ func (self *server) run(db *sql.DB) {
 func (self *server) call(req *restful.Request,
 	resp *restful.Response,
 	cb func(srv *server, db *session) commons.Result) {
+	if 0 >= atomic.LoadInt32(&self.activedCount) {
+		resp.WriteErrorString(commons.InternalErrorCode, "SERVER CLOSED")
+		return
+	}
+
 	result_ch := make(chan commons.Result)
 	defer close(result_ch)
 
@@ -155,8 +165,24 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 			return commons.ReturnError(commons.IsRequiredCode, "'id' is required.")
 		}
 
+		if "@count" == id {
+			params := make(map[string]string)
+			for k, v := range req.Request.URL.Query() {
+				params[k] = v[len(v)-1]
+			}
+
+			res, e := db.count(defintion, params)
+			if nil != e {
+				return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			}
+			return commons.Return(res)
+		}
+
 		res, e := db.findById(defintion, id)
 		if nil != e {
+			if sql.ErrNoRows == e {
+				return commons.ReturnError(commons.NotFoundCode, e.Error())
+			}
 			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		} else {
 			return commons.Return(res)
@@ -253,6 +279,9 @@ func (self *server) UpdateById(req *restful.Request, resp *restful.Response) {
 
 		e = db.updateById(defintion, attributes, id)
 		if nil != e {
+			if sql.ErrNoRows == e {
+				return commons.ReturnError(commons.NotFoundCode, e.Error())
+			}
 			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		} else {
 			return commons.Return(true).SetEffected(1)
@@ -306,6 +335,9 @@ func (self *server) DeleteById(req *restful.Request, resp *restful.Response) {
 
 		e := db.deleteById(defintion, id)
 		if nil != e {
+			if sql.ErrNoRows == e {
+				return commons.ReturnError(commons.NotFoundCode, e.Error())
+			}
 			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		} else {
 			return commons.Return(true).SetEffected(1)

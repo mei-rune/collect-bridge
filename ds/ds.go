@@ -2,12 +2,15 @@ package ds
 
 import (
 	"commons/as"
+	"expvar"
 	"flag"
 	"fmt"
-	"github.com/emicklei/go-restful"
+	"github.com/runner-mei/go-restful"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"path"
+	rpprof "runtime/pprof"
 )
 
 var (
@@ -17,6 +20,9 @@ var (
 	drv         = flag.String("db", "postgres", "the db driver")
 	goroutines  = flag.Int("connections", 10, "the db connection number")
 	address     = flag.String("http", ":7071", "the address of http")
+
+	is_test           = false
+	sinstance *server = nil
 )
 
 func getStatus(params map[string]interface{}, default_code int) int {
@@ -56,6 +62,20 @@ func staticFromPathParam(req *restful.Request, resp *restful.Response) {
 		path.Join(*directory, req.PathParameter("resource")))
 }
 
+func expvarHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, "{\n")
+	first := true
+	expvar.Do(func(kv expvar.KeyValue) {
+		if !first {
+			fmt.Fprintf(w, ",\n")
+		}
+		first = false
+		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+	})
+	fmt.Fprintf(w, "\n}\n")
+}
+
 func Main() {
 	flag.Parse()
 
@@ -69,7 +89,13 @@ func Main() {
 		return
 	}
 
-	defer srv.Close()
+	defer func() {
+		if is_test {
+			sinstance = srv
+		} else {
+			srv.Close()
+		}
+	}()
 
 	ws := new(restful.WebService)
 	ws.Route(ws.GET("/").To(mainHandle))
@@ -124,6 +150,24 @@ func Main() {
 
 	restful.Add(ws)
 
-	println("[ds] serving files on http://localhost" + *address + "/static from local '" + *directory + "'")
-	http.ListenAndServe(*address, nil)
+	println("[ds] serving '" + *address + "'")
+	if is_test {
+		//http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
+		//http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+		//http.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+		//for _, pf := range rpprof.Profiles() {
+		//	http.Handle("/debug/pprof/"+pf.Name(), pprof.Handler(pf.Name()))
+		//}
+		//http.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+	} else {
+		mux := http.NewServeMux()
+		mux.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
+		mux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+		mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+		for _, pf := range rpprof.Profiles() {
+			mux.Handle("/debug/pprof/"+pf.Name(), pprof.Handler(pf.Name()))
+		}
+		mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+		http.ListenAndServe(*address, mux)
+	}
 }

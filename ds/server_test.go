@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/emicklei/go-restful"
 	_ "github.com/lib/pq"
+	"net"
+	"net/http"
 	"reflect"
 	"testing"
 	"time"
@@ -15,8 +18,7 @@ var (
 	test_address = flag.String("test.http", ":7071", "the address of http")
 )
 
-func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.TableDefinitions)) {
-	*models_file = file
+func testBase(t *testing.T, file string, init_cb func(conn *sql.DB), cb func(db *Client, definitions *types.TableDefinitions)) {
 	definitions, err := types.LoadTableDefinitions(file)
 	if nil != err {
 		t.Errorf("read file '%s' failed, %s", file, err.Error())
@@ -34,35 +36,82 @@ func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.T
 		}
 	}()
 
-	_, err = conn.Exec("DROP TABLE IF EXISTS persons")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	_, err = conn.Exec("CREATE TABLE persons (ID SERIAL PRIMARY KEY, ID1 int, " +
-		"Name varchar(256), " +
-		"Name2 varchar(256), " +
-		"Age int, " +
-		"Day timestamp with time zone, " +
-		"Mony numeric(9, 4), " +
-		"IP varchar(50), " +
-		"MAC varchar(50), " +
-		"Sex varchar(10)," +
-		"Password varchar(256) )")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
+	init_cb(conn)
 	conn.Close()
 	conn = nil
 
 	*drv = *test_db
 	*dbUrl = *test_dbUrl
 	*address = *test_address
-	go main()
+	*models_file = file
+	is_test = true
+
+	Main()
+	defer restful.ClearRegisteredWebServices()
+	var listener net.Listener = nil
+
+	ch := make(chan string)
+
+	go func() {
+		l, e := net.Listen("tcp", *address)
+		if nil != e {
+			ch <- e.Error()
+			return
+		}
+
+		defer func() {
+			ch <- "exit"
+		}()
+		ch <- "ok"
+		listener = l
+		http.Serve(l, nil)
+	}()
+
+	s := <-ch
+	if "ok" != s {
+		return
+	}
+
 	time.Sleep(10 * time.Microsecond)
 	cb(NewClient("http://127.0.0.1"+*test_address), definitions)
+
+	if nil != sinstance {
+		sinstance.Close()
+		sinstance = nil
+	}
+	if nil != listener {
+		listener.Close()
+	}
+	restful.ClearRegisteredWebServices()
+
+	<-ch
+}
+
+func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.TableDefinitions)) {
+	testBase(t, file, func(conn *sql.DB) {
+		_, err := conn.Exec("DROP TABLE IF EXISTS persons")
+		if err != nil {
+			t.Fatal(err)
+			t.FailNow()
+			return
+		}
+
+		_, err = conn.Exec("CREATE TABLE persons (ID SERIAL PRIMARY KEY, ID1 int, " +
+			"Name varchar(256), " +
+			"Name2 varchar(256), " +
+			"Age int, " +
+			"Day timestamp with time zone, " +
+			"Mony numeric(9, 4), " +
+			"IP varchar(50), " +
+			"MAC varchar(50), " +
+			"Sex varchar(10)," +
+			"Password varchar(256) )")
+		if err != nil {
+			t.Fatal(err)
+			t.FailNow()
+			return
+		}
+	}, cb)
 }
 
 func convert(table *types.TableDefinition, values map[string]interface{}) map[string]interface{} {

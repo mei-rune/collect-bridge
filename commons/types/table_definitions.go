@@ -25,6 +25,8 @@ func loadParentColumns(self *TableDefinitions, cls *TableDefinition, errs *[]str
 		for k, v := range cls.Super.Attributes {
 			cls.Attributes[k] = v
 		}
+
+		cls.Id = cls.Super.Id
 	}
 
 	for k, v := range cls.OwnAttributes {
@@ -171,15 +173,16 @@ func loadAssocations(self *TableDefinitions, cls *TableDefinition, xmlDefinition
 					"' of class '"+xmlDefinition.Name+"' is not found.")
 				continue
 			}
+
 			if "" == belongs_to.Name {
 				belongs_to.Name = stringutils.Underscore(belongs_to.Target) + "_id"
 			}
 
 			pr, ok := cls.OwnAttributes[belongs_to.Name]
 			if !ok {
-				*errs = append(*errs, "Property '"+belongs_to.Name+
-					"' of belongs_to '"+belongs_to.Target+"' is not found.")
-				continue
+				pr = &ColumnDefinition{AttributeDefinition{Name: belongs_to.Name, Type: GetTypeDefinition("objectId"),
+					Collection: COLLECTION_UNKNOWN}}
+				cls.OwnAttributes[belongs_to.Name] = pr
 			}
 
 			cls.Assocations = append(cls.Assocations, &BelongsTo{TargetTable: target, Name: pr})

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classDefinitions lastModified="2013-02-13T08:57:30" xmlns="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions typeDefinitions.xsd">
-  <class name="ManagedElement">
+  <class name="ManagedObject">
     <property name="name">
       <restriction base="string">
         <required />
@@ -23,29 +23,20 @@
       </restriction>
     </property>
 
-    <has_many foreignKey="managed_element_id" >Attributes</has_many>
+    <has_many foreignKey="managed_object_id" >Attributes</has_many>
     <has_many polymorphic="true" >Trigger</has_many>
   </class>
 
-  <class name="Device" base="ManagedElement">
-    <property name="name">
+  <class name="Device" base="ManagedObject">
+    <property name="type">
       <restriction base="string">
         <required />
-        <minLength>1</minLength>
-				<maxLength>200</maxLength>
       </restriction>
     </property>
+
     <property name="address">
       <restriction base="ipAddress">
         <required />
-      </restriction>
-    </property>
-    <property name="custom_name">
-      <restriction base="string">
-      </restriction>
-    </property>
-    <property name="custom_level">
-      <restriction base="integer">
       </restriction>
     </property>
 
@@ -72,16 +63,22 @@
       </restriction>
     </property>
 
-	 <has_many foreignKey="device_id" >Interface</has_many>
+	  <has_many foreignKey="device_id" >Interface</has_many>
     <has_many foreignKey="device_id" >Address</has_many>
     <has_many foreignKey="device1_id" >Link</has_many>
     <has_many foreignKey="device2_id" >Link</has_many>
   </class>
 
-  <class name="Switch" base="ManagedElement">
+  <class name="Switch" base="Device">
   </class>
 
-  <class name="Link" base="ManagedElement">
+  <class name="Route" base="Device">
+  </class>
+
+  <class name="SwitchRoute" base="Device">
+  </class>
+
+  <class name="Link" base="ManagedObject">
     <property name="name">
       <restriction base="string">
         <required />
@@ -126,16 +123,6 @@
         <enumeration value="2" />
       </restriction>
     </property>
-    <property name="created_at">
-      <restriction base="datetime">
-        <readonly />
-      </restriction>
-    </property>
-    <property name="updated_at">
-      <restriction base="datetime">
-      </restriction>
-    </property>
-    <has_many polymorphic="true" >Trigger</has_many>
   </class>
 
   <class name="Attributes">
@@ -144,13 +131,10 @@
         <maxLength>2000</maxLength>
       </restriction>
     </property>
+    <belongs_to>ManagedObject</belongs_to>
   </class>
+
   <class name="AccessParams" base="Attributes">
-    <property name="description">
-      <restriction base="string">
-        <maxLength>2000</maxLength>
-      </restriction>
-    </property>
   </class>
 
   <class name="EndpointParams" base="AccessParams">
@@ -209,7 +193,7 @@
     </property>
   </class>
 
-  <class name="Address" base="ManagedElement">
+  <class name="Address" base="ManagedObject">
     <property name="address">
       <restriction base="ipAddress">
         <required />
@@ -231,9 +215,10 @@
       <restriction base="integer">
       </restriction>
     </property>
+    <belongs_to name="device_id" >Device</belongs_to>
   </class>
 
-  <class name="Interface" base="ManagedElement">
+  <class name="Interface" base="ManagedObject">
     <property name="ifIndex">
       <restriction base="integer">
         <required />
@@ -260,6 +245,7 @@
       <restriction base="physicalAddress">
       </restriction>
     </property>
+    <belongs_to name="device_id" >Device</belongs_to>
   </class>
 
   <class name="Trigger">
@@ -301,7 +287,7 @@
     </property>
   </class>
 
-  <class name="RedisAction" base="Action">
+  <class name="RedisCommand" base="Action">
     <property name="command">
       <restriction base="string">
         <maxLength>10</maxLength>
@@ -335,7 +321,7 @@
   </class>
 
 
-  <class name="AlertAction" base="Action">
+  <class name="Alert" base="Action">
     <property name="max_repeated">
       <restriction base="integer">
       </restriction>
@@ -347,7 +333,7 @@
     </property>
     <property name="expression_code">
       <restriction base="string">
-        <maxLength>50</maxLength>
+        <maxLength>2000</maxLength>
         <!-- 
           json:
             attribute string 
@@ -356,7 +342,7 @@
         -->
       </restriction>
     </property>
-  </clas>
+  </class>
 
   <class name="MetricTrigger" base="Trigger">
     <property name="metric">

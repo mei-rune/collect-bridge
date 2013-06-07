@@ -231,6 +231,10 @@ func (self *TableDefinitions) Unregister(cls *TableDefinition) {
 	delete(self.underscore2Definitions, cls.UnderscoreName)
 }
 
-func (self *TableDefinitions) All(cls *TableDefinition) map[string]*TableDefinition {
+func (self *TableDefinitions) All() map[string]*TableDefinition {
 	return self.definitions
+}
+
+func (self *TableDefinitions) UnderscoreAll() map[string]*TableDefinition {
+	return self.underscore2Definitions
 }

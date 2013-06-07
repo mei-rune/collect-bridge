@@ -42,6 +42,42 @@ func replaceQuestion(buffer *bytes.Buffer, str string, idx int) (*bytes.Buffer, 
 	return buffer, idx
 }
 
+func (self *session) count(table *types.TableDefinition,
+	params map[string]string) (int64, error) {
+
+	var buffer bytes.Buffer
+	buffer.WriteString("SELECT count(*) FROM ")
+	buffer.WriteString(table.CollectionName)
+
+	builder := &queryBuilder{table: table,
+		idx:          1,
+		isFirst:      true,
+		prefix:       " WHERE ",
+		buffer:       &buffer,
+		params:       []interface{}{},
+		operators:    default_operators,
+		add_argument: (*queryBuilder).appendNumericArguments}
+
+	if self.isNumericParams {
+		builder.add_argument = (*queryBuilder).appendNumericArguments
+	} else {
+		builder.add_argument = (*queryBuilder).appendSimpleArguments
+	}
+
+	e := builder.build(params)
+	if nil != e {
+		return -1, e
+	}
+
+	row := self.db.QueryRow(buffer.String(), builder.params...)
+	count := int64(0)
+	e = row.Scan(&count)
+	if nil != e {
+		return 0, e
+	}
+	return count, nil
+}
+
 func (self *session) findByParams(table *types.TableDefinition,
 	params map[string]string) ([]map[string]interface{}, error) {
 	var buffer bytes.Buffer
@@ -125,12 +161,18 @@ func (self *session) where(table *types.TableDefinition,
 		parameters: args}
 }
 
-func (self *session) findById(table *types.TableDefinition, id interface{}) (map[string]interface{}, error) {
+func (self *session) findById(table *types.TableDefinition, id string) (map[string]interface{}, error) {
+	value, e := table.Id.Type.Parse(id)
+	if nil != e {
+		return nil, fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
+			table.Id.Name, table.Id.Type.Name(), id)
+	}
+
 	query := &QueryImpl{drv: self.drv,
 		db:         self.db,
 		table:      table,
 		where:      self.equalIdQuery(table),
-		parameters: []interface{}{table.Id.Type.ToExternal(id)}}
+		parameters: []interface{}{value}}
 	return query.One()
 }
 
@@ -218,7 +260,7 @@ func (self *session) insert(table *types.TableDefinition,
 }
 
 func (self *session) updateById(table *types.TableDefinition,
-	updated_attributes map[string]interface{}, id interface{}) error {
+	updated_attributes map[string]interface{}, id string) error {
 	var buffer bytes.Buffer
 	builder := &updateBuilder{table: table,
 		idx:             1,
@@ -232,8 +274,13 @@ func (self *session) updateById(table *types.TableDefinition,
 	if nil == builder.params || 0 == len(builder.params) {
 		return errors.New("updated attributes is empty.")
 	}
+	value, e := table.Id.Type.Parse(id)
+	if nil != e {
+		return fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
+			table.Id.Name, table.Id.Type.Name(), id)
+	}
 
-	builder.buildWhereById(id)
+	builder.buildWhereById(value)
 
 	res, e := self.db.Exec(buffer.String(), builder.params...)
 	if nil != e {
@@ -308,7 +355,13 @@ func (self *session) update(table *types.TableDefinition,
 	return res.RowsAffected()
 }
 
-func (self *session) deleteById(table *types.TableDefinition, id interface{}) error {
+func (self *session) deleteById(table *types.TableDefinition, id string) error {
+	value, e := table.Id.Type.Parse(id)
+	if nil != e {
+		return fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
+			table.Id.Name, table.Id.Type.Name(), id)
+	}
+
 	var buffer bytes.Buffer
 	buffer.WriteString("DELETE FROM ")
 	buffer.WriteString(table.CollectionName)
@@ -320,7 +373,7 @@ func (self *session) deleteById(table *types.TableDefinition, id interface{}) er
 		buffer.WriteString(" = ?")
 	}
 
-	res, e := self.db.Exec(buffer.String(), table.Id.Type.ToExternal(id))
+	res, e := self.db.Exec(buffer.String(), table.Id.Type.ToExternal(value))
 	if nil != e {
 		return e
 	}
@@ -330,7 +383,7 @@ func (self *session) deleteById(table *types.TableDefinition, id interface{}) er
 		return e
 	}
 	if 1 != affected {
-		return fmt.Errorf("affected rows is not equals 1, actual is %v", affected)
+		return sql.ErrNoRows
 	}
 
 	return nil

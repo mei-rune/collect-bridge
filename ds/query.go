@@ -149,8 +149,6 @@ func (orm *QueryImpl) generateSql() string {
 	return buffer.String()
 }
 
-// func (db *DB) Query(query string, args ...interface{}) (*Rows, error)
-// func (db *DB) QueryRow(query string, args ...interface{}) *Row
 func (orm *QueryImpl) One() (map[string]interface{}, error) {
 	columns := orm.attributes()
 	if nil != orm.err {

@@ -96,7 +96,7 @@ func TestSimpleInsert(t *testing.T) {
 			return
 		}
 
-		result, err := db.findById(person, id)
+		result, err := db.findById(person, fmt.Sprint(id))
 		if nil != err {
 			t.Error(err)
 		} else {
@@ -138,13 +138,13 @@ func TestSimpleUpdateById(t *testing.T) {
 
 		t.Log(id)
 
-		err = db.updateById(person, person1_update_attributes, id)
+		err = db.updateById(person, person1_update_attributes, fmt.Sprint(id))
 		if nil != err {
 			t.Errorf(err.Error())
 			return
 		}
 
-		result, err := db.findById(person, id)
+		result, err := db.findById(person, fmt.Sprint(id))
 		if nil != err {
 			t.Error(err)
 		} else {
@@ -203,7 +203,7 @@ func TestSimpleUpdateByParams(t *testing.T) {
 			return
 		}
 
-		result, err := db.findById(person, id)
+		result, err := db.findById(person, fmt.Sprint(id))
 		if nil != err {
 			t.Error(err)
 		} else {
@@ -249,7 +249,7 @@ func TestSimpleFindById(t *testing.T) {
 			return
 		}
 
-		db_attributes, err := db.findById(person, id)
+		db_attributes, err := db.findById(person, fmt.Sprint(id))
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -385,13 +385,13 @@ func TestSimpleDeleteById(t *testing.T) {
 			return
 		}
 
-		err = db.deleteById(person, id)
+		err = db.deleteById(person, fmt.Sprint(id))
 		if nil != err {
 			t.Errorf(err.Error())
 			return
 		}
 
-		_, err = db.findById(person, id)
+		_, err = db.findById(person, fmt.Sprint(id))
 		if nil == err {
 			t.Errorf("delete failed, becase refind sucessed")
 			return
@@ -428,7 +428,7 @@ func TestSimpleDeleteByParams(t *testing.T) {
 			return
 		}
 
-		_, err = db.findById(person, id)
+		_, err = db.findById(person, fmt.Sprint(id))
 		if nil == err {
 			t.Errorf("delete failed, becase refind sucessed")
 			return

@@ -138,6 +138,6 @@ func (self *ClassDefinitions) Unregister(cls *ClassDefinition) {
 	delete(self.underscore2Definitions, cls.UnderscoreName)
 }
 
-func (self *ClassDefinitions) All(cls *ClassDefinition) map[string]*ClassDefinition {
+func (self *ClassDefinitions) All() map[string]*ClassDefinition {
 	return self.clsDefinitions
 }

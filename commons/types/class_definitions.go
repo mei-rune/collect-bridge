@@ -114,7 +114,8 @@ func loadOwnAttribute(pr *XMLAttributeDefinition) (cpr *AttributeDefinition, err
 
 	if "created_at" == pr.Name || "updated_at" == pr.Name {
 		if "datetime" != cpr.Type.Name() {
-			errs = append(errs, "it is reserved and must is a dateTime")
+			fmt.Println("-->", cpr.Type.Name())
+			errs = append(errs, "it is reserved and must is a datetime")
 		}
 
 		if cpr.Collection.IsCollection() {
@@ -265,10 +266,10 @@ func LoadClassDefinitions(nm string) (*ClassDefinitions, error) {
 		}
 
 		cls.Super = super
-		if nil == super.Children {
-			super.Children = make([]*ClassDefinition, 0, 3)
+		if nil == super.OwnChildren {
+			super.OwnChildren = make([]*ClassDefinition, 0, 3)
 		}
-		super.Children = append(super.Children, cls)
+		super.OwnChildren = append(super.OwnChildren, cls)
 	}
 
 	// load the properties of super class

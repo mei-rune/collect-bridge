@@ -47,12 +47,12 @@ func TestCriteria(t *testing.T) {
 
 	for i, m := range test_statements {
 		var buffer bytes.Buffer
-		builder := &queryBuilder{table: person,
+		builder := &whereBuilder{table: person,
 			idx:          1,
 			isFirst:      true,
 			buffer:       &buffer,
 			operators:    default_operators,
-			add_argument: (*queryBuilder).appendNumericArguments}
+			add_argument: (*whereBuilder).appendNumericArguments}
 
 		e := builder.build(m.query)
 		if nil != e {

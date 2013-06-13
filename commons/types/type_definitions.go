@@ -1017,6 +1017,7 @@ var (
 
 func init() {
 	DATETIMELAYOUT = time.RFC3339
+	DateTimeType.name = "datetime"
 	DateTimeType.Layout = DATETIMELAYOUT // `"` + time.RFC3339 + `"`
 	ObjectIdType.TypeDefinition = &SqlIdTypeDefinition{}
 }

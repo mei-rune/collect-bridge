@@ -95,7 +95,9 @@ func (self *server) run(db *sql.DB) {
 	}()
 	atomic.AddInt32(&self.activedCount, 1)
 
-	sess := &session{drv: self.drv, db: db, isNumericParams: self.isNumericParams}
+	sess := &session{driver: &driver{drv: self.drv, db: db,
+		isNumericParams: self.isNumericParams}}
+
 	for {
 		f := <-self.ch
 		if nil == f {
@@ -170,7 +172,6 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 			for k, v := range req.Request.URL.Query() {
 				params[k] = v[len(v)-1]
 			}
-
 			res, e := db.count(defintion, params)
 			if nil != e {
 				return commons.ReturnError(commons.InternalErrorCode, e.Error())
@@ -206,7 +207,7 @@ func (self *server) FindByParams(req *restful.Request, resp *restful.Response) {
 			params[k] = v[len(v)-1]
 		}
 
-		res, e := db.findByParams(defintion, params)
+		res, e := db.query(defintion, params)
 		if nil != e {
 			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		}
@@ -277,7 +278,7 @@ func (self *server) UpdateById(req *restful.Request, resp *restful.Response) {
 			return commons.ReturnError(commons.BadRequestCode, "read body failed - "+e.Error())
 		}
 
-		e = db.updateById(defintion, attributes, id)
+		e = db.updateById(defintion, id, attributes)
 		if nil != e {
 			if sql.ErrNoRows == e {
 				return commons.ReturnError(commons.NotFoundCode, e.Error())
@@ -308,7 +309,7 @@ func (self *server) UpdateByParams(req *restful.Request, resp *restful.Response)
 		for k, v := range req.Request.URL.Query() {
 			params[k] = v[len(v)-1]
 		}
-		affected, e := db.updateByParams(defintion, attributes, params)
+		affected, e := db.update(defintion, params, attributes)
 		if nil != e {
 			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		} else {
@@ -360,7 +361,7 @@ func (self *server) DeleteByParams(req *restful.Request, resp *restful.Response)
 		for k, v := range req.Request.URL.Query() {
 			params[k] = v[len(v)-1]
 		}
-		affected, e := db.deleteByParams(defintion, params)
+		affected, e := db.delete(defintion, params)
 		if nil != e {
 			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		} else {

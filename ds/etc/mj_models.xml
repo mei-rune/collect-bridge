@@ -134,10 +134,10 @@
     <belongs_to>ManagedObject</belongs_to>
   </class>
 
-  <class name="AccessParams" base="Attributes">
+  <class name="AccessParam" base="Attributes">
   </class>
 
-  <class name="EndpointParams" base="AccessParams">
+  <class name="EndpointParam" base="AccessParam">
     <property name="address">
       <restriction base="ipAddress">
         <required />
@@ -150,7 +150,7 @@
     </property>
   </class>
 
-  <class name="SnmpParams" base="EndpointParams">
+  <class name="SnmpParam" base="EndpointParam">
     <property name="version">
       <restriction base="string">
         <required />
@@ -166,28 +166,28 @@
     </property>
   </class>
 
-  <class name="SshParams" base="EndpointParams">
-    <property name="user">
+  <class name="SshParam" base="EndpointParam">
+    <property name="user_name">
       <restriction base="string">
       </restriction>
     </property>
-    <property name="password">
+    <property name="user_password">
       <restriction base="password">
       </restriction>
     </property>
   </class>
 
-  <class name="WbemParams" base="AccessParams">
+  <class name="WbemParam" base="AccessParam">
     <property name="url">
       <restriction base="string">
         <required />
       </restriction>
     </property>
-    <property name="user">
+    <property name="user_name">
       <restriction base="string">
       </restriction>
     </property>
-    <property name="password">
+    <property name="user_password">
       <restriction base="password">
       </restriction>
     </property>
@@ -373,6 +373,11 @@
     </property>
     <property name="publish_at">
       <restriction base="integer">
+        <required />
+      </restriction>
+    </property>
+    <property name="type">
+      <restriction base="string">
         <required />
       </restriction>
     </property>

@@ -42,7 +42,7 @@ func createMockInterface(t *testing.T, client *Client, id, factor string) string
 }
 
 func createMockDevice(t *testing.T, client *Client, factor string) string {
-	return createJson(t, client, "device", fmt.Sprintf(`{"name":"dd%s", "type":"switch", "address":"192.168.1.%s", "catalog":%s, "services":2%s, "managed_address":"20.0.8.110"}`, factor, factor, factor, factor))
+	return createJson(t, client, "device", fmt.Sprintf(`{"name":"dd%s", "type":"device", "address":"192.168.1.%s", "catalog":%s, "services":2%s, "managed_address":"20.0.8.110"}`, factor, factor, factor, factor))
 }
 
 func updateMockDevice(t *testing.T, client *Client, id, factor string) {
@@ -920,6 +920,36 @@ CREATE TABLE alerts (
   CONSTRAINT alerts_pkey PRIMARY KEY (id)
 ) INHERITS (actions);
 
+
+DROP TABLE IF EXISTS documents;
+create table documents (
+  id serial PRIMARY KEY,
+  name varchar(100),
+  type varchar(100), 
+  page_count integer, 
+  author varchar(100), 
+  bytes integer,
+  journal_id integer,
+  isbn varchar(100),
+  compressed_format varchar(10), 
+  website_id integer, 
+  user_id integer,
+  printer_id integer,
+  publish_at integer
+);
+
+DROP TABLE IF EXISTS websites;
+CREATE TABLE websites (id  serial PRIMARY KEY, url varchar(200));
+
+DROP TABLE IF EXISTS printers;
+CREATE TABLE printers (id  serial PRIMARY KEY, name varchar(200));
+
+DROP TABLE IF EXISTS topics;
+CREATE TABLE topics (id  serial PRIMARY KEY, name varchar(200));
+
+-- tables for CLOB
+DROP TABLE IF EXISTS zip_files;
+CREATE TABLE zip_files (id  serial PRIMARY KEY, body text, document_id integer);
 `
 
 		_, err := conn.Exec(sql_str)

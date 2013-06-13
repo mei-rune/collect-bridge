@@ -41,7 +41,7 @@ type ClassDefinition struct {
 	UnderscoreName string
 	OwnAttributes  map[string]*AttributeDefinition
 	Attributes     map[string]*AttributeDefinition
-	Children       []*ClassDefinition
+	OwnChildren    []*ClassDefinition
 }
 
 func (self *ClassDefinition) Root() *ClassDefinition {
@@ -65,12 +65,12 @@ func (self *ClassDefinition) IsSubclassOf(cls *ClassDefinition) bool {
 }
 
 func (self *ClassDefinition) IsInheritanced() bool {
-	return (nil != self.Super) || (nil != self.Children && 0 != len(self.Children))
+	return (nil != self.Super) || (nil != self.OwnChildren && 0 != len(self.OwnChildren))
 }
 
-func (self *ClassDefinition) InheritanceFrom(cls *ClassDefinition) bool {
+func (self *ClassDefinition) InheritFrom(super *ClassDefinition) bool {
 	for s := self; nil != s; s = s.Super {
-		if s == cls {
+		if s == super {
 			return true
 		}
 	}

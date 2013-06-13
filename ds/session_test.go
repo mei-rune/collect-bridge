@@ -79,7 +79,7 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 		return
 	}
 
-	cb(&session{drv: *test_db, db: conn, isNumericParams: IsNumericParams(*test_db)}, definitions)
+	cb(&session{driver: &driver{drv: *test_db, db: conn, isNumericParams: IsNumericParams(*test_db)}}, definitions)
 }
 
 func TestSimpleInsert(t *testing.T) {
@@ -138,7 +138,7 @@ func TestSimpleUpdateById(t *testing.T) {
 
 		t.Log(id)
 
-		err = db.updateById(person, person1_update_attributes, fmt.Sprint(id))
+		err = db.updateById(person, fmt.Sprint(id), person1_update_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -192,7 +192,7 @@ func TestSimpleUpdateByParams(t *testing.T) {
 
 		t.Log(id)
 
-		affected, err := db.updateByParams(person, person1_update_attributes, map[string]string{"@id": fmt.Sprint(id)})
+		affected, err := db.update(person, map[string]string{"@id": fmt.Sprint(id)}, person1_update_attributes)
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -271,62 +271,62 @@ func TestSimpleFindById(t *testing.T) {
 	})
 }
 
-func TestSimpleWhere(t *testing.T) {
-	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
-		person := definitions.Find("Person")
-		if nil == person {
-			t.Error("Person is not defined")
-			return
-		}
+// func TestSimpleWhere(t *testing.T) {
+// 	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
+// 		person := definitions.Find("Person")
+// 		if nil == person {
+// 			t.Error("Person is not defined")
+// 			return
+// 		}
 
-		id, err := db.insert(person, person1_attributes)
-		if nil != err {
-			t.Errorf(err.Error())
-			return
-		}
+// 		id, err := db.insert(person, person1_attributes)
+// 		if nil != err {
+// 			t.Errorf(err.Error())
+// 			return
+// 		}
 
-		it, err := db.where(person, "id = $1", id).Iter()
-		if nil != err {
-			t.Errorf(err.Error())
-			return
-		}
+// 		it, err := db.where(person, "id = $1", id).Iter()
+// 		if nil != err {
+// 			t.Errorf(err.Error())
+// 			return
+// 		}
 
-		results := make([]map[string]interface{}, 0)
-		for {
-			res := map[string]interface{}{}
-			if !it.Next(res) {
-				break
-			}
+// 		results := make([]map[string]interface{}, 0)
+// 		for {
+// 			res := map[string]interface{}{}
+// 			if !it.Next(res) {
+// 				break
+// 			}
 
-			results = append(results, res)
-		}
+// 			results = append(results, res)
+// 		}
 
-		if nil != it.Err() {
-			t.Error(it.Err())
-			return
-		}
+// 		if nil != it.Err() {
+// 			t.Error(it.Err())
+// 			return
+// 		}
 
-		if 1 != len(results) {
-			t.Errorf("result is empty")
-			return
-		}
+// 		if 1 != len(results) {
+// 			t.Errorf("result is empty")
+// 			return
+// 		}
 
-		db_attributes := results[0]
-		for k, v2 := range db_attributes {
-			if person.Id.Name == k {
-				continue
-			}
+// 		db_attributes := results[0]
+// 		for k, v2 := range db_attributes {
+// 			if person.Id.Name == k {
+// 				continue
+// 			}
 
-			v1, ok := person1_saved_attributes[k]
-			if !ok {
-				t.Error("'" + k + "' is not exists.")
-			} else if !reflect.DeepEqual(v1, v2) {
-				t.Errorf("'"+k+"' is not equals, excepted is [%T]%v, actual is [%T]%v.",
-					v1, v1, v2, v2)
-			}
-		}
-	})
-}
+// 			v1, ok := person1_saved_attributes[k]
+// 			if !ok {
+// 				t.Error("'" + k + "' is not exists.")
+// 			} else if !reflect.DeepEqual(v1, v2) {
+// 				t.Errorf("'"+k+"' is not equals, excepted is [%T]%v, actual is [%T]%v.",
+// 					v1, v1, v2, v2)
+// 			}
+// 		}
+// 	})
+// }
 
 func TestSimpleFindByParams(t *testing.T) {
 	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
@@ -342,7 +342,7 @@ func TestSimpleFindByParams(t *testing.T) {
 			return
 		}
 
-		results, err := db.findByParams(person, map[string]string{"@id": fmt.Sprint(id)})
+		results, err := db.query(person, map[string]string{"@id": fmt.Sprint(id)})
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -417,7 +417,7 @@ func TestSimpleDeleteByParams(t *testing.T) {
 			return
 		}
 
-		affected, err := db.deleteByParams(person, map[string]string{"@id": fmt.Sprint(id)})
+		affected, err := db.delete(person, map[string]string{"@id": fmt.Sprint(id)})
 		if nil != err {
 			t.Errorf(err.Error())
 			return

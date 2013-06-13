@@ -114,7 +114,7 @@ func (self *Client) DeleteBy(target string, params map[string]string) (int64, co
 
 func (self *Client) Count(target string, params map[string]string) (int64, commons.RuntimeError) {
 	url := self.CreateUrl().Concat(target, "@count").WithQueries(params, "@").ToUrl()
-
+	fmt.Println("GET", url)
 	res := self.Invoke("GET", url, nil, 200)
 	if res.HasError() {
 		return -1, res.Error()

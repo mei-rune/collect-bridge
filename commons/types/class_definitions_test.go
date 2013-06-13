@@ -176,10 +176,10 @@ func TestPropertyOverride(t *testing.T) {
 	bossp := boss.Attributes["Job"]
 	managerp := manager.Attributes["Job"]
 
-	t.Log(employee.Children)
-	a.Check(t, len(employee.Children), a.Equals, 2, a.Commentf("check the children of employee"))
-	a.Check(t, employee.Children[0], a.Equals, boss, a.Commentf("check the children[0] of employee is boss"))
-	a.Check(t, employee.Children[1], a.Equals, manager, a.Commentf("check the children[0] of employee is manager"))
+	t.Log(employee.OwnChildren)
+	a.Check(t, len(employee.OwnChildren), a.Equals, 2, a.Commentf("check the OwnChildren of employee"))
+	a.Check(t, employee.OwnChildren[0], a.Equals, boss, a.Commentf("check the OwnChildren[0] of employee is boss"))
+	a.Check(t, employee.OwnChildren[1], a.Equals, manager, a.Commentf("check the OwnChildren[0] of employee is manager"))
 
 	a.Check(t, employeep, a.NotNil)
 	a.Check(t, bossp, a.NotNil)
@@ -223,11 +223,11 @@ func TestHierarchicalTypeWithChildMinValueIsError(t *testing.T) {
 	t.Errorf("not implemented")
 }
 
-func TestHierarchicalTypeWithChildrenIsOverlappingAtLeft(t *testing.T) {
+func TestHierarchicalTypeWithOwnChildrenIsOverlappingAtLeft(t *testing.T) {
 	t.Errorf("not implemented")
 }
 
-func TestHierarchicalTypeWithChildrenIsOverlappingAtRight(t *testing.T) {
+func TestHierarchicalTypeWithOwnChildrenIsOverlappingAtRight(t *testing.T) {
 	t.Errorf("not implemented")
 }
 

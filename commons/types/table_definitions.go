@@ -14,14 +14,14 @@ func makeIdColumn() *ColumnDefinition {
 		Collection: COLLECTION_UNKNOWN}}
 }
 
-func loadParentColumns(self *TableDefinitions, cls *TableDefinition, errs *[]string) {
+func loadParentColumns(definitions map[string]*TableDefinition, cls *TableDefinition, errs *[]string) {
 	if nil != cls.Attributes {
 		return
 	}
 
 	cls.Attributes = make(map[string]*ColumnDefinition, 2*len(cls.OwnAttributes))
 	if nil != cls.Super {
-		loadParentColumns(self, cls.Super, errs)
+		loadParentColumns(definitions, cls.Super, errs)
 		for k, v := range cls.Super.Attributes {
 			cls.Attributes[k] = v
 		}
@@ -66,11 +66,6 @@ func loadParentColumns(self *TableDefinitions, cls *TableDefinition, errs *[]str
 func loadOwnColumns(xmlCls *XMLClassDefinition, cls *TableDefinition) (errs []string) {
 	cls.OwnAttributes = make(map[string]*ColumnDefinition)
 	for _, pr := range xmlCls.Attributes {
-		if "type" == pr.Name {
-			errs = append(errs, "load column '"+pr.Name+"' of class '"+
-				xmlCls.Name+"' failed, it is reserved")
-			continue
-		}
 
 		if "id" == pr.Name {
 			errs = append(errs, "load column '"+pr.Name+"' of class '"+
@@ -81,6 +76,36 @@ func loadOwnColumns(xmlCls *XMLClassDefinition, cls *TableDefinition) (errs []st
 		var cpr *AttributeDefinition = nil
 		cpr, msgs := loadOwnAttribute(&pr)
 		if nil != cpr {
+			switch cpr.Name {
+			case "type":
+				if "string" != cpr.Type.Name() {
+					errs = append(errs, "load column 'type' of class '"+
+						xmlCls.Name+"' failed, it is reserved and must is a string")
+					continue
+				}
+
+				if cpr.Collection.IsCollection() {
+					errs = append(errs, "load column 'type' of class '"+
+						xmlCls.Name+"' failed, it is reserved and must not is a collection")
+					continue
+				}
+			case "record_version":
+				if "integer" != cpr.Type.Name() {
+					errs = append(errs, "load column 'record_version' of class '"+
+						xmlCls.Name+"' failed, it is reserved and must is a integer")
+					continue
+				}
+
+				if cpr.Collection.IsCollection() {
+					errs = append(errs, "load column 'record_version' of class '"+
+						xmlCls.Name+"' failed, it is reserved and must not is a collection")
+					continue
+				}
+
+				errs = append(errs, "load column 'record_version' of class '"+
+					xmlCls.Name+"' failed, it is reserved")
+			}
+
 			cls.OwnAttributes[cpr.Name] = &ColumnDefinition{*cpr}
 		}
 
@@ -90,10 +115,10 @@ func loadOwnColumns(xmlCls *XMLClassDefinition, cls *TableDefinition) (errs []st
 	return errs
 }
 
-func makeAssocation(self *TableDefinitions, cls *TableDefinition,
+func makeAssocation(definitions map[string]*TableDefinition, cls *TableDefinition,
 	t, tName, polymorphic, fKey string) (Assocation, error) {
 
-	target, ok := self.definitions[tName]
+	target, ok := definitions[tName]
 	if !ok {
 		return nil, errors.New("'" + tName + "' is not found.")
 	}
@@ -164,10 +189,10 @@ func makeAssocation(self *TableDefinitions, cls *TableDefinition,
 	return &HasOne{TargetTable: target, Polymorphic: is_polymorphic, ForeignKey: fKey}, nil
 }
 
-func loadAssocations(self *TableDefinitions, cls *TableDefinition, xmlDefinition *XMLClassDefinition, errs *[]string) {
+func loadAssocations(definitions map[string]*TableDefinition, cls *TableDefinition, xmlDefinition *XMLClassDefinition, errs *[]string) {
 	if nil != xmlDefinition.BelongsTo && 0 != len(xmlDefinition.BelongsTo) {
 		for _, belongs_to := range xmlDefinition.BelongsTo {
-			target, ok := self.definitions[belongs_to.Target]
+			target, ok := definitions[belongs_to.Target]
 			if !ok {
 				*errs = append(*errs, "belongs_to Target '"+belongs_to.Target+
 					"' of class '"+xmlDefinition.Name+"' is not found.")
@@ -190,7 +215,7 @@ func loadAssocations(self *TableDefinitions, cls *TableDefinition, xmlDefinition
 	}
 	if nil != xmlDefinition.HasMany && 0 != len(xmlDefinition.HasMany) {
 		for _, hasMany := range xmlDefinition.HasMany {
-			ass, err := makeAssocation(self, cls, "has_many", hasMany.Target,
+			ass, err := makeAssocation(definitions, cls, "has_many", hasMany.Target,
 				hasMany.Polymorphic, hasMany.ForeignKey)
 			if nil != err {
 				*errs = append(*errs, "load has_many '"+hasMany.Target+"' failed, "+err.Error())
@@ -204,7 +229,7 @@ func loadAssocations(self *TableDefinitions, cls *TableDefinition, xmlDefinition
 	}
 	if nil != xmlDefinition.HasOne && 0 != len(xmlDefinition.HasOne) {
 		for _, hasOne := range xmlDefinition.HasOne {
-			ass, err := makeAssocation(self, cls, "has_one", hasOne.Target,
+			ass, err := makeAssocation(definitions, cls, "has_one", hasOne.Target,
 				"", hasOne.ForeignKey)
 			if nil != err {
 				*errs = append(*errs, "load has_one '"+hasOne.Target+"' failed, "+err.Error())
@@ -218,7 +243,7 @@ func loadAssocations(self *TableDefinitions, cls *TableDefinition, xmlDefinition
 	}
 	if nil != xmlDefinition.HasAndBelongsToMany && 0 != len(xmlDefinition.HasAndBelongsToMany) {
 		for _, habtm := range xmlDefinition.HasAndBelongsToMany {
-			target, ok := self.definitions[habtm.Target]
+			target, ok := definitions[habtm.Target]
 			if !ok {
 				*errs = append(*errs, "Target '"+habtm.Target+
 					"' of has_and_belongs_to_many is not found.")
@@ -230,7 +255,7 @@ func loadAssocations(self *TableDefinitions, cls *TableDefinition, xmlDefinition
 				foreignKey = stringutils.Underscore(cls.Name) + "_id"
 			}
 
-			through, ok := self.definitions[habtm.Through]
+			through, ok := definitions[habtm.Through]
 			if !ok {
 				*errs = append(*errs, "Through '"+habtm.Through+
 					"' of has_and_belongs_to_many is not found.")
@@ -259,13 +284,12 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 		return nil, fmt.Errorf("unmarshal xml '%s' error, definitions is empty", nm)
 	}
 
-	self := &TableDefinitions{definitions: make(map[string]*TableDefinition, 100),
-		underscore2Definitions: make(map[string]*TableDefinition, 100)}
+	definitions := make(map[string]*TableDefinition)
 	errs := make([]string, 0, 10)
 
 	// load table definitions and own properties
 	for _, xmlDefinition := range xml_definitions.Definitions {
-		_, ok := self.definitions[xmlDefinition.Name]
+		_, ok := definitions[xmlDefinition.Name]
 		if ok {
 			errs = append(errs, "table '"+xmlDefinition.Name+
 				"' is aleady exists.")
@@ -276,49 +300,51 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 			UnderscoreName: stringutils.Underscore(xmlDefinition.Name),
 			CollectionName: stringutils.Tableize(xmlDefinition.Name)}
 		msgs := loadOwnColumns(&xmlDefinition, cls)
-		if nil != msgs && 0 == len(msgs) {
+		if nil != msgs && 0 != len(msgs) {
 			errs = mergeErrors(errs, "", msgs)
 		}
 
-		self.definitions[cls.Name] = cls
-		self.underscore2Definitions[cls.UnderscoreName] = cls
+		definitions[cls.Name] = cls
 	}
 
 	// load super class
 	for _, xmlDefinition := range xml_definitions.Definitions {
-		cls, ok := self.definitions[xmlDefinition.Name]
+		cls, ok := definitions[xmlDefinition.Name]
 		if !ok {
 			continue
 		}
 		if "" == xmlDefinition.Base {
 			continue
 		}
-		super, ok := self.definitions[xmlDefinition.Base]
+		super, ok := definitions[xmlDefinition.Base]
 		if !ok || nil == super {
 			errs = append(errs, "Base '"+xmlDefinition.Base+
 				"' of class '"+xmlDefinition.Name+"' is not found.")
 		} else {
 			cls.Super = super
 
-			if nil == super.Children {
-				super.Children = make([]*TableDefinition, 0, 3)
+			if nil == super.OwnChildren {
+				super.OwnChildren = NewTableDefinitions()
 			}
-			super.Children = append(super.Children, cls)
-		}
-	}
 
-	// load own assocations
-	for _, xmlDefinition := range xml_definitions.Definitions {
-		cls, ok := self.definitions[xmlDefinition.Name]
-		if !ok {
-			continue
+			super.OwnChildren.Register(cls)
 		}
-
-		loadAssocations(self, cls, &xmlDefinition, &errs)
 	}
 
 	// load the properties of super class
-	for _, cls := range self.definitions {
+	for _, cls := range definitions {
+		for s := cls.Super; nil != s; s = s.Super {
+
+			if nil == s.Children {
+				s.Children = NewTableDefinitions()
+			}
+
+			s.Children.Register(cls)
+		}
+	}
+
+	// load the properties of super class
+	for _, cls := range definitions {
 		if nil != cls.Super {
 			continue
 		}
@@ -327,23 +353,71 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 	}
 
 	// load the properties of super class
-	for _, cls := range self.definitions {
-		loadParentColumns(self, cls, &errs)
+	for _, cls := range definitions {
+		loadParentColumns(definitions, cls, &errs)
+	}
+
+	// reset collection name
+	for _, cls := range definitions {
+		if !cls.IsSimpleTableInheritance() {
+			for s := cls.Super; nil != s; s = s.Super {
+				if s.IsSimpleTableInheritance() {
+					errs = append(errs, "'"+cls.Name+"' is not simple table inheritance, but parent table '"+s.Name+"' is simple table inheritance")
+					break
+				}
+			}
+
+			//fmt.Printf("%v --> not sti\r\n %v\r\n\r\n", cls.Name, cls.String())
+			continue
+		}
+
+		last := cls.CollectionName
+
+		for s := cls.Super; nil != s; s = s.Super {
+			if !s.IsSimpleTableInheritance() {
+				break
+			}
+			last = s.CollectionName
+		}
+		//fmt.Printf("%v --> %v\r\n", cls.Name, cls.CollectionName)
+		cls.CollectionName = last
+	}
+
+	// check id is exists.
+	for _, cls := range definitions {
+		if ok := cls.GetAttribute("id"); nil == ok {
+			errs = append(errs, "'"+cls.Name+"' has not 'id'")
+		}
+	}
+
+	// load own assocations
+	for _, xmlDefinition := range xml_definitions.Definitions {
+		cls, ok := definitions[xmlDefinition.Name]
+		if !ok {
+			continue
+		}
+
+		loadAssocations(definitions, cls, &xmlDefinition, &errs)
 	}
 
 	// change collection name
-	// for _, cls := range self.definitions {
+	// for _, cls := range definitions {
 	// 	SetCollectionName(self, cls, &errs)
 	// }
 
 	// // check hierarchical of type
-	// for _, cls := range self.definitions {
+	// for _, cls := range definitions {
 	// 	errs = checkHierarchicalType(self, cls, errs)
 	// }
 
-	if 0 == len(errs) {
-		return self, nil
+	if 0 != len(errs) {
+		errs = mergeErrors(nil, "load file '"+nm+"' error:", errs)
+		return nil, errors.New(strings.Join(errs, "\r\n"))
 	}
-	errs = mergeErrors(nil, "load file '"+nm+"' error:", errs)
-	return self, errors.New(strings.Join(errs, "\r\n"))
+
+	res := NewTableDefinitions()
+	for _, cls := range definitions {
+		res.Register(cls)
+	}
+	return res, nil
 }

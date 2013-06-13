@@ -93,7 +93,8 @@ type TableDefinition struct {
 	Id             *ColumnDefinition
 	OwnAttributes  map[string]*ColumnDefinition
 	Attributes     map[string]*ColumnDefinition
-	Children       []*TableDefinition
+	OwnChildren    *TableDefinitions
+	Children       *TableDefinitions
 	Assocations    []Assocation
 }
 
@@ -105,29 +106,26 @@ func (self *TableDefinition) Root() *TableDefinition {
 	return s
 }
 
-func (self *TableDefinition) IsSubclassOf(cls *TableDefinition) bool {
-	s := self
-	for nil != s {
-		if s == cls {
+func (self *TableDefinition) IsSubclassOf(super *TableDefinition) bool {
+	for s := self; nil != s; s = s.Super {
+		if s == super {
 			return true
 		}
-
-		s = s.Super
 	}
 	return false
+}
+
+func (self *TableDefinition) IsSimpleTableInheritance() bool {
+	_, ok := self.Attributes["type"]
+	return ok
+}
+
+func (self *TableDefinition) HasChildren() bool {
+	return (nil != self.OwnChildren && !self.OwnChildren.IsEmpty())
 }
 
 func (self *TableDefinition) IsInheritanced() bool {
-	return (nil != self.Super) || (nil != self.Children && 0 != len(self.Children))
-}
-
-func (self *TableDefinition) InheritanceFrom(cls *TableDefinition) bool {
-	for s := self; nil != s; s = s.Super {
-		if s == cls {
-			return true
-		}
-	}
-	return false
+	return (nil != self.Super) || (nil != self.OwnChildren && !self.OwnChildren.IsEmpty())
 }
 
 func (self *TableDefinition) GetAttribute(nm string) (pr *ColumnDefinition) {
@@ -211,10 +209,21 @@ func (self *TableDefinition) GetAssocationByTargetAndTypes(cls *TableDefinition,
 type TableDefinitions struct {
 	underscore2Definitions map[string]*TableDefinition
 	definitions            map[string]*TableDefinition
+	table2definitions      map[string]*TableDefinition
+}
+
+func NewTableDefinitions() *TableDefinitions {
+	return &TableDefinitions{underscore2Definitions: make(map[string]*TableDefinition),
+		definitions:       make(map[string]*TableDefinition),
+		table2definitions: make(map[string]*TableDefinition)}
 }
 
 func (self *TableDefinitions) FindByUnderscoreName(nm string) *TableDefinition {
 	return self.underscore2Definitions[nm]
+}
+
+func (self *TableDefinitions) FindByTableName(nm string) *TableDefinition {
+	return self.table2definitions[nm]
 }
 
 func (self *TableDefinitions) Find(nm string) *TableDefinition {
@@ -224,17 +233,31 @@ func (self *TableDefinitions) Find(nm string) *TableDefinition {
 func (self *TableDefinitions) Register(cls *TableDefinition) {
 	self.definitions[cls.Name] = cls
 	self.underscore2Definitions[cls.UnderscoreName] = cls
+	self.table2definitions[cls.CollectionName] = cls
 }
 
 func (self *TableDefinitions) Unregister(cls *TableDefinition) {
 	delete(self.definitions, cls.Name)
 	delete(self.underscore2Definitions, cls.UnderscoreName)
+	delete(self.table2definitions, cls.CollectionName)
 }
 
 func (self *TableDefinitions) All() map[string]*TableDefinition {
 	return self.definitions
 }
 
+func (self *TableDefinitions) Len() int {
+	return len(self.definitions)
+}
+
+func (self *TableDefinitions) IsEmpty() bool {
+	return 0 == len(self.definitions)
+}
+
 func (self *TableDefinitions) UnderscoreAll() map[string]*TableDefinition {
 	return self.underscore2Definitions
+}
+
+func (self *TableDefinitions) TableAll() map[string]*TableDefinition {
+	return self.table2definitions
 }

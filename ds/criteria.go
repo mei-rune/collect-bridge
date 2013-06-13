@@ -35,28 +35,28 @@ import (
 // 	return buildClassQuery(cls), nil
 // }
 
-type op_func func(self *queryBuilder, column *types.ColumnDefinition, v string) error
+type op_func func(self *whereBuilder, column *types.ColumnDefinition, v string) error
 
 var (
 	default_operators = make(map[string]op_func)
 )
 
 func init() {
-	default_operators["exists"] = (*queryBuilder).exists
-	default_operators["in"] = (*queryBuilder).in
-	default_operators["nin"] = (*queryBuilder).nin
-	default_operators["gt"] = (*queryBuilder).gt
-	default_operators["gte"] = (*queryBuilder).gte
-	default_operators["eq"] = (*queryBuilder).eq
-	default_operators["ne"] = (*queryBuilder).ne
-	default_operators["lt"] = (*queryBuilder).lt
-	default_operators["lte"] = (*queryBuilder).lte
-	default_operators["between"] = (*queryBuilder).between
-	default_operators["is"] = (*queryBuilder).is
-	default_operators["like"] = (*queryBuilder).like
+	default_operators["exists"] = (*whereBuilder).exists
+	default_operators["in"] = (*whereBuilder).in
+	default_operators["nin"] = (*whereBuilder).nin
+	default_operators["gt"] = (*whereBuilder).gt
+	default_operators["gte"] = (*whereBuilder).gte
+	default_operators["eq"] = (*whereBuilder).eq
+	default_operators["ne"] = (*whereBuilder).ne
+	default_operators["lt"] = (*whereBuilder).lt
+	default_operators["lte"] = (*whereBuilder).lte
+	default_operators["between"] = (*whereBuilder).between
+	default_operators["is"] = (*whereBuilder).is
+	default_operators["like"] = (*whereBuilder).like
 }
 
-type queryBuilder struct {
+type whereBuilder struct {
 	table   *types.TableDefinition
 	idx     int
 	isFirst bool
@@ -66,10 +66,10 @@ type queryBuilder struct {
 	params []interface{}
 
 	operators    map[string]op_func
-	add_argument func(self *queryBuilder)
+	add_argument func(self *whereBuilder)
 }
 
-func (self *queryBuilder) appendArguments() {
+func (self *whereBuilder) appendArguments() {
 	if nil != self.add_argument {
 		self.add_argument(self)
 	} else {
@@ -77,18 +77,18 @@ func (self *queryBuilder) appendArguments() {
 	}
 }
 
-func (self *queryBuilder) appendNumericArguments() {
+func (self *whereBuilder) appendNumericArguments() {
 	self.buffer.WriteString(" $")
 	self.buffer.WriteString(fmt.Sprint(self.idx))
 	self.idx++
 }
 
-func (self *queryBuilder) appendSimpleArguments() {
+func (self *whereBuilder) appendSimpleArguments() {
 	self.buffer.WriteString(" ?")
 	self.idx++
 }
 
-func (self *queryBuilder) append(ss ...string) error {
+func (self *whereBuilder) append(ss ...string) error {
 	if 0 == len(ss) {
 		return nil
 	}
@@ -107,7 +107,7 @@ func (self *queryBuilder) append(ss ...string) error {
 	return nil
 }
 
-func (self *queryBuilder) add(column *types.ColumnDefinition, op, s string) error {
+func (self *whereBuilder) add(column *types.ColumnDefinition, op, s string) error {
 	v, e := column.Type.Parse(s)
 	if nil != e {
 		return fmt.Errorf("column '%v' convert '%v' to '%v' failed, %v",
@@ -133,11 +133,11 @@ func (self *queryBuilder) add(column *types.ColumnDefinition, op, s string) erro
 	return nil
 }
 
-func (self *queryBuilder) exists(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) exists(column *types.ColumnDefinition, s string) error {
 	return errors.New("not implemented")
 }
 
-func (self *queryBuilder) in(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) in(column *types.ColumnDefinition, s string) error {
 	switch column.Type.Name() {
 	case "ipAddress", "physicalAddress", "string":
 		ss := strings.Split(s, ",")
@@ -149,7 +149,7 @@ func (self *queryBuilder) in(column *types.ColumnDefinition, s string) error {
 	}
 }
 
-func (self *queryBuilder) nin(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) nin(column *types.ColumnDefinition, s string) error {
 	switch column.Type.Name() {
 	case "ipAddress", "physicalAddress", "string":
 		ss := strings.Split(s, ",")
@@ -161,31 +161,31 @@ func (self *queryBuilder) nin(column *types.ColumnDefinition, s string) error {
 	}
 }
 
-func (self *queryBuilder) gt(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) gt(column *types.ColumnDefinition, s string) error {
 	return self.add(column, ">", s)
 }
 
-func (self *queryBuilder) gte(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) gte(column *types.ColumnDefinition, s string) error {
 	return self.add(column, ">=", s)
 }
 
-func (self *queryBuilder) eq(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) eq(column *types.ColumnDefinition, s string) error {
 	return self.add(column, "=", s)
 }
 
-func (self *queryBuilder) ne(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) ne(column *types.ColumnDefinition, s string) error {
 	return self.add(column, "!=", s)
 }
 
-func (self *queryBuilder) lt(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) lt(column *types.ColumnDefinition, s string) error {
 	return self.add(column, "<", s)
 }
 
-func (self *queryBuilder) lte(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) lte(column *types.ColumnDefinition, s string) error {
 	return self.add(column, "<=", s)
 }
 
-func (self *queryBuilder) is(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) is(column *types.ColumnDefinition, s string) error {
 	switch s {
 	case "null", "NULL":
 		return self.append(column.Name, "IS NULL")
@@ -200,7 +200,7 @@ func (self *queryBuilder) is(column *types.ColumnDefinition, s string) error {
 	}
 }
 
-func (self *queryBuilder) like(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) like(column *types.ColumnDefinition, s string) error {
 	if "string" == column.Type.Name() {
 		return fmt.Errorf("'like' is not supported for the column '%v', it must is a string type", column.Name)
 	}
@@ -208,7 +208,7 @@ func (self *queryBuilder) like(column *types.ColumnDefinition, s string) error {
 	return self.append(column.Name, " LIKE '"+s+"'")
 }
 
-func (self *queryBuilder) between(column *types.ColumnDefinition, s string) error {
+func (self *whereBuilder) between(column *types.ColumnDefinition, s string) error {
 	i := strings.IndexRune(s, ',')
 	if -1 == i {
 		return errors.New("column '" + column.Name + "' syntex error, it must has two value - '" + s + "'")
@@ -249,7 +249,7 @@ func (self *queryBuilder) between(column *types.ColumnDefinition, s string) erro
 	return nil
 }
 
-func (self *queryBuilder) equalClass(column string, table *types.TableDefinition) {
+func (self *whereBuilder) equalClass(column string, table *types.TableDefinition) {
 	if !table.IsInheritanced() {
 		return
 	}
@@ -260,7 +260,7 @@ func (self *queryBuilder) equalClass(column string, table *types.TableDefinition
 
 	cm := table.UnderscoreName
 
-	if nil == table.Children || 0 == len(table.Children) {
+	if !table.HasChildren() {
 		self.append(column, "= '"+cm+"'")
 		return
 	}
@@ -278,15 +278,13 @@ func (self *queryBuilder) equalClass(column string, table *types.TableDefinition
 
 	self.buffer.WriteString(column)
 	self.buffer.WriteString(" IN (")
-	for _, child := range table.Children {
+	for _, child := range table.OwnChildren.All() {
 		if isFirst {
 			isFirst = false
 			self.buffer.WriteString(" '")
 		} else {
 			self.buffer.WriteString(", '")
 		}
-
-		self.buffer.WriteString(", '")
 		self.buffer.WriteString(child.UnderscoreName)
 		self.buffer.WriteString("'")
 	}
@@ -305,7 +303,7 @@ func split(exp string) (string, string) {
 	return exp[1 : idx+1], exp[idx+2:]
 }
 
-func (self *queryBuilder) build(params map[string]string) error {
+func (self *whereBuilder) build(params map[string]string) error {
 	if nil == params || 0 == len(params) {
 		return nil
 	}
@@ -325,11 +323,19 @@ func (self *queryBuilder) build(params map[string]string) error {
 		if nil == f {
 			return errors.New("'" + op + "' is unsupported operator for the column '" + nm[1:] + "'.")
 		}
+		// switch column.Name {
+		// case "type":
+		// 	if "eq" != op && "=" != op {
+		// 		return errors.New("'" + op + "' is unsupported operator for the column 'type'.")
+		// 	}
 
+		// 	self.equalClass("type", table)
+		// default:
 		e := f(self, column, v)
 		if nil != e {
 			return e
 		}
+		//		}
 	}
 	return nil
 }
@@ -361,6 +367,11 @@ func (self *updateBuilder) buildUpdate(updated_attributes map[string]interface{}
 			continue
 		case "updated_at":
 			value = time.Now()
+		case "type":
+			if _, ok := updated_attributes[attribute.Name]; ok {
+				return errors.New("column 'type' is readonly.")
+			}
+			continue
 		default:
 			v := updated_attributes[attribute.Name]
 			if nil == v {
@@ -430,19 +441,23 @@ func (self *updateBuilder) buildWhereById(id interface{}) {
 	self.params = append(self.params, self.table.Id.Type.ToExternal(id))
 }
 
-func (self *updateBuilder) buildWhere(params map[string]string) error {
-	builder := &queryBuilder{table: self.table,
+func (self *updateBuilder) buildWhere(params map[string]string, isSimpleTableInheritance bool) error {
+	builder := &whereBuilder{table: self.table,
 		idx:       self.idx,
 		isFirst:   true,
-		prefix:    " WHERE",
+		prefix:    " WHERE ",
 		buffer:    self.buffer,
 		params:    self.params,
 		operators: default_operators}
 
 	if self.isNumericParams {
-		builder.add_argument = (*queryBuilder).appendNumericArguments
+		builder.add_argument = (*whereBuilder).appendNumericArguments
 	} else {
-		builder.add_argument = (*queryBuilder).appendSimpleArguments
+		builder.add_argument = (*whereBuilder).appendSimpleArguments
+	}
+
+	if isSimpleTableInheritance {
+		builder.equalClass("type", self.table)
 	}
 
 	e := builder.build(params)

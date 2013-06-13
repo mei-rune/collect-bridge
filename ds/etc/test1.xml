@@ -12,7 +12,7 @@
 		<belongs_to name="company_test_id">Company</belongs_to>
 	  <designFor></designFor>
 	</class>
-	<class name="Boss" base="Employee">
+	<class name="Manager" base="Employee">
 		<property name="Job">
 				<restriction base="string">
 					<defaultValue>boss</defaultValue>
@@ -94,7 +94,7 @@
 				</restriction>
 		</property>
 		<has_many foreignKey="company_test_id" >Employee</has_many>
-		<has_one attributeName="boss" embedded="true" >Boss</has_one>
+		<has_one>Manager</has_one>
 	</class>	
 	<designFor/>
 </classDefinitions>

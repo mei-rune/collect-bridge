@@ -89,14 +89,14 @@ func testBase(t *testing.T, file string, init_cb func(conn *sql.DB), cb func(db 
 
 func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.TableDefinitions)) {
 	testBase(t, file, func(conn *sql.DB) {
-		_, err := conn.Exec("DROP TABLE IF EXISTS persons")
+		_, err := conn.Exec("DROP TABLE IF EXISTS people")
 		if err != nil {
 			t.Fatal(err)
 			t.FailNow()
 			return
 		}
 
-		_, err = conn.Exec("CREATE TABLE persons (ID SERIAL PRIMARY KEY, ID1 int, " +
+		_, err = conn.Exec("CREATE TABLE people (ID SERIAL PRIMARY KEY, ID1 int, " +
 			"Name varchar(256), " +
 			"Name2 varchar(256), " +
 			"Age int, " +

@@ -221,18 +221,18 @@ func (self *session) queryWithParamsByClassTableInheritance(table *types.TableDe
 			panic("'tablename' is not found")
 		}
 		if last_name != name {
-			if nil == table.Children {
-				if name != table.CollectionName {
-					return nil, errors.New("table '" + name + "' is undefined.")
-				}
+			if name == table.CollectionName {
 				last_builder, e = buildSQLQueryWithObjectId(self.driver, table)
-			} else {
+			} else if nil != table.Children {
 				realTable := table.Children.FindByTableName(name)
 				if nil == realTable {
 					return nil, errors.New("table '" + name + "' is undefined.")
 				}
 				last_builder, e = buildSQLQueryWithObjectId(self.driver, table)
+			} else {
+				return nil, errors.New("table '" + name + "' is undefined.")
 			}
+
 			if nil != e {
 				return nil, e
 			}
@@ -390,50 +390,16 @@ func (self *session) update(table *types.TableDefinition,
 	return self.updateWithParamsByClassTableInheritance(table, params, updated_attributes)
 }
 
-func (self *session) updateById(table *types.TableDefinition, id string,
-	updated_attributes map[string]interface{}) error {
-	var buffer bytes.Buffer
-	builder := &updateBuilder{table: table,
-		idx:             1,
-		buffer:          &buffer,
-		isNumericParams: self.isNumericParams}
-	e := builder.buildUpdate(updated_attributes)
-	if nil != e {
-		return e
-	}
-
-	if nil == builder.params || 0 == len(builder.params) {
-		return errors.New("updated attributes is empty.")
-	}
-	value, e := table.Id.Type.Parse(id)
-	if nil != e {
-		return fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
-			table.Id.Name, table.Id.Type.Name(), id)
-	}
-
-	builder.buildWhereById(value)
-
-	res, e := self.db.Exec(buffer.String(), builder.params...)
-	if nil != e {
-		return e
-	}
-
-	affected, e := res.RowsAffected()
-	if nil != e {
-		return e
-	}
-	if 1 != affected {
-		return fmt.Errorf("affected rows is not equals 1, actual is %v", affected)
-	}
-
-	return nil
-}
-
 func (self *session) updateWithParamsByClassTableInheritance(table *types.TableDefinition,
 	params map[string]string,
 	updated_attributes map[string]interface{}) (int64, error) {
 
-	effected_all := int64(0)
+	effected_single, e := self.updateByParams(table, false, params, updated_attributes)
+	if nil != e {
+		return 0, e
+	}
+	effected_all := effected_single
+
 	for _, child := range table.OwnChildren.All() {
 		effected_single, e := self.update(child, params, updated_attributes)
 		if nil != e {
@@ -500,6 +466,45 @@ func (self *session) updateBySQL(table *types.TableDefinition,
 	}
 
 	return res.RowsAffected()
+}
+
+func (self *session) updateById(table *types.TableDefinition, id string,
+	updated_attributes map[string]interface{}) error {
+	var buffer bytes.Buffer
+	builder := &updateBuilder{table: table,
+		idx:             1,
+		buffer:          &buffer,
+		isNumericParams: self.isNumericParams}
+	e := builder.buildUpdate(updated_attributes)
+	if nil != e {
+		return e
+	}
+
+	if nil == builder.params || 0 == len(builder.params) {
+		return errors.New("updated attributes is empty.")
+	}
+	value, e := table.Id.Type.Parse(id)
+	if nil != e {
+		return fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
+			table.Id.Name, table.Id.Type.Name(), id)
+	}
+
+	builder.buildWhereById(value)
+
+	res, e := self.db.Exec(buffer.String(), builder.params...)
+	if nil != e {
+		return e
+	}
+
+	affected, e := res.RowsAffected()
+	if nil != e {
+		return e
+	}
+	if 1 != affected {
+		return fmt.Errorf("affected rows is not equals 1, actual is %v", affected)
+	}
+
+	return nil
 }
 
 ////////////////////////// update //////////////////////////
@@ -591,9 +596,14 @@ func (self *session) deleteByParams(table *types.TableDefinition,
 func (self *session) deleteWithParamsByClassTableInheritance(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
 
-	effected_all := int64(0)
+	effected_single, e := self.deleteByParams(table, false, params)
+	if nil != e {
+		return 0, e
+	}
+	effected_all := effected_single
+
 	for _, child := range table.OwnChildren.All() {
-		effected_single, e := self.delete(child, params)
+		effected_single, e = self.delete(child, params)
 		if nil != e {
 			return 0, e
 		}

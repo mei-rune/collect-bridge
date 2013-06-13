@@ -15,7 +15,7 @@ var (
 	test_db    = flag.String("test.db", "postgres", "the db driver name for test")
 	test_dbUrl = flag.String("test.dburl", "host=127.0.0.1 dbname=pqgotest user=postgres password=mfk sslmode=disable", "the db url")
 
-	personName    = "persons"
+	personName    = "people"
 	personClsName = "Person"
 
 	person1_attributes = map[string]interface{}{"ID1": int64(12),
@@ -64,7 +64,39 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 	}
 	defer conn.Close()
 
-	_, err = conn.Exec("CREATE TEMP TABLE persons (ID SERIAL PRIMARY KEY, ID1 int, " +
+	_, err = conn.Exec("CREATE TEMP TABLE employees (ID SERIAL PRIMARY KEY, ID1 int, " +
+		"Name varchar(256), " +
+		"Name2 varchar(256), " +
+		"Age int, " +
+		"Day timestamp with time zone, " +
+		"Mony numeric(9, 4), " +
+		"IP varchar(50), " +
+		"MAC varchar(50), " +
+		"Sex varchar(10)," +
+		"Password varchar(256)," +
+		"company_test_id integer," +
+		"Job varchar(256) )")
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	_, err = conn.Exec("CREATE TEMP TABLE managers (ID SERIAL PRIMARY KEY, ID1 int, " +
+		"Name varchar(256), " +
+		"Name2 varchar(256), " +
+		"Age int, " +
+		"Day timestamp with time zone, " +
+		"Mony numeric(9, 4), " +
+		"IP varchar(50), " +
+		"MAC varchar(50), " +
+		"Sex varchar(10)," +
+		"Password varchar(256)," +
+		"Job varchar(256) )")
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	_, err = conn.Exec("CREATE TEMP TABLE people (ID SERIAL PRIMARY KEY, ID1 int, " +
 		"Name varchar(256), " +
 		"Name2 varchar(256), " +
 		"Age int, " +
@@ -371,7 +403,6 @@ func TestSimpleFindByParams(t *testing.T) {
 }
 
 func TestSimpleDeleteById(t *testing.T) {
-
 	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
@@ -403,7 +434,6 @@ func TestSimpleDeleteById(t *testing.T) {
 }
 
 func TestSimpleDeleteByParams(t *testing.T) {
-
 	simpleTest(t, func(db *session, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {

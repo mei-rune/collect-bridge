@@ -1,7 +1,6 @@
 package types
 
 import (
-	"commons/stringutils"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -241,7 +240,7 @@ func LoadClassDefinitions(nm string) (*ClassDefinitions, error) {
 		}
 
 		cls := &ClassDefinition{Name: xmlDefinition.Name,
-			UnderscoreName: stringutils.Underscore(xmlDefinition.Name)}
+			UnderscoreName: Underscore(xmlDefinition.Name)}
 
 		msgs := loadOwnAttributes(&xmlDefinition, cls)
 		errs = mergeErrors(errs, "load class '"+xmlDefinition.Name+"' failed", msgs)

@@ -405,7 +405,6 @@ func (q *QueryImpl) byColumns(rows *sql.Rows) ([]map[string]interface{}, error) 
 }
 
 func (q *QueryImpl) All() ([]map[string]interface{}, error) {
-	fmt.Println(q.table.Name, q.sql)
 	rs, e := q.drv.db.Prepare(q.sql)
 	if e != nil {
 		return nil, e

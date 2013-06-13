@@ -1,7 +1,6 @@
 package types
 
 import (
-	"commons/stringutils"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -167,7 +166,7 @@ func makeAssocation(definitions map[string]*TableDefinition, cls *TableDefinitio
 		}
 	} else {
 		if "" == fKey {
-			fKey = stringutils.Underscore(cls.Name) + "_id"
+			fKey = Underscore(cls.Name) + "_id"
 		}
 		pr, ok := target.OwnAttributes[fKey]
 		if !ok {
@@ -200,7 +199,7 @@ func loadAssocations(definitions map[string]*TableDefinition, cls *TableDefiniti
 			}
 
 			if "" == belongs_to.Name {
-				belongs_to.Name = stringutils.Underscore(belongs_to.Target) + "_id"
+				belongs_to.Name = Underscore(belongs_to.Target) + "_id"
 			}
 
 			pr, ok := cls.OwnAttributes[belongs_to.Name]
@@ -252,7 +251,7 @@ func loadAssocations(definitions map[string]*TableDefinition, cls *TableDefiniti
 
 			foreignKey := habtm.ForeignKey
 			if "" == foreignKey {
-				foreignKey = stringutils.Underscore(cls.Name) + "_id"
+				foreignKey = Underscore(cls.Name) + "_id"
 			}
 
 			through, ok := definitions[habtm.Through]
@@ -297,8 +296,8 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 		}
 
 		cls := &TableDefinition{Name: xmlDefinition.Name,
-			UnderscoreName: stringutils.Underscore(xmlDefinition.Name),
-			CollectionName: stringutils.Tableize(xmlDefinition.Name)}
+			UnderscoreName: Underscore(xmlDefinition.Name),
+			CollectionName: Tableize(xmlDefinition.Name)}
 		msgs := loadOwnColumns(&xmlDefinition, cls)
 		if nil != msgs && 0 != len(msgs) {
 			errs = mergeErrors(errs, "", msgs)

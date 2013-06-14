@@ -116,8 +116,6 @@ func (self *session) simpleCount(table *types.TableDefinition,
 		return -1, e
 	}
 
-	fmt.Println(buffer.String(), builder.params)
-
 	row := self.db.QueryRow(buffer.String(), builder.params...)
 	count := int64(0)
 	e = row.Scan(&count)
@@ -176,10 +174,12 @@ func (self *session) queryByParams(table *types.TableDefinition,
 	params map[string]string) ([]map[string]interface{}, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString("SELECT ")
-	columns, e := buildSelectStr(table, isSingleTableInheritance, &buffer)
-	if nil != e {
-		return nil, e
+
+	columns := toColumns(table, isSingleTableInheritance)
+	if nil == columns || 0 == len(columns) {
+		return nil, errors.New("crazy! selected columns is empty.")
 	}
+	writeColumns(columns, &buffer)
 
 	buffer.WriteString(" FROM ")
 	buffer.WriteString(table.CollectionName)
@@ -188,7 +188,6 @@ func (self *session) queryByParams(table *types.TableDefinition,
 		return nil, e
 	}
 
-	fmt.Println(table.Name, buffer.String())
 	q := &QueryImpl{drv: self.driver,
 		isSingleTableInheritance: isSingleTableInheritance,
 		columns:                  columns,
@@ -206,7 +205,7 @@ func firstTable(tables *types.TableDefinitions) *types.TableDefinition {
 	return nil
 }
 
-func (self *session) queryWithParamsByClassTableInheritance(table *types.TableDefinition,
+func (self *session) queryByParamsAndClassTableInheritance(table *types.TableDefinition,
 	params map[string]string) ([]map[string]interface{}, error) {
 
 	var buffer bytes.Buffer
@@ -284,7 +283,7 @@ func (self *session) query(table *types.TableDefinition,
 		return self.queryByParams(table, false, params)
 	}
 
-	return self.queryWithParamsByClassTableInheritance(table, params)
+	return self.queryByParamsAndClassTableInheritance(table, params)
 }
 
 func (self *session) whereWithParams(table *types.TableDefinition, isSingleTableInheritance bool,
@@ -492,10 +491,10 @@ func (self *session) update(table *types.TableDefinition,
 		return self.updateByParams(table, false, params, updated_attributes)
 	}
 
-	return self.updateWithParamsByClassTableInheritance(table, params, updated_attributes)
+	return self.updateByParamsAndClassTableInheritance(table, params, updated_attributes)
 }
 
-func (self *session) updateWithParamsByClassTableInheritance(table *types.TableDefinition,
+func (self *session) updateByParamsAndClassTableInheritance(table *types.TableDefinition,
 	params map[string]string,
 	updated_attributes map[string]interface{}) (int64, error) {
 
@@ -650,7 +649,6 @@ func (self *session) deleteById(table *types.TableDefinition, id string) error {
 		buffer.WriteString(" = ?")
 	}
 
-	fmt.Println(buffer.String(), ",", value)
 	res, e := self.db.Exec(buffer.String(), table.Id.Type.ToExternal(value))
 	if nil != e {
 		return e
@@ -689,8 +687,6 @@ func (self *session) deleteByParams(table *types.TableDefinition,
 	if nil != e {
 		return 0, e
 	}
-
-	fmt.Println(buffer.String(), ",", builder.params)
 
 	res, e := self.db.Exec(buffer.String(), builder.params...)
 	if nil != e {

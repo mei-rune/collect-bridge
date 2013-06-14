@@ -296,7 +296,6 @@ func (self *session) deleteCascadeByParams(table *types.TableDefinition,
 	if nil != e {
 		return 0, e
 	}
-	fmt.Println(buffer.String(), ",", builder.params)
 	return self.deleteBySQLString(table, buffer.String(), builder.params)
 }
 

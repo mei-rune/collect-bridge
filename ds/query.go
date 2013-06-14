@@ -18,83 +18,79 @@ type QueryBuilder interface {
 	Build() Query
 }
 
-func collectColumns(table *types.TableDefinition,
-	columnDefs map[string]*types.ColumnDefinition) {
+func mergeAttributes(table *types.TableDefinition,
+	attributes map[string]*types.ColumnDefinition) {
 	for _, child := range table.OwnChildren.All() {
 		if nil != table.OwnAttributes {
 			for k, column := range table.OwnAttributes {
-				columnDefs[k] = column
+				attributes[k] = column
 			}
 		}
 
 		if child.HasChildren() {
-			collectColumns(child, columnDefs)
+			mergeAttributes(child, attributes)
 		}
 	}
 }
 
-func mergeColumns(table *types.TableDefinition) map[string]*types.ColumnDefinition {
-	columns := make(map[string]*types.ColumnDefinition)
-	if nil != table.Attributes {
-		for k, column := range table.Attributes {
-			columns[k] = column
-		}
-	}
-
-	if !table.HasChildren() {
-		return columns
-	}
-
-	collectColumns(table, columns)
-	return columns
-}
-
-func buildSelectStr(table *types.TableDefinition, isSingleTableInheritance bool,
-	buffer *bytes.Buffer) ([]*types.ColumnDefinition, error) {
+func toColumns(table *types.TableDefinition, isSingleTableInheritance bool) []*types.ColumnDefinition {
 	columns := make([]*types.ColumnDefinition, 0, len(table.GetAttributes()))
-	isFirst := true
 	var attributes map[string]*types.ColumnDefinition
-
 	if isSingleTableInheritance {
-		attributes = mergeColumns(table)
+		attributes = make(map[string]*types.ColumnDefinition)
+		if nil != table.Attributes {
+			for k, column := range table.Attributes {
+				attributes[k] = column
+			}
+		}
+
+		if table.HasChildren() {
+			mergeAttributes(table, attributes)
+		}
+
 		attribute, ok := attributes["type"]
 		if !ok {
 			panic("table '" + table.Name + "' is simple table inheritance, but it is not contains column 'type'.")
 		}
 
 		delete(attributes, "type")
-		buffer.WriteString(attribute.Name)
 		columns = append(columns, attribute)
-		isFirst = false
 	} else {
 		attributes = table.GetAttributes()
 	}
 
 	for _, attribute := range attributes {
-		if isFirst {
-			isFirst = false
-		} else {
-			buffer.Write([]byte(", "))
-		}
-
-		buffer.WriteString(attribute.Name)
 		columns = append(columns, attribute)
 	}
 
+	return columns
+}
+
+func writeColumns(columns []*types.ColumnDefinition, buffer *bytes.Buffer) {
 	if nil == columns || 0 == len(columns) {
-		return nil, errors.New("crazy! selected columns is empty.")
+		return
 	}
-	return columns, nil
+
+	buffer.WriteString(columns[0].Name)
+	if 1 == len(columns) {
+		return
+	}
+
+	for _, column := range columns[1:] {
+		buffer.Write([]byte(", "))
+		buffer.WriteString(column.Name)
+	}
 }
 
 func buildSQLQueryWithObjectId(drv *driver, table *types.TableDefinition) (QueryBuilder, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString("SELECT ")
 	isSingleTableInheritance := table.IsSingleTableInheritance()
-	columns, e := buildSelectStr(table, isSingleTableInheritance, &buffer)
-	if nil != e {
-		return nil, e
+	columns := toColumns(table, isSingleTableInheritance)
+	if nil == columns || 0 == len(columns) {
+		return nil, errors.New("crazy! selected columns is empty.")
 	}
+	writeColumns(columns, &buffer)
 	buffer.WriteString(" FROM ")
 	buffer.WriteString(table.CollectionName)
 	buffer.WriteString(" WHERE ")
@@ -104,6 +100,7 @@ func buildSQLQueryWithObjectId(drv *driver, table *types.TableDefinition) (Query
 	} else {
 		buffer.WriteString(" = ?")
 	}
+
 	return &QueryImpl{drv: drv,
 		table: table,
 		isSingleTableInheritance: isSingleTableInheritance,

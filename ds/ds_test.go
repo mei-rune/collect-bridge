@@ -87,7 +87,7 @@ func fetchInt(params map[string]interface{}, key string) int {
 }
 func validMockDeviceWithId(t *testing.T, factor string, drv map[string]interface{}, id string) {
 	if nil == drv[id_name] {
-		t.Errorf("excepted id is '%s', actual id is 'nil'", id)
+		t.Errorf("excepted id is '%s', actual id is 'nil', device: %#v", id, drv)
 		return
 	}
 	i, e := as.AsInt(drv[id_name])

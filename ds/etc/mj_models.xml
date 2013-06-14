@@ -65,8 +65,8 @@
 
 	  <has_many foreignKey="device_id" >Interface</has_many>
     <has_many foreignKey="device_id" >Address</has_many>
-    <has_many foreignKey="device1_id" >Link</has_many>
-    <has_many foreignKey="device2_id" >Link</has_many>
+    <has_many foreignKey="device1" >Link</has_many>
+    <has_many foreignKey="device2" >Link</has_many>
   </class>
 
   <class name="Switch" base="Device">
@@ -123,6 +123,9 @@
         <enumeration value="2" />
       </restriction>
     </property>
+
+    <belongs_to foreignKey="device1" >Device</belongs_to>
+    <belongs_to foreignKey="device2" >Device</belongs_to>
   </class>
 
   <class name="Attributes">

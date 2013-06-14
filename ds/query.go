@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strconv"
 )
 
 type Query interface {
@@ -19,17 +18,66 @@ type QueryBuilder interface {
 	Build() Query
 }
 
-func buildSelectStr(table *types.TableDefinition, buffer *bytes.Buffer) ([]*types.ColumnDefinition, error) {
+func collectColumns(table *types.TableDefinition,
+	columnDefs map[string]*types.ColumnDefinition) {
+	for _, child := range table.OwnChildren.All() {
+		if nil != table.OwnAttributes {
+			for k, column := range table.OwnAttributes {
+				columnDefs[k] = column
+			}
+		}
+
+		if child.HasChildren() {
+			collectColumns(child, columnDefs)
+		}
+	}
+}
+
+func mergeColumns(table *types.TableDefinition) map[string]*types.ColumnDefinition {
+	columns := make(map[string]*types.ColumnDefinition)
+	if nil != table.Attributes {
+		for k, column := range table.Attributes {
+			columns[k] = column
+		}
+	}
+
+	if !table.HasChildren() {
+		return columns
+	}
+
+	collectColumns(table, columns)
+	return columns
+}
+
+func buildSelectStr(table *types.TableDefinition, isSingleTableInheritance bool,
+	buffer *bytes.Buffer) ([]*types.ColumnDefinition, error) {
 	columns := make([]*types.ColumnDefinition, 0, len(table.GetAttributes()))
 	isFirst := true
-	for _, attribute := range table.GetAttributes() {
+	var attributes map[string]*types.ColumnDefinition
+
+	if isSingleTableInheritance {
+		attributes = mergeColumns(table)
+		attribute, ok := attributes["type"]
+		if !ok {
+			panic("table '" + table.Name + "' is simple table inheritance, but it is not contains column 'type'.")
+		}
+
+		delete(attributes, "type")
+		buffer.WriteString(attribute.Name)
+		columns = append(columns, attribute)
+		isFirst = false
+	} else {
+		attributes = table.GetAttributes()
+	}
+
+	for _, attribute := range attributes {
 		if isFirst {
 			isFirst = false
 		} else {
 			buffer.Write([]byte(", "))
 		}
 
-		buffer.Write([]byte(attribute.Name))
+		buffer.WriteString(attribute.Name)
 		columns = append(columns, attribute)
 	}
 
@@ -42,7 +90,8 @@ func buildSelectStr(table *types.TableDefinition, buffer *bytes.Buffer) ([]*type
 func buildSQLQueryWithObjectId(drv *driver, table *types.TableDefinition) (QueryBuilder, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString("SELECT ")
-	columns, e := buildSelectStr(table, &buffer)
+	isSingleTableInheritance := table.IsSingleTableInheritance()
+	columns, e := buildSelectStr(table, isSingleTableInheritance, &buffer)
 	if nil != e {
 		return nil, e
 	}
@@ -55,169 +104,11 @@ func buildSQLQueryWithObjectId(drv *driver, table *types.TableDefinition) (Query
 	} else {
 		buffer.WriteString(" = ?")
 	}
-
-	return &QueryImpl{drv: drv, table: table, columns: columns, sql: buffer.String()}, nil
-}
-
-// func buildSQLWithSelectAndObjectId(drv *driver, table *types.TableDefinition,
-// 	selectStr string, columns ...*types.ColumnDefinition) QueryBuilder {
-
-// 	var buffer bytes.Buffer
-// 	buffer.WriteString("SELECT ")
-// 	buffer.WriteString(selectStr)
-// 	buffer.WriteString(" FROM ")
-// 	buffer.WriteString(table.CollectionName)
-// 	buffer.WriteString(" WHERE ")
-// 	buffer.WriteString(table.Id.Name)
-// 	if drv.isNumericParams {
-// 		buffer.WriteString(" = $1")
-// 	} else {
-// 		buffer.WriteString(" = ?")
-// 	}
-
-// 	return &QueryImpl{drv: drv, table: table, columns: columns, sql: buffer.String()}
-// }
-
-// func buildQueryWithParams(drv *driver, table *types.TableDefinition,
-// 	params map[string]string) (Query, error) {
-
-// 	var buffer bytes.Buffer
-// 	buffer.WriteString("SELECT ")
-// 	columns, e := buildSelectStr(table, &buffer)
-// 	if nil != e {
-// 		return nil, e
-// 	}
-
-// 	buffer.WriteString(" FROM ")
-// 	buffer.WriteString(table.CollectionName)
-
-// 	if nil == params {
-// 		return &QueryImpl{drv: drv, table: table, columns: columns, sql: buffer.String()}, nil
-// 	}
-
-// 	args, e := buildWhereWithParams(drv, table, 1, params, &buffer)
-// 	if nil != e {
-// 		return nil, e
-// 	}
-
-// 	return &QueryImpl{drv: drv, table: table, columns: columns, sql: buffer.String(), parameters: args}, nil
-// }
-
-// func buildSQLWithSelectAndParams(drv *driver,
-// 	table *types.TableDefinition,
-// 	selectStr string,
-// 	columns []*types.ColumnDefinition,
-// 	params map[string]string) (Query, error) {
-
-// 	var buffer bytes.Buffer
-// 	buffer.WriteString("SELECT ")
-// 	buffer.WriteString(selectStr)
-// 	buffer.WriteString(" FROM ")
-// 	buffer.WriteString(table.CollectionName)
-
-// 	if nil == params {
-// 		return &QueryImpl{drv: drv, table: table, columns: columns, sql: buffer.String()}, nil
-// 	}
-
-// 	args, e := buildWhereWithParams(drv, table, 1, params, &buffer)
-// 	if nil != e {
-// 		return nil, e
-// 	}
-// 	return &QueryImpl{drv: drv, table: table, columns: columns, sql: buffer.String(), parameters: args}, nil
-// }
-
-func whereWithParams(drv *driver, table *types.TableDefinition, isSimpleTableInheritance bool,
-	idx int, params map[string]string, buffer *bytes.Buffer) ([]interface{}, error) {
-	if nil == params {
-		if !isSimpleTableInheritance {
-			return nil, nil
-		}
-	}
-
-	builder := whereBuilder{table: table,
-		idx:          idx,
-		isFirst:      true,
-		prefix:       " WHERE ",
-		buffer:       buffer,
-		operators:    default_operators,
-		add_argument: (*whereBuilder).appendNumericArguments}
-
-	if drv.isNumericParams {
-		builder.add_argument = (*whereBuilder).appendNumericArguments
-	} else {
-		builder.add_argument = (*whereBuilder).appendSimpleArguments
-	}
-
-	if isSimpleTableInheritance {
-		builder.equalClass("type", table)
-	}
-
-	if nil == params {
-		return nil, nil
-	}
-
-	e := builder.build(params)
-	if nil != e {
-		return nil, e
-	}
-
-	if groupBy, ok := params["groupBy"]; ok {
-		if 0 != len(groupBy) {
-			return nil, errors.New("groupBy is empty.")
-		}
-
-		buffer.WriteString(" GROUP BY ")
-		buffer.WriteString(groupBy)
-	}
-
-	if having, ok := params["having"]; ok {
-		if 0 != len(having) {
-			return nil, errors.New("having is empty.")
-		}
-
-		buffer.WriteString(" HAVING ")
-		buffer.WriteString(having)
-	}
-
-	if order, ok := params["order"]; ok {
-		if 0 != len(order) {
-			return nil, errors.New("order is empty.")
-		}
-
-		buffer.WriteString(" ORDER BY ")
-		buffer.WriteString(order)
-	}
-
-	if limit, ok := params["limit"]; ok {
-		i, e := strconv.ParseInt(limit, 10, 64)
-		if nil != e {
-			return nil, fmt.Errorf("limit is not a number, actual value is '" + limit + "'")
-		}
-		if i <= 0 {
-			return nil, fmt.Errorf("limit must is geater zero, actual value is '" + limit + "'")
-		}
-
-		if offset, ok := params["offset"]; ok {
-			i, e = strconv.ParseInt(offset, 10, 64)
-			if nil != e {
-				return nil, fmt.Errorf("offset is not a number, actual value is '" + offset + "'")
-			}
-
-			if i < 0 {
-				return nil, fmt.Errorf("offset must is geater(or equals) zero, actual value is '" + offset + "'")
-			}
-
-			buffer.WriteString(" LIMIT ")
-			buffer.WriteString(offset)
-			buffer.WriteString(" , ")
-			buffer.WriteString(limit)
-		} else {
-			buffer.WriteString(" LIMIT ")
-			buffer.WriteString(limit)
-		}
-	}
-
-	return builder.params, nil
+	return &QueryImpl{drv: drv,
+		table: table,
+		isSingleTableInheritance: isSingleTableInheritance,
+		columns:                  columns,
+		sql:                      buffer.String()}, nil
 }
 
 type QueryImpl struct {
@@ -225,7 +116,7 @@ type QueryImpl struct {
 	columns                  []*types.ColumnDefinition
 	sql                      string
 	parameters               []interface{}
-	isSimpleTableInheritance bool
+	isSingleTableInheritance bool
 	table                    *types.TableDefinition
 }
 
@@ -238,9 +129,76 @@ func (self *QueryImpl) Build() Query {
 	return self
 }
 
-func (q *QueryImpl) One() (map[string]interface{}, error) {
-	row := q.drv.db.QueryRow(q.sql, q.parameters...)
+type resultScan interface {
+	Scan(dest ...interface{}) error
+}
 
+func (q *QueryImpl) rowbySingleTableInheritance(rows resultScan) (map[string]interface{}, error) {
+	var scanResultContainer []interface{}
+	for _, column := range q.columns {
+		if nil == column {
+			var value interface{}
+			scanResultContainer = append(scanResultContainer, &value)
+		} else {
+			scanResultContainer = append(scanResultContainer, column.Type.MakeValue())
+		}
+	}
+
+	if e := rows.Scan(scanResultContainer...); nil != e {
+		return nil, e
+	}
+
+	typeValue, e := toInternalValue(q.columns[0], scanResultContainer[0])
+	if nil != e {
+		return nil, fmt.Errorf("convert column 'type' to internal value failed, %v, value is [%T]%v",
+			e, scanResultContainer[0], scanResultContainer[0])
+	}
+	t, ok := typeValue.(string)
+	if !ok {
+		return nil, errors.New("column 'type' is not a string")
+	}
+	table := q.table.FindByUnderscoreName(t)
+	if nil == table {
+		return nil, errors.New("table '" + t + "' is undefined")
+	}
+
+	res := map[string]interface{}{}
+	res["type"] = t
+	for i, column := range q.columns {
+		if nil == column {
+			continue
+		}
+
+		if hasColumn := table.GetAttribute(column.Name); nil == hasColumn {
+			continue
+		}
+
+		res[column.Name], e = toInternalValue(column, scanResultContainer[i])
+		if nil != e {
+			return nil, fmt.Errorf("convert column '%v' to internal value failed, %v, value is [%T]%v",
+				column.Name, e, scanResultContainer[i], scanResultContainer[i])
+		}
+	}
+	return res, nil
+}
+
+func (q *QueryImpl) bySingleTableInheritance(rows *sql.Rows) ([]map[string]interface{}, error) {
+	results := make([]map[string]interface{}, 0, 10)
+	for rows.Next() {
+		res, e := q.rowbySingleTableInheritance(rows)
+		if nil != e {
+			return nil, e
+		}
+		results = append(results, res)
+	}
+
+	if nil != rows.Err() {
+		return nil, rows.Err()
+	}
+	return results, nil
+}
+
+func (q *QueryImpl) rowbyColumns(row resultScan) (map[string]interface{}, error) {
 	var scanResultContainer []interface{}
 	for _, column := range q.columns {
 		scanResultContainer = append(scanResultContainer, column.Type.MakeValue())
@@ -262,139 +220,13 @@ func (q *QueryImpl) One() (map[string]interface{}, error) {
 	return res, nil
 }
 
-func collectDefinitions(table *types.TableDefinition,
-	tables map[string]*types.TableDefinition,
-	columnDefs map[string]*types.ColumnDefinition) {
-
-	for _, child := range table.OwnChildren.All() {
-		if nil != table.OwnAttributes {
-			for k, column := range table.OwnAttributes {
-				columnDefs[k] = column
-			}
-		}
-
-		tables[child.UnderscoreName] = child
-		if child.HasChildren() {
-			collectDefinitions(child, tables, columnDefs)
-		}
-	}
-}
-
-func (q *QueryImpl) bySimpleTableInheritance(rows *sql.Rows) ([]map[string]interface{}, error) {
-	columnNames, e := rows.Columns()
-	if nil != e {
-		return nil, e
-	}
-	columnDefinitions := map[string]*types.ColumnDefinition{}
-	tables := map[string]*types.TableDefinition{}
-
-	tables[q.table.UnderscoreName] = q.table
-	if nil != q.table.Attributes {
-		for k, column := range q.table.Attributes {
-			columnDefinitions[k] = column
-		}
-	}
-	if q.table.HasChildren() {
-		collectDefinitions(q.table, tables, columnDefinitions)
-	}
-
-	columns := make([]*types.ColumnDefinition, 0, len(columnNames))
-	typeIdx := -1
-	for _, name := range columnNames {
-		column := columnDefinitions[name]
-		if nil == column {
-			columns = append(columns, nil)
-			continue
-		}
-		if "type" == name {
-			typeIdx = len(columns)
-		}
-		columns = append(columns, column)
-	}
-	if -1 == typeIdx {
-		return nil, errors.New("column 'type' is not found in the sql result.")
-	}
-
-	results := make([]map[string]interface{}, 0, 10)
-	for rows.Next() {
-		var scanResultContainer []interface{}
-		for _, column := range columns {
-			if nil == column {
-				var value interface{}
-				scanResultContainer = append(scanResultContainer, &value)
-			} else {
-				scanResultContainer = append(scanResultContainer, column.Type.MakeValue())
-			}
-		}
-
-		if e = rows.Scan(scanResultContainer...); nil != e {
-			return nil, e
-		}
-
-		typeValue, e := toInternalValue(columns[typeIdx], scanResultContainer[typeIdx])
-		if nil != e {
-			return nil, fmt.Errorf("convert column 'type' to internal value failed, %v, value is [%T]%v",
-				e, scanResultContainer[typeIdx], scanResultContainer[typeIdx])
-		}
-		t, ok := typeValue.(string)
-		if !ok {
-			return nil, errors.New("column 'type' is not a string")
-		}
-		table, ok := tables[t]
-		if !ok {
-			return nil, errors.New("table '" + t + "' is undefined")
-		}
-
-		res := map[string]interface{}{}
-		for i, column := range columns {
-			if nil == column {
-				continue
-			}
-
-			if hasColumn := table.GetAttribute(column.Name); nil == hasColumn {
-				continue
-			}
-
-			res[column.Name], e = toInternalValue(column, scanResultContainer[i])
-			if nil != e {
-				return nil, fmt.Errorf("convert column '%v' to internal value failed, %v, value is [%T]%v",
-					column.Name, e, scanResultContainer[i], scanResultContainer[i])
-			}
-		}
-
-		results = append(results, res)
-	}
-
-	if nil != rows.Err() {
-		return nil, rows.Err()
-	}
-	return results, nil
-}
-
 func (q *QueryImpl) byColumns(rows *sql.Rows) ([]map[string]interface{}, error) {
-
 	results := make([]map[string]interface{}, 0, 10)
 	for rows.Next() {
-
-		var scanResultContainer []interface{}
-		for _, column := range q.columns {
-			scanResultContainer = append(scanResultContainer, column.Type.MakeValue())
-		}
-
-		if e := rows.Scan(scanResultContainer...); nil != e {
+		res, e := q.rowbyColumns(rows)
+		if nil != e {
 			return nil, e
 		}
-
-		res := map[string]interface{}{}
-		for i, column := range q.columns {
-			var e error
-			res[column.Name], e = toInternalValue(column, scanResultContainer[i])
-			if nil != e {
-				return nil, fmt.Errorf("convert %v to internal value failed, %v, value is [%T]%v",
-					column.Name, e, scanResultContainer[i], scanResultContainer[i])
-			}
-		}
-
 		results = append(results, res)
 	}
 
@@ -402,6 +234,15 @@ func (q *QueryImpl) byColumns(rows *sql.Rows) ([]map[string]interface{}, error) 
 		return nil, rows.Err()
 	}
 	return results, nil
+}
+
+func (q *QueryImpl) One() (map[string]interface{}, error) {
+	row := q.drv.db.QueryRow(q.sql, q.parameters...)
+	if q.isSingleTableInheritance {
+		return q.rowbySingleTableInheritance(row)
+	} else {
+		return q.rowbyColumns(row)
+	}
 }
 
 func (q *QueryImpl) All() ([]map[string]interface{}, error) {
@@ -416,11 +257,67 @@ func (q *QueryImpl) All() ([]map[string]interface{}, error) {
 		return nil, e
 	}
 
-	if q.isSimpleTableInheritance {
-		return q.bySimpleTableInheritance(rows)
+	if q.isSingleTableInheritance {
+		return q.bySingleTableInheritance(rows)
 	} else {
 		return q.byColumns(rows)
 	}
+}
+
+func scanOne(row resultScan, columns []*types.ColumnDefinition) ([]interface{}, error) {
+	var scanResultContainer []interface{}
+	for _, column := range columns {
+		scanResultContainer = append(scanResultContainer, column.Type.MakeValue())
+	}
+
+	if e := row.Scan(scanResultContainer...); nil != e {
+		return nil, e
+	}
+
+	res := make([]interface{}, 0, len(columns))
+	for i, column := range columns {
+		v, e := toInternalValue(column, scanResultContainer[i])
+		if nil != e {
+			return nil, fmt.Errorf("convert %v to internal value failed, %v, value is [%T]%v",
+				column.Name, e, scanResultContainer[i], scanResultContainer[i])
+		}
+		res = append(res, v)
+	}
+	return res, nil
+}
+
+func selectOne(drv *driver, sql string, args []interface{},
+	columns ...*types.ColumnDefinition) ([]interface{}, error) {
+	row := drv.db.QueryRow(sql, args...)
+	return scanOne(row, columns)
+}
+
+func selectAll(drv *driver, sql string, args []interface{},
+	columns ...*types.ColumnDefinition) ([][]interface{}, error) {
+	rs, e := drv.db.Prepare(sql)
+	if e != nil {
+		return nil, e
+	}
+	defer rs.Close()
+
+	rows, e := rs.Query(args...)
+	if e != nil {
+		return nil, e
+	}
+
+	results := make([][]interface{}, 0, 10)
+	for rows.Next() {
+		res, e := scanOne(rows, columns)
+		if e != nil {
+			return nil, e
+		}
+		results = append(results, res)
+	}
+
+	if nil != rows.Err() {
+		return nil, rows.Err()
+	}
+	return results, nil
 }
 
 func toInternalValue(column *types.ColumnDefinition, v interface{}) (interface{}, error) {

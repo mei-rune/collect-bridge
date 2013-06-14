@@ -21,6 +21,17 @@ import (
  * <li>PrintedBook    --belongs to-- Printer
  * </ul>
  */
+func createDocument() map[string]interface{} {
+	return map[string]interface{}{"type": "document",
+		"name":       "doc_test",
+		"publish_at": 1}
+}
+func createPrintedDocument() map[string]interface{} {
+	return map[string]interface{}{"type": "printed_document",
+		"name":       "doc_test",
+		"publish_at": 1,
+		"page_count": 300}
+}
 
 func createPrintedBook() map[string]interface{} {
 	return map[string]interface{}{"type": "book",
@@ -83,7 +94,7 @@ func clearAll(t *testing.T, client *Client) {
 	deleteBy(t, client, "topic", map[string]string{})
 	deleteBy(t, client, "printer", map[string]string{})
 }
-func TestFindAllDocuments(t *testing.T) {
+func TestSTIByFindAllDocuments(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -91,23 +102,26 @@ func TestFindAllDocuments(t *testing.T) {
 		//website3 := saveIt(t, client, "website", createWebsite())
 
 		for i := 0; i < 8; i++ {
+			saveIt(t, client, "document", createDocument())
+			saveIt(t, client, "document", createPrintedDocument())
 			saveIt(t, client, "document", createPrintedBook())
 			saveIt(t, client, "document", createHelpFile(website1))
 			saveIt(t, client, "document", createOnlineTutorial(website2))
+
 		}
 		checkModelCount(t, client, "book", map[string]string{}, 8)
 		checkModelCount(t, client, "magazine", map[string]string{}, 0)
-		checkModelCount(t, client, "printed_document", map[string]string{}, 8)
+		checkModelCount(t, client, "printed_document", map[string]string{}, 16)
 
 		checkModelCount(t, client, "help_file", map[string]string{}, 8)
 		checkModelCount(t, client, "online_tutorial", map[string]string{}, 8)
 		checkModelCount(t, client, "online_document", map[string]string{}, 16)
 
-		checkModelCount(t, client, "document", map[string]string{}, 24)
+		checkModelCount(t, client, "document", map[string]string{}, 40)
 	})
 }
 
-func TestFindDocuments(t *testing.T) {
+func TestSTIByFindDocuments(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -137,7 +151,7 @@ func TestFindDocuments(t *testing.T) {
 	})
 }
 
-func TestDeleteAllPrintedBooks(t *testing.T) {
+func TestSTIByDeleteAllPrintedBooks(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -164,7 +178,7 @@ func TestDeleteAllPrintedBooks(t *testing.T) {
 	})
 }
 
-func TestDeleteAllPrintedDocuments(t *testing.T) {
+func TestSTIByDeleteAllPrintedDocuments(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -192,7 +206,37 @@ func TestDeleteAllPrintedDocuments(t *testing.T) {
 	})
 }
 
-func TestDeleteAllDocuments(t *testing.T) {
+func TestSTIByDeleteAllPrintedDocuments2(t *testing.T) {
+	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		clearAll(t, client)
+		website1 := saveIt(t, client, "website", createWebsite())
+		website2 := saveIt(t, client, "website", createWebsite())
+		//website3 := saveIt(t, client, "website", createWebsite())
+
+		for i := 0; i < 8; i++ {
+			saveIt(t, client, "document", createDocument())
+			saveIt(t, client, "document", createPrintedDocument())
+			saveIt(t, client, "document", createPrintedBook())
+			saveIt(t, client, "document", createMagazine())
+			saveIt(t, client, "document", createHelpFile(website1))
+			saveIt(t, client, "document", createOnlineTutorial(website2))
+		}
+
+		deleteBy(t, client, "printed_document", map[string]string{})
+
+		checkModelCount(t, client, "book", map[string]string{}, 0)
+		checkModelCount(t, client, "magazine", map[string]string{}, 0)
+		checkModelCount(t, client, "printed_document", map[string]string{}, 0)
+
+		checkModelCount(t, client, "help_file", map[string]string{}, 8)
+		checkModelCount(t, client, "online_tutorial", map[string]string{}, 8)
+		checkModelCount(t, client, "online_document", map[string]string{}, 16)
+
+		checkModelCount(t, client, "document", map[string]string{}, 24)
+	})
+}
+
+func TestSTIByDeleteAllDocuments(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -219,7 +263,7 @@ func TestDeleteAllDocuments(t *testing.T) {
 	})
 }
 
-func TestPrintedBooksDeleteWithQuery(t *testing.T) {
+func TestSTIByPrintedBooksDeleteWithQuery(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -270,7 +314,7 @@ func TestPrintedBooksDeleteWithQuery(t *testing.T) {
 	})
 }
 
-func TestPrintedDocumentsDeleteWithQuery(t *testing.T) {
+func TestSTIByPrintedDocumentsDeleteWithQuery(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -319,7 +363,7 @@ func TestPrintedDocumentsDeleteWithQuery(t *testing.T) {
 	})
 }
 
-func TestDocumentsDeleteWithQuery(t *testing.T) {
+func TestSTIByDocumentsDeleteWithQuery(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -369,7 +413,7 @@ func TestDocumentsDeleteWithQuery(t *testing.T) {
 	})
 }
 
-func TestUpdateAllDocuments(t *testing.T) {
+func TestSTIByUpdateAllDocuments(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -408,7 +452,7 @@ func TestUpdateAllDocuments(t *testing.T) {
 	})
 }
 
-func TestBaseClassUpdateAllDocuments(t *testing.T) {
+func TestSTIByBaseClassUpdateAllDocuments(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -446,8 +490,58 @@ func TestBaseClassUpdateAllDocuments(t *testing.T) {
 		checkModelCount(t, client, "online_tutorial", map[string]string{"name": "cc"}, 4)
 	})
 }
+func TestSTIByBaseClassUpdateAllDocuments2(t *testing.T) {
+	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		clearAll(t, client)
+		website1 := saveIt(t, client, "website", createWebsite())
+		website2 := saveIt(t, client, "website", createWebsite())
+		//website3 := saveIt(t, client, "website", createWebsite())
+		for i := 0; i < 4; i++ {
+			saveIt(t, client, "document", change(createDocument(), map[string]interface{}{"name": "cc"}))
+			saveIt(t, client, "document", change(createPrintedDocument(), map[string]interface{}{"name": "cc"}))
+			saveIt(t, client, "document", change(createPrintedBook(), map[string]interface{}{"name": "cc"}))
+			saveIt(t, client, "document", change(createMagazine(), map[string]interface{}{"name": "cc"}))
+			saveIt(t, client, "document", change(createHelpFile(website1), map[string]interface{}{"name": "cc"}))
+			saveIt(t, client, "document", change(createOnlineTutorial(website2), map[string]interface{}{"name": "cc"}))
+		}
+		for i := 0; i < 4; i++ {
+			saveIt(t, client, "document", change(createDocument(), map[string]interface{}{"name": "aa"}))
+			saveIt(t, client, "document", change(createPrintedDocument(), map[string]interface{}{"name": "aa"}))
+			saveIt(t, client, "document", change(createPrintedBook(), map[string]interface{}{"name": "aa"}))
+			saveIt(t, client, "document", change(createMagazine(), map[string]interface{}{"name": "aa"}))
+			saveIt(t, client, "document", change(createHelpFile(website1), map[string]interface{}{"name": "aa"}))
+			saveIt(t, client, "document", change(createOnlineTutorial(website2), map[string]interface{}{"name": "aa"}))
+		}
 
-func TestTopClassUpdateAllDocuments(t *testing.T) {
+		updateBy(t, client, "printed_document", map[string]string{}, map[string]interface{}{"name": "bb"})
+
+		checkModelCount(t, client, "document", map[string]string{"name": "bb"}, 24)
+		checkModelCount(t, client, "document", map[string]string{"name": "aa"}, 12)
+		checkModelCount(t, client, "document", map[string]string{"name": "cc"}, 12)
+
+		checkModelCount(t, client, "printed_document", map[string]string{"name": "bb"}, 24)
+		checkModelCount(t, client, "printed_document", map[string]string{"name": "aa"}, 0)
+		checkModelCount(t, client, "printed_document", map[string]string{"name": "cc"}, 0)
+
+		checkModelCount(t, client, "book", map[string]string{"name": "bb"}, 8)
+		checkModelCount(t, client, "book", map[string]string{"name": "aa"}, 0)
+		checkModelCount(t, client, "book", map[string]string{"name": "cc"}, 0)
+
+		checkModelCount(t, client, "magazine", map[string]string{"name": "bb"}, 8)
+		checkModelCount(t, client, "magazine", map[string]string{"name": "aa"}, 0)
+		checkModelCount(t, client, "magazine", map[string]string{"name": "cc"}, 0)
+
+		checkModelCount(t, client, "help_file", map[string]string{"name": "bb"}, 0)
+		checkModelCount(t, client, "help_file", map[string]string{"name": "aa"}, 4)
+		checkModelCount(t, client, "help_file", map[string]string{"name": "cc"}, 4)
+
+		checkModelCount(t, client, "online_tutorial", map[string]string{"name": "bb"}, 0)
+		checkModelCount(t, client, "online_tutorial", map[string]string{"name": "aa"}, 4)
+		checkModelCount(t, client, "online_tutorial", map[string]string{"name": "cc"}, 4)
+	})
+}
+
+func TestSTIByTopClassUpdateAllDocuments(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -487,7 +581,7 @@ func TestTopClassUpdateAllDocuments(t *testing.T) {
 	})
 }
 
-func TestUpdateDocuments(t *testing.T) {
+func TestSTIByUpdateDocuments(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -526,7 +620,7 @@ func TestUpdateDocuments(t *testing.T) {
 	})
 }
 
-func TestBaseClassUpdateDocuments(t *testing.T) {
+func TestSTIByBaseClassUpdateDocuments(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
@@ -566,7 +660,7 @@ func TestBaseClassUpdateDocuments(t *testing.T) {
 	})
 }
 
-func TestTopClassUpdateDocuments(t *testing.T) {
+func TestSTIByTopClassUpdateDocuments(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())

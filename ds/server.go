@@ -96,7 +96,7 @@ func (self *server) run(db *sql.DB) {
 	atomic.AddInt32(&self.activedCount, 1)
 
 	sess := &session{driver: &driver{drv: self.drv, db: db,
-		isNumericParams: self.isNumericParams}}
+		isNumericParams: self.isNumericParams}, tables: self.definitions}
 
 	for {
 		f := <-self.ch

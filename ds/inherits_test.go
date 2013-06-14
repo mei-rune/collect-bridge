@@ -14,6 +14,7 @@ func createMockSnmpParams2(t *testing.T, client *Client, factor string) string {
 }
 
 func validMockSNMPWithFactor(t *testing.T, client *Client, factor string, drvs []map[string]interface{}) {
+	t.Logf("find snmp with " + factor)
 	drv := searchBy(drvs, func(r map[string]interface{}) bool { return r["address"] == "20.0.9."+factor })
 	if nil == drv {
 		t.Errorf("find snmp_params with factor=" + factor + " failed")
@@ -56,6 +57,7 @@ func createMockSshParams2(t *testing.T, client *Client, factor string) string {
 }
 
 func validMockSshWithFactor(t *testing.T, client *Client, factor string, drvs []map[string]interface{}) {
+	t.Logf("find ssh with " + factor)
 	drv := searchBy(drvs, func(r map[string]interface{}) bool { return r["address"] == "20.0.8."+factor })
 	if nil == drv {
 		t.Errorf("find ssh_params with factor=" + factor + " failed")
@@ -248,7 +250,7 @@ func initAccessParamsData2(t *testing.T, client *Client) []string {
 	return []string{snmpid1, snmpid2, snmpid3, snmpid4, snmpid5,
 		sshid1, sshid2, sshid3, sshid4, sshid5, wbemid1, wbemid2, wbemid3, wbemid4, wbemid5}
 }
-func TestForFindBy(t *testing.T) {
+func TestInheritsForFindBy(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "access_param", map[string]string{})
 		idlist := initAccessParamsData(t, client)
@@ -259,12 +261,17 @@ func TestForFindBy(t *testing.T) {
 		checkInheritsForCount(t, client, "ssh_param", 5)
 		checkInheritsForCount(t, client, "wbem_param", 5)
 
+		t.Log("check snmp params")
 		checkInheritsForFindBy(t, client, "snmp_param", 5)
+		t.Log("check ssh params")
 		checkInheritsForFindBy(t, client, "ssh_param", 5)
+		t.Log("check wbem params")
 		checkInheritsForFindBy(t, client, "wbem_param", 5)
 
 		checkInheritsForFindBy(t, client, "access_param", 15)
 		checkInheritsForFindBy(t, client, "endpoint_param", 10)
+
+		t.Log("=======")
 
 		checkInheritsForFindById(t, client, "endpoint_param", "snmp_param", idlist[0], "1")
 		checkInheritsForFindById(t, client, "endpoint_param", "snmp_param", idlist[1], "2")

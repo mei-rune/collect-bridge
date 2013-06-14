@@ -321,25 +321,17 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 				"' of class '"+xmlDefinition.Name+"' is not found.")
 		} else {
 			cls.Super = super
-
-			if nil == super.OwnChildren {
-				super.OwnChildren = NewTableDefinitions()
-			}
-
-			super.OwnChildren.Register(cls)
 		}
 	}
 
-	// load the properties of super class
-	for _, cls := range definitions {
-		for s := cls.Super; nil != s; s = s.Super {
-
-			if nil == s.Children {
-				s.Children = NewTableDefinitions()
-			}
-
-			s.Children.Register(cls)
+	// load own assocations
+	for _, xmlDefinition := range xml_definitions.Definitions {
+		cls, ok := definitions[xmlDefinition.Name]
+		if !ok {
+			continue
 		}
+
+		loadAssocations(definitions, cls, &xmlDefinition, &errs)
 	}
 
 	// load the properties of super class
@@ -358,9 +350,9 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 
 	// reset collection name
 	for _, cls := range definitions {
-		if !cls.IsSimpleTableInheritance() {
+		if !cls.IsSingleTableInheritance() {
 			for s := cls.Super; nil != s; s = s.Super {
-				if s.IsSimpleTableInheritance() {
+				if s.IsSingleTableInheritance() {
 					errs = append(errs, "'"+cls.Name+"' is not simple table inheritance, but parent table '"+s.Name+"' is simple table inheritance")
 					break
 				}
@@ -373,7 +365,7 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 		last := cls.CollectionName
 
 		for s := cls.Super; nil != s; s = s.Super {
-			if !s.IsSimpleTableInheritance() {
+			if !s.IsSingleTableInheritance() {
 				break
 			}
 			last = s.CollectionName
@@ -382,21 +374,34 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 		cls.CollectionName = last
 	}
 
+	// load the properties of super class
+	for _, cls := range definitions {
+		if nil == cls.Super {
+			continue
+		}
+
+		if nil == cls.Super.OwnChildren {
+			cls.Super.OwnChildren = NewTableDefinitions()
+		}
+		cls.Super.OwnChildren.Register(cls)
+
+		for s := cls.Super; nil != s; s = s.Super {
+
+			if nil == s.Children {
+				s.Children = NewTableDefinitions()
+			}
+
+			s.Children.Register(cls)
+		}
+	}
+
 	// check id is exists.
 	for _, cls := range definitions {
 		if ok := cls.GetAttribute("id"); nil == ok {
 			errs = append(errs, "'"+cls.Name+"' has not 'id'")
 		}
-	}
 
-	// load own assocations
-	for _, xmlDefinition := range xml_definitions.Definitions {
-		cls, ok := definitions[xmlDefinition.Name]
-		if !ok {
-			continue
-		}
-
-		loadAssocations(definitions, cls, &xmlDefinition, &errs)
+		//fmt.Println(cls.Name, cls.UnderscoreName, cls.CollectionName)
 	}
 
 	// change collection name

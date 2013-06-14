@@ -39,6 +39,9 @@ type op_func func(self *whereBuilder, column *types.ColumnDefinition, v string) 
 
 var (
 	default_operators = make(map[string]op_func)
+
+	operators_for_type        = make(map[string]op_func)
+	operators_for_parent_type = make(map[string]op_func)
 )
 
 func init() {
@@ -54,9 +57,16 @@ func init() {
 	default_operators["between"] = (*whereBuilder).between
 	default_operators["is"] = (*whereBuilder).is
 	default_operators["like"] = (*whereBuilder).like
+
+	operators_for_type["eq"] = (*whereBuilder).equals_class
+	operators_for_type["in"] = (*whereBuilder).in_class
+
+	operators_for_parent_type["eq"] = (*whereBuilder).equals_parentClass
+	operators_for_parent_type["in"] = (*whereBuilder).in_parentClass
 }
 
 type whereBuilder struct {
+	tables  *types.TableDefinitions
 	table   *types.TableDefinition
 	idx     int
 	isFirst bool
@@ -65,8 +75,9 @@ type whereBuilder struct {
 	buffer *bytes.Buffer
 	params []interface{}
 
-	operators    map[string]op_func
-	add_argument func(self *whereBuilder)
+	operators_for_field map[string]map[string]op_func
+	operators           map[string]op_func
+	add_argument        func(self *whereBuilder)
 }
 
 func (self *whereBuilder) appendArguments() {
@@ -257,9 +268,12 @@ func (self *whereBuilder) equalClass(column string, table *types.TableDefinition
 	if nil == table.Super {
 		return
 	}
+	self.equalsTable(column, table)
+}
+
+func (self *whereBuilder) equalsTable(column string, table *types.TableDefinition) {
 
 	cm := table.UnderscoreName
-
 	if !table.HasChildren() {
 		self.append(column, "= '"+cm+"'")
 		return
@@ -274,21 +288,45 @@ func (self *whereBuilder) equalClass(column string, table *types.TableDefinition
 		self.buffer.WriteString(" AND ")
 	}
 
-	isFirst := true
-
 	self.buffer.WriteString(column)
-	self.buffer.WriteString(" IN (")
+	self.buffer.WriteString(" IN ( '")
+	self.buffer.WriteString(table.UnderscoreName)
+	self.buffer.WriteString("'")
+
 	for _, child := range table.OwnChildren.All() {
-		if isFirst {
-			isFirst = false
-			self.buffer.WriteString(" '")
-		} else {
-			self.buffer.WriteString(", '")
-		}
+		self.buffer.WriteString(", '")
 		self.buffer.WriteString(child.UnderscoreName)
 		self.buffer.WriteString("'")
 	}
 	self.buffer.WriteString(")")
+}
+
+func (self *whereBuilder) equals_class(column *types.ColumnDefinition, s string) error {
+	table := self.tables.FindByUnderscoreName(s)
+	if nil == table {
+		return errors.New("table '" + s + "' is undefined for column '" + column.Name + "'.")
+	}
+
+	self.equalsTable(column.Name, table)
+	return nil
+}
+
+func (self *whereBuilder) in_class(column *types.ColumnDefinition, s string) error {
+	return errors.New("in_class is not implemented.")
+}
+
+func (self *whereBuilder) equals_parentClass(column *types.ColumnDefinition, s string) error {
+	table := self.tables.FindByUnderscoreName(s)
+	if nil == table {
+		return errors.New("table '" + s + "' is undefined for column '" + column.Name + "'.")
+	}
+
+	self.equalsTable(column.Name, table)
+	return nil
+}
+
+func (self *whereBuilder) in_parentClass(column *types.ColumnDefinition, s string) error {
+	return errors.New("in_parentClass is not implemented.")
 }
 
 func split(exp string) (string, string) {
@@ -319,28 +357,26 @@ func (self *whereBuilder) build(params map[string]string) error {
 		}
 
 		op, v := split(exp)
-		f, _ := self.operators[op]
+
+		operators := self.operators_for_field[column.Name]
+		if nil == operators {
+			operators = self.operators
+		}
+
+		f, _ := operators[op]
 		if nil == f {
 			return errors.New("'" + op + "' is unsupported operator for the column '" + nm[1:] + "'.")
 		}
-		// switch column.Name {
-		// case "type":
-		// 	if "eq" != op && "=" != op {
-		// 		return errors.New("'" + op + "' is unsupported operator for the column 'type'.")
-		// 	}
-
-		// 	self.equalClass("type", table)
-		// default:
 		e := f(self, column, v)
 		if nil != e {
 			return e
 		}
-		//		}
 	}
 	return nil
 }
 
 type updateBuilder struct {
+	tables          *types.TableDefinitions
 	table           *types.TableDefinition
 	idx             int
 	isNumericParams bool
@@ -442,12 +478,16 @@ func (self *updateBuilder) buildWhereById(id interface{}) {
 }
 
 func (self *updateBuilder) buildWhere(params map[string]string, isSimpleTableInheritance bool) error {
-	builder := &whereBuilder{table: self.table,
-		idx:       self.idx,
-		isFirst:   true,
-		prefix:    " WHERE ",
-		buffer:    self.buffer,
-		params:    self.params,
+
+	builder := &whereBuilder{tables: self.tables,
+		table:   self.table,
+		idx:     self.idx,
+		isFirst: true,
+		prefix:  " WHERE ",
+		buffer:  self.buffer,
+		params:  self.params,
+		operators_for_field: map[string]map[string]op_func{"type": operators_for_type,
+			"parent_type": operators_for_parent_type},
 		operators: default_operators}
 
 	if self.isNumericParams {

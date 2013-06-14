@@ -12,6 +12,8 @@ import (
 )
 
 var (
+	id_column *types.ColumnDefinition = nil
+
 	class_table_inherit_columns = []*types.ColumnDefinition{&types.ColumnDefinition{types.AttributeDefinition{Name: "tablename",
 		Type:       types.GetTypeDefinition("string"),
 		Collection: types.COLLECTION_UNKNOWN}},
@@ -25,7 +27,7 @@ var (
 )
 
 func init() {
-
+	id_column = class_table_inherit_columns[1]
 	class_table_inherit_definition.Id = class_table_inherit_columns[1]
 
 	attributes := map[string]*types.ColumnDefinition{class_table_inherit_columns[0].Name: class_table_inherit_columns[0],
@@ -43,6 +45,7 @@ type driver struct {
 
 type session struct {
 	*driver
+	tables *types.TableDefinitions
 }
 
 func (self *session) equalIdQuery(table *types.TableDefinition) string {
@@ -70,21 +73,19 @@ func replaceQuestion(buffer *bytes.Buffer, str string, idx int) (*bytes.Buffer, 
 	return buffer, idx
 }
 
-////////////////////////// count //////////////////////////
+func (self *session) newWhere(idx int,
+	table *types.TableDefinition,
+	buffer *bytes.Buffer) *whereBuilder {
 
-func (self *session) simpleCount(table *types.TableDefinition,
-	params map[string]string, isSimpleTableInheritance bool) (int64, error) {
-	var buffer bytes.Buffer
-	buffer.WriteString("SELECT count(*) FROM ")
-	buffer.WriteString(table.CollectionName)
-
-	builder := &whereBuilder{table: table,
-		idx:          1,
-		isFirst:      true,
-		prefix:       " WHERE ",
-		buffer:       &buffer,
-		params:       []interface{}{},
-		operators:    default_operators,
+	builder := &whereBuilder{tables: self.tables,
+		table:     table,
+		idx:       idx,
+		isFirst:   true,
+		prefix:    " WHERE ",
+		buffer:    buffer,
+		operators: default_operators,
+		operators_for_field: map[string]map[string]op_func{"type": operators_for_type,
+			"parent_type": operators_for_parent_type},
 		add_argument: (*whereBuilder).appendNumericArguments}
 
 	if self.isNumericParams {
@@ -93,7 +94,20 @@ func (self *session) simpleCount(table *types.TableDefinition,
 		builder.add_argument = (*whereBuilder).appendSimpleArguments
 	}
 
-	if isSimpleTableInheritance {
+	return builder
+}
+
+////////////////////////// count //////////////////////////
+
+func (self *session) simpleCount(table *types.TableDefinition,
+	params map[string]string, isSingleTableInheritance bool) (int64, error) {
+	var buffer bytes.Buffer
+	buffer.WriteString("SELECT count(*) FROM ")
+	buffer.WriteString(table.CollectionName)
+
+	builder := self.newWhere(1, table, &buffer)
+
+	if isSingleTableInheritance {
 		builder.equalClass("type", table)
 	}
 
@@ -101,6 +115,9 @@ func (self *session) simpleCount(table *types.TableDefinition,
 	if nil != e {
 		return -1, e
 	}
+
+	fmt.Println(buffer.String(), builder.params)
+
 	row := self.db.QueryRow(buffer.String(), builder.params...)
 	count := int64(0)
 	e = row.Scan(&count)
@@ -112,7 +129,7 @@ func (self *session) simpleCount(table *types.TableDefinition,
 
 func (self *session) count(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
-	if table.IsSimpleTableInheritance() {
+	if table.IsSingleTableInheritance() {
 		return self.simpleCount(table, params, true)
 	}
 
@@ -132,6 +149,17 @@ func (self *session) findById(table *types.TableDefinition, id string) (map[stri
 			table.Id.Name, table.Id.Type.Name(), id)
 	}
 
+	if table.IsSingleTableInheritance() {
+		goto default_do
+	}
+
+	if !table.HasChildren() {
+		goto default_do
+	}
+
+	return self.findByIdAndClassTableInheritance(table, id)
+
+default_do:
 	builder, e := buildSQLQueryWithObjectId(self.driver, table)
 	if nil != e {
 		return nil, e
@@ -139,45 +167,43 @@ func (self *session) findById(table *types.TableDefinition, id string) (map[stri
 	return builder.Bind(value).Build().One()
 }
 
-func (self *session) queryByParams(table *types.TableDefinition,
-	params map[string]string) ([]map[string]interface{}, error) {
+func (self *session) findByIdAndClassTableInheritance(table *types.TableDefinition, id string) (map[string]interface{}, error) {
+	return nil, errors.New("findByIdAndClassTableInheritance is not implmented")
+}
 
+func (self *session) queryByParams(table *types.TableDefinition,
+	isSingleTableInheritance bool,
+	params map[string]string) ([]map[string]interface{}, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString("SELECT ")
-	columns, e := buildSelectStr(table, &buffer)
+	columns, e := buildSelectStr(table, isSingleTableInheritance, &buffer)
 	if nil != e {
 		return nil, e
 	}
 
 	buffer.WriteString(" FROM ")
 	buffer.WriteString(table.CollectionName)
-
-	args, e := whereWithParams(self.driver, table, false, 1, params, &buffer)
+	args, e := self.whereWithParams(table, isSingleTableInheritance, 1, params, &buffer)
 	if nil != e {
 		return nil, e
 	}
 
-	q := &QueryImpl{drv: self.driver, table: table, columns: columns, sql: buffer.String(), parameters: args}
-
-	return q.All()
-}
-
-func (self *session) queryWithParamsBySimpleTableInheritance(table *types.TableDefinition,
-	params map[string]string) ([]map[string]interface{}, error) {
-	var buffer bytes.Buffer
-	buffer.WriteString("SELECT * FROM ")
-	buffer.WriteString(table.CollectionName)
-	args, e := whereWithParams(self.driver, table, true, 1, params, &buffer)
-	if nil != e {
-		return nil, e
-	}
+	fmt.Println(table.Name, buffer.String())
 	q := &QueryImpl{drv: self.driver,
-		isSimpleTableInheritance: true,
+		isSingleTableInheritance: isSingleTableInheritance,
+		columns:                  columns,
 		table:                    table,
 		sql:                      buffer.String(),
 		parameters:               args}
 
 	return q.All()
+}
+
+func firstTable(tables *types.TableDefinitions) *types.TableDefinition {
+	for _, t := range tables.All() {
+		return t
+	}
+	return nil
 }
 
 func (self *session) queryWithParamsByClassTableInheritance(table *types.TableDefinition,
@@ -186,7 +212,7 @@ func (self *session) queryWithParamsByClassTableInheritance(table *types.TableDe
 	var buffer bytes.Buffer
 	buffer.WriteString("SELECT tableoid::regclass as tablename, id as id FROM ")
 	buffer.WriteString(table.CollectionName)
-	args, e := whereWithParams(self.driver, table, false, 1, params, &buffer)
+	args, e := self.whereWithParams(table, false, 1, params, &buffer)
 	if nil != e {
 		return nil, e
 	}
@@ -221,18 +247,12 @@ func (self *session) queryWithParamsByClassTableInheritance(table *types.TableDe
 			panic("'tablename' is not found")
 		}
 		if last_name != name {
-			if name == table.CollectionName {
-				last_builder, e = buildSQLQueryWithObjectId(self.driver, table)
-			} else if nil != table.Children {
-				realTable := table.Children.FindByTableName(name)
-				if nil == realTable {
-					return nil, errors.New("table '" + name + "' is undefined.")
-				}
-				last_builder, e = buildSQLQueryWithObjectId(self.driver, table)
-			} else {
+			table := table.FindByTableName(name)
+			if nil == table {
 				return nil, errors.New("table '" + name + "' is undefined.")
 			}
 
+			last_builder, e = buildSQLQueryWithObjectId(self.driver, table)
 			if nil != e {
 				return nil, e
 			}
@@ -256,15 +276,97 @@ func (self *session) queryWithParamsByClassTableInheritance(table *types.TableDe
 func (self *session) query(table *types.TableDefinition,
 	params map[string]string) ([]map[string]interface{}, error) {
 
-	if table.IsSimpleTableInheritance() {
-		return self.queryWithParamsBySimpleTableInheritance(table, params)
+	if table.IsSingleTableInheritance() {
+		return self.queryByParams(table, true, params)
 	}
 
 	if !table.HasChildren() {
-		return self.queryByParams(table, params)
+		return self.queryByParams(table, false, params)
 	}
 
 	return self.queryWithParamsByClassTableInheritance(table, params)
+}
+
+func (self *session) whereWithParams(table *types.TableDefinition, isSingleTableInheritance bool,
+	idx int, params map[string]string, buffer *bytes.Buffer) ([]interface{}, error) {
+	if nil == params {
+		if !isSingleTableInheritance {
+			return nil, nil
+		}
+	}
+
+	builder := self.newWhere(idx, table, buffer)
+
+	if isSingleTableInheritance {
+		builder.equalClass("type", table)
+	}
+
+	if nil == params {
+		return nil, nil
+	}
+
+	e := builder.build(params)
+	if nil != e {
+		return nil, e
+	}
+
+	if groupBy, ok := params["groupBy"]; ok {
+		if 0 != len(groupBy) {
+			return nil, errors.New("groupBy is empty.")
+		}
+
+		buffer.WriteString(" GROUP BY ")
+		buffer.WriteString(groupBy)
+	}
+
+	if having, ok := params["having"]; ok {
+		if 0 != len(having) {
+			return nil, errors.New("having is empty.")
+		}
+
+		buffer.WriteString(" HAVING ")
+		buffer.WriteString(having)
+	}
+
+	if order, ok := params["order"]; ok {
+		if 0 != len(order) {
+			return nil, errors.New("order is empty.")
+		}
+
+		buffer.WriteString(" ORDER BY ")
+		buffer.WriteString(order)
+	}
+
+	if limit, ok := params["limit"]; ok {
+		i, e := strconv.ParseInt(limit, 10, 64)
+		if nil != e {
+			return nil, fmt.Errorf("limit is not a number, actual value is '" + limit + "'")
+		}
+		if i <= 0 {
+			return nil, fmt.Errorf("limit must is geater zero, actual value is '" + limit + "'")
+		}
+
+		if offset, ok := params["offset"]; ok {
+			i, e = strconv.ParseInt(offset, 10, 64)
+			if nil != e {
+				return nil, fmt.Errorf("offset is not a number, actual value is '" + offset + "'")
+			}
+
+			if i < 0 {
+				return nil, fmt.Errorf("offset must is geater(or equals) zero, actual value is '" + offset + "'")
+			}
+
+			buffer.WriteString(" LIMIT ")
+			buffer.WriteString(offset)
+			buffer.WriteString(" , ")
+			buffer.WriteString(limit)
+		} else {
+			buffer.WriteString(" LIMIT ")
+			buffer.WriteString(limit)
+		}
+	}
+
+	return builder.params, nil
 }
 
 ////////////////////////// insert //////////////////////////
@@ -276,19 +378,22 @@ func (self *session) insert(table *types.TableDefinition,
 		if !ok {
 			return 0, fmt.Errorf("'type' must is a string, actual type is a %T, actual value is '%v'.", t, t)
 		}
-		if !table.HasChildren() {
-			return 0, errors.New("table '" + nm + "' is not exists.")
-		}
-		defintion := table.Children.FindByUnderscoreName(nm)
-		if nil == defintion {
-			return 0, errors.New("table '" + nm + "' is not exists.")
-		}
 
-		if !defintion.IsSubclassOf(table) {
-			return 0, errors.New("table '" + nm + "' is not inherit from table '" + table.UnderscoreName + "'")
-		}
+		if nm != table.UnderscoreName {
+			if !table.HasChildren() {
+				return 0, errors.New("table '" + nm + "' is not exists.")
+			}
+			defintion := table.Children.FindByUnderscoreName(nm)
+			if nil == defintion {
+				return 0, errors.New("table '" + nm + "' is not exists.")
+			}
 
-		table = defintion
+			if !defintion.IsSubclassOf(table) {
+				return 0, errors.New("table '" + nm + "' is not inherit from table '" + table.UnderscoreName + "'")
+			}
+
+			table = defintion
+		}
 	}
 
 	var buffer bytes.Buffer
@@ -379,7 +484,7 @@ func (self *session) insert(table *types.TableDefinition,
 func (self *session) update(table *types.TableDefinition,
 	params map[string]string,
 	updated_attributes map[string]interface{}) (int64, error) {
-	if table.IsSimpleTableInheritance() {
+	if table.IsSingleTableInheritance() {
 		return self.updateByParams(table, true, params, updated_attributes)
 	}
 
@@ -411,7 +516,7 @@ func (self *session) updateWithParamsByClassTableInheritance(table *types.TableD
 }
 
 func (self *session) updateByParams(table *types.TableDefinition,
-	isSimpleTableInheritance bool,
+	isSingleTableInheritance bool,
 	params map[string]string,
 	updated_attributes map[string]interface{}) (int64, error) {
 	var buffer bytes.Buffer
@@ -428,7 +533,7 @@ func (self *session) updateByParams(table *types.TableDefinition,
 		return 0, errors.New("updated attributes is empty.")
 	}
 
-	e = builder.buildWhere(params, isSimpleTableInheritance)
+	e = builder.buildWhere(params, isSingleTableInheritance)
 	if nil != e {
 		return 0, e
 	}
@@ -511,7 +616,7 @@ func (self *session) updateById(table *types.TableDefinition, id string,
 
 func (self *session) delete(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
-	if table.IsSimpleTableInheritance() {
+	if table.IsSingleTableInheritance() {
 		return self.deleteByParams(table, true, params)
 	}
 
@@ -529,6 +634,11 @@ func (self *session) deleteById(table *types.TableDefinition, id string) error {
 			table.Id.Name, table.Id.Type.Name(), id)
 	}
 
+	_, e = self.deleteCascadeById(table, id)
+	if nil != e {
+		return e
+	}
+
 	var buffer bytes.Buffer
 	buffer.WriteString("DELETE FROM ")
 	buffer.WriteString(table.CollectionName)
@@ -540,6 +650,7 @@ func (self *session) deleteById(table *types.TableDefinition, id string) error {
 		buffer.WriteString(" = ?")
 	}
 
+	fmt.Println(buffer.String(), ",", value)
 	res, e := self.db.Exec(buffer.String(), table.Id.Type.ToExternal(value))
 	if nil != e {
 		return e
@@ -557,33 +668,29 @@ func (self *session) deleteById(table *types.TableDefinition, id string) error {
 }
 
 func (self *session) deleteByParams(table *types.TableDefinition,
-	isSimpleTableInheritance bool,
+	isSingleTableInheritance bool,
 	params map[string]string) (int64, error) {
-	var buffer bytes.Buffer
 
-	buffer.WriteString("DELETE FROM ")
-	buffer.WriteString(table.CollectionName)
-	builder := &whereBuilder{table: table,
-		idx:       1,
-		isFirst:   true,
-		prefix:    " WHERE ",
-		buffer:    &buffer,
-		operators: default_operators}
-
-	if self.isNumericParams {
-		builder.add_argument = (*whereBuilder).appendNumericArguments
-	} else {
-		builder.add_argument = (*whereBuilder).appendSimpleArguments
-	}
-
-	if isSimpleTableInheritance {
-		builder.equalClass("type", table)
-	}
-
-	e := builder.build(params)
+	_, e := self.deleteCascadeByParams(table, isSingleTableInheritance, params)
 	if nil != e {
 		return 0, e
 	}
+
+	var buffer bytes.Buffer
+	buffer.WriteString("DELETE FROM ")
+	buffer.WriteString(table.CollectionName)
+
+	builder := self.newWhere(1, table, &buffer)
+	if isSingleTableInheritance {
+		builder.equalClass("type", table)
+	}
+
+	e = builder.build(params)
+	if nil != e {
+		return 0, e
+	}
+
+	fmt.Println(buffer.String(), ",", builder.params)
 
 	res, e := self.db.Exec(buffer.String(), builder.params...)
 	if nil != e {
@@ -614,8 +721,13 @@ func (self *session) deleteWithParamsByClassTableInheritance(table *types.TableD
 
 func (self *session) deleteBySQL(table *types.TableDefinition,
 	queryString string, args ...interface{}) (int64, error) {
-	var buffer bytes.Buffer
 
+	_, e := self.deleteCascadeBySQL(table, queryString, args...)
+	if nil != e {
+		return 0, e
+	}
+
+	var buffer bytes.Buffer
 	buffer.WriteString("DELETE FROM ")
 	buffer.WriteString(table.CollectionName)
 

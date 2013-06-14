@@ -34,7 +34,7 @@ func createMockMetricRule2(t *testing.T, client *Client, factor string) string {
 	return createJson(t, client, "metric_trigger", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s"}`, factor, factor, factor))
 }
 func createMockMetricRule(t *testing.T, client *Client, id, factor string) string {
-	return createJson(t, client, "metric_trigger", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s", "managed_object_id":"%s"}`, factor, factor, factor, id))
+	return createJson(t, client, "metric_trigger", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s", "parent_type":"device", "parent_id":"%s"}`, factor, factor, factor, id))
 }
 
 func createMockInterface(t *testing.T, client *Client, id, factor string) string {
@@ -221,6 +221,7 @@ func findById(t *testing.T, client *Client, target, id string) map[string]interf
 }
 
 func findByIdWithIncludes(t *testing.T, client *Client, target, id string, includes string) map[string]interface{} {
+	t.Logf("findById(%v, %v)", target, id)
 	res, e := client.FindByIdWithIncludes(target, id, includes)
 	if nil != e {
 		t.Errorf("find %s failed, %v", target, e)
@@ -404,16 +405,16 @@ func checkMetricRuleCount(t *testing.T, client *Client, id1, id2, id3, id4 strin
 	if c := count(t, client, tName, map[string]string{}); all != c {
 		t.Errorf("%d != len(all.rules), actual is %d", all, c)
 	}
-	if c := count(t, client, tName, map[string]string{"managed_object_id": id1}); d1 != c {
+	if c := count(t, client, tName, map[string]string{"parent_type": "device", "parent_id": id1}); d1 != c {
 		t.Errorf("%d != len(d1.rules), actual is %d", d1, c)
 	}
-	if c := count(t, client, tName, map[string]string{"managed_object_id": id2}); d2 != c {
+	if c := count(t, client, tName, map[string]string{"parent_type": "device", "parent_id": id2}); d2 != c {
 		t.Errorf("%d != len(d2.rules), actual is %d", d2, c)
 	}
-	if c := count(t, client, tName, map[string]string{"managed_object_id": id3}); d3 != c {
+	if c := count(t, client, tName, map[string]string{"parent_type": "device", "parent_id": id3}); d3 != c {
 		t.Errorf("%d != len(d3.rules), actual is %d", d3, c)
 	}
-	if c := count(t, client, tName, map[string]string{"managed_object_id": id4}); d4 != c {
+	if c := count(t, client, tName, map[string]string{"parent_type": "device", "parent_id": id4}); d4 != c {
 		t.Errorf("%d != len(d4.rules), actual is %d", d4, c)
 	}
 }
@@ -556,22 +557,26 @@ func TestDeviceDeleteCascadeById(t *testing.T) {
 	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 
 		idlist := initData(t, client)
-
+		t.Log("init data")
 		checkInterfaceCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 16, 4, 4, 4, 4)
 		checkMetricRuleCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 17, 4, 4, 4, 4)
 		deleteById(t, client, "device", idlist[0])
+		t.Log("delete device 0")
 
 		checkInterfaceCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 12, 0, 4, 4, 4)
 		checkMetricRuleCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 13, 0, 4, 4, 4)
 		deleteById(t, client, "device", idlist[1])
+		t.Log("delete device 1")
 
 		checkInterfaceCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 8, 0, 0, 4, 4)
 		checkMetricRuleCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 9, 0, 0, 4, 4)
 		deleteById(t, client, "device", idlist[2])
+		t.Log("delete device 2")
 
 		checkInterfaceCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 4, 0, 0, 0, 4)
 		checkMetricRuleCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 5, 0, 0, 0, 4)
 		deleteById(t, client, "device", idlist[3])
+		t.Log("delete device 3")
 
 		checkInterfaceCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 0, 0, 0, 0, 0)
 		checkMetricRuleCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 1, 0, 0, 0, 0)
@@ -772,6 +777,7 @@ DROP TABLE IF EXISTS endpoint_params;
 DROP TABLE IF EXISTS access_params;
 DROP TABLE IF EXISTS addresses;
 DROP TABLE IF EXISTS interfaces;
+DROP TABLE IF EXISTS links;
 DROP TABLE IF EXISTS devices;
 DROP TABLE IF EXISTS managed_objects;
 DROP TABLE IF EXISTS attributes;
@@ -807,9 +813,24 @@ CREATE TABLE devices (
   oid           varchar(250),
   services      integer,
   location      varchar(2000),
+  type          varchar(100), 
   CONSTRAINT devices_pkey PRIMARY KEY (id)
 ) INHERITS (managed_objects);
 
+
+CREATE TABLE links (
+  -- id integer NOT NULL DEFAULT nextval('managed_object_seq')  PRIMARY KEY,
+
+  name                    varchar(250),
+  custom_speed_up         integer,
+  custom_speed_down       integer,
+  device1                 integer,
+  ifIndex1                integer,
+  device2                 integer,
+  ifIndex2                integer,
+  sampling_direct         integer,
+  CONSTRAINT links_pkey PRIMARY KEY (id)
+) INHERITS (managed_objects);
 
 CREATE TABLE  interfaces (
   -- id integer NOT NULL DEFAULT nextval('managed_object_seq')  PRIMARY KEY,
@@ -874,11 +895,14 @@ CREATE TABLE wbem_params (
 
 CREATE SEQUENCE triggers_seq;
 CREATE TABLE triggers (
-  id integer NOT NULL DEFAULT nextval('triggers_seq')  PRIMARY KEY,
-  name varchar(250),
-  expression varchar(250),
-  attachment  varchar(2000),
-  description   varchar(2000)
+  id            integer NOT NULL DEFAULT nextval('triggers_seq')  PRIMARY KEY,
+  name          varchar(250),
+  expression    varchar(250),
+  attachment    varchar(2000),
+  description   varchar(2000),
+
+  parent_type   varchar(250),
+  parent_id     integer
 );
 
 CREATE TABLE metric_triggers (

@@ -17,5 +17,5 @@ func Pluralize(str string) string {
 }
 
 func Tableize(className string) string {
-	return inflect.Tableize(className)
+	return inflect.Pluralize(inflect.Underscore(className))
 }

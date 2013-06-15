@@ -150,17 +150,17 @@ func (q *QueryImpl) rowbySingleTableInheritance(rows resultScan) (map[string]int
 		return nil, fmt.Errorf("convert column 'type' to internal value failed, %v, value is [%T]%v",
 			e, scanResultContainer[0], scanResultContainer[0])
 	}
-	t, ok := typeValue.(string)
+	instanceType, ok := typeValue.(string)
 	if !ok {
 		return nil, errors.New("column 'type' is not a string")
 	}
-	table := q.table.FindByUnderscoreName(t)
+	table := q.table.FindByUnderscoreName(instanceType)
 	if nil == table {
-		return nil, errors.New("table '" + t + "' is undefined")
+		return nil, errors.New("table '" + instanceType + "' is undefined")
 	}
 
 	res := map[string]interface{}{}
-	res["type"] = t
+	res["type"] = instanceType
 	for i, column := range q.columns {
 		if nil == column {
 			continue
@@ -207,6 +207,7 @@ func (q *QueryImpl) rowbyColumns(row resultScan) (map[string]interface{}, error)
 	}
 
 	res := make(map[string]interface{})
+	res["type"] = q.table.UnderscoreName
 	for i, column := range q.columns {
 		res[column.Name], e = toInternalValue(column, scanResultContainer[i])
 		if nil != e {

@@ -240,6 +240,7 @@ func (self *session) findByIdAndClassTableInheritance(table *types.TableDefiniti
 		return self.findById(new_table, id)
 	}
 	res := make(map[string]interface{})
+	res["type"] = table.UnderscoreName
 	for i := 1; i < len(new_columns); i++ {
 		res[new_columns[i].Name] = values[i]
 	}
@@ -449,30 +450,39 @@ func (self *session) whereWithParams(table *types.TableDefinition, isSingleTable
 }
 
 ////////////////////////// insert //////////////////////////
+func typeFrom(table *types.TableDefinition, attributes map[string]interface{}) (*types.TableDefinition, error) {
+	t, ok := attributes["type"]
+	if !ok {
+		return table, nil
+	}
+
+	nm, ok := t.(string)
+	if !ok {
+		return nil, fmt.Errorf("'type' must is a string, actual type is a %T, actual value is '%v'.", t, t)
+	}
+
+	if nm == table.UnderscoreName {
+		return table, nil
+	}
+
+	defintion := table.FindByUnderscoreName(nm)
+	if nil == defintion {
+		return nil, errors.New("table '" + nm + "' is not exists.")
+	}
+
+	if !defintion.IsSubclassOf(table) {
+		return nil, errors.New("table '" + nm + "' is not inherit from table '" + table.UnderscoreName + "'")
+	}
+
+	return defintion, nil
+}
 
 func (self *session) insert(table *types.TableDefinition,
 	attributes map[string]interface{}) (int64, error) {
-	if t, ok := attributes["type"]; ok {
-		nm, ok := t.(string)
-		if !ok {
-			return 0, fmt.Errorf("'type' must is a string, actual type is a %T, actual value is '%v'.", t, t)
-		}
-
-		if nm != table.UnderscoreName {
-			if !table.HasChildren() {
-				return 0, errors.New("table '" + nm + "' is not exists.")
-			}
-			defintion := table.Children.FindByUnderscoreName(nm)
-			if nil == defintion {
-				return 0, errors.New("table '" + nm + "' is not exists.")
-			}
-
-			if !defintion.IsSubclassOf(table) {
-				return 0, errors.New("table '" + nm + "' is not inherit from table '" + table.UnderscoreName + "'")
-			}
-
-			table = defintion
-		}
+	var e error
+	table, e = typeFrom(table, attributes)
+	if nil != e {
+		return 0, e
 	}
 
 	var buffer bytes.Buffer
@@ -480,7 +490,6 @@ func (self *session) insert(table *types.TableDefinition,
 	params := make([]interface{}, 0, len(table.Attributes))
 
 	idx := 1
-	var e error
 	for _, attribute := range table.Attributes {
 		//////////////////////////////////////////
 		// TODO: refactor it?
@@ -536,13 +545,12 @@ func (self *session) insert(table *types.TableDefinition,
 	sql := "INSERT INTO " + table.CollectionName + "( " + buffer.String() +
 		" ) VALUES ( " + values.String() + " )"
 
+	var id int64
 	if "postgres" == self.drv {
-		var id int64
 		e = self.db.QueryRow(sql+" RETURNING "+table.Id.Name, params...).Scan(&id)
 		if nil != e {
 			return 0, e
 		}
-		return id, nil
 	} else {
 		res, e := self.db.Exec(sql, params...)
 		if nil != e {
@@ -554,8 +562,93 @@ func (self *session) insert(table *types.TableDefinition,
 				table.CollectionName, affected, e)
 		}
 
-		return res.LastInsertId()
+		id, e = res.LastInsertId()
+		if nil != e {
+			return 0, e
+		}
 	}
+
+	e = self.createChildren(table, id, attributes)
+	if nil != e {
+		return 0, e
+	}
+	return id, nil
+}
+
+func (self *session) createChildren(parent_table *types.TableDefinition,
+	parent_id interface{}, attributes map[string]interface{}) error {
+	for name, v := range attributes {
+		if '$' != name[0] {
+			continue
+		}
+
+		target_table := self.tables.FindByUnderscoreName(name[1:])
+		if nil == target_table {
+			return fmt.Errorf("table '%s' with '%s' is not found ", name[1:], name)
+		}
+
+		assoc := parent_table.GetAssocationByTargetAndTypes(target_table, types.HAS_MANG, types.HAS_MANG)
+		if nil == assoc {
+			return fmt.Errorf("table '%s' is not contains child that name is '%s' at the '%s'",
+				parent_table.Name, name[1:], name)
+		}
+
+		switch a := assoc.(type) {
+		case *types.HasMany:
+			if values, ok := v.([]map[string]interface{}); ok {
+				for _, value := range values {
+					_, e := self.createChild(target_table, parent_table, parent_id, value, a.ForeignKey, a.Polymorphic)
+					if nil != e {
+						return errors.New("save attributes to '" + target_table.Name + "' failed, " + e.Error())
+					}
+				}
+			} else if values, ok := v.([]interface{}); ok {
+				for _, value := range values {
+					attrs, ok := value.(map[string]interface{})
+					if !ok {
+						return fmt.Errorf("value of '%s' is not map[string]interface{}", name)
+					}
+
+					_, e := self.createChild(target_table, parent_table, parent_id, attrs, a.ForeignKey, a.Polymorphic)
+					if nil != e {
+						return errors.New("save attributes to '" + target_table.Name + "' failed, " + e.Error())
+					}
+				}
+			} else {
+				return fmt.Errorf("value of '%s' is not []map[string]interface{}, actual is %T", name, v)
+			}
+		case *types.HasOne:
+			attrs, ok := v.(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("value of '%s' is not map[string]interface{}", name)
+			}
+			_, e := self.createChild(target_table, parent_table, parent_id, attrs, a.ForeignKey, a.Polymorphic)
+			if nil != e {
+				return errors.New("save attributes to '" + target_table.Name + "' failed, " + e.Error())
+			}
+		default:
+			panic("between '" + parent_table.Name + "' and '" + target_table.Name + "' is not hasMany or hasOne")
+		}
+	}
+	return nil
+}
+
+func (self *session) createChild(table, parent_table *types.TableDefinition, parent_id interface{},
+	attributes map[string]interface{}, foreignKey string, is_polymorphic bool) (int64, error) {
+	var e error
+	table, e = typeFrom(table, attributes)
+	if nil != e {
+		return 0, e
+	}
+
+	if is_polymorphic {
+		attributes["parent_type"] = parent_table.UnderscoreName
+		attributes["parent_id"] = parent_id
+	} else {
+		attributes[foreignKey] = parent_id
+	}
+
+	return self.insert(table, attributes)
 }
 
 ////////////////////////// update //////////////////////////

@@ -591,6 +591,9 @@ func (self *ipAddressType) ToInternal(v interface{}) (interface{}, error) {
 }
 
 func (self *ipAddressType) ToExternal(value interface{}) interface{} {
+	if nil == value {
+		return value
+	}
 	switch v := value.(type) {
 	case string:
 		return v
@@ -724,6 +727,9 @@ func (self *physicalAddressType) ToInternal(v interface{}) (interface{}, error) 
 }
 
 func (self *physicalAddressType) ToExternal(value interface{}) interface{} {
+	if nil == value {
+		return value
+	}
 	switch v := value.(type) {
 	case string:
 		return v
@@ -977,6 +983,9 @@ func (self *passwordType) ToInternal(v interface{}) (interface{}, error) {
 }
 
 func (self *passwordType) ToExternal(value interface{}) interface{} {
+	if nil == value {
+		return value
+	}
 	switch v := value.(type) {
 	case string:
 		return v

@@ -96,6 +96,53 @@ func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.T
 			return
 		}
 
+		_, err = conn.Exec("DROP TABLE IF EXISTS employees")
+		if err != nil {
+			t.Fatal(err)
+			t.FailNow()
+			return
+		}
+
+		_, err = conn.Exec("DROP TABLE IF EXISTS managers")
+		if err != nil {
+			t.Fatal(err)
+			t.FailNow()
+			return
+		}
+
+		_, err = conn.Exec("CREATE TABLE employees (ID SERIAL PRIMARY KEY, ID1 int, " +
+			"Name varchar(256), " +
+			"Name2 varchar(256), " +
+			"Age int, " +
+			"Day timestamp with time zone, " +
+			"Mony numeric(9, 4), " +
+			"IP varchar(50), " +
+			"MAC varchar(50), " +
+			"Sex varchar(10)," +
+			"Password varchar(256)," +
+			"company_test_id integer," +
+			"Job varchar(256) )")
+		if err != nil {
+			t.Fatal(err)
+			return
+		}
+
+		_, err = conn.Exec("CREATE TABLE managers (ID SERIAL PRIMARY KEY, ID1 int, " +
+			"Name varchar(256), " +
+			"Name2 varchar(256), " +
+			"Age int, " +
+			"Day timestamp with time zone, " +
+			"Mony numeric(9, 4), " +
+			"IP varchar(50), " +
+			"MAC varchar(50), " +
+			"Sex varchar(10)," +
+			"Password varchar(256)," +
+			"Job varchar(256) )")
+		if err != nil {
+			t.Fatal(err)
+			return
+		}
+
 		_, err = conn.Exec("CREATE TABLE people (ID SERIAL PRIMARY KEY, ID1 int, " +
 			"Name varchar(256), " +
 			"Name2 varchar(256), " +

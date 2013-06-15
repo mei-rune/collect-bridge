@@ -95,7 +95,7 @@ func (self *server) run(db *sql.DB) {
 	}()
 	atomic.AddInt32(&self.activedCount, 1)
 
-	sess := &session{driver: &driver{drv: self.drv, db: db,
+	sess := &session{driver: &driver{drv: self.drv, dbType: GetDBType(self.drv), db: db,
 		isNumericParams: self.isNumericParams}, tables: self.definitions}
 
 	for {
@@ -107,7 +107,9 @@ func (self *server) run(db *sql.DB) {
 			break
 		}
 	}
-	log.Println("server exit")
+	if !is_test {
+		log.Println("server exit")
+	}
 }
 
 func (self *server) call(req *restful.Request,

@@ -379,6 +379,7 @@ type updateBuilder struct {
 	tables          *types.TableDefinitions
 	table           *types.TableDefinition
 	idx             int
+	dbType          int
 	isNumericParams bool
 	buffer          *bytes.Buffer
 	params          []interface{}
@@ -386,6 +387,10 @@ type updateBuilder struct {
 
 func (self *updateBuilder) buildUpdate(updated_attributes map[string]interface{}) error {
 	self.buffer.WriteString("UPDATE ")
+
+	if self.dbType == POSTGRESQL {
+		self.buffer.WriteString(" ONLY ")
+	}
 	self.buffer.WriteString(self.table.CollectionName)
 	self.buffer.WriteString(" SET ")
 	isFirst := true

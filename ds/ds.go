@@ -150,7 +150,6 @@ func Main() {
 
 	restful.Add(ws)
 
-	println("[ds] serving '" + *address + "'")
 	if is_test {
 		//http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
 		//http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
@@ -160,6 +159,7 @@ func Main() {
 		//}
 		//http.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 	} else {
+		println("[ds] serving '" + *address + "'")
 		mux := http.NewServeMux()
 		mux.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
 		mux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))

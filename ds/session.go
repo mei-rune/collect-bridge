@@ -8,6 +8,7 @@ import (
 	"fmt"
 	_ "github.com/lib/pq"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -169,7 +170,7 @@ func (self *session) count(table *types.TableDefinition,
 
 ////////////////////////// query //////////////////////////
 
-func (self *session) findById(table *types.TableDefinition, id string) (map[string]interface{}, error) {
+func (self *session) findById(table *types.TableDefinition, id, includes string) (map[string]interface{}, error) {
 	value, e := table.Id.Type.Parse(id)
 	if nil != e {
 		return nil, fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
@@ -177,24 +178,36 @@ func (self *session) findById(table *types.TableDefinition, id string) (map[stri
 	}
 
 	if table.IsSingleTableInheritance() {
-		goto default_do
+		goto default_query
 	}
 
 	if !table.HasChildren() {
-		goto default_do
+		goto default_query
 	}
 
-	return self.findByIdAndClassTableInheritance(table, id)
+	return self.findByIdAndClassTableInheritance(table, id, includes)
 
-default_do:
+default_query:
 	builder, e := buildSQLQueryWithObjectId(self.driver, table)
 	if nil != e {
 		return nil, e
 	}
-	return builder.Bind(value).Build().One()
+	result, e := builder.Bind(value).Build().One()
+
+	if nil != e {
+		return nil, e
+	}
+
+	if 0 != len(includes) {
+		e = self.loadIncludes(table, result, includes)
+		if nil != e {
+			return nil, e
+		}
+	}
+	return result, nil
 }
 
-func (self *session) findByIdAndClassTableInheritance(table *types.TableDefinition, id string) (map[string]interface{}, error) {
+func (self *session) findByIdAndClassTableInheritance(table *types.TableDefinition, id, includes string) (map[string]interface{}, error) {
 	value, e := table.Id.Type.Parse(id)
 	if nil != e {
 		return nil, fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
@@ -237,12 +250,19 @@ func (self *session) findByIdAndClassTableInheritance(table *types.TableDefiniti
 		if nil == new_table {
 			return nil, errors.New("table name '" + tablename + "' is undefined.")
 		}
-		return self.findById(new_table, id)
+		return self.findById(new_table, id, includes)
 	}
 	res := make(map[string]interface{})
 	res["type"] = table.UnderscoreName
 	for i := 1; i < len(new_columns); i++ {
 		res[new_columns[i].Name] = values[i]
+	}
+
+	if 0 != len(includes) {
+		e = self.loadIncludes(table, res, includes)
+		if nil != e {
+			return nil, e
+		}
 	}
 	return res, nil
 }
@@ -356,15 +376,34 @@ func (self *session) queryByParamsAndClassTableInheritance(table *types.TableDef
 func (self *session) query(table *types.TableDefinition,
 	params map[string]string) ([]map[string]interface{}, error) {
 
+	var results []map[string]interface{}
+	var e error
+
 	if table.IsSingleTableInheritance() {
-		return self.queryByParams(table, true, params)
+		results, e = self.queryByParams(table, true, params)
+		goto end
 	}
 
 	if !table.HasChildren() {
-		return self.queryByParams(table, false, params)
+		results, e = self.queryByParams(table, false, params)
+		goto end
 	}
 
-	return self.queryByParamsAndClassTableInheritance(table, params)
+	results, e = self.queryByParamsAndClassTableInheritance(table, params)
+end:
+	if nil != e {
+		return nil, e
+	}
+
+	if includes, ok := params["includes"]; ok && 0 != len(includes) {
+		for _, result := range results {
+			e = self.loadIncludes(table, result, includes)
+			if nil != e {
+				return nil, e
+			}
+		}
+	}
+	return results, e
 }
 
 func (self *session) whereWithParams(table *types.TableDefinition, isSingleTableInheritance bool,
@@ -447,6 +486,171 @@ func (self *session) whereWithParams(table *types.TableDefinition, isSingleTable
 	}
 
 	return builder.params, nil
+}
+
+func (self *session) loadIncludes(parent_table *types.TableDefinition, parent map[string]interface{}, includes string) error {
+	parent_id := parent["id"]
+	if nil == parent_id {
+		return errors.New("parent id is nil while load children.")
+	}
+	parent_id_str := fmt.Sprint(parent_id)
+
+	if "*" == includes {
+		assocations := parent_table.GetAssocationByTypes(types.HAS_ONE, types.HAS_MANY)
+
+		if nil == assocations || 0 == len(assocations) {
+			return nil
+		}
+		for _, assocation := range assocations {
+			results, e := self.findByParent(parent_table, parent_id_str, assocation, assocation.Target())
+			if nil != e {
+				return e
+			}
+			parent["$"+assocation.Target().UnderscoreName] = results
+		}
+	} else {
+		for _, s := range strings.Split(includes, ",") {
+			target := self.tables.FindByUnderscoreName(s)
+			if nil == target {
+				return errors.New("table '" + s + "' is not found in the includes.")
+			}
+			assocations := parent_table.GetAssocationByTargetAndTypes(target, types.HAS_ONE, types.HAS_MANY)
+			if nil == assocations || 0 == len(assocations) {
+				return errors.New("assocation that to '" + s + "' is not found in the includes.")
+			}
+
+			for _, assocation := range assocations {
+				results, e := self.findByParent(parent_table, parent_id_str, assocation, target)
+				if nil != e {
+					return e
+				}
+				parent["$"+target.UnderscoreName] = results
+			}
+
+		}
+	}
+	return nil
+}
+
+func (self *session) findByParent(parent_table *types.TableDefinition,
+	parent_id string, assocation types.Assocation,
+	target *types.TableDefinition) ([]map[string]interface{}, error) {
+	var foreignKey string
+	var is_polymorphic bool
+	switch assocation.Type() {
+	case types.HAS_ONE:
+		hasOne := assocation.(*types.HasOne)
+		is_polymorphic = hasOne.Polymorphic
+		foreignKey = hasOne.ForeignKey
+	case types.HAS_MANY:
+		hasMany := assocation.(*types.HasMany)
+		is_polymorphic = hasMany.Polymorphic
+		foreignKey = hasMany.ForeignKey
+	default:
+		return nil, errors.New("unsupported assocation type - " + assocation.Type().String())
+	}
+
+	params := map[string]string{}
+	if is_polymorphic {
+		params["@parent_type"] = parent_table.UnderscoreName
+		params["@parent_id"] = parent_id
+	} else {
+		params["@"+foreignKey] = parent_id
+	}
+	return self.query(target, params)
+}
+
+func (self *session) children(parent_table *types.TableDefinition, parent_id string,
+	target *types.TableDefinition, foreignKey string) ([]map[string]interface{}, error) {
+	assocation, e := parent_table.GetAssocation(target, foreignKey, types.HAS_MANY, types.HAS_ONE)
+	if nil != e {
+		return nil, e
+	}
+	return self.findByParent(parent_table, parent_id, assocation, target)
+}
+
+func (self *session) parentBy(child_table *types.TableDefinition, child_id string,
+	assocation types.Assocation, target *types.TableDefinition) (map[string]interface{}, error) {
+	var foreignKey string
+	var is_polymorphic bool
+	switch assocation.Type() {
+	case types.HAS_ONE:
+		hasOne := assocation.(*types.HasOne)
+		is_polymorphic = hasOne.Polymorphic
+		foreignKey = hasOne.ForeignKey
+	case types.HAS_MANY:
+		hasMany := assocation.(*types.HasMany)
+		is_polymorphic = hasMany.Polymorphic
+		foreignKey = hasMany.ForeignKey
+	default:
+		return nil, errors.New("unsupported assocation type - " + assocation.Type().String())
+	}
+
+	res, e := self.findById(child_table, child_id, "")
+	if nil != e {
+		return nil, e
+	}
+
+	if is_polymorphic {
+		v := res["parent_type"]
+		if nil == v {
+			return nil, errors.New("'parent_type' is nil in the result")
+		}
+
+		parent_type, ok := v.(string)
+		if !ok {
+			return nil, errors.New("'parent_type' is not a string in the result")
+		}
+
+		parent := self.tables.FindByUnderscoreName(parent_type)
+		if nil == parent {
+			return nil, errors.New(" table '" + parent_type + "' is not exists.")
+		}
+
+		if parent != target && parent.IsSubclassOf(target) {
+			return nil, errors.New(" table '" + parent_type +
+				"' is not a subclass of table '" + target.UnderscoreName + "'.")
+		}
+
+		v = res["parent_id"]
+		if nil == v {
+			return nil, errors.New("'parent_id' is nil in the result")
+		}
+
+		parent_id := fmt.Sprint(v)
+		return self.findById(parent, parent_id, "")
+	}
+
+	id := res[foreignKey]
+	if nil == id {
+		return nil, errors.New("'" + foreignKey + "' is not exists in the result.")
+	}
+
+	return self.findById(target, fmt.Sprint(id), "")
+
+}
+
+func (self *session) parent(child_table *types.TableDefinition, child_id string,
+	target *types.TableDefinition, foreignKey string) (map[string]interface{}, error) {
+	assocation, e := child_table.GetAssocation(target, foreignKey, types.BELONGS_TO)
+	if nil != e {
+		assocation, e := target.GetAssocation(child_table, foreignKey, types.HAS_MANY, types.HAS_ONE)
+		if nil != e {
+			return nil, e
+		}
+		return self.parentBy(child_table, child_id, assocation, target)
+	}
+	belongsTo := assocation.(*types.BelongsTo)
+	res, e := self.findById(child_table, child_id, "")
+	if nil != e {
+		return nil, e
+	}
+	id := res[belongsTo.Name.Name]
+	if nil == id {
+		return nil, errors.New("'" + belongsTo.Name.Name + "' is not exists in the result.")
+	}
+
+	return self.findById(target, fmt.Sprint(id), "")
 }
 
 ////////////////////////// insert //////////////////////////
@@ -587,13 +791,17 @@ func (self *session) createChildren(parent_table *types.TableDefinition,
 			return fmt.Errorf("table '%s' with '%s' is not found ", name[1:], name)
 		}
 
-		assoc := parent_table.GetAssocationByTargetAndTypes(target_table, types.HAS_MANG, types.HAS_MANG)
+		assoc := parent_table.GetAssocationByTargetAndTypes(target_table, types.HAS_MANY, types.HAS_MANY)
 		if nil == assoc {
 			return fmt.Errorf("table '%s' is not contains child that name is '%s' at the '%s'",
 				parent_table.Name, name[1:], name)
 		}
+		if 1 != len(assoc) {
+			return fmt.Errorf("table '%s' is contains %v children that name is '%s' at the '%s'",
+				parent_table.Name, len(assoc), name[1:], name)
+		}
 
-		switch a := assoc.(type) {
+		switch a := assoc[0].(type) {
 		case *types.HasMany:
 			if values, ok := v.([]map[string]interface{}); ok {
 				for _, value := range values {

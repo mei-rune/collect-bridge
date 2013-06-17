@@ -104,6 +104,32 @@ func Main() {
 	ws.Consumes(restful.MIME_XML, restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML) // you can specify this per route as well
 
+	ws.Route(ws.GET("/{parent_type}/{parent_id}/children/{type}/{foreign_key}").To(srv.Children).
+		Doc("get a object instance by parent id").
+		Param(ws.PathParameter("parent_type", "type of the parent").DataType("string")).
+		Param(ws.PathParameter("parent_id", "id of the parent").DataType("string")).
+		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
+		Param(ws.PathParameter("foreign_key", "foreign key of the parant").DataType("string"))) // on the response
+
+	ws.Route(ws.GET("/{parent_type}/{parent_id}/children/{type}").To(srv.Children).
+		Doc("get a object instance by parent id").
+		Param(ws.PathParameter("parent_type", "type of the parent").DataType("string")).
+		Param(ws.PathParameter("parent_id", "id of the parent").DataType("string")).
+		Param(ws.PathParameter("type", "type of the instance").DataType("string"))) // on the response
+
+	ws.Route(ws.GET("/{child_type}/{child_id}/parent/{type}/{foreign_key}").To(srv.Parent).
+		Doc("get a object instance by child id").
+		Param(ws.PathParameter("child_type", "type of the child").DataType("string")).
+		Param(ws.PathParameter("child_id", "id of the child").DataType("string")).
+		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
+		Param(ws.PathParameter("foreign_key", "foreign key of the child").DataType("string"))) // on the response
+
+	ws.Route(ws.GET("/{child_type}/{child_id}/parent/{type}").To(srv.Parent).
+		Doc("get a object instance by child id").
+		Param(ws.PathParameter("child_type", "type of the child").DataType("string")).
+		Param(ws.PathParameter("child_id", "id of the child").DataType("string")).
+		Param(ws.PathParameter("type", "type of the instance").DataType("string"))) // on the response
+
 	ws.Route(ws.GET("/{type}/{id}").To(srv.FindById).
 		Doc("get a object instance").
 		Param(ws.PathParameter("type", "type of the instance").DataType("string")).

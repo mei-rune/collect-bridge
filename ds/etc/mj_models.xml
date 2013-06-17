@@ -124,8 +124,8 @@
       </restriction>
     </property>
 
-    <belongs_to foreignKey="device1" >Device</belongs_to>
-    <belongs_to foreignKey="device2" >Device</belongs_to>
+    <belongs_to name="device1" >Device</belongs_to>
+    <belongs_to name="device2" >Device</belongs_to>
   </class>
 
   <class name="Attributes">

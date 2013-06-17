@@ -128,17 +128,21 @@ func TestSimpleInsert(t *testing.T) {
 			return
 		}
 
-		result, err := db.findById(person, fmt.Sprint(id))
+		result, err := db.findById(person, fmt.Sprint(id), "")
 		if nil != err {
 			t.Error(err)
 		} else {
-			if (len(person1_attributes) + 1) != len(result) {
-				t.Errorf("(len(person1_attributes)+1) != len(result), excepted is %d, actual is %d.",
+			if (len(person1_attributes) + 2) != len(result) {
+				t.Errorf("(len(person1_attributes)+2) != len(result), excepted is %d, actual is %d.",
 					len(person1_attributes), len(result))
 			}
 
 			for k, v2 := range result {
 				if person.Id.Name == k {
+					continue
+				}
+
+				if "type" == k {
 					continue
 				}
 
@@ -176,17 +180,21 @@ func TestSimpleUpdateById(t *testing.T) {
 			return
 		}
 
-		result, err := db.findById(person, fmt.Sprint(id))
+		result, err := db.findById(person, fmt.Sprint(id), "")
 		if nil != err {
 			t.Error(err)
 		} else {
-			if (len(person1_attributes) + 1) != len(result) {
-				t.Errorf("(len(person1_attributes)+1) != len(result), excepted is %d, actual is %d.",
+			if (len(person1_attributes) + 2) != len(result) {
+				t.Errorf("(len(person1_attributes)+2) != len(result), excepted is %d, actual is %d.",
 					len(person1_attributes), len(result))
 			}
 
 			for k, v2 := range result {
 				if person.Id.Name == k {
+					continue
+				}
+
+				if "type" == k {
 					continue
 				}
 
@@ -235,17 +243,21 @@ func TestSimpleUpdateByParams(t *testing.T) {
 			return
 		}
 
-		result, err := db.findById(person, fmt.Sprint(id))
+		result, err := db.findById(person, fmt.Sprint(id), "")
 		if nil != err {
 			t.Error(err)
 		} else {
-			if (len(person1_attributes) + 1) != len(result) {
-				t.Errorf("(len(person1_attributes)+1) != len(result), excepted is %d, actual is %d.",
+			if (len(person1_attributes) + 2) != len(result) {
+				t.Errorf("(len(person1_attributes)+2) != len(result), excepted is %d, actual is %d.",
 					len(person1_attributes), len(result))
 			}
 
 			for k, v2 := range result {
 				if person.Id.Name == k {
+					continue
+				}
+
+				if "type" == k {
 					continue
 				}
 
@@ -281,7 +293,7 @@ func TestSimpleFindById(t *testing.T) {
 			return
 		}
 
-		db_attributes, err := db.findById(person, fmt.Sprint(id))
+		db_attributes, err := db.findById(person, fmt.Sprint(id), "")
 		if nil != err {
 			t.Errorf(err.Error())
 			return
@@ -289,6 +301,10 @@ func TestSimpleFindById(t *testing.T) {
 
 		for k, v2 := range db_attributes {
 			if person.Id.Name == k {
+				continue
+			}
+
+			if "type" == k {
 				continue
 			}
 
@@ -349,6 +365,10 @@ func TestSimpleFindById(t *testing.T) {
 // 				continue
 // 			}
 
+// if "type" == k {
+// 	continue
+// }
+
 // 			v1, ok := person1_saved_attributes[k]
 // 			if !ok {
 // 				t.Error("'" + k + "' is not exists.")
@@ -391,6 +411,10 @@ func TestSimpleFindByParams(t *testing.T) {
 				continue
 			}
 
+			if "type" == k {
+				continue
+			}
+
 			v1, ok := person1_saved_attributes[k]
 			if !ok {
 				t.Error("'" + k + "' is not exists.")
@@ -422,7 +446,7 @@ func TestSimpleDeleteById(t *testing.T) {
 			return
 		}
 
-		_, err = db.findById(person, fmt.Sprint(id))
+		_, err = db.findById(person, fmt.Sprint(id), "")
 		if nil == err {
 			t.Errorf("delete failed, becase refind sucessed")
 			return
@@ -458,7 +482,7 @@ func TestSimpleDeleteByParams(t *testing.T) {
 			return
 		}
 
-		_, err = db.findById(person, fmt.Sprint(id))
+		_, err = db.findById(person, fmt.Sprint(id), "")
 		if nil == err {
 			t.Errorf("delete failed, becase refind sucessed")
 			return

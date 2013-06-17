@@ -190,13 +190,16 @@ func TestSrvInsert(t *testing.T) {
 		if nil != err {
 			t.Error(err)
 		} else {
-			if (len(person1_attributes) + 1) != len(result) {
-				t.Errorf("(len(person1_attributes)+1) != len(result), excepted is %d, actual is %d.",
+			if (len(person1_attributes) + 2) != len(result) {
+				t.Errorf("(len(person1_attributes)+2) != len(result), excepted is %d, actual is %d.",
 					len(person1_attributes), len(result))
 			}
 
 			for k, v2 := range convert(person, result) {
 				if "id" == k {
+					continue
+				}
+				if "type" == k {
 					continue
 				}
 
@@ -238,13 +241,16 @@ func TestSrvUpdateById(t *testing.T) {
 		if nil != err {
 			t.Error(err)
 		} else {
-			if (len(person1_attributes) + 1) != len(result) {
-				t.Errorf("(len(person1_attributes)+1) != len(result), excepted is %d, actual is %d.",
+			if (len(person1_attributes) + 2) != len(result) {
+				t.Errorf("(len(person1_attributes)+2) != len(result), excepted is %d, actual is %d.",
 					len(person1_attributes), len(result))
 			}
 
 			for k, v2 := range convert(person, result) {
 				if person.Id.Name == k {
+					continue
+				}
+				if "type" == k {
 					continue
 				}
 
@@ -297,13 +303,16 @@ func TestSrvUpdateByParams(t *testing.T) {
 		if nil != err {
 			t.Error(err)
 		} else {
-			if (len(person1_attributes) + 1) != len(result) {
-				t.Errorf("(len(person1_attributes)+1) != len(result), excepted is %d, actual is %d.",
+			if (len(person1_attributes) + 2) != len(result) {
+				t.Errorf("(len(person1_attributes)+2) != len(result), excepted is %d, actual is %d.",
 					len(person1_attributes), len(result))
 			}
 
 			for k, v2 := range convert(person, result) {
 				if person.Id.Name == k {
+					continue
+				}
+				if "type" == k {
 					continue
 				}
 

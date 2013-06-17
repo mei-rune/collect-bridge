@@ -181,7 +181,7 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 			return commons.Return(res)
 		}
 
-		res, e := db.findById(defintion, id)
+		res, e := db.findById(defintion, id, req.QueryParameter("includes"))
 		if nil != e {
 			if sql.ErrNoRows == e {
 				return commons.ReturnError(commons.NotFoundCode, e.Error())
@@ -220,7 +220,21 @@ func (self *server) FindByParams(req *restful.Request, resp *restful.Response) {
 
 func (self *server) Children(req *restful.Request, resp *restful.Response) {
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
-		t := req.PathParameter("type")
+		t := req.PathParameter("parent_type")
+		if 0 == len(t) {
+			return commons.ReturnError(commons.IsRequiredCode, "'parent_type' is required.")
+		}
+		parent_type := self.definitions.FindByUnderscoreName(t)
+		if nil == parent_type {
+			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+		}
+
+		parent_id := req.PathParameter("parent_id")
+		if 0 == len(parent_id) {
+			return commons.ReturnError(commons.IsRequiredCode, "'parent_id' is required.")
+		}
+
+		t = req.PathParameter("type")
 		if 0 == len(t) {
 			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
 		}
@@ -229,32 +243,47 @@ func (self *server) Children(req *restful.Request, resp *restful.Response) {
 			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
 		}
 
-		id := req.PathParameter("id")
-		if 0 == len(id) {
-			return commons.ReturnError(commons.IsRequiredCode, "'id' is required.")
+		res, e := db.children(parent_type, parent_id, defintion, req.PathParameter("foreign_key"))
+		if nil != e {
+			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		}
 
-		return commons.ReturnError(commons.NotImplementedCode, "NOT IMPLEMENTED")
+		return commons.Return(res)
 	})
 }
 
 func (self *server) Parent(req *restful.Request, resp *restful.Response) {
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
-		t := req.PathParameter("type")
+		t := req.PathParameter("child_type")
+		if 0 == len(t) {
+			return commons.ReturnError(commons.IsRequiredCode, "'child_type' is required.")
+		}
+		child_type := self.definitions.FindByUnderscoreName(t)
+		if nil == child_type {
+			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+		}
+
+		child_id := req.PathParameter("child_id")
+		if 0 == len(child_id) {
+			return commons.ReturnError(commons.IsRequiredCode, "'child_id' is required.")
+		}
+
+		t = req.PathParameter("type")
 		if 0 == len(t) {
 			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
 		}
+
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
 			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
 		}
 
-		id := req.PathParameter("id")
-		if 0 == len(id) {
-			return commons.ReturnError(commons.IsRequiredCode, "'id' is required.")
+		res, e := db.parent(child_type, child_id, defintion, req.PathParameter("foreign_key"))
+		if nil != e {
+			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		}
 
-		return commons.ReturnError(commons.NotImplementedCode, "NOT IMPLEMENTED")
+		return commons.Return(res)
 	})
 }
 

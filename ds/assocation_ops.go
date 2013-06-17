@@ -23,7 +23,7 @@ func init() {
 	assocationOps[types.BELONGS_TO] = &assocationOp{}
 	assocationOps[types.HAS_ONE] = &assocationOp{deleteById: deleteByIdWithHasOne,
 		deleteAll: deleteAllWithHasOne}
-	assocationOps[types.HAS_MANG] = &assocationOp{deleteById: deleteByIdWithHasMany,
+	assocationOps[types.HAS_MANY] = &assocationOp{deleteById: deleteByIdWithHasMany,
 		deleteAll: deleteAllWithHasMany}
 	assocationOps[types.HAS_AND_BELONGS_TO_MANY] = &assocationOp{deleteById: deleteByIdWithMany2Many,
 		deleteAll: deleteAllWithMany2Many}

@@ -2,13 +2,30 @@ package types
 
 import (
 	"bytes"
+	"errors"
+	"strconv"
 )
 
 type AssocationType int
 
+func (self AssocationType) String() string {
+	switch self {
+	case BELONGS_TO:
+		return "belongs_to"
+	case HAS_ONE:
+		return "has_one"
+	case HAS_MANY:
+		return "has_many"
+	case HAS_AND_BELONGS_TO_MANY:
+		return "has_and_belongs_to_many"
+	default:
+		return "assocation-" + strconv.Itoa(int(self))
+	}
+}
+
 const (
 	BELONGS_TO              AssocationType = 1
-	HAS_MANG                AssocationType = 2
+	HAS_MANY                AssocationType = 2
 	HAS_ONE                 AssocationType = 3
 	HAS_AND_BELONGS_TO_MANY AssocationType = 4
 )
@@ -38,7 +55,7 @@ type HasMany struct {
 }
 
 func (self *HasMany) Type() AssocationType {
-	return HAS_MANG
+	return HAS_MANY
 }
 
 func (self *HasMany) Target() *TableDefinition {
@@ -196,23 +213,83 @@ func (self *TableDefinition) String() string {
 	return buffer.String()
 }
 
-func (self *TableDefinition) GetAssocationByTarget(cls *TableDefinition) Assocation {
+func (self *TableDefinition) GetAssocation(target *TableDefinition,
+	foreignKeyOrName string,
+	types ...AssocationType) (Assocation, error) {
+	assocations := self.GetAssocationByTargetAndTypes(target, types...)
+	if nil == assocations || 0 == len(assocations) {
+		return nil, errors.New("table '" + self.UnderscoreName + "' and table '" +
+			target.UnderscoreName + "' has not assocations.")
+	}
+
+	if 0 == len(foreignKeyOrName) {
+		if 1 != len(assocations) {
+			return nil, errors.New("table '" + self.UnderscoreName + "' and table '" +
+				target.UnderscoreName + "' has some assocations, count isn`t equals 1.")
+		}
+		return assocations[0], nil
+	}
+
+	for _, assocation := range assocations {
+		switch assocation.Type() {
+		case HAS_ONE:
+			hasOne := assocation.(*HasOne)
+			if hasOne.ForeignKey == foreignKeyOrName {
+				return hasOne, nil
+			}
+
+		case HAS_MANY:
+			hasMany := assocation.(*HasMany)
+			if hasMany.ForeignKey == foreignKeyOrName {
+				return hasMany, nil
+			}
+
+		case BELONGS_TO:
+			belongsTo := assocation.(*BelongsTo)
+			if belongsTo.Name.Name == foreignKeyOrName {
+				return belongsTo, nil
+			}
+		default:
+			return nil, errors.New("Unsupported Assocation - " + assocation.Type().String())
+		}
+	}
+	return nil, errors.New("Such assocation is not exists.")
+}
+
+func (self *TableDefinition) GetAssocationByTarget(cls *TableDefinition) []Assocation {
+	var assocations []Assocation
+
 	if nil != self.Assocations {
 		for _, assoc := range self.Assocations {
 			if cls.IsSubclassOf(assoc.Target()) {
-				return assoc
+				assocations = append(assocations, assoc)
 			}
 		}
 	}
-	if nil != self.Super {
+
+	if nil == self.Super {
+		return assocations
+	}
+
+	if nil == assocations {
 		return self.Super.GetAssocationByTarget(cls)
 	}
-	return nil
+
+	res := self.Super.GetAssocationByTarget(cls)
+	if nil != res {
+		assocations = append(assocations, res...)
+	}
+
+	return assocations
+}
+
+func (self *TableDefinition) GetAssocationByTypes(assocationTypes ...AssocationType) []Assocation {
+	return self.GetAssocationByTargetAndTypes(nil, assocationTypes...)
 }
 
 func (self *TableDefinition) GetAssocationByTargetAndTypes(cls *TableDefinition,
-	assocationTypes ...AssocationType) Assocation {
-
+	assocationTypes ...AssocationType) []Assocation {
+	var assocations []Assocation
 	if nil != self.Assocations {
 		for _, assoc := range self.Assocations {
 			found := false
@@ -225,15 +302,26 @@ func (self *TableDefinition) GetAssocationByTargetAndTypes(cls *TableDefinition,
 			if !found {
 				continue
 			}
-			if cls.IsSubclassOf(assoc.Target()) {
-				return assoc
+			if nil == cls || cls.IsSubclassOf(assoc.Target()) {
+				assocations = append(assocations, assoc)
 			}
 		}
 	}
-	if nil != self.Super {
+
+	if nil == self.Super {
+		return assocations
+	}
+
+	if nil == assocations {
 		return self.Super.GetAssocationByTargetAndTypes(cls, assocationTypes...)
 	}
-	return nil
+
+	res := self.Super.GetAssocationByTargetAndTypes(cls, assocationTypes...)
+	if nil != res {
+		assocations = append(assocations, res...)
+	}
+
+	return assocations
 }
 
 type TableDefinitions struct {

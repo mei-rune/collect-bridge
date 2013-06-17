@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"commons"
-	"commons/errutils"
 	"commons/netutils"
 	"fmt"
 	"net"
@@ -51,7 +50,7 @@ type Discoverer struct {
 func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Discoverer, commons.RuntimeError) {
 
 	if nil == params {
-		return nil, errutils.InternalError("params is nil.")
+		return nil, commons.InternalError("params is nil.")
 	}
 	if 0 >= params.Timeout {
 		params.Timeout = 10
@@ -74,7 +73,7 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 
 	// icmp_pinger, err := netutils.NewPingers(nil, 10000)
 	// if nil != err {
-	//	return nil, errutils.InternalError("icmp failed, " + err.Error())
+	//	return nil, commons.InternalError("icmp failed, " + err.Error())
 	// }
 
 	snmp_pinger := snmp.NewPingers(10000)
@@ -88,25 +87,25 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 	for _, community := range params.Communities {
 		err := snmp_pinger.Listen("udp4", "0.0.0.0:0", snmp.SNMP_V2C, community)
 		if nil != err {
-			return nil, errutils.InternalError("snmp failed, " + err.Error())
+			return nil, commons.InternalError("snmp failed, " + err.Error())
 		}
 	}
 
 	snmp_drv, ok := drvMgr.Connect("snmp")
 	if !ok {
-		return nil, errutils.InternalError("snmp failed, driver is not found.")
+		return nil, commons.InternalError("snmp failed, driver is not found.")
 	}
 
 	metrics_drv, ok := drvMgr.Connect("metrics")
 	if !ok {
-		return nil, errutils.InternalError("metrics failed, driver is not found.")
+		return nil, commons.InternalError("metrics failed, driver is not found.")
 	}
 
 	discoverer := &Discoverer{params: params,
 		ch:         make(chan string, 1000),
 		drv_ch:     make(chan Device),
-		control_ch: make(chan map[string]interface{}),
-		result_ch:  make(chan commons.RuntimeError),
+		control_ch: make(chan map[string]interface{}, 100),
+		result_ch:  make(chan commons.RuntimeError, 1),
 		//icmp_pinger: icmp_pinger,
 		snmp_pinger: snmp_pinger,
 		snmp_drv:    snmp_drv,
@@ -128,18 +127,18 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 }
 
 func (self *Discoverer) readMetric(drv Device, name string) (interface{}, error) {
-	params := drv["$access_params"]
+	params := drv["$access_param"]
 	if nil == params {
 		return nil, fmt.Errorf("access params of %v is not exists.", drv["address"])
 	}
 
-	access_params, _ := params.([]interface{})
-	if nil == access_params || 0 == len(access_params) {
+	access_param, _ := params.([]interface{})
+	if nil == access_param || 0 == len(access_param) {
 		return nil, fmt.Errorf("access params of %v is empty.", drv["address"])
 	}
-	for _, param := range access_params {
+	for _, param := range access_param {
 		p, _ := param.(map[string]interface{})
-		if nil == p || "snmp_params" != p["type"] {
+		if nil == p || "snmp_param" != p["type"] {
 			continue
 		}
 		metric_params := map[string]string{"id": drv["address"].(string), "metric": name, "charset": "GB18030"}
@@ -407,7 +406,7 @@ func (self *Discoverer) pollAddress() {
 			continue
 		}
 
-		drv := Device{"address": addr, "$access_params": []interface{}{map[string]interface{}{"type": "snmp_params", "address": addr,
+		drv := Device{"address": addr, "$access_param": []interface{}{map[string]interface{}{"type": "snmp_param", "address": addr,
 			"port": port, "version": reply.Version.String(), "community": reply.Community}}}
 		e := self.initDevice(drv)
 		if nil != e {

@@ -71,9 +71,8 @@ func newpinger(network, laddr string, wait *sync.WaitGroup, ch chan *PingResult,
 // }
 
 func (self *internal_pinger) closeIO() {
-	self.conn.Close()
 	atomic.StoreInt32(&self.is_running, 0)
-
+	self.conn.Close()
 }
 
 func (self *internal_pinger) Close() {

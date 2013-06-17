@@ -65,7 +65,7 @@ var (
 	js = map[string]interface{}{
 		"$access_param": []map[string]interface{}{snmp_params, wbem_params},
 		"$address":      []interface{}{ip1, ip2, ip3},
-		"$interface":    []interface{}{if1, if2},
+		"$interface":    map[string]interface{}{"1": if1, "9": if2},
 		"$trigger":      []interface{}{rule1, rule2},
 		"address":       "192.168.1.9",
 		"catalog":       2,

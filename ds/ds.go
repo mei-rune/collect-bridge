@@ -1,16 +1,19 @@
 package ds
 
 import (
+	"commons"
 	"commons/as"
 	"expvar"
 	"flag"
 	"fmt"
 	"github.com/runner-mei/go-restful"
+	"log"
 	"net/http"
-	"net/http/pprof"
+	_ "net/http/pprof"
 	"os"
 	"path"
-	rpprof "runtime/pprof"
+	"path/filepath"
+	_ "runtime/pprof"
 )
 
 var (
@@ -55,7 +58,6 @@ func mainHandle(req *restful.Request, resp *restful.Response) {
 // http://localhost:8080/static/test.xml
 // http://localhost:8080/static/
 func staticFromPathParam(req *restful.Request, resp *restful.Response) {
-	fmt.Println("get " + path.Join(*directory, req.PathParameter("resource")))
 	http.ServeFile(
 		resp.ResponseWriter,
 		req.Request,
@@ -82,6 +84,13 @@ func Main() {
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
 		return
+	}
+
+	if !commons.FileExists(*models_file) {
+		file := filepath.Join("..", *models_file)
+		if commons.FileExists(file) {
+			*models_file = file
+		}
 	}
 	srv, e := NewServer(*drv, *dbUrl, *models_file, *goroutines)
 	if nil != e {
@@ -177,6 +186,7 @@ func Main() {
 	restful.Add(ws)
 
 	if is_test {
+		fmt.Println("this is a test")
 		//http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
 		//http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
 		//http.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
@@ -185,15 +195,15 @@ func Main() {
 		//}
 		//http.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 	} else {
-		println("[ds] serving '" + *address + "'")
-		mux := http.NewServeMux()
-		mux.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
-		mux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-		mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-		for _, pf := range rpprof.Profiles() {
-			mux.Handle("/debug/pprof/"+pf.Name(), pprof.Handler(pf.Name()))
-		}
-		mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-		http.ListenAndServe(*address, mux)
+		log.Println("[ds] serving '" + *address + "'")
+		// mux := http.NewServeMux()
+		// mux.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
+		// mux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+		// mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+		// for _, pf := range rpprof.Profiles() {
+		// 	mux.Handle("/debug/pprof/"+pf.Name(), pprof.Handler(pf.Name()))
+		// }
+		// mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+		http.ListenAndServe(*address, nil)
 	}
 }

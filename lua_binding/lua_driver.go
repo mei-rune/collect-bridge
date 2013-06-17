@@ -273,7 +273,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 			ctx.StringValue, _ = ctx.ToStringParam(3)
 		},
 		Write: func(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
-			drv.INFO.Printf("log ================ [%v]%v", ctx.IntValue, ctx.StringValue)
+			//drv.INFO.Printf("log ================ [%v]%v", ctx.IntValue, ctx.StringValue)
 			//drv.INFO.Print(ctx.StringValue)
 			switch {
 			case 9000 <= ctx.IntValue:

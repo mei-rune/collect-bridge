@@ -420,6 +420,13 @@ func (self *AnyValue) AsString() (string, error) {
 	return as.AsString(self.Value)
 }
 
+func (self *AnyValue) AsArray() ([]interface{}, error) {
+	if m, ok := self.Value.([]interface{}); ok {
+		return m, nil
+	}
+	return nil, as.IsNotArray
+}
+
 func (self *AnyValue) AsObject() (map[string]interface{}, error) {
 	if m, ok := self.Value.(map[string]interface{}); ok {
 		return m, nil

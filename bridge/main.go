@@ -32,8 +32,13 @@ func main() {
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
+		fmt.Println("bridge serving at '" + *address + "'")
+		os.Stdin.Read(make([]byte, 0, 100))
 		return
 	}
+
+	fmt.Println("bridge serving at '" + *address + "'")
+	os.Stdin.Read(make([]byte, 0, 100))
 
 	svr := web.NewServer()
 	svr.Config.Name = "meijing-bridge v1.0"
@@ -75,5 +80,6 @@ func main() {
 	}
 	registerBridge(svr, drvMgr)
 
+	fmt.Println("bridge serving at '" + *address + "'")
 	svr.Run()
 }

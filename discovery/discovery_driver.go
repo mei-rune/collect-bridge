@@ -122,6 +122,7 @@ func (self *DiscoveryDriver) Delete(params map[string]string) commons.Result {
 	if !ok {
 		return commons.ReturnWithError(commons.RecordNotFound(id))
 	}
+
 	delete(self.discoverers, id)
 	discoverer.Close()
 

@@ -38,6 +38,10 @@ func NewServer(drv, dbUrl, file string, goroutines int) (*server, error) {
 		return nil, fmt.Errorf("read file '%s' failed, %s", file, e.Error())
 	}
 
+	if !is_test {
+		log.Println("[ds] load '" + file + "'")
+	}
+
 	if 0 >= goroutines {
 		return nil, fmt.Errorf("goroutines must is greate 0")
 	}

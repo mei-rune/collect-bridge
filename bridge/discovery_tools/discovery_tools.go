@@ -3,12 +3,12 @@ package main
 import (
 	"bytes"
 	"commons"
+	"ds"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"mdb"
 	"net/http"
 	"os"
 	"strings"
@@ -20,7 +20,7 @@ var (
 	network     = flag.String("ip-range", "", "the ip range")
 	communities = flag.String("communities", "public;public1", "the community")
 	proxy       = flag.String("proxy", "127.0.0.1:7070", "the address of bridge proxy")
-	dbproxy     = flag.String("dbproxy", "127.0.0.1:7071", "the address of mdb proxy")
+	dbproxy     = flag.String("dbproxy", "127.0.0.1:7071", "the address of ds proxy")
 )
 
 func httpPut(endpoint string, bodyType string, body io.Reader) (*http.Response, error) {
@@ -60,13 +60,13 @@ func discoveryCreate(params map[string]interface{}) (string, error) {
 	if resp.StatusCode != 201 {
 		return "", fmt.Errorf("create discovery failed, %v, %v", resp.StatusCode, readAll(resp.Body))
 	}
-	result := commons.Result{}
+	result := commons.SimpleResult{}
 	e = json.Unmarshal([]byte(readAll(resp.Body)), &result)
 
 	if nil != e {
 		return "", fmt.Errorf("create discovery failed, %v", e)
 	}
-	return result.GetReturnAsString()
+	return result.Value().AsString()
 }
 
 func discoveryGet(id string, params map[string]string) (interface{}, error) {
@@ -82,13 +82,13 @@ func discoveryGet(id string, params map[string]string) (interface{}, error) {
 		return "", fmt.Errorf("get discovery message failed, %v, %v", resp.StatusCode, readAll(resp.Body))
 	}
 	body := readAll(resp.Body)
-	result := commons.Result{}
+	result := commons.SimpleResult{}
 	e = json.Unmarshal([]byte(body), &result)
 	if nil != e {
 		return "", fmt.Errorf("get discovery message failed, %v", e)
 	}
 
-	return result.GetReturn(), nil
+	return result.InterfaceValue(), nil
 }
 func discoveryDelete(id string) error {
 	resp, e := httpDelete("http://" + *proxy + "/discovery/" + id)
@@ -125,26 +125,18 @@ func findDevice(params map[string]string) ([]map[string]interface{}, error) {
 		return nil, fmt.Errorf("get device message failed, %v, %v", resp.StatusCode, readAll(resp.Body))
 	}
 	body := readAll(resp.Body)
-	result := commons.Result{}
+	result := commons.SimpleResult{}
 	e = json.Unmarshal([]byte(body), &result)
 
 	if nil != e {
 		return nil, fmt.Errorf("get device message failed, %v", e)
 	}
 
-	res, ok := result.GetReturn().([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("get device message failed, result is not []interface{}, %T", result.GetReturn())
-	}
-	results := make([]map[string]interface{}, 0, len(res))
-	for _, r := range res {
-		results = append(results, r.(map[string]interface{}))
-	}
-	return results, nil
+	return result.Value().AsObjects()
 }
 
 func save(attributes map[string]interface{}) (string, string, error) {
-	client := mdb.NewClient("http://" + *dbproxy + "/mdb")
+	client := ds.NewClient("http://" + *dbproxy)
 
 	id, e := client.SaveBy("device", map[string]string{"address": fmt.Sprint(attributes["address"])}, attributes)
 	if nil != e {
@@ -159,21 +151,21 @@ func save(attributes map[string]interface{}) (string, string, error) {
 }
 
 func createTriggers(attributes map[string]interface{}) []map[string]interface{} {
-	return []map[string]interface{}{map[string]interface{}{"type": "metric_rule",
+	return []map[string]interface{}{map[string]interface{}{"type": "metric_trigger",
 		"expression": "@every 15s",
 		"name":       "cpu-" + fmt.Sprint(attributes["address"]),
 		"metric":     "cpu",
-		"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "name": "redis-cpu-" + fmt.Sprint(attributes["address"]), "command": "SET", "arg0": "cpu:" + fmt.Sprint(attributes["address"])}}},
-		map[string]interface{}{"type": "metric_rule",
+		"$action":    []interface{}{map[string]interface{}{"type": "redis_command", "name": "redis-cpu-" + fmt.Sprint(attributes["address"]), "command": "SET", "arg0": "cpu:" + fmt.Sprint(attributes["address"])}}},
+		map[string]interface{}{"type": "metric_trigger",
 			"expression": "@every 15s",
 			"name":       "mem-" + fmt.Sprint(attributes["address"]),
 			"metric":     "mem",
-			"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "name": "redis-mem-" + fmt.Sprint(attributes["address"]), "command": "SET", "arg0": "mem:" + fmt.Sprint(attributes["address"])}}},
-		map[string]interface{}{"type": "metric_rule",
+			"$action":    []interface{}{map[string]interface{}{"type": "redis_command", "name": "redis-mem-" + fmt.Sprint(attributes["address"]), "command": "SET", "arg0": "mem:" + fmt.Sprint(attributes["address"])}}},
+		map[string]interface{}{"type": "metric_trigger",
 			"expression": "@every 15s",
 			"name":       "interface-" + fmt.Sprint(attributes["address"]),
 			"metric":     "interface",
-			"$action":    []interface{}{map[string]interface{}{"type": "redis_action", "name": "redis-interface-" + fmt.Sprint(attributes["address"]), "command": "SET", "arg0": "interface:" + fmt.Sprint(attributes["address"])}}}}
+			"$action":    []interface{}{map[string]interface{}{"type": "redis_command", "name": "redis-interface-" + fmt.Sprint(attributes["address"]), "command": "SET", "arg0": "interface:" + fmt.Sprint(attributes["address"])}}}}
 }
 
 func main() {

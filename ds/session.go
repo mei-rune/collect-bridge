@@ -822,6 +822,18 @@ func (self *session) createChildren(parent_table *types.TableDefinition,
 						return errors.New("save attributes to '" + target_table.Name + "' failed, " + e.Error())
 					}
 				}
+			} else if values, ok := v.(map[string]interface{}); ok {
+				for _, value := range values {
+					attrs, ok := value.(map[string]interface{})
+					if !ok {
+						return fmt.Errorf("value of '%s' is not map[string]interface{}", name)
+					}
+
+					_, e := self.createChild(target_table, parent_table, parent_id, attrs, a.ForeignKey, a.Polymorphic)
+					if nil != e {
+						return errors.New("save attributes to '" + target_table.Name + "' failed, " + e.Error())
+					}
+				}
 			} else {
 				return fmt.Errorf("value of '%s' is not []map[string]interface{}, actual is %T", name, v)
 			}

@@ -82,32 +82,6 @@ func writeColumns(columns []*types.ColumnDefinition, buffer *bytes.Buffer) {
 	}
 }
 
-func buildSQLQueryWithObjectId(drv *driver, table *types.TableDefinition) (QueryBuilder, error) {
-	var buffer bytes.Buffer
-	buffer.WriteString("SELECT ")
-	isSingleTableInheritance := table.IsSingleTableInheritance()
-	columns := toColumns(table, isSingleTableInheritance)
-	if nil == columns || 0 == len(columns) {
-		return nil, errors.New("crazy! selected columns is empty.")
-	}
-	writeColumns(columns, &buffer)
-	buffer.WriteString(" FROM ")
-	buffer.WriteString(table.CollectionName)
-	buffer.WriteString(" WHERE ")
-	buffer.WriteString(table.Id.Name)
-	if drv.isNumericParams {
-		buffer.WriteString(" = $1")
-	} else {
-		buffer.WriteString(" = ?")
-	}
-
-	return &QueryImpl{drv: drv,
-		table: table,
-		isSingleTableInheritance: isSingleTableInheritance,
-		columns:                  columns,
-		sql:                      buffer.String()}, nil
-}
-
 type QueryImpl struct {
 	drv                      *driver
 	columns                  []*types.ColumnDefinition

@@ -12,7 +12,7 @@ var (
 )
 
 type assocationOp struct {
-	deleteById func(s *session, assoc types.Assocation, cls *types.TableDefinition, id string) (int64, error)
+	deleteById func(s *session, assoc types.Assocation, cls *types.TableDefinition, id interface{}) (int64, error)
 	deleteAll  func(s *session, assoc types.Assocation, cls *types.TableDefinition) (int64, error)
 	// findOp      func(s *session, assoc types.Assocation, cls *types.TableDefinition, id interface{},
 	// 	peer *types.TableDefinition) ([]map[string]interface{}, error)
@@ -51,37 +51,37 @@ func init() {
 // // 	return s.findBy(peer, map[string]string{"@" + hasMany.ForeignKey: IdString(id)})
 // // }
 
-func deleteByIdWithHasOne(s *session, assoc types.Assocation, cls *types.TableDefinition, id string) (int64, error) {
+func deleteByIdWithHasOne(s *session, assoc types.Assocation, cls *types.TableDefinition, id interface{}) (int64, error) {
 	hasOne, ok := assoc.(*types.HasOne)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasOne.", assoc))
 	}
 	if hasOne.Polymorphic {
-		return s.delete(hasOne.Target(), map[string]string{"@parent_type": cls.UnderscoreName, "@parent_id": id})
+		return s.delete(hasOne.Target(), map[string]string{"@parent_type": cls.UnderscoreName, "@parent_id": fmt.Sprint(id)})
 	} else {
-		return s.delete(hasOne.Target(), map[string]string{"@" + hasOne.ForeignKey: id})
+		return s.delete(hasOne.Target(), map[string]string{"@" + hasOne.ForeignKey: fmt.Sprint(id)})
 	}
 }
 
-func deleteByIdWithHasMany(s *session, assoc types.Assocation, cls *types.TableDefinition, id string) (int64, error) {
+func deleteByIdWithHasMany(s *session, assoc types.Assocation, cls *types.TableDefinition, id interface{}) (int64, error) {
 	hasMany, ok := assoc.(*types.HasMany)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasMay.", assoc))
 	}
 	if hasMany.Polymorphic {
-		return s.delete(hasMany.Target(), map[string]string{"@parent_type": cls.UnderscoreName, "@parent_id": id})
+		return s.delete(hasMany.Target(), map[string]string{"@parent_type": cls.UnderscoreName, "@parent_id": fmt.Sprint(id)})
 	} else {
-		return s.delete(hasMany.Target(), map[string]string{"@" + hasMany.ForeignKey: id})
+		return s.delete(hasMany.Target(), map[string]string{"@" + hasMany.ForeignKey: fmt.Sprint(id)})
 	}
 }
 
-func deleteByIdWithMany2Many(s *session, assoc types.Assocation, cls *types.TableDefinition, id string) (int64, error) {
+func deleteByIdWithMany2Many(s *session, assoc types.Assocation, cls *types.TableDefinition, id interface{}) (int64, error) {
 	habtm, ok := assoc.(*types.HasAndBelongsToMany)
 	if !ok {
 		panic(fmt.Sprintf("it is a %T, please ensure it is a HasAndBelongsToMany.", assoc))
 	}
 
-	return s.delete(habtm.Through, map[string]string{"@" + habtm.ForeignKey: id})
+	return s.delete(habtm.Through, map[string]string{"@" + habtm.ForeignKey: fmt.Sprint(id)})
 }
 
 func deleteAllWithHasOne(s *session, assoc types.Assocation, cls *types.TableDefinition) (int64, error) {
@@ -250,7 +250,7 @@ func (self *session) deleteCascadeAll(table *types.TableDefinition) (int64, erro
 	return deleted_all, nil
 }
 
-func (self *session) deleteCascadeById(table *types.TableDefinition, id string) (int64, error) {
+func (self *session) deleteCascadeById(table *types.TableDefinition, id interface{}) (int64, error) {
 	deleted_all := int64(0)
 	for s := table; nil != s; s = s.Super {
 		for _, a := range s.Assocations {

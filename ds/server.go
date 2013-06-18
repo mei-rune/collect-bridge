@@ -13,23 +13,13 @@ import (
 )
 
 type server struct {
-	drv             string
-	dbUrl           string
-	goroutines      int
-	isNumericParams bool
-	definitions     *types.TableDefinitions
-	activedCount    int32
+	drv          string
+	dbUrl        string
+	goroutines   int
+	definitions  *types.TableDefinitions
+	activedCount int32
 
 	ch chan func(srv *server, db *session) bool
-}
-
-func IsNumericParams(drv string) bool {
-	switch drv {
-	case "postgres":
-		return true
-	default:
-		return false
-	}
 }
 
 func NewServer(drv, dbUrl, file string, goroutines int) (*server, error) {
@@ -47,12 +37,11 @@ func NewServer(drv, dbUrl, file string, goroutines int) (*server, error) {
 	}
 
 	srv := &server{drv: drv,
-		dbUrl:           dbUrl,
-		goroutines:      goroutines,
-		isNumericParams: IsNumericParams(drv),
-		definitions:     definitions,
-		activedCount:    0,
-		ch:              make(chan func(srv *server, db *session) bool)}
+		dbUrl:        dbUrl,
+		goroutines:   goroutines,
+		definitions:  definitions,
+		activedCount: 0,
+		ch:           make(chan func(srv *server, db *session) bool)}
 
 	conns := make([]*sql.DB, 0, goroutines)
 	for i := 0; i < srv.goroutines; i++ {
@@ -99,8 +88,7 @@ func (self *server) run(db *sql.DB) {
 	}()
 	atomic.AddInt32(&self.activedCount, 1)
 
-	sess := &session{driver: &driver{drv: self.drv, dbType: GetDBType(self.drv), db: db,
-		isNumericParams: self.isNumericParams}, tables: self.definitions}
+	sess := &session{driver: newDriver(self.drv, db, self.definitions)}
 
 	for {
 		f := <-self.ch
@@ -163,29 +151,35 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 		if 0 == len(t) {
 			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
 		}
-		defintion := self.definitions.FindByUnderscoreName(t)
-		if nil == defintion {
+		table := self.definitions.FindByUnderscoreName(t)
+		if nil == table {
 			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
 		}
 
-		id := req.PathParameter("id")
-		if 0 == len(id) {
+		t = req.PathParameter("id")
+		if 0 == len(t) {
 			return commons.ReturnError(commons.IsRequiredCode, "'id' is required.")
 		}
 
-		if "@count" == id {
+		if "@count" == t {
 			params := make(map[string]string)
 			for k, v := range req.Request.URL.Query() {
 				params[k] = v[len(v)-1]
 			}
-			res, e := db.count(defintion, params)
+			res, e := db.count(table, params)
 			if nil != e {
 				return commons.ReturnError(commons.InternalErrorCode, e.Error())
 			}
 			return commons.Return(res)
 		}
 
-		res, e := db.findById(defintion, id, req.QueryParameter("includes"))
+		id, e := table.Id.Type.Parse(t)
+		if nil != e {
+			return commons.ReturnError(commons.BadRequestCode, fmt.Sprintf("'id' is not a '%v', actual value is '%v'",
+				table.Id.Type.Name(), t))
+		}
+
+		res, e := db.findById(table, id, req.QueryParameter("includes"))
 		if nil != e {
 			if sql.ErrNoRows == e {
 				return commons.ReturnError(commons.NotFoundCode, e.Error())
@@ -233,9 +227,16 @@ func (self *server) Children(req *restful.Request, resp *restful.Response) {
 			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
 		}
 
-		parent_id := req.PathParameter("parent_id")
-		if 0 == len(parent_id) {
+		t = req.PathParameter("parent_id")
+		if 0 == len(t) {
 			return commons.ReturnError(commons.IsRequiredCode, "'parent_id' is required.")
+		}
+
+		parent_id, e := parent_type.Id.Type.Parse(t)
+		if nil != e {
+			return commons.ReturnError(commons.BadRequestCode,
+				fmt.Sprintf("'parent_id' is not a '%v', actual value is '%v'",
+					parent_type.Id.Type.Name(), t))
 		}
 
 		t = req.PathParameter("type")
@@ -267,9 +268,16 @@ func (self *server) Parent(req *restful.Request, resp *restful.Response) {
 			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
 		}
 
-		child_id := req.PathParameter("child_id")
-		if 0 == len(child_id) {
+		t = req.PathParameter("child_id")
+		if 0 == len(t) {
 			return commons.ReturnError(commons.IsRequiredCode, "'child_id' is required.")
+		}
+
+		child_id, e := child_type.Id.Type.Parse(t)
+		if nil != e {
+			return commons.ReturnError(commons.BadRequestCode,
+				fmt.Sprintf("'child_id' is not a '%v', actual value is '%v'",
+					child_type.Id.Type.Name(), t))
 		}
 
 		t = req.PathParameter("type")
@@ -297,23 +305,30 @@ func (self *server) UpdateById(req *restful.Request, resp *restful.Response) {
 		if 0 == len(t) {
 			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
 		}
-		defintion := self.definitions.FindByUnderscoreName(t)
-		if nil == defintion {
+		table := self.definitions.FindByUnderscoreName(t)
+		if nil == table {
 			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
 		}
 
-		id := req.PathParameter("id")
-		if 0 == len(id) {
+		t = req.PathParameter("id")
+		if 0 == len(t) {
 			return commons.ReturnError(commons.IsRequiredCode, "'id' is required.")
 		}
 
+		id, e := table.Id.Type.Parse(t)
+		if nil != e {
+			return commons.ReturnError(commons.BadRequestCode,
+				fmt.Sprintf("'id' is not a '%v', actual value is '%v'",
+					table.Id.Type.Name(), t))
+		}
+
 		var attributes map[string]interface{}
-		e := req.ReadEntity(&attributes)
+		e = req.ReadEntity(&attributes)
 		if nil != e {
 			return commons.ReturnError(commons.BadRequestCode, "read body failed - "+e.Error())
 		}
 
-		e = db.updateById(defintion, id, attributes)
+		e = db.updateById(table, id, attributes)
 		if nil != e {
 			if sql.ErrNoRows == e {
 				return commons.ReturnError(commons.NotFoundCode, e.Error())
@@ -359,17 +374,24 @@ func (self *server) DeleteById(req *restful.Request, resp *restful.Response) {
 		if 0 == len(t) {
 			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
 		}
-		defintion := self.definitions.FindByUnderscoreName(t)
-		if nil == defintion {
+		table := self.definitions.FindByUnderscoreName(t)
+		if nil == table {
 			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
 		}
 
-		id := req.PathParameter("id")
-		if 0 == len(id) {
+		t = req.PathParameter("id")
+		if 0 == len(t) {
 			return commons.ReturnError(commons.IsRequiredCode, "'id' is required.")
 		}
 
-		e := db.deleteById(defintion, id)
+		id, e := table.Id.Type.Parse(t)
+		if nil != e {
+			return commons.ReturnError(commons.BadRequestCode,
+				fmt.Sprintf("'id' is not a '%v', actual value is '%v'",
+					table.Id.Type.Name(), t))
+		}
+
+		e = db.deleteById(table, id)
 		if nil != e {
 			if sql.ErrNoRows == e {
 				return commons.ReturnError(commons.NotFoundCode, e.Error())

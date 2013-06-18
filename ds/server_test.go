@@ -136,6 +136,8 @@ func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.T
 			"IP varchar(50), " +
 			"MAC varchar(50), " +
 			"Sex varchar(10)," +
+			"company_test_id integer," +
+			"company_id integer," +
 			"Password varchar(256)," +
 			"Job varchar(256) )")
 		if err != nil {

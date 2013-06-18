@@ -112,8 +112,8 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 		t.Fatal(err)
 		return
 	}
-
-	cb(&session{driver: newDriver(*test_db, conn, nil)}, definitions)
+	simple := newSession(*test_db, conn, definitions)
+	cb(simple, definitions)
 }
 
 func TestSimpleInsert(t *testing.T) {
@@ -396,7 +396,7 @@ func TestSimpleFindByParams(t *testing.T) {
 			return
 		}
 
-		results, err := db.query(person, map[string]string{"@id": fmt.Sprint(id)})
+		results, err := db.find(person, map[string]string{"@id": fmt.Sprint(id)})
 		if nil != err {
 			t.Errorf(err.Error())
 			return

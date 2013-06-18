@@ -88,7 +88,7 @@ func (self *server) run(db *sql.DB) {
 	}()
 	atomic.AddInt32(&self.activedCount, 1)
 
-	sess := &session{driver: newDriver(self.drv, db, self.definitions)}
+	sess := newSession(self.drv, db, self.definitions)
 
 	for {
 		f := <-self.ch
@@ -207,7 +207,7 @@ func (self *server) FindByParams(req *restful.Request, resp *restful.Response) {
 			params[k] = v[len(v)-1]
 		}
 
-		res, e := db.query(defintion, params)
+		res, e := db.find(defintion, params)
 		if nil != e {
 			return commons.ReturnError(commons.InternalErrorCode, e.Error())
 		}

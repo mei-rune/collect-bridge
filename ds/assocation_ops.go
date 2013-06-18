@@ -1,9 +1,7 @@
 package ds
 
 import (
-	"bytes"
 	"commons/types"
-	"errors"
 	"fmt"
 )
 
@@ -269,71 +267,18 @@ func (self *session) deleteCascadeById(table *types.TableDefinition, id interfac
 	return deleted_all, nil
 }
 
-func (self *session) deleteCascadeByParams(table *types.TableDefinition,
-	isSimpleTableInheritance bool,
-	params map[string]string) (int64, error) {
-	var buffer bytes.Buffer
-	buffer.WriteString("SELECT id FROM ")
-	buffer.WriteString(table.CollectionName)
-	builder := &whereBuilder{table: table,
-		idx:       1,
-		isFirst:   true,
-		prefix:    " WHERE ",
-		buffer:    &buffer,
-		operators: default_operators}
-
-	if self.isNumericParams {
-		builder.add_argument = (*whereBuilder).appendNumericArguments
-	} else {
-		builder.add_argument = (*whereBuilder).appendSimpleArguments
-	}
-
-	if isSimpleTableInheritance {
-		builder.equalClass("type", table)
-	}
-
-	e := builder.build(params)
-	if nil != e {
-		return 0, e
-	}
-	return self.deleteBySQLString(table, buffer.String(), builder.params)
-}
-
-func (self *session) deleteCascadeBySQL(table *types.TableDefinition,
-	where string, args ...interface{}) (int64, error) {
-
-	var buffer bytes.Buffer
-	buffer.WriteString("DELETE FROM ")
-	buffer.WriteString(table.CollectionName)
-
-	if 0 == len(where) {
-		buffer.WriteString(" WHERE ")
-		if self.isNumericParams {
-			_, c := replaceQuestion(&buffer, where, 1)
-			if len(args) != c {
-				return 0, errors.New("parameters count is error")
-			}
-		} else {
-			buffer.WriteString(where)
-		}
-	}
-	return self.deleteBySQLString(table, buffer.String(), args)
-}
-
-func (self *session) deleteBySQLString(table *types.TableDefinition, sql string, args []interface{}) (int64, error) {
-	results, e := selectAll(self.driver, sql, args, id_column)
-	if nil != e {
-		return 0, e
-	}
-
+func (self *session) deleteCascadeByParams(table *types.TableDefinition, params map[string]string) (int64, error) {
 	deleted_all := int64(0)
-	for _, result := range results {
-		deleted, e := self.deleteCascadeById(table, fmt.Sprint(result[0]))
+	e := self.drv.forEach(table, params, func(rtable *types.TableDefinition, id interface{}) error {
+		deleted_single, e := self.deleteCascadeById(rtable, id)
 		if nil != e {
-			return 0, e
+			return e
 		}
-
-		deleted_all += deleted
+		deleted_all += deleted_single
+		return nil
+	})
+	if nil != e {
+		return 0, e
 	}
 	return deleted_all, nil
 }

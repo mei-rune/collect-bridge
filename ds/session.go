@@ -1,20 +1,17 @@
 package ds
 
 import (
-	"bytes"
 	"commons/types"
 	"database/sql"
 	"errors"
 	"flag"
 	"fmt"
 	_ "github.com/lib/pq"
-	"strconv"
 	"strings"
-	"time"
 )
 
 var (
-	IsOnly = flag.Bool("table.inherit", true, "for postgresql")
+	IsPostgresqlInherit = flag.Bool("postgresql.inherit", true, "for postgresql")
 
 	id_column        *types.ColumnDefinition = nil
 	tablename_column *types.ColumnDefinition = nil
@@ -44,126 +41,22 @@ func init() {
 }
 
 type session struct {
-	*driver
+	simple *simple_driver
+	drv    driver
 }
 
-////////////////////////// count //////////////////////////
-func (self *session) simpleCount(table *types.TableDefinition,
-	params map[string]string, isSingleTableInheritance bool) (int64, error) {
-	var buffer bytes.Buffer
-	buffer.WriteString("SELECT count(*) FROM ")
-	if self.isOnly {
-		buffer.WriteString("ONLY ")
-	}
-	buffer.WriteString(table.CollectionName)
-
-	builder := self.newWhere(1, table, &buffer)
-
-	if isSingleTableInheritance {
-		builder.equalClass("type", table)
-	}
-
-	e := builder.build(params)
-	if nil != e {
-		return -1, e
-	}
-
-	row := self.db.QueryRow(buffer.String(), builder.params...)
-	count := int64(0)
-	e = row.Scan(&count)
-	if nil != e {
-		return 0, e
-	}
-	return count, nil
+func newSession(drvName string, conn *sql.DB, tables *types.TableDefinitions) *session {
+	simple := simpleDriver(drvName, conn, tables)
+	return &session{simple: simple, drv: ctiSupport(simple)}
 }
 
 func (self *session) count(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
-	if table.IsSingleTableInheritance() {
-		return self.simpleCount(table, params, true)
-	}
-
-	if !table.HasChildren() {
-		return self.simpleCount(table, params, false)
-	}
-
-	if POSTGRESQL == self.dbType && !self.isOnly {
-		return self.simpleCount(table, params, false)
-	}
-
-	return self.countByClassTableInheritance(table, params)
-}
-
-func (self *session) countByClassTableInheritance(table *types.TableDefinition,
-	params map[string]string) (int64, error) {
-	effected_single, e := self.simpleCount(table, params, false)
-	if nil != e {
-		return 0, e
-	}
-	effected_all := effected_single
-
-	for _, child := range table.OwnChildren.All() {
-		effected_single, e := self.count(child, params)
-		if nil != e {
-			return 0, e
-		}
-		effected_all += effected_single
-	}
-	return effected_all, nil
-}
-
-////////////////////////// query //////////////////////////
-func (self *session) buildSQLQueryWithObjectId(table *types.TableDefinition) (QueryBuilder, error) {
-	var buffer bytes.Buffer
-	buffer.WriteString("SELECT ")
-	isSingleTableInheritance := table.IsSingleTableInheritance()
-	columns := toColumns(table, isSingleTableInheritance)
-	if nil == columns || 0 == len(columns) {
-		return nil, errors.New("crazy! selected columns is empty.")
-	}
-	writeColumns(columns, &buffer)
-	buffer.WriteString(" FROM ")
-	if self.isOnly {
-		buffer.WriteString("ONLY ")
-	}
-	buffer.WriteString(table.CollectionName)
-	buffer.WriteString(" WHERE ")
-	buffer.WriteString(table.Id.Name)
-	if self.isNumericParams {
-		buffer.WriteString(" = $1")
-	} else {
-		buffer.WriteString(" = ?")
-	}
-
-	return &QueryImpl{drv: self.driver,
-		table: table,
-		isSingleTableInheritance: isSingleTableInheritance,
-		columns:                  columns,
-		sql:                      buffer.String()}, nil
+	return self.drv.count(table, params)
 }
 
 func (self *session) findById(table *types.TableDefinition, id interface{}, includes string) (map[string]interface{}, error) {
-	if table.IsSingleTableInheritance() {
-		goto default_query
-	}
-
-	if !table.HasChildren() {
-		goto default_query
-	}
-
-	if POSTGRESQL == self.dbType && !self.isOnly {
-		return self.findByIdAndClassTableInheritanceInPostgreSQL(table, id, includes)
-	}
-
-	return self.findByIdAndClassTableInheritance(table, id, includes)
-
-default_query:
-	builder, e := self.buildSQLQueryWithObjectId(table)
-	if nil != e {
-		return nil, e
-	}
-	result, e := builder.Bind(id).Build().One()
-
+	result, e := self.drv.findById(table, id)
 	if nil != e {
 		return nil, e
 	}
@@ -177,242 +70,10 @@ default_query:
 	return result, nil
 }
 
-func (self *session) findByIdAndClassTableInheritance(table *types.TableDefinition,
-	id interface{}, includes string) (map[string]interface{}, error) {
-	builder, e := self.buildSQLQueryWithObjectId(table)
-	if nil != e {
-		return nil, e
-	}
-	result, e := builder.Bind(id).Build().One()
-	if nil == e {
-		if 0 != len(includes) {
-			e = self.loadIncludes(table, result, includes)
-			if nil != e {
-				return nil, e
-			}
-		}
-		return result, nil
-	}
-
-	if e != sql.ErrNoRows {
-		return nil, e
-	}
-
-	for _, child := range table.OwnChildren.All() {
-		result, e = self.findById(child, id, includes)
-		if nil == e {
-			return result, nil
-		}
-
-		if e != sql.ErrNoRows {
-			return nil, e
-		}
-	}
-
-	return nil, sql.ErrNoRows
-}
-
-func (self *session) findByIdAndClassTableInheritanceInPostgreSQL(table *types.TableDefinition,
-	id interface{}, includes string) (map[string]interface{}, error) {
-
-	var buffer bytes.Buffer
-	buffer.WriteString("SELECT ")
-	columns := toColumns(table, false)
-	buffer.WriteString("tableoid::regclass as tablename, ")
-	if nil == columns || 0 == len(columns) {
-		return nil, errors.New("crazy! selected columns is empty.")
-	}
-	writeColumns(columns, &buffer)
-	buffer.WriteString(" FROM ")
-	buffer.WriteString(table.CollectionName)
-	buffer.WriteString(" WHERE ")
-	buffer.WriteString(table.Id.Name)
-	if self.isNumericParams {
-		buffer.WriteString(" = $1")
-	} else {
-		buffer.WriteString(" = ?")
-	}
-
-	new_columns := make([]*types.ColumnDefinition, len(columns)+1)
-	new_columns[0] = tablename_column
-	copy(new_columns[1:], columns)
-
-	values, e := selectOne(self.driver, buffer.String(), []interface{}{id}, new_columns...)
-	if nil != e {
-		return nil, e
-	}
-
-	tablename, ok := values[0].(string)
-	if !ok {
-		return nil, errors.New("table name is not a string")
-	}
-	if tablename != table.CollectionName {
-		new_table := table.FindByTableName(tablename)
-		if nil == new_table {
-			return nil, errors.New("table name '" + tablename + "' is undefined.")
-		}
-		return self.findById(new_table, id, includes)
-	}
-	res := make(map[string]interface{})
-	res["type"] = table.UnderscoreName
-	for i := 1; i < len(new_columns); i++ {
-		res[new_columns[i].Name] = values[i]
-	}
-
-	if 0 != len(includes) {
-		e = self.loadIncludes(table, res, includes)
-		if nil != e {
-			return nil, e
-		}
-	}
-	return res, nil
-}
-
-func (self *session) queryByParams(table *types.TableDefinition,
-	isSingleTableInheritance bool,
-	params map[string]string) ([]map[string]interface{}, error) {
-	var buffer bytes.Buffer
-	buffer.WriteString("SELECT ")
-
-	columns := toColumns(table, isSingleTableInheritance)
-	if nil == columns || 0 == len(columns) {
-		return nil, errors.New("crazy! selected columns is empty.")
-	}
-	writeColumns(columns, &buffer)
-
-	buffer.WriteString(" FROM ")
-	if self.driver.dbType == POSTGRESQL {
-		buffer.WriteString(" ONLY ")
-	}
-	buffer.WriteString(table.CollectionName)
-	args, e := self.whereWithParams(table, isSingleTableInheritance, 1, params, &buffer)
-	if nil != e {
-		return nil, e
-	}
-
-	q := &QueryImpl{drv: self.driver,
-		isSingleTableInheritance: isSingleTableInheritance,
-		columns:                  columns,
-		table:                    table,
-		sql:                      buffer.String(),
-		parameters:               args}
-
-	return q.All()
-}
-
-func firstTable(tables *types.TableDefinitions) *types.TableDefinition {
-	for _, t := range tables.All() {
-		return t
-	}
-	return nil
-}
-
-func (self *session) queryByParamsAndClassTableInheritanceInPostgresql(table *types.TableDefinition,
+func (self *session) find(table *types.TableDefinition,
 	params map[string]string) ([]map[string]interface{}, error) {
 
-	var buffer bytes.Buffer
-	buffer.WriteString("SELECT tableoid::regclass as tablename, id as id FROM ")
-	buffer.WriteString(table.CollectionName)
-	args, e := self.whereWithParams(table, false, 1, params, &buffer)
-	if nil != e {
-		return nil, e
-	}
-	q := &QueryImpl{drv: self.driver,
-		table:      class_table_inherit_definition,
-		columns:    class_table_inherit_columns,
-		sql:        buffer.String(),
-		parameters: args}
-
-	id_list, e := q.All()
-	if nil != e {
-		return nil, e
-	}
-
-	var last_builder QueryBuilder
-	var last_name string
-
-	results := make([]map[string]interface{}, 0, len(id_list))
-	for _, instance_id := range id_list {
-		tablename, ok := instance_id["tablename"]
-		if !ok {
-			panic("'tablename' is not found")
-		}
-
-		name, ok := tablename.(string)
-		if !ok {
-			panic("'tablename' is not a string")
-		}
-
-		id, ok := instance_id["id"]
-		if !ok {
-			panic("'tablename' is not found")
-		}
-		if last_name != name {
-			table := table.FindByTableName(name)
-			if nil == table {
-				return nil, errors.New("table '" + name + "' is undefined.")
-			}
-
-			last_builder, e = self.buildSQLQueryWithObjectId(table)
-			if nil != e {
-				return nil, e
-			}
-			last_name = name
-		}
-
-		if nil == last_builder {
-			return nil, errors.New("table '" + name + "' is undefined.")
-		}
-
-		instance, e := last_builder.Bind(id).Build().One()
-		if nil != e {
-			return nil, e
-		}
-
-		results = append(results, instance)
-	}
-	return results, nil
-}
-
-func (self *session) queryByParamsAndClassTableInheritance(table *types.TableDefinition,
-	params map[string]string) ([]map[string]interface{}, error) {
-
-	results, e := self.queryByParams(table, false, params)
-	if nil != e {
-		return nil, e
-	}
-
-	for _, child := range table.OwnChildren.All() {
-		results_single, e := self.query(child, params)
-		if nil != e {
-			return nil, e
-		}
-		results = append(results, results_single...)
-	}
-	return results, nil
-}
-
-func (self *session) query(table *types.TableDefinition,
-	params map[string]string) ([]map[string]interface{}, error) {
-
-	var results []map[string]interface{}
-	var e error
-
-	if table.IsSingleTableInheritance() {
-		results, e = self.queryByParams(table, true, params)
-		goto end
-	}
-
-	if !table.HasChildren() {
-		results, e = self.queryByParams(table, false, params)
-		goto end
-	}
-	if POSTGRESQL == self.dbType && !self.isOnly {
-		return self.queryByParamsAndClassTableInheritanceInPostgresql(table, params)
-	}
-
-	results, e = self.queryByParamsAndClassTableInheritance(table, params)
-end:
+	results, e := self.drv.find(table, params)
 	if nil != e {
 		return nil, e
 	}
@@ -426,88 +87,6 @@ end:
 		}
 	}
 	return results, e
-}
-
-func (self *session) whereWithParams(table *types.TableDefinition, isSingleTableInheritance bool,
-	idx int, params map[string]string, buffer *bytes.Buffer) ([]interface{}, error) {
-	if nil == params {
-		if !isSingleTableInheritance {
-			return nil, nil
-		}
-	}
-
-	builder := self.newWhere(idx, table, buffer)
-
-	if isSingleTableInheritance {
-		builder.equalClass("type", table)
-	}
-
-	if nil == params {
-		return nil, nil
-	}
-
-	e := builder.build(params)
-	if nil != e {
-		return nil, e
-	}
-
-	if groupBy, ok := params["groupBy"]; ok {
-		if 0 != len(groupBy) {
-			return nil, errors.New("groupBy is empty.")
-		}
-
-		buffer.WriteString(" GROUP BY ")
-		buffer.WriteString(groupBy)
-	}
-
-	if having, ok := params["having"]; ok {
-		if 0 != len(having) {
-			return nil, errors.New("having is empty.")
-		}
-
-		buffer.WriteString(" HAVING ")
-		buffer.WriteString(having)
-	}
-
-	if order, ok := params["order"]; ok {
-		if 0 != len(order) {
-			return nil, errors.New("order is empty.")
-		}
-
-		buffer.WriteString(" ORDER BY ")
-		buffer.WriteString(order)
-	}
-
-	if limit, ok := params["limit"]; ok {
-		i, e := strconv.ParseInt(limit, 10, 64)
-		if nil != e {
-			return nil, fmt.Errorf("limit is not a number, actual value is '" + limit + "'")
-		}
-		if i <= 0 {
-			return nil, fmt.Errorf("limit must is geater zero, actual value is '" + limit + "'")
-		}
-
-		if offset, ok := params["offset"]; ok {
-			i, e = strconv.ParseInt(offset, 10, 64)
-			if nil != e {
-				return nil, fmt.Errorf("offset is not a number, actual value is '" + offset + "'")
-			}
-
-			if i < 0 {
-				return nil, fmt.Errorf("offset must is geater(or equals) zero, actual value is '" + offset + "'")
-			}
-
-			buffer.WriteString(" LIMIT ")
-			buffer.WriteString(offset)
-			buffer.WriteString(" , ")
-			buffer.WriteString(limit)
-		} else {
-			buffer.WriteString(" LIMIT ")
-			buffer.WriteString(limit)
-		}
-	}
-
-	return builder.params, nil
 }
 
 func (self *session) loadIncludes(parent_table *types.TableDefinition, parent map[string]interface{}, includes string) error {
@@ -531,7 +110,7 @@ func (self *session) loadIncludes(parent_table *types.TableDefinition, parent ma
 		}
 	} else {
 		for _, s := range strings.Split(includes, ",") {
-			target := self.tables.FindByUnderscoreName(s)
+			target := self.simple.tables.FindByUnderscoreName(s)
 			if nil == target {
 				return errors.New("table '" + s + "' is not found in the includes.")
 			}
@@ -578,7 +157,7 @@ func (self *session) findByParent(parent_table *types.TableDefinition,
 	} else {
 		params["@"+foreignKey] = fmt.Sprint(parent_id)
 	}
-	return self.query(target, params)
+	return self.find(target, params)
 }
 
 func (self *session) children(parent_table *types.TableDefinition, parent_id interface{},
@@ -623,7 +202,7 @@ func (self *session) parentBy(child_table *types.TableDefinition, child_id inter
 			return nil, errors.New("'parent_type' is not a string in the result")
 		}
 
-		parent := self.tables.FindByUnderscoreName(parent_type)
+		parent := self.simple.tables.FindByUnderscoreName(parent_type)
 		if nil == parent {
 			return nil, errors.New(" table '" + parent_type + "' is not exists.")
 		}
@@ -674,124 +253,12 @@ func (self *session) parent(child_table *types.TableDefinition, child_id interfa
 }
 
 ////////////////////////// insert //////////////////////////
-func typeFrom(table *types.TableDefinition, attributes map[string]interface{}) (*types.TableDefinition, error) {
-	t, ok := attributes["type"]
-	if !ok {
-		return table, nil
-	}
-
-	nm, ok := t.(string)
-	if !ok {
-		return nil, fmt.Errorf("'type' must is a string, actual type is a %T, actual value is '%v'.", t, t)
-	}
-
-	if nm == table.UnderscoreName {
-		return table, nil
-	}
-
-	defintion := table.FindByUnderscoreName(nm)
-	if nil == defintion {
-		return nil, errors.New("table '" + nm + "' is not exists.")
-	}
-
-	if !defintion.IsSubclassOf(table) {
-		return nil, errors.New("table '" + nm + "' is not inherit from table '" + table.UnderscoreName + "'")
-	}
-
-	return defintion, nil
-}
-
 func (self *session) insert(table *types.TableDefinition,
 	attributes map[string]interface{}) (int64, error) {
-	var e error
-	table, e = typeFrom(table, attributes)
+	id, e := self.drv.insert(table, attributes)
 	if nil != e {
 		return 0, e
 	}
-
-	var buffer bytes.Buffer
-	var values bytes.Buffer
-	params := make([]interface{}, 0, len(table.Attributes))
-
-	idx := 1
-	for _, attribute := range table.Attributes {
-		//////////////////////////////////////////
-		// TODO: refactor it?
-		if attribute.IsSerial() {
-			continue
-		}
-
-		var value interface{} = nil
-		switch attribute.Name {
-		case "created_at":
-			fallthrough
-		case "updated_at":
-			value = time.Now()
-		case "type":
-			value = table.UnderscoreName
-		default:
-			v := attributes[attribute.Name]
-			if nil == v {
-				if attribute.IsRequired {
-					return 0, fmt.Errorf("column '%v' is required", attribute.Name)
-				}
-				if nil == attribute.DefaultValue {
-					continue
-				}
-				v = attribute.DefaultValue
-			}
-
-			value, e = attribute.Type.ToInternal(v)
-			if nil != e {
-				return 0, fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
-					attribute.Name, attribute.Type.Name(), v)
-			}
-			value = attribute.Type.ToExternal(value)
-		}
-		//////////////////////////////////////////
-
-		if 1 != idx {
-			buffer.WriteString(", ")
-			values.WriteString(", ")
-		}
-		buffer.WriteString(attribute.Name)
-		if self.isNumericParams {
-			values.WriteString("$")
-			values.WriteString(strconv.FormatInt(int64(idx), 10))
-		} else {
-			values.WriteString("?")
-		}
-		params = append(params, value)
-
-		idx++
-	}
-
-	sql := "INSERT INTO " + table.CollectionName + "( " + buffer.String() +
-		" ) VALUES ( " + values.String() + " )"
-
-	var id int64
-	if "postgres" == self.drv {
-		e = self.db.QueryRow(sql+" RETURNING "+table.Id.Name, params...).Scan(&id)
-		if nil != e {
-			return 0, e
-		}
-	} else {
-		res, e := self.db.Exec(sql, params...)
-		if nil != e {
-			return 0, e
-		}
-
-		if affected, e := res.RowsAffected(); 1 != affected {
-			return 0, fmt.Errorf("insert to %v failed, affected rows is %v %v",
-				table.CollectionName, affected, e)
-		}
-
-		id, e = res.LastInsertId()
-		if nil != e {
-			return 0, e
-		}
-	}
-
 	e = self.createChildren(table, id, attributes)
 	if nil != e {
 		return 0, e
@@ -806,7 +273,7 @@ func (self *session) createChildren(parent_table *types.TableDefinition,
 			continue
 		}
 
-		target_table := self.tables.FindByUnderscoreName(name[1:])
+		target_table := self.simple.tables.FindByUnderscoreName(name[1:])
 		if nil == target_table {
 			return fmt.Errorf("table '%s' with '%s' is not found ", name[1:], name)
 		}
@@ -891,177 +358,24 @@ func (self *session) createChild(table, parent_table *types.TableDefinition, par
 	return self.insert(table, attributes)
 }
 
-////////////////////////// update //////////////////////////
-
-func (self *session) update(table *types.TableDefinition,
-	params map[string]string,
-	updated_attributes map[string]interface{}) (int64, error) {
-	if table.IsSingleTableInheritance() {
-		return self.updateByParams(table, true, params, updated_attributes)
-	}
-
-	if !table.HasChildren() {
-		return self.updateByParams(table, false, params, updated_attributes)
-	}
-
-	if POSTGRESQL == self.dbType && !self.isOnly {
-		return self.updateByParamsAndClassTableInheritanceInPostgresql(table, params, updated_attributes)
-	}
-
-	return self.updateByParamsAndClassTableInheritance(table, params, updated_attributes)
-}
-
-func (self *session) updateByParamsAndClassTableInheritance(table *types.TableDefinition,
-	params map[string]string,
-	updated_attributes map[string]interface{}) (int64, error) {
-
-	effected_single, e := self.updateByParams(table, false, params, updated_attributes)
-	if nil != e {
-		return 0, e
-	}
-	effected_all := effected_single
-
-	for _, child := range table.OwnChildren.All() {
-		effected_single, e = self.update(child, params, updated_attributes)
-		if nil != e {
-			return 0, e
-		}
-		effected_all += effected_single
-	}
-	return effected_all, nil
-}
-
-func (self *session) updateByParamsAndClassTableInheritanceInPostgresql(table *types.TableDefinition,
-	params map[string]string,
-	updated_attributes map[string]interface{}) (int64, error) {
-
-	effected_single, e := self.updateByParams(table, false, params, updated_attributes)
-	if nil != e {
-		return 0, e
-	}
-	effected_all := effected_single
-
-	for _, child := range table.OwnChildren.All() {
-		effected_single, e := self.update(child, params, updated_attributes)
-		if nil != e {
-			return 0, e
-		}
-		effected_all += effected_single
-	}
-	return effected_all, nil
-}
-
-func (self *session) updateByParams(table *types.TableDefinition,
-	isSingleTableInheritance bool,
-	params map[string]string,
-	updated_attributes map[string]interface{}) (int64, error) {
-	var buffer bytes.Buffer
-	builder := &updateBuilder{tables: self.tables,
-		table:           table,
-		idx:             1,
-		buffer:          &buffer,
-		dbType:          self.driver.dbType,
-		isNumericParams: self.isNumericParams}
-	e := builder.buildUpdate(updated_attributes)
-	if nil != e {
-		return 0, e
-	}
-
-	if nil == builder.params || 0 == len(builder.params) {
-		return 0, errors.New("updated attributes is empty.")
-	}
-
-	e = builder.buildWhere(params, isSingleTableInheritance)
-	if nil != e {
-		return 0, e
-	}
-
-	res, e := self.db.Exec(buffer.String(), builder.params...)
-	if nil != e {
-		return 0, e
-	}
-
-	return res.RowsAffected()
-}
-
-func (self *session) updateBySQL(table *types.TableDefinition,
-	updated_attributes map[string]interface{},
-	queryString string, args ...interface{}) (int64, error) {
-	var buffer bytes.Buffer
-	builder := &updateBuilder{tables: self.tables,
-		table:           table,
-		idx:             1,
-		buffer:          &buffer,
-		dbType:          self.driver.dbType,
-		isNumericParams: self.isNumericParams}
-	e := builder.buildUpdate(updated_attributes)
-	if nil != e {
-		return 0, e
-	}
-
-	if nil == builder.params || 0 == len(builder.params) {
-		return 0, errors.New("updated attributes is empty.")
-	}
-
-	builder.buildWhereWithString(queryString, args)
-
-	res, e := self.db.Exec(buffer.String(), builder.params...)
-	if nil != e {
-		return 0, e
-	}
-
-	return res.RowsAffected()
-}
-
 func (self *session) updateById(table *types.TableDefinition, id interface{},
 	updated_attributes map[string]interface{}) error {
-	var buffer bytes.Buffer
-	builder := &updateBuilder{tables: self.tables,
-		table:           table,
-		idx:             1,
-		buffer:          &buffer,
-		dbType:          self.driver.dbType,
-		isNumericParams: self.isNumericParams}
-	e := builder.buildUpdate(updated_attributes)
-	if nil != e {
-		return e
-	}
-
-	if nil == builder.params || 0 == len(builder.params) {
-		return errors.New("updated attributes is empty.")
-	}
-
-	builder.buildWhereById(id)
-
-	res, e := self.db.Exec(buffer.String(), builder.params...)
-	if nil != e {
-		return e
-	}
-
-	affected, e := res.RowsAffected()
-	if nil != e {
-		return e
-	}
-	if 1 != affected {
-		return fmt.Errorf("affected rows is not equals 1, actual is %v", affected)
-	}
-
-	return nil
+	return self.drv.updateById(table, id, updated_attributes)
 }
 
-////////////////////////// update //////////////////////////
+func (self *session) update(table *types.TableDefinition, params map[string]string,
+	updated_attributes map[string]interface{}) (int64, error) {
+	return self.drv.update(table, params, updated_attributes)
+}
 
 func (self *session) delete(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
-	if table.IsSingleTableInheritance() {
-		return self.deleteByParams(table, true, params)
+	_, e := self.deleteCascadeByParams(table, params)
+	if nil != e {
+		return 0, e
 	}
 
-	if !table.HasChildren() {
-		return self.deleteByParams(table, false, params)
-	}
-
-	return self.deleteWithParamsByClassTableInheritance(table, params)
+	return self.drv.delete(table, params)
 }
 
 func (self *session) deleteById(table *types.TableDefinition, id interface{}) error {
@@ -1070,120 +384,5 @@ func (self *session) deleteById(table *types.TableDefinition, id interface{}) er
 		return e
 	}
 
-	var buffer bytes.Buffer
-	buffer.WriteString("DELETE FROM ")
-	if self.driver.dbType == POSTGRESQL {
-		buffer.WriteString(" ONLY ")
-	}
-	buffer.WriteString(table.CollectionName)
-	buffer.WriteString(" WHERE ")
-	buffer.WriteString(table.Id.Name)
-	if self.isNumericParams {
-		buffer.WriteString(" = $1")
-	} else {
-		buffer.WriteString(" = ?")
-	}
-
-	res, e := self.db.Exec(buffer.String(), table.Id.Type.ToExternal(id))
-	if nil != e {
-		return e
-	}
-
-	affected, e := res.RowsAffected()
-	if nil != e {
-		return e
-	}
-	if 1 != affected {
-		return sql.ErrNoRows
-	}
-
-	return nil
-}
-
-func (self *session) deleteByParams(table *types.TableDefinition,
-	isSingleTableInheritance bool,
-	params map[string]string) (int64, error) {
-
-	_, e := self.deleteCascadeByParams(table, isSingleTableInheritance, params)
-	if nil != e {
-		return 0, e
-	}
-
-	var buffer bytes.Buffer
-	buffer.WriteString("DELETE FROM ")
-	if self.driver.dbType == POSTGRESQL {
-		buffer.WriteString(" ONLY ")
-	}
-	buffer.WriteString(table.CollectionName)
-
-	builder := self.newWhere(1, table, &buffer)
-	if isSingleTableInheritance {
-		builder.equalClass("type", table)
-	}
-
-	e = builder.build(params)
-	if nil != e {
-		return 0, e
-	}
-
-	res, e := self.db.Exec(buffer.String(), builder.params...)
-	if nil != e {
-		return 0, e
-	}
-
-	return res.RowsAffected()
-}
-
-func (self *session) deleteWithParamsByClassTableInheritance(table *types.TableDefinition,
-	params map[string]string) (int64, error) {
-
-	effected_single, e := self.deleteByParams(table, false, params)
-	if nil != e {
-		return 0, e
-	}
-	effected_all := effected_single
-
-	for _, child := range table.OwnChildren.All() {
-		effected_single, e = self.delete(child, params)
-		if nil != e {
-			return 0, e
-		}
-		effected_all += effected_single
-	}
-	return effected_all, nil
-}
-
-func (self *session) deleteBySQL(table *types.TableDefinition,
-	queryString string, args ...interface{}) (int64, error) {
-
-	_, e := self.deleteCascadeBySQL(table, queryString, args...)
-	if nil != e {
-		return 0, e
-	}
-
-	var buffer bytes.Buffer
-	buffer.WriteString("DELETE FROM ")
-	if self.driver.dbType == POSTGRESQL {
-		buffer.WriteString(" ONLY ")
-	}
-	buffer.WriteString(table.CollectionName)
-
-	if 0 == len(queryString) {
-		buffer.WriteString(" WHERE ")
-		if self.isNumericParams {
-			_, c := replaceQuestion(&buffer, queryString, 1)
-			if len(args) != c {
-				return 0, errors.New("parameters count is error")
-			}
-		} else {
-			buffer.WriteString(queryString)
-		}
-	}
-
-	res, e := self.db.Exec(buffer.String(), args...)
-	if nil != e {
-		return 0, e
-	}
-
-	return res.RowsAffected()
+	return self.drv.deleteById(table, id)
 }

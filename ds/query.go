@@ -83,7 +83,7 @@ func writeColumns(columns []*types.ColumnDefinition, buffer *bytes.Buffer) {
 }
 
 type QueryImpl struct {
-	drv                      *driver
+	drv                      *simple_driver
 	columns                  []*types.ColumnDefinition
 	sql                      string
 	parameters               []interface{}
@@ -234,62 +234,6 @@ func (q *QueryImpl) All() ([]map[string]interface{}, error) {
 	} else {
 		return q.byColumns(rows)
 	}
-}
-
-func scanOne(row resultScan, columns []*types.ColumnDefinition) ([]interface{}, error) {
-	var scanResultContainer []interface{}
-	for _, column := range columns {
-		scanResultContainer = append(scanResultContainer, column.Type.MakeValue())
-	}
-
-	if e := row.Scan(scanResultContainer...); nil != e {
-		return nil, e
-	}
-
-	res := make([]interface{}, 0, len(columns))
-	for i, column := range columns {
-		v, e := toInternalValue(column, scanResultContainer[i])
-		if nil != e {
-			return nil, fmt.Errorf("convert %v to internal value failed, %v, value is [%T]%v",
-				column.Name, e, scanResultContainer[i], scanResultContainer[i])
-		}
-		res = append(res, v)
-	}
-	return res, nil
-}
-
-func selectOne(drv *driver, sql string, args []interface{},
-	columns ...*types.ColumnDefinition) ([]interface{}, error) {
-	row := drv.db.QueryRow(sql, args...)
-	return scanOne(row, columns)
-}
-
-func selectAll(drv *driver, sql string, args []interface{},
-	columns ...*types.ColumnDefinition) ([][]interface{}, error) {
-	rs, e := drv.db.Prepare(sql)
-	if e != nil {
-		return nil, e
-	}
-	defer rs.Close()
-
-	rows, e := rs.Query(args...)
-	if e != nil {
-		return nil, e
-	}
-
-	results := make([][]interface{}, 0, 10)
-	for rows.Next() {
-		res, e := scanOne(rows, columns)
-		if e != nil {
-			return nil, e
-		}
-		results = append(results, res)
-	}
-
-	if nil != rows.Err() {
-		return nil, rows.Err()
-	}
-	return results, nil
 }
 
 func toInternalValue(column *types.ColumnDefinition, v interface{}) (interface{}, error) {

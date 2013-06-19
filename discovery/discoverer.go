@@ -116,6 +116,10 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 		range_scanned: make(map[string]int),
 		is_running:    1}
 
+	if 0 == params.Depth {
+		params.Depth = 2
+	}
+
 	go discoverer.serve()
 
 	for i := 0; i < 5; i++ {
@@ -336,7 +340,7 @@ func (self *Discoverer) serve() {
 	}
 	self.detectNewRange(self.params.IP_Range)
 
-	for d := 0; ; d++ {
+	for d := 1; ; d++ {
 		pending_drvs := make([]Device, 0, 10)
 		running := true
 		for running {

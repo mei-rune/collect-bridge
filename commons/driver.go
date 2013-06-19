@@ -136,6 +136,8 @@ type Any interface {
 type Map interface {
 	Get(key string) interface{}
 
+	Contains(key string) bool
+
 	GetBool(key string, defaultValue bool) bool
 
 	GetInt(key string, defaultValue int) int
@@ -456,6 +458,11 @@ func (self *AnyValue) AsObjects() ([]map[string]interface{}, error) {
 }
 
 type StringMap map[string]interface{}
+
+func (self StringMap) Contains(key string) bool {
+	_, ok := self[key]
+	return ok
+}
 
 func (self StringMap) Get(key string) interface{} {
 	return self[key]

@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -138,7 +137,7 @@ func findDevice(params map[string]string) ([]map[string]interface{}, error) {
 func save(attributes map[string]interface{}) (string, string, error) {
 	client := ds.NewClient("http://" + *dbproxy)
 
-	id, e := client.SaveBy("device", map[string]string{"address": fmt.Sprint(attributes["address"])}, attributes)
+	id, action, e := client.SaveBy("device", map[string]string{"address": fmt.Sprint(attributes["address"])}, attributes)
 	if nil != e {
 		return "", "", e
 	}
@@ -147,7 +146,7 @@ func save(attributes map[string]interface{}) (string, string, error) {
 		fmt.Println(client.Warnings)
 	}
 
-	return id, "unknow", nil
+	return id, action, nil
 }
 
 func createTriggers(attributes map[string]interface{}) []map[string]interface{} {
@@ -226,10 +225,12 @@ func main() {
 	}
 	if nil != res {
 		fmt.Println("======================")
-		e := json.NewEncoder(os.Stdout).Encode(res)
+		//e := json.NewEncoder(os.Stdout).Encode(res)
+		bs, e := json.MarshalIndent(res, "", "  ")
 		if nil != e {
 			fmt.Println(e)
 		}
+		fmt.Println(string(bs))
 		fmt.Println("======================")
 
 		devices, ok := res.(map[string]interface{})
@@ -240,6 +241,11 @@ func main() {
 				_, action, e := save(attributes)
 				if nil != e {
 					fmt.Println(action, k, e)
+					bs, e := json.MarshalIndent(attributes, "", "  ")
+					if nil != e {
+						fmt.Println("json marsha failed,", e)
+					}
+					fmt.Println(string(bs))
 				} else {
 					fmt.Println(action, k)
 				}

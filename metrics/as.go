@@ -10,7 +10,24 @@ import (
 	"strings"
 )
 
-func bytesToString(params map[string]string, bs []byte) string {
+func nilString(b []byte) string {
+	i := bytes.IndexByte(b, byte(0))
+	if -1 == i {
+		return string(b)
+	}
+	return string(b[0:i])
+}
+
+func bytesToString(params map[string]string, input []byte) string {
+	if nil == input || 0 == len(input) {
+		return ""
+	}
+
+	bs := input
+	if byte(0) == bs[len(bs)-1] {
+		bs = bs[:len(bs)-1]
+	}
+
 	charset, _ := params["charset"]
 	decoder := mahonia.NewDecoder(charset)
 	if nil == decoder {

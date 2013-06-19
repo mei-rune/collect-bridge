@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	_ "github.com/lib/pq"
+	"strconv"
 	"strings"
 )
 
@@ -264,6 +265,51 @@ func (self *session) insert(table *types.TableDefinition,
 		return 0, e
 	}
 	return id, nil
+}
+
+func (self *session) save(table *types.TableDefinition, params map[string]string,
+	attributes map[string]interface{}) (int, int64, error) {
+
+	results, e := self.find(table, params)
+	if nil != e && e != sql.ErrNoRows {
+		return -1, 0, e
+	}
+
+	if nil == results || 0 == len(results) {
+		id, e := self.drv.insert(table, attributes)
+		if nil != e {
+			return 1, 0, e
+		}
+		e = self.createChildren(table, id, attributes)
+		if nil != e {
+			return 1, 0, e
+		}
+		return 1, id, nil
+	} else if 1 == len(results) {
+		id := results[0][table.Id.Name]
+		e = self.updateById(table, id, attributes)
+		if nil != e {
+			return 0, 0, e
+		}
+		switch v := id.(type) {
+		case int64:
+			return 0, v, nil
+		case int:
+			return 0, int64(v), nil
+		case int32:
+			return 0, int64(v), nil
+		case string:
+			i64, e := strconv.ParseInt(v, 10, 64)
+			if nil != e {
+				return 0, 0, fmt.Errorf("id is not a int64 - %v", id)
+			}
+			return 0, i64, nil
+		default:
+			return 0, 0, fmt.Errorf("id is not a int64 - %v", id)
+		}
+	} else {
+		return 0, 0, fmt.Errorf("results that match condition is not equals 1, actual is %v", len(results))
+	}
 }
 
 func (self *session) createChildren(parent_table *types.TableDefinition,

@@ -444,12 +444,33 @@ func (self *server) Create(req *restful.Request, resp *restful.Response) {
 			return commons.ReturnError(commons.BadRequestCode, "read body failed - "+e.Error())
 		}
 
-		lastInsertId, e := db.insert(defintion, attributes)
-		if nil != e {
-			return commons.ReturnError(commons.InternalErrorCode, e.Error())
-		} else {
-			return commons.Return(true).SetLastInsertId(lastInsertId)
-		}
+		if "true" == req.QueryParameter("save") {
+			params := make(map[string]string)
+			for k, v := range req.Request.URL.Query() {
+				params[k] = v[len(v)-1]
+			}
+			action, lastInsertId, e := db.save(defintion, params, attributes)
 
+			var res *commons.SimpleResult
+			if nil != e {
+				res = commons.ReturnError(commons.InternalErrorCode, e.Error())
+			} else {
+				res = commons.Return(true).SetLastInsertId(lastInsertId)
+			}
+			switch action {
+			case 0:
+				res.SetOption("is_created", false)
+			case 1:
+				res.SetOption("is_created", true)
+			}
+			return res
+		} else {
+			lastInsertId, e := db.insert(defintion, attributes)
+			if nil != e {
+				return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			} else {
+				return commons.Return(true).SetLastInsertId(lastInsertId)
+			}
+		}
 	})
 }

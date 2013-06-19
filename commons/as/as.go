@@ -321,6 +321,12 @@ func AsString(value interface{}) (string, error) {
 		return strconv.FormatFloat(float64(v), 'e', -1, 64), nil
 	case float64:
 		return strconv.FormatFloat(float64(v), 'e', -1, 64), nil
+	case bool:
+		if v {
+			return "true", nil
+		} else {
+			return "false", nil
+		}
 	}
 	return "", IsNotString
 }

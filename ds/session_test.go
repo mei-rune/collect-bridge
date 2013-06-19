@@ -13,7 +13,7 @@ import (
 
 var (
 	test_db    = flag.String("test.db", "postgres", "the db driver name for test")
-	test_dbUrl = flag.String("test.dburl", "host=127.0.0.1 dbname=pqgotest user=postgres password=mfk sslmode=disable", "the db url")
+	test_dbUrl = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
 
 	personName    = "people"
 	personClsName = "Person"

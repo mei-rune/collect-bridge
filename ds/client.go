@@ -23,10 +23,11 @@ func (self *Client) Create(target string, body map[string]interface{}) (string, 
 	if nil != e {
 		return "", marshalError(e)
 	}
-	return self.CreateJson(self.CreateUrl().Concat(target).ToUrl(), msg)
+	_, id, err := self.CreateJson(self.CreateUrl().Concat(target).ToUrl(), msg)
+	return id, err
 }
 
-func (self *Client) SaveBy(target string, params map[string]string, body map[string]interface{}) (string, commons.RuntimeError) {
+func (self *Client) SaveBy(target string, params map[string]string, body map[string]interface{}) (string, string, commons.RuntimeError) {
 	url := self.CreateUrl().
 		Concat(target).
 		WithQueries(params, "@").
@@ -35,27 +36,37 @@ func (self *Client) SaveBy(target string, params map[string]string, body map[str
 
 	msg, e := json.Marshal(body)
 	if nil != e {
-		return "", marshalError(e)
+		return "", "unknow", marshalError(e)
 	}
-	return self.CreateJson(url, msg)
+	res, id, err := self.CreateJson(url, msg)
+	if nil != res && res.HasOptions() {
+		if !res.Options().Contains("is_created") {
+			return id, "unknow", err
+		}
+		if res.Options().GetBool("is_created", false) {
+			return id, "new", err
+		}
+		return id, "update", err
+	}
+	return id, "unknow", err
 }
 
-func (self *Client) CreateJson(url string, msg []byte) (string, commons.RuntimeError) {
+func (self *Client) CreateJson(url string, msg []byte) (commons.Result, string, commons.RuntimeError) {
 	res := self.Invoke("POST", url, msg, 201)
 	if res.HasError() {
-		return "", res.Error()
+		return nil, "", res.Error()
 	}
 
 	if nil == res.LastInsertId() {
-		return "", commons.InternalError("lastInsertId is nil")
+		return nil, "", commons.InternalError("lastInsertId is nil")
 	}
 
 	result := fmt.Sprint(res.LastInsertId())
 	if "-1" == res.LastInsertId() {
-		return "", commons.InternalError("lastInsertId is -1")
+		return nil, "", commons.InternalError("lastInsertId is -1")
 	}
 
-	return result, nil
+	return res, result, nil
 }
 
 func (self *Client) UpdateById(target, id string, body map[string]interface{}) commons.RuntimeError {

@@ -19,7 +19,7 @@ import (
 var (
 	models_file = flag.String("models", "etc/mj_models.xml", "the name of models file")
 	directory   = flag.String("directory", ".", "the static directory of http")
-	dbUrl       = flag.String("dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
+	dbUrl       = flag.String("dburl", "host=127.0.0.1 dbname=ds user=postgres password=mfk sslmode=disable", "the db url")
 	drv         = flag.String("db", "postgres", "the db driver")
 	goroutines  = flag.Int("connections", 10, "the db connection number")
 	address     = flag.String("http", ":7071", "the address of http")
@@ -186,7 +186,6 @@ func Main() {
 	restful.Add(ws)
 
 	if is_test {
-		fmt.Println("this is a test")
 		//http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
 		//http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
 		//http.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
@@ -195,7 +194,7 @@ func Main() {
 		//}
 		//http.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 	} else {
-		log.Println("[ds] serving '" + *address + "'")
+		log.Println("[ds] serving at '" + *address + "'")
 		// mux := http.NewServeMux()
 		// mux.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
 		// mux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))

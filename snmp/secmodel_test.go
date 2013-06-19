@@ -71,13 +71,40 @@ func TestGenerateDigest(t *testing.T) {
 
 	bytes, _ := generate_digest(crypto.MD5, keys[0:SNMP_AUTH_HMACMD5_KEY_SIZ], data[:])
 	if hex.EncodeToString(bytes) != md5_digest {
-		t.Log(hex.EncodeToString(bytes))
+		t.Log("excepted is", md5_digest)
+		t.Log("actual is", hex.EncodeToString(bytes))
 		t.Error("generate md5 digest failed.")
+	} else {
+		t.Log("generate md5 digest ok")
 	}
 
 	bytes, _ = generate_digest(crypto.SHA1, keys[0:SNMP_AUTH_HMACSHA_KEY_SIZ], data[:])
 	if hex.EncodeToString(bytes) != sha1_digest {
-		t.Log(hex.EncodeToString(bytes))
+		t.Log("excepted is", sha1_digest)
+		t.Log("actual is", hex.EncodeToString(bytes))
+		t.Error("generate sha1 digest failed.")
+	} else {
+		t.Log("generate sha1 digest ok")
+	}
+}
+func TestGenerateDigest2(t *testing.T) {
+
+	keys := []byte("1234567890123456789012345678901234567890")
+	data := []byte("test1234567890")
+
+	bytes, _ := generate_digest2(crypto.MD5, keys[0:SNMP_AUTH_HMACMD5_KEY_SIZ], data[:])
+	if hex.EncodeToString(bytes) != md5_digest {
+		t.Log("excepted is", md5_digest)
+		t.Log("actual is", hex.EncodeToString(bytes))
+		t.Error("generate md5 digest failed.")
+	} else {
+		t.Log("generate md5 digest ok")
+	}
+
+	bytes, _ = generate_digest2(crypto.SHA1, keys[0:SNMP_AUTH_HMACSHA_KEY_SIZ], data[:])
+	if hex.EncodeToString(bytes) != sha1_digest {
+		t.Log("excepted is", sha1_digest)
+		t.Log("actual is", hex.EncodeToString(bytes))
 		t.Error("generate sha1 digest failed.")
 	} else {
 		t.Log("generate sha1 digest ok")

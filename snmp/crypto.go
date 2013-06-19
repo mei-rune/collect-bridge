@@ -15,6 +15,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	//"encoding/hex"
+	"crypto/hmac"
 	"errors"
 	"fmt"
 	"unsafe"
@@ -222,6 +223,16 @@ func SCGenerateDigest(hash_type int, key *C.uint8_t, key_len C.uint32_t,
 }
 
 func generate_digest(hash crypto.Hash, key, src []byte) ([]byte, error) {
+	hmacHash := hmac.New(hash.New, key)
+	_, e := hmacHash.Write(src)
+	if nil != e {
+		return nil, e
+	}
+
+	return hmacHash.Sum(nil)[0:SNMP_USM_AUTH_SIZE], nil
+}
+
+func generate_digest2(hash crypto.Hash, key, src []byte) ([]byte, error) {
 	key1 := make([]byte, SNMP_EXTENDED_KEY_SIZ)
 	key2 := make([]byte, SNMP_EXTENDED_KEY_SIZ)
 	extkey := make([]byte, SNMP_EXTENDED_KEY_SIZ)

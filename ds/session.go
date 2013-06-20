@@ -12,34 +12,8 @@ import (
 )
 
 var (
-	IsPostgresqlInherit = flag.Bool("postgresql.inherit", true, "for postgresql")
-
-	id_column        *types.ColumnDefinition = nil
-	tablename_column *types.ColumnDefinition = nil
-
-	class_table_inherit_columns = []*types.ColumnDefinition{&types.ColumnDefinition{types.AttributeDefinition{Name: "tablename",
-		Type:       types.GetTypeDefinition("string"),
-		Collection: types.COLLECTION_UNKNOWN}},
-		&types.ColumnDefinition{types.AttributeDefinition{Name: "id",
-			Type:       types.GetTypeDefinition("objectId"),
-			Collection: types.COLLECTION_UNKNOWN}}}
-
-	class_table_inherit_definition = &types.TableDefinition{Name: "cti",
-		UnderscoreName: "cti",
-		CollectionName: "cti"}
+	IsPostgresqlInherit = flag.Bool("postgresql.inherit", true, "support table inherit of postgresql")
 )
-
-func init() {
-	tablename_column = class_table_inherit_columns[0]
-	id_column = class_table_inherit_columns[1]
-	class_table_inherit_definition.Id = class_table_inherit_columns[1]
-
-	attributes := map[string]*types.ColumnDefinition{class_table_inherit_columns[0].Name: class_table_inherit_columns[0],
-		class_table_inherit_columns[1].Name: class_table_inherit_columns[1]}
-
-	class_table_inherit_definition.OwnAttributes = attributes
-	class_table_inherit_definition.Attributes = attributes
-}
 
 type session struct {
 	simple *simple_driver
@@ -47,7 +21,11 @@ type session struct {
 }
 
 func newSession(drvName string, conn *sql.DB, tables *types.TableDefinitions) *session {
-	simple := simpleDriver(drvName, conn, tables)
+
+	simple := simpleDriver(drvName, conn, !*IsPostgresqlInherit, tables)
+	if *IsPostgresqlInherit {
+		return &session{simple: simple, drv: ctiSupportWithPostgreSQLInherit(simple)}
+	}
 	return &session{simple: simple, drv: ctiSupport(simple)}
 }
 

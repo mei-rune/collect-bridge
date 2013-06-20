@@ -9,7 +9,14 @@ type cti_supported_driver struct {
 	cti_policy driver
 }
 
-func ctiSupport(simple *simple_driver) *cti_supported_driver {
+func ctiSupportWithPostgreSQLInherit(simple *simple_driver) *cti_supported_driver {
+	cti_policy := &postgresql_cti_policy{simple: simple}
+	res := &cti_supported_driver{simple: simple, cti_policy: cti_policy}
+	//cti_policy.cti = res
+	return res
+}
+
+func ctiSupport(simple driver) *cti_supported_driver {
 	cti_policy := &default_cti_policy{simple: simple}
 	res := &cti_supported_driver{simple: simple, cti_policy: cti_policy}
 	cti_policy.cti = res

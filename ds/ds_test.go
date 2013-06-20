@@ -133,7 +133,7 @@ func create(t *testing.T, client *Client, target string, body map[string]interfa
 }
 
 func createJson(t *testing.T, client *Client, target, msg string) string {
-	id, e := client.CreateJson("http://127.0.0.1:7071/"+target, []byte(msg))
+	_, id, e := client.CreateJson("http://127.0.0.1:7071/"+target, []byte(msg))
 	if nil != e {
 		t.Errorf("create %s failed, %v", target, e)
 		t.FailNow()

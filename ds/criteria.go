@@ -376,19 +376,17 @@ func (self *whereBuilder) build(params map[string]string) error {
 }
 
 type updateBuilder struct {
-	tables          *types.TableDefinitions
-	table           *types.TableDefinition
-	idx             int
-	dbType          int
-	isNumericParams bool
-	buffer          *bytes.Buffer
-	params          []interface{}
+	drv    *simple_driver
+	table  *types.TableDefinition
+	idx    int
+	buffer *bytes.Buffer
+	params []interface{}
 }
 
 func (self *updateBuilder) buildUpdate(updated_attributes map[string]interface{}) error {
 	self.buffer.WriteString("UPDATE ")
 
-	if self.dbType == POSTGRESQL {
+	if self.drv.dbType == POSTGRESQL && self.drv.hasOnly {
 		self.buffer.WriteString(" ONLY ")
 	}
 	self.buffer.WriteString(self.table.CollectionName)
@@ -438,7 +436,7 @@ func (self *updateBuilder) buildUpdate(updated_attributes map[string]interface{}
 		}
 
 		self.buffer.WriteString(attribute.Name)
-		if self.isNumericParams {
+		if self.drv.isNumericParams {
 			self.buffer.WriteString("= $")
 			self.buffer.WriteString(strconv.FormatInt(int64(self.idx), 10))
 		} else {
@@ -458,7 +456,7 @@ func (self *updateBuilder) buildWhereWithString(queryString string, params []int
 	}
 
 	self.buffer.WriteString(" WHERE ")
-	if self.isNumericParams {
+	if self.drv.isNumericParams {
 		self.buffer, self.idx = replaceQuestion(self.buffer, queryString, self.idx)
 	} else {
 		self.buffer.WriteString(queryString)
@@ -471,7 +469,7 @@ func (self *updateBuilder) buildWhereWithString(queryString string, params []int
 func (self *updateBuilder) buildWhereById(id interface{}) {
 	self.buffer.WriteString(" WHERE ")
 	self.buffer.WriteString(self.table.Id.Name)
-	if self.isNumericParams {
+	if self.drv.isNumericParams {
 		self.buffer.WriteString(" = $")
 		self.buffer.WriteString(strconv.FormatInt(int64(self.idx), 10))
 		self.idx++
@@ -483,24 +481,8 @@ func (self *updateBuilder) buildWhereById(id interface{}) {
 }
 
 func (self *updateBuilder) buildWhere(params map[string]string, isSimpleTableInheritance bool) error {
-
-	builder := &whereBuilder{tables: self.tables,
-		table:   self.table,
-		idx:     self.idx,
-		isFirst: true,
-		prefix:  " WHERE ",
-		buffer:  self.buffer,
-		params:  self.params,
-		operators_for_field: map[string]map[string]op_func{"type": operators_for_type,
-			"parent_type": operators_for_parent_type},
-		operators: default_operators}
-
-	if self.isNumericParams {
-		builder.add_argument = (*whereBuilder).appendNumericArguments
-	} else {
-		builder.add_argument = (*whereBuilder).appendSimpleArguments
-	}
-
+	builder := self.drv.newWhere(self.idx, self.table, self.buffer)
+	builder.params = self.params
 	if isSimpleTableInheritance {
 		builder.equalClass("type", self.table)
 	}

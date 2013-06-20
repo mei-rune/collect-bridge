@@ -85,16 +85,24 @@ func replaceQuestion(buffer *bytes.Buffer, str string, idx int) (*bytes.Buffer, 
 }
 
 type simple_driver struct {
-	tables          *types.TableDefinitions
-	drv             string
-	dbType          int
-	db              *sql.DB
+	tables *types.TableDefinitions
+	drv    string
+	dbType int
+	db     *sql.DB
+
 	isNumericParams bool
+	hasOnly         bool
+	from            string
 }
 
-func simpleDriver(drvName string, db *sql.DB, tables *types.TableDefinitions) *simple_driver {
-	return &simple_driver{tables: tables, drv: drvName, dbType: GetDBType(drvName), db: db,
-		isNumericParams: IsNumericParams(drvName)}
+func simpleDriver(drvName string, db *sql.DB, hasOnly bool, tables *types.TableDefinitions) *simple_driver {
+	dbType := GetDBType(drvName)
+	from := " FROM "
+	if dbType == POSTGRESQL && hasOnly {
+		from = " FROM ONLY "
+	}
+	return &simple_driver{tables: tables, drv: drvName, dbType: dbType, db: db,
+		isNumericParams: IsNumericParams(drvName), from: from, hasOnly: hasOnly}
 }
 
 func (self *simple_driver) newWhere(idx int,
@@ -144,13 +152,13 @@ func scanOne(row resultScan, columns []*types.ColumnDefinition) ([]interface{}, 
 }
 
 func (self *simple_driver) selectOne(sql string, args []interface{},
-	columns ...*types.ColumnDefinition) ([]interface{}, error) {
+	columns []*types.ColumnDefinition) ([]interface{}, error) {
 	row := self.db.QueryRow(sql, args...)
 	return scanOne(row, columns)
 }
 
 func (self *simple_driver) selectAll(sql string, args []interface{},
-	columns ...*types.ColumnDefinition) ([][]interface{}, error) {
+	columns []*types.ColumnDefinition) ([][]interface{}, error) {
 	rs, e := self.db.Prepare(sql)
 	if e != nil {
 		return nil, e
@@ -180,10 +188,8 @@ func (self *simple_driver) selectAll(sql string, args []interface{},
 func (self *simple_driver) count(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
 	var buffer bytes.Buffer
-	buffer.WriteString("SELECT count(*) FROM ")
-	if POSTGRESQL == self.dbType {
-		buffer.WriteString("ONLY ")
-	}
+	buffer.WriteString("SELECT count(*) ")
+	buffer.WriteString(self.from)
 	buffer.WriteString(table.CollectionName)
 
 	builder := self.newWhere(1, table, &buffer)
@@ -215,10 +221,7 @@ func (self *simple_driver) buildSQLQueryWithObjectId(table *types.TableDefinitio
 		return nil, errors.New("crazy! selected columns is empty.")
 	}
 	writeColumns(columns, &buffer)
-	buffer.WriteString(" FROM ")
-	if POSTGRESQL == self.dbType {
-		buffer.WriteString("ONLY ")
-	}
+	buffer.WriteString(self.from)
 	buffer.WriteString(table.CollectionName)
 	buffer.WriteString(" WHERE ")
 	buffer.WriteString(table.Id.Name)
@@ -244,22 +247,40 @@ func (self *simple_driver) findById(table *types.TableDefinition,
 	return builder.Bind(id).Build().One()
 }
 
-func (self *simple_driver) find(table *types.TableDefinition,
-	params map[string]string) ([]map[string]interface{}, error) {
+func (self *simple_driver) where(table *types.TableDefinition, sqlString string) (QueryBuilder, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString("SELECT ")
-
 	isSingleTableInheritance := table.IsSingleTableInheritance()
 	columns := toColumns(table, isSingleTableInheritance)
 	if nil == columns || 0 == len(columns) {
 		return nil, errors.New("crazy! selected columns is empty.")
 	}
 	writeColumns(columns, &buffer)
-
-	buffer.WriteString(" FROM ")
-	if POSTGRESQL == self.dbType {
-		buffer.WriteString(" ONLY ")
+	buffer.WriteString(self.from)
+	buffer.WriteString(table.CollectionName)
+	if 0 != len(sqlString) {
+		buffer.WriteString(" WHERE ")
+		replaceQuestion(&buffer, sqlString, 1)
 	}
+
+	return &QueryImpl{drv: self,
+		isSingleTableInheritance: isSingleTableInheritance,
+		columns:                  columns,
+		table:                    table,
+		sql:                      buffer.String()}, nil
+}
+
+func (self *simple_driver) find(table *types.TableDefinition,
+	params map[string]string) ([]map[string]interface{}, error) {
+	var buffer bytes.Buffer
+	buffer.WriteString("SELECT ")
+	isSingleTableInheritance := table.IsSingleTableInheritance()
+	columns := toColumns(table, isSingleTableInheritance)
+	if nil == columns || 0 == len(columns) {
+		return nil, errors.New("crazy! selected columns is empty.")
+	}
+	writeColumns(columns, &buffer)
+	buffer.WriteString(self.from)
 	buffer.WriteString(table.CollectionName)
 	args, e := self.whereWithParams(table, isSingleTableInheritance, 1, params, &buffer)
 	if nil != e {
@@ -483,12 +504,10 @@ func (self *simple_driver) insert(table *types.TableDefinition,
 func (self *simple_driver) update(table *types.TableDefinition, params map[string]string,
 	updated_attributes map[string]interface{}) (int64, error) {
 	var buffer bytes.Buffer
-	builder := &updateBuilder{tables: self.tables,
-		table:           table,
-		idx:             1,
-		buffer:          &buffer,
-		dbType:          self.dbType,
-		isNumericParams: self.isNumericParams}
+	builder := updateBuilder{drv: self,
+		table:  table,
+		buffer: &buffer,
+		idx:    1}
 	e := builder.buildUpdate(updated_attributes)
 	if nil != e {
 		return 0, e
@@ -515,12 +534,10 @@ func (self *simple_driver) updateBySQL(table *types.TableDefinition,
 	updated_attributes map[string]interface{},
 	queryString string, args ...interface{}) (int64, error) {
 	var buffer bytes.Buffer
-	builder := &updateBuilder{tables: self.tables,
-		table:           table,
-		idx:             1,
-		buffer:          &buffer,
-		dbType:          self.dbType,
-		isNumericParams: self.isNumericParams}
+	builder := updateBuilder{drv: self,
+		table:  table,
+		buffer: &buffer,
+		idx:    1}
 	e := builder.buildUpdate(updated_attributes)
 	if nil != e {
 		return 0, e
@@ -543,12 +560,10 @@ func (self *simple_driver) updateBySQL(table *types.TableDefinition,
 func (self *simple_driver) updateById(table *types.TableDefinition, id interface{},
 	updated_attributes map[string]interface{}) error {
 	var buffer bytes.Buffer
-	builder := &updateBuilder{tables: self.tables,
-		table:           table,
-		idx:             1,
-		buffer:          &buffer,
-		dbType:          self.dbType,
-		isNumericParams: self.isNumericParams}
+	builder := updateBuilder{drv: self,
+		table:  table,
+		buffer: &buffer,
+		idx:    1}
 	e := builder.buildUpdate(updated_attributes)
 	if nil != e {
 		return e
@@ -579,10 +594,8 @@ func (self *simple_driver) updateById(table *types.TableDefinition, id interface
 func (self *simple_driver) delete(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
 	var buffer bytes.Buffer
-	buffer.WriteString("DELETE FROM ")
-	if POSTGRESQL == self.dbType {
-		buffer.WriteString(" ONLY ")
-	}
+	buffer.WriteString("DELETE ")
+	buffer.WriteString(self.from)
 	buffer.WriteString(table.CollectionName)
 
 	builder := self.newWhere(1, table, &buffer)
@@ -595,6 +608,7 @@ func (self *simple_driver) delete(table *types.TableDefinition,
 		return 0, e
 	}
 
+	fmt.Println(buffer.String())
 	res, e := self.db.Exec(buffer.String(), builder.params...)
 	if nil != e {
 		return 0, e
@@ -606,10 +620,8 @@ func (self *simple_driver) delete(table *types.TableDefinition,
 func (self *simple_driver) deleteById(table *types.TableDefinition, id interface{}) error {
 
 	var buffer bytes.Buffer
-	buffer.WriteString("DELETE FROM ")
-	if POSTGRESQL == self.dbType {
-		buffer.WriteString(" ONLY ")
-	}
+	buffer.WriteString("DELETE ")
+	buffer.WriteString(self.from)
 	buffer.WriteString(table.CollectionName)
 	buffer.WriteString(" WHERE ")
 	buffer.WriteString(table.Id.Name)
@@ -619,6 +631,7 @@ func (self *simple_driver) deleteById(table *types.TableDefinition, id interface
 		buffer.WriteString(" = ?")
 	}
 
+	fmt.Println(buffer.String())
 	res, e := self.db.Exec(buffer.String(), table.Id.Type.ToExternal(id))
 	if nil != e {
 		return e
@@ -640,10 +653,8 @@ func (self *simple_driver) deleteBySQL(table *types.TableDefinition,
 	queryString string, args ...interface{}) (int64, error) {
 
 	var buffer bytes.Buffer
-	buffer.WriteString("DELETE FROM ")
-	if POSTGRESQL == self.dbType {
-		buffer.WriteString(" ONLY ")
-	}
+	buffer.WriteString("DELETE ")
+	buffer.WriteString(self.from)
 	buffer.WriteString(table.CollectionName)
 
 	if 0 == len(queryString) {
@@ -658,6 +669,7 @@ func (self *simple_driver) deleteBySQL(table *types.TableDefinition,
 		}
 	}
 
+	fmt.Println(buffer.String())
 	res, e := self.db.Exec(buffer.String(), args...)
 	if nil != e {
 		return 0, e
@@ -671,11 +683,7 @@ func (self *simple_driver) forEach(table *types.TableDefinition, params map[stri
 	var buffer bytes.Buffer
 	buffer.WriteString("SELECT ")
 	buffer.WriteString(table.Id.Name)
-	buffer.WriteString(" FROM ")
-	if POSTGRESQL == self.dbType {
-		buffer.WriteString(" ONLY ")
-	}
-
+	buffer.WriteString(self.from)
 	buffer.WriteString(table.CollectionName)
 
 	builder := self.newWhere(1, table, &buffer)

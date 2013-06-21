@@ -10,6 +10,7 @@ out/
 *.so
 *.lib
 *.a
+*.db
 
 snmpget
 

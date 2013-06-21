@@ -2,6 +2,8 @@ package ds
 
 import (
 	"commons/types"
+	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -248,7 +250,7 @@ func (self *session) deleteCascadeAll(table *types.TableDefinition) (int64, erro
 	return deleted_all, nil
 }
 
-func (self *session) deleteCascadeById(table *types.TableDefinition, id interface{}) (int64, error) {
+func (self *session) deleteCascadeByIdAndTrueTable(table *types.TableDefinition, id interface{}) (int64, error) {
 	deleted_all := int64(0)
 	for s := table; nil != s; s = s.Super {
 		for _, a := range s.Assocations {
@@ -270,7 +272,7 @@ func (self *session) deleteCascadeById(table *types.TableDefinition, id interfac
 func (self *session) deleteCascadeByParams(table *types.TableDefinition, params map[string]string) (int64, error) {
 	deleted_all := int64(0)
 	e := self.drv.forEach(table, params, func(rtable *types.TableDefinition, id interface{}) error {
-		deleted_single, e := self.deleteCascadeById(rtable, id)
+		deleted_single, e := self.deleteCascadeByIdAndTrueTable(rtable, id)
 		if nil != e {
 			return e
 		}
@@ -281,4 +283,25 @@ func (self *session) deleteCascadeByParams(table *types.TableDefinition, params 
 		return 0, e
 	}
 	return deleted_all, nil
+}
+
+func (self *session) deleteCascadeById(table *types.TableDefinition, id interface{}) (int64, error) {
+	var first_table *types.TableDefinition
+
+	e := self.drv.forEach(table, map[string]string{"@id": fmt.Sprint(id)},
+		func(rtable *types.TableDefinition, id interface{}) error {
+			if nil != first_table {
+				return errors.New("rows that id is '" + fmt.Sprint(id) + "' is more than one.")
+			}
+			first_table = rtable
+			return nil
+		})
+	if nil != e {
+		return 0, e
+	}
+	if nil == first_table {
+		return 0, sql.ErrNoRows
+	}
+
+	return self.deleteCascadeByIdAndTrueTable(first_table, id)
 }

@@ -18,7 +18,7 @@ var (
 	test_address = flag.String("test.http", ":7071", "the address of http")
 )
 
-func testBase(t *testing.T, file string, init_cb func(conn *sql.DB), cb func(db *Client, definitions *types.TableDefinitions)) {
+func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB), cb func(db *Client, definitions *types.TableDefinitions)) {
 	definitions, err := types.LoadTableDefinitions(file)
 	if nil != err {
 		t.Errorf("read file '%s' failed, %s", file, err.Error())
@@ -36,7 +36,7 @@ func testBase(t *testing.T, file string, init_cb func(conn *sql.DB), cb func(db 
 		}
 	}()
 
-	init_cb(conn)
+	init_cb(*test_db, conn)
 	conn.Close()
 	conn = nil
 
@@ -88,7 +88,7 @@ func testBase(t *testing.T, file string, init_cb func(conn *sql.DB), cb func(db 
 }
 
 func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.TableDefinitions)) {
-	testBase(t, file, func(conn *sql.DB) {
+	testBase(t, file, func(drv string, conn *sql.DB) {
 		_, err := conn.Exec("DROP TABLE IF EXISTS people")
 		if err != nil {
 			t.Fatal(err)
@@ -110,11 +110,18 @@ func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.T
 			return
 		}
 
-		_, err = conn.Exec("CREATE TABLE employees (ID SERIAL PRIMARY KEY, ID1 int, " +
+		primaryKey_decl := "INTEGER PRIMARY KEY AUTOINCREMENT"
+		timezone := ""
+		if "postgres" == *test_db {
+			primaryKey_decl = "SERIAL PRIMARY KEY"
+			timezone = " with time zone"
+		}
+
+		_, err = conn.Exec("CREATE TABLE employees (ID " + primaryKey_decl + ", ID1 int, " +
 			"Name varchar(256), " +
 			"Name2 varchar(256), " +
 			"Age int, " +
-			"Day timestamp with time zone, " +
+			"Day timestamp " + timezone + ", " +
 			"Mony numeric(9, 4), " +
 			"IP varchar(50), " +
 			"MAC varchar(50), " +
@@ -127,11 +134,11 @@ func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.T
 			return
 		}
 
-		_, err = conn.Exec("CREATE TABLE managers (ID SERIAL PRIMARY KEY, ID1 int, " +
+		_, err = conn.Exec("CREATE TABLE managers (ID " + primaryKey_decl + ", ID1 int, " +
 			"Name varchar(256), " +
 			"Name2 varchar(256), " +
 			"Age int, " +
-			"Day timestamp with time zone, " +
+			"Day timestamp " + timezone + ", " +
 			"Mony numeric(9, 4), " +
 			"IP varchar(50), " +
 			"MAC varchar(50), " +
@@ -145,11 +152,11 @@ func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.T
 			return
 		}
 
-		_, err = conn.Exec("CREATE TABLE people (ID SERIAL PRIMARY KEY, ID1 int, " +
+		_, err = conn.Exec("CREATE TABLE people (ID " + primaryKey_decl + ", ID1 int, " +
 			"Name varchar(256), " +
 			"Name2 varchar(256), " +
 			"Age int, " +
-			"Day timestamp with time zone, " +
+			"Day timestamp " + timezone + ", " +
 			"Mony numeric(9, 4), " +
 			"IP varchar(50), " +
 			"MAC varchar(50), " +

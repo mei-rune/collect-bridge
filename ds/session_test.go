@@ -12,6 +12,9 @@ import (
 )
 
 var (
+	//test_db    = flag.String("test.db", "sqlite3", "the db driver name for test")
+	//test_dbUrl = flag.String("test.dburl", "test.sqlite3.db", "the db url")
+
 	test_db    = flag.String("test.db", "postgres", "the db driver name for test")
 	test_dbUrl = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
 
@@ -64,45 +67,74 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 	}
 	defer conn.Close()
 
-	_, err = conn.Exec("CREATE TEMP TABLE employees (ID SERIAL PRIMARY KEY, ID1 int, " +
-		"Name varchar(256), " +
-		"Name2 varchar(256), " +
-		"Age int, " +
-		"Day timestamp with time zone, " +
-		"Mony numeric(9, 4), " +
-		"IP varchar(50), " +
-		"MAC varchar(50), " +
-		"Sex varchar(10)," +
-		"Password varchar(256)," +
-		"company_test_id integer," +
-		"Job varchar(256) )")
+	_, err = conn.Exec("DROP TABLE IF EXISTS people")
 	if err != nil {
 		t.Fatal(err)
+		t.FailNow()
 		return
 	}
-	_, err = conn.Exec("CREATE TEMP TABLE managers (ID SERIAL PRIMARY KEY, ID1 int, " +
+
+	_, err = conn.Exec("DROP TABLE IF EXISTS employees")
+	if err != nil {
+		t.Fatal(err)
+		t.FailNow()
+		return
+	}
+
+	_, err = conn.Exec("DROP TABLE IF EXISTS managers")
+	if err != nil {
+		t.Fatal(err)
+		t.FailNow()
+		return
+	}
+
+	primaryKey_decl := "INTEGER PRIMARY KEY AUTOINCREMENT"
+	timezone := ""
+	if "postgres" == *test_db {
+		primaryKey_decl = "SERIAL PRIMARY KEY"
+		timezone = " with time zone"
+	}
+
+	_, err = conn.Exec("CREATE TEMP TABLE employees (ID " + primaryKey_decl + ", ID1 int, " +
 		"Name varchar(256), " +
 		"Name2 varchar(256), " +
 		"Age int, " +
-		"Day timestamp with time zone, " +
+		"Day timestamp " + timezone + ", " +
 		"Mony numeric(9, 4), " +
 		"IP varchar(50), " +
 		"MAC varchar(50), " +
 		"Sex varchar(10)," +
 		"Password varchar(256)," +
 		"company_test_id integer," +
-		"company_id integer," +
 		"Job varchar(256) )")
 	if err != nil {
 		t.Fatal(err)
 		return
 	}
 
-	_, err = conn.Exec("CREATE TEMP TABLE people (ID SERIAL PRIMARY KEY, ID1 int, " +
+	_, err = conn.Exec("CREATE TEMP TABLE managers (ID " + primaryKey_decl + ", ID1 int, " +
 		"Name varchar(256), " +
 		"Name2 varchar(256), " +
 		"Age int, " +
-		"Day timestamp with time zone, " +
+		"Day timestamp " + timezone + ", " +
+		"Mony numeric(9, 4), " +
+		"IP varchar(50), " +
+		"MAC varchar(50), " +
+		"Sex varchar(10)," +
+		"company_test_id integer," +
+		"company_id integer," +
+		"Password varchar(256)," +
+		"Job varchar(256) )")
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	_, err = conn.Exec("CREATE TEMP TABLE people (ID " + primaryKey_decl + ", ID1 int, " +
+		"Name varchar(256), " +
+		"Name2 varchar(256), " +
+		"Age int, " +
+		"Day timestamp " + timezone + ", " +
 		"Mony numeric(9, 4), " +
 		"IP varchar(50), " +
 		"MAC varchar(50), " +
@@ -110,8 +142,10 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 		"Password varchar(256) )")
 	if err != nil {
 		t.Fatal(err)
+		t.FailNow()
 		return
 	}
+
 	simple := newSession(*test_db, conn, definitions)
 	cb(simple, definitions)
 }

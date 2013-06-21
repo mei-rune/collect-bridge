@@ -51,7 +51,7 @@ func (self *HttpClient) CreateUrl() *UrlBuilder {
 func (self *HttpClient) Invoke(action, url string, msg []byte, exceptedCode int) Result {
 	self.Warnings = nil
 
-	fmt.Println(action, url)
+	//fmt.Println(action, url)
 	req, err := http.NewRequest(action, url, bytes.NewBuffer(msg))
 	if err != nil {
 		return ReturnError(BadRequestCode, err.Error())

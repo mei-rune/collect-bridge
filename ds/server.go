@@ -36,6 +36,10 @@ func NewServer(drv, dbUrl, file string, goroutines int) (*server, error) {
 		return nil, fmt.Errorf("goroutines must is greate 0")
 	}
 
+	if "sqlite3" == drv {
+		goroutines = 1
+	}
+
 	srv := &server{drv: drv,
 		dbUrl:        dbUrl,
 		goroutines:   goroutines,

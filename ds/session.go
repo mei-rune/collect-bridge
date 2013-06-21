@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	_ "github.com/lib/pq"
+	//_ "github.com/mattn/go-sqlite3"
 	"strconv"
 	"strings"
 )
@@ -23,7 +24,7 @@ type session struct {
 func newSession(drvName string, conn *sql.DB, tables *types.TableDefinitions) *session {
 
 	simple := simpleDriver(drvName, conn, !*IsPostgresqlInherit, tables)
-	if *IsPostgresqlInherit {
+	if POSTGRESQL == simple.dbType && *IsPostgresqlInherit {
 		return &session{simple: simple, drv: ctiSupportWithPostgreSQLInherit(simple)}
 	}
 	return &session{simple: simple, drv: ctiSupport(simple)}

@@ -584,11 +584,15 @@ func (self *simple_driver) updateById(table *types.TableDefinition, id interface
 	if nil != e {
 		return e
 	}
-	if 1 != affected {
+
+	switch affected {
+	case 0:
+		return sql.ErrNoRows
+	case 1:
+		return nil
+	default:
 		return fmt.Errorf("affected rows is not equals 1, actual is %v", affected)
 	}
-
-	return nil
 }
 
 func (self *simple_driver) delete(table *types.TableDefinition,
@@ -608,7 +612,6 @@ func (self *simple_driver) delete(table *types.TableDefinition,
 		return 0, e
 	}
 
-	fmt.Println(buffer.String())
 	res, e := self.db.Exec(buffer.String(), builder.params...)
 	if nil != e {
 		return 0, e
@@ -631,7 +634,6 @@ func (self *simple_driver) deleteById(table *types.TableDefinition, id interface
 		buffer.WriteString(" = ?")
 	}
 
-	fmt.Println(buffer.String())
 	res, e := self.db.Exec(buffer.String(), table.Id.Type.ToExternal(id))
 	if nil != e {
 		return e
@@ -642,11 +644,14 @@ func (self *simple_driver) deleteById(table *types.TableDefinition, id interface
 		return e
 	}
 
-	if 1 != affected {
+	switch affected {
+	case 0:
 		return sql.ErrNoRows
+	case 1:
+		return nil
+	default:
+		return fmt.Errorf("affected rows is not equals 1, actual is %v", affected)
 	}
-
-	return nil
 }
 
 func (self *simple_driver) deleteBySQL(table *types.TableDefinition,
@@ -669,7 +674,6 @@ func (self *simple_driver) deleteBySQL(table *types.TableDefinition,
 		}
 	}
 
-	fmt.Println(buffer.String())
 	res, e := self.db.Exec(buffer.String(), args...)
 	if nil != e {
 		return 0, e

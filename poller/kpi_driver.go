@@ -2,10 +2,9 @@ package poller
 
 import (
 	"commons"
-	"commons/errutils"
+	"ds"
 	"errors"
 	"fmt"
-	"mdb"
 )
 
 type KPIDriver struct {
@@ -14,7 +13,7 @@ type KPIDriver struct {
 	client         *commons.HttpClient
 }
 
-func NewKPIDriver(baseUrl string, client *mdb.Client) (commons.Driver, error) {
+func NewKPIDriver(baseUrl string, client *ds.Client) (commons.Driver, error) {
 	res, err := client.FindByWithIncludes("device", nil, "snmp_params")
 	if nil != err {
 		return nil, errors.New("load device failed, " + err.Error())
@@ -31,24 +30,29 @@ func makeId(t, id string) string {
 	return t + "-" + id
 }
 
-func (self *KPIDriver) Get(params map[string]string) (commons.Result, commons.RuntimeError) {
+var (
+	AccessParamsIsNotExists = commons.InternalError("access params is not exists.")
+	IsNotSNMPParams         = commons.InternalError("get access params failed - it is not a snmp params")
+)
+
+func (self *KPIDriver) Get(params map[string]string) commons.Result {
 	id := makeId(params["managed_type"], params["managed_id"])
 	mo := self.managedObjects[id]
 	if nil == mo {
-		return nil, commons.NotFound(id)
+		return commons.ReturnError(commons.NotFoundCode, "'"+id+"' is not found.")
 	}
 
 	access_params, e := commons.TryGetObjects(mo, "$snmp_params")
 	if nil != e {
-		return nil, errutils.InternalError(fmt.Sprintf("fetch access params failed - %v", e))
+		return commons.ReturnError(commons.InternalErrorCode, fmt.Sprintf("fetch access params failed - %v", e))
 	}
 	if nil == access_params || 0 == len(access_params) {
-		return nil, errutils.InternalError("access params is not exists.")
+		return commons.ReturnError(commons.InternalErrorCode, "access params is not exists.")
 	}
 
 	snmp_params := access_params[0]
 	if "snmp_params" != snmp_params["type"] {
-		return nil, errutils.InternalError("get access params failed - it is not a snmp params")
+		return commons.ReturnError(commons.InternalErrorCode, "get access params failed - it is not a snmp params")
 	}
 
 	if charset := params["charset"]; "" == charset {
@@ -58,14 +62,14 @@ func (self *KPIDriver) Get(params map[string]string) (commons.Result, commons.Ru
 	return self.client.Invoke("GET", url, nil, 200)
 }
 
-func (self *KPIDriver) Put(params map[string]string) (commons.Result, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *KPIDriver) Put(params map[string]string) commons.Result {
+	return commons.ReturnWithError(commons.NotImplemented)
 }
 
-func (self *KPIDriver) Create(params map[string]string) (commons.Result, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *KPIDriver) Create(params map[string]string) commons.Result {
+	return commons.ReturnWithError(commons.NotImplemented)
 }
 
-func (self *KPIDriver) Delete(params map[string]string) (commons.Result, commons.RuntimeError) {
-	return nil, commons.NotImplemented
+func (self *KPIDriver) Delete(params map[string]string) commons.Result {
+	return commons.ReturnWithError(commons.NotImplemented)
 }

@@ -28,9 +28,9 @@ type metricJob struct {
 }
 
 func (self *metricJob) Run(t time.Time) {
-	res, e := self.drv.Get(self.params)
-	if nil != e {
-		self.WARN.Printf("read metric '%s' failed, %v", self.metric, e)
+	res := self.drv.Get(self.params)
+	if res.HasError() {
+		self.WARN.Printf("read metric '%s' failed, %v", self.metric, res.ErrorMessage())
 		return
 	}
 	self.CallActions(t, res.ToJson())

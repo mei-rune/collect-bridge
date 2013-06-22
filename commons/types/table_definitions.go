@@ -298,6 +298,16 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 		cls := &TableDefinition{Name: xmlDefinition.Name,
 			UnderscoreName: Underscore(xmlDefinition.Name),
 			CollectionName: Tableize(xmlDefinition.Name)}
+
+		switch xmlDefinition.Abstract {
+		case "true":
+			cls.IsAbstract = true
+		case "false", "":
+			cls.IsAbstract = false
+		default:
+			errs = append(errs, "'abstract' value is invalid, it must is 'true' or 'false', actual is '"+xmlDefinition.Abstract+"'")
+		}
+
 		msgs := loadOwnColumns(&xmlDefinition, cls)
 		if nil != msgs && 0 != len(msgs) {
 			errs = mergeErrors(errs, "", msgs)

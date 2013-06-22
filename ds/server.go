@@ -165,7 +165,8 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 			return commons.ReturnError(commons.IsRequiredCode, "'id' is required.")
 		}
 
-		if "@count" == t {
+		switch t {
+		case "@count":
 			params := make(map[string]string)
 			for k, v := range req.Request.URL.Query() {
 				params[k] = v[len(v)-1]
@@ -175,22 +176,32 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 				return commons.ReturnError(commons.InternalErrorCode, e.Error())
 			}
 			return commons.Return(res)
-		}
-
-		id, e := table.Id.Type.Parse(t)
-		if nil != e {
-			return commons.ReturnError(commons.BadRequestCode, fmt.Sprintf("'id' is not a '%v', actual value is '%v'",
-				table.Id.Type.Name(), t))
-		}
-
-		res, e := db.findById(table, id, req.QueryParameter("includes"))
-		if nil != e {
-			if sql.ErrNoRows == e {
-				return commons.ReturnError(commons.NotFoundCode, e.Error())
+		case "@snapshot":
+			params := make(map[string]string)
+			for k, v := range req.Request.URL.Query() {
+				params[k] = v[len(v)-1]
 			}
-			return commons.ReturnError(commons.InternalErrorCode, e.Error())
-		} else {
+			res, e := db.snapshot(table, params)
+			if nil != e {
+				return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			}
 			return commons.Return(res)
+		default:
+			id, e := table.Id.Type.Parse(t)
+			if nil != e {
+				return commons.ReturnError(commons.BadRequestCode, fmt.Sprintf("'id' is not a '%v', actual value is '%v'",
+					table.Id.Type.Name(), t))
+			}
+
+			res, e := db.findById(table, id, req.QueryParameter("includes"))
+			if nil != e {
+				if sql.ErrNoRows == e {
+					return commons.ReturnError(commons.NotFoundCode, e.Error())
+				}
+				return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			} else {
+				return commons.Return(res)
+			}
 		}
 	})
 }

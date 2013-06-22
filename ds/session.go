@@ -35,6 +35,11 @@ func (self *session) count(table *types.TableDefinition,
 	return self.drv.count(table, params)
 }
 
+func (self *session) snapshot(table *types.TableDefinition,
+	params map[string]string) ([]map[string]interface{}, error) {
+	return self.drv.snapshot(table, params)
+}
+
 func (self *session) findById(table *types.TableDefinition, id interface{}, includes string) (map[string]interface{}, error) {
 	result, e := self.drv.findById(table, id)
 	if nil != e {

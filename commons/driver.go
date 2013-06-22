@@ -107,6 +107,7 @@ type Result interface {
 	HasOptions() bool
 	Options() Map
 	CreatedAt() time.Time
+	ToJson() string
 }
 
 type Any interface {

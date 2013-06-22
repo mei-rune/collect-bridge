@@ -3,7 +3,9 @@ package ds
 import (
 	"commons"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 )
 
 type Client struct {
@@ -27,7 +29,8 @@ func (self *Client) Create(target string, body map[string]interface{}) (string, 
 	return id, err
 }
 
-func (self *Client) SaveBy(target string, params map[string]string, body map[string]interface{}) (string, string, commons.RuntimeError) {
+func (self *Client) SaveBy(target string, params map[string]string,
+	body map[string]interface{}) (string, string, commons.RuntimeError) {
 	url := self.CreateUrl().
 		Concat(target).
 		WithQueries(params, "@").
@@ -84,7 +87,8 @@ func (self *Client) UpdateById(target, id string, body map[string]interface{}) c
 	return nil
 }
 
-func (self *Client) UpdateBy(target string, params map[string]string, body map[string]interface{}) (int64, commons.RuntimeError) {
+func (self *Client) UpdateBy(target string, params map[string]string,
+	body map[string]interface{}) (int64, commons.RuntimeError) {
 	url := self.CreateUrl().Concat(target).WithQueries(params, "@").ToUrl()
 	msg, e := json.Marshal(body)
 	if nil != e {
@@ -142,6 +146,81 @@ func (self *Client) FindById(target, id string) (map[string]interface{},
 	return self.FindByIdWithIncludes(target, id, "")
 }
 
+type RecordVersion struct {
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+var ErrNotString = errors.New("it is not a string")
+var ErrNotTimeString = errors.New("it is not a time string")
+
+func GetRecordVersionFrom(values map[string]interface{}) (*RecordVersion, error) {
+	t1 := values["created_at"]
+	t2 := values["updated_at"]
+	if nil == t1 && nil == t2 {
+		return nil, nil
+	}
+	version := &RecordVersion{}
+	e := GetTime(t1, &version.CreatedAt)
+	if nil != e {
+		return nil, fmt.Errorf("get 'created_at' failed, %v", e)
+	}
+	e = GetTime(t2, &version.UpdatedAt)
+	if nil != e {
+		return nil, fmt.Errorf("get 'updated_at' failed, %v", e)
+	}
+	return version, nil
+}
+
+func GetTime(v interface{}, t *time.Time) error {
+	s, ok := v.(string)
+	if !ok {
+		return ErrNotString
+	}
+
+	m, e := time.Parse(time.RFC3339, s)
+	if nil == e {
+		*t = m
+		return nil
+	}
+
+	m, e = time.Parse(time.RFC3339Nano, s)
+	if nil == e {
+		*t = m
+		return nil
+	}
+	return ErrNotTimeString
+}
+
+func (self *Client) Snapshot(target string, params map[string]string) (map[string]*RecordVersion,
+	error) {
+	url := self.CreateUrl().
+		Concat(target, "@snapshot").
+		WithQueries(params, "@").ToUrl()
+	res := self.Invoke("GET", url, nil, 200)
+	if res.HasError() {
+		return nil, res.Error()
+	}
+	results, err := res.Value().AsObjects()
+	if nil != err {
+		return nil, commons.InternalError(err.Error())
+	}
+
+	snapshots := make(map[string]*RecordVersion)
+	for i, res := range results {
+		id := res["id"]
+		if nil == id {
+			return nil, fmt.Errorf("'id' is nil in the results[%v]", i)
+		}
+		snapshot, err := GetRecordVersionFrom(res)
+		if nil != err {
+			return nil, err
+		}
+		snapshots[fmt.Sprint(id)] = snapshot
+	}
+	return snapshots, nil
+}
+
 func (self *Client) FindBy(target string, params map[string]string) ([]map[string]interface{},
 	commons.RuntimeError) {
 	return self.FindByWithIncludes(target, params, "")
@@ -151,9 +230,11 @@ func (self *Client) FindByWithIncludes(target string, params map[string]string, 
 	[]map[string]interface{}, commons.RuntimeError) {
 	url := self.CreateUrl().
 		Concat(target).
-		WithQueries(params, "@").
-		WithQuery("includes", includes).ToUrl()
-	res := self.Invoke("GET", url, nil, 200)
+		WithQueries(params, "@")
+	if 0 != len(includes) {
+		url.WithQuery("includes", includes)
+	}
+	res := self.Invoke("GET", url.ToUrl(), nil, 200)
 	if res.HasError() {
 		return nil, res.Error()
 	}
@@ -166,8 +247,11 @@ func (self *Client) FindByWithIncludes(target string, params map[string]string, 
 
 func (self *Client) FindByIdWithIncludes(target, id string, includes string) (
 	map[string]interface{}, commons.RuntimeError) {
-	url := self.CreateUrl().Concat(target, id).WithQuery("includes", includes).ToUrl()
-	res := self.Invoke("GET", url, nil, 200)
+	url := self.CreateUrl().Concat(target, id)
+	if 0 != len(includes) {
+		url.WithQuery("includes", includes)
+	}
+	res := self.Invoke("GET", url.ToUrl(), nil, 200)
 	if res.HasError() {
 		return nil, res.Error()
 	}

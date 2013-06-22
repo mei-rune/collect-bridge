@@ -3,7 +3,6 @@ package poller
 import (
 	"bytes"
 	"commons"
-	"commons/errutils"
 	"fmt"
 	"runtime"
 	"strings"
@@ -62,9 +61,9 @@ func (self *Trigger) CallActions(t time.Time, res interface{}) {
 const every = "@every "
 
 var (
-	ExpressionSyntexError = errutils.BadRequest("'expression' is error syntex")
-	NameIsRequired        = errutils.IsRequired("name")
-	CommandIsRequired     = errutils.IsRequired("command")
+	ExpressionSyntexError = commons.BadRequest("'expression' is error syntex")
+	NameIsRequired        = commons.IsRequired("name")
+	CommandIsRequired     = commons.IsRequired("command")
 )
 
 func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map[string]interface{}) (*Trigger, error) {
@@ -74,17 +73,17 @@ func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 	}
 
 	if nil == callback {
-		return nil, errutils.IsRequired("callback")
+		return nil, commons.IsRequired("callback")
 	}
 
 	expression := commons.GetString(attributes, "expression", "")
 	if "" == expression {
-		return nil, errutils.IsRequired("expression")
+		return nil, commons.IsRequired("expression")
 	}
 
 	action_specs, e := commons.TryGetObjects(attributes, "$action")
 	if nil != e {
-		return nil, errutils.IsRequired("$action")
+		return nil, commons.IsRequired("$action")
 	}
 	actions := make([]ExecuteAction, 0, 10)
 	for _, spec := range action_specs {
@@ -98,7 +97,7 @@ func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 	if strings.HasPrefix(expression, every) {
 		interval, err := commons.ParseDuration(expression[len(every):])
 		if nil != err {
-			return nil, errutils.BadRequest(ExpressionSyntexError.Error() + ", " + err.Error())
+			return nil, commons.BadRequest(ExpressionSyntexError.Error() + ", " + err.Error())
 		}
 
 		intervalTrigger := &IntervalTrigger{control_ch: make(chan string, 1),

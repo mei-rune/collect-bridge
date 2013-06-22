@@ -41,6 +41,19 @@ func (self *cti_supported_driver) count(table *types.TableDefinition,
 	return self.cti_policy.count(table, params)
 }
 
+func (self *cti_supported_driver) snapshot(table *types.TableDefinition,
+	params map[string]string) ([]map[string]interface{}, error) {
+	if table.IsSingleTableInheritance() {
+		return self.simple.snapshot(table, params)
+	}
+
+	if !table.HasChildren() {
+		return self.simple.snapshot(table, params)
+	}
+
+	return self.cti_policy.snapshot(table, params)
+}
+
 func (self *cti_supported_driver) findById(table *types.TableDefinition, id interface{}) (map[string]interface{}, error) {
 	if table.IsSingleTableInheritance() {
 		return self.simple.findById(table, id)

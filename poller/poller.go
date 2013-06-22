@@ -2,10 +2,10 @@ package poller
 
 import (
 	"commons"
+	"ds"
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"mdb"
 	"os"
 	"web"
 )
@@ -13,10 +13,8 @@ import (
 var (
 	redisAddress  = flag.String("redis", "127.0.0.1:6379", "the address of redis")
 	listenAddress = flag.String("listen", ":7076", "the address of http")
-	mdbUrl        = flag.String("mdb", "http://127.0.0.1:7071/mdb", "the address of mdb")
+	mdbUrl        = flag.String("ds", "http://127.0.0.1:7071/ds", "the address of ds")
 	address       = flag.String("url", "http://127.0.0.1:7070", "the address of bridge")
-	directory     = flag.String("directory", ".", "the static directory of http")
-	cookies       = flag.String("cookies", "", "the static directory of http")
 	timeout       = flag.Int("timeout", 5, "the timeout of http")
 )
 
@@ -41,11 +39,9 @@ func Runforever() {
 	svr := web.NewServer()
 	svr.Config.Name = "meijing-poller v1.0"
 	svr.Config.Address = *listenAddress
-	svr.Config.StaticDirectory = *directory
-	svr.Config.CookieSecret = *cookies
 	svr.Get("/", mainHandle)
 
-	client := mdb.NewClient(*mdbUrl)
+	client := ds.NewClient(*mdbUrl)
 	drvMgr := commons.NewDriverManager()
 	drv, e := NewKPIDriver(*address, client)
 	if nil != e {

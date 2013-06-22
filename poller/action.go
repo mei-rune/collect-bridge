@@ -1,11 +1,8 @@
 package poller
 
 import (
-	"commons"
 	"fmt"
 	"time"
-
-	"errors"
 )
 
 type ExecuteAction interface {

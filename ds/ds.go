@@ -11,21 +11,20 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"path"
 	"path/filepath"
 	_ "runtime/pprof"
 )
 
 var (
 	models_file = flag.String("models", "etc/mj_models.xml", "the name of models file")
-	directory   = flag.String("directory", ".", "the static directory of http")
 	dbUrl       = flag.String("dburl", "host=127.0.0.1 dbname=ds user=postgres password=mfk sslmode=disable", "the db url")
 	drv         = flag.String("db", "postgres", "the db driver")
 	goroutines  = flag.Int("connections", 10, "the db connection number")
 	address     = flag.String("http", ":7071", "the address of http")
 
-	is_test           = false
-	sinstance *server = nil
+	is_test                         = false
+	sinstance   *server             = nil
+	ws_instance *restful.WebService = nil
 )
 
 func getStatus(params map[string]interface{}, default_code int) int {
@@ -53,15 +52,6 @@ func mainHandle(req *restful.Request, resp *restful.Response) {
 		return
 	}
 	resp.Write([]byte("Hello, World!"))
-}
-
-// http://localhost:8080/static/test.xml
-// http://localhost:8080/static/
-func staticFromPathParam(req *restful.Request, resp *restful.Response) {
-	http.ServeFile(
-		resp.ResponseWriter,
-		req.Request,
-		path.Join(*directory, req.PathParameter("resource")))
 }
 
 func expvarHandler(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +98,6 @@ func Main() {
 
 	ws := new(restful.WebService)
 	ws.Route(ws.GET("/").To(mainHandle))
-	ws.Route(ws.GET("/static/{resource}").To(staticFromPathParam))
 
 	ws.Consumes(restful.MIME_XML, restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML) // you can specify this per route as well
@@ -186,6 +175,7 @@ func Main() {
 	restful.Add(ws)
 
 	if is_test {
+		ws_instance = ws
 		//http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
 		//http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
 		//http.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))

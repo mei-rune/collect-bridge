@@ -76,10 +76,6 @@ func NewError(v interface{}) error {
 	return fmt.Errorf("%v", v)
 }
 
-func NotFound(id string) RuntimeError {
-	return NewRuntimeError(404, "'"+id+"' is not found.")
-}
-
 func IsTimeout(e error) bool {
 	a, ok := e.(RuntimeError)
 	if ok {
@@ -182,6 +178,10 @@ func NotAcceptable(message string) RuntimeError {
 
 func IsRequired(name string) RuntimeError {
 	return NewRuntimeError(BadRequestCode, "'"+name+"' is required.")
+}
+
+func NotFound(id string) RuntimeError {
+	return NewRuntimeError(NotFoundCode, "'"+id+"' is not found.")
 }
 
 func RecordNotFound(id string) RuntimeError {

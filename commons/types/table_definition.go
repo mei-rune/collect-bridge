@@ -98,7 +98,7 @@ func (self *ColumnDefinition) IsSerial() bool {
 	return "id" == self.Name
 }
 
-func (self *ColumnDefinition) IsPromaryKey() bool {
+func (self *ColumnDefinition) IsPrimaryKey() bool {
 	return "id" == self.Name
 }
 
@@ -107,6 +107,7 @@ type TableDefinition struct {
 	Name           string
 	UnderscoreName string
 	CollectionName string
+	IsAbstract     bool
 	Id             *ColumnDefinition
 	OwnAttributes  map[string]*ColumnDefinition
 	Attributes     map[string]*ColumnDefinition

@@ -243,6 +243,14 @@ func LoadClassDefinitions(nm string) (*ClassDefinitions, error) {
 			UnderscoreName: Underscore(xmlDefinition.Name)}
 
 		msgs := loadOwnAttributes(&xmlDefinition, cls)
+		switch xmlDefinition.Abstract {
+		case "true", "":
+			cls.IsAbstract = true
+		case "false":
+			cls.IsAbstract = false
+		default:
+			msgs = append(msgs, "'abstract' value is invalid, it must is 'true' or 'false', actual is '"+xmlDefinition.Abstract+"'")
+		}
 		errs = mergeErrors(errs, "load class '"+xmlDefinition.Name+"' failed", msgs)
 
 		self.Register(cls)

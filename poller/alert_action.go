@@ -1,12 +1,11 @@
 package poller
 
 import (
+	"bytes"
 	"commons"
-	"commons/errutils"
 	"fmt"
+	"runtime"
 	"time"
-
-	"errors"
 )
 
 type AlertAction struct {
@@ -19,13 +18,14 @@ type AlertAction struct {
 	checker    Checker
 	lastStatus int
 	repeated   int
+	last_error error
 }
 
 func (self *AlertAction) Run(t time.Time, value interface{}) {
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
-			buffer.WriteString(fmt.Sprintf("[panic][alert][%s]%v", self.Name, e))
+			buffer.WriteString(fmt.Sprintf("[panic][alert][%s]%v", self.name, e))
 			for i := 1; ; i += 1 {
 				_, file, line, ok := runtime.Caller(i)
 				if !ok {
@@ -37,7 +37,21 @@ func (self *AlertAction) Run(t time.Time, value interface{}) {
 		}
 	}()
 
-	current := self.checker.Run(t, value, self.result)
+	current, e := self.checker.Run(value, self.result)
+	if nil != e {
+		if nil == self.last_error {
+			commons.Log.ERROR.Print("[error]" + self.name + " - " + e.Error())
+		}
+		self.last_error = e
+		return
+	} else {
+
+		if nil != self.last_error {
+			commons.Log.ERROR.Print("[error]" + self.name + " is ok ")
+		}
+
+		self.last_error = nil
+	}
 
 	if self.repeated == self.maxRepeated {
 		evt := map[string]interface{}{}
@@ -53,8 +67,6 @@ func (self *AlertAction) Run(t time.Time, value interface{}) {
 		self.channel <- evt
 	}
 
-end:
-
 	if current == self.lastStatus {
 		self.repeated++
 
@@ -68,10 +80,10 @@ end:
 }
 
 var (
-	ExpressionStyleIsRequired    = errutils.IsRequired("expression_style")
-	ExpressionCodeIsRequired     = errutils.IsRequired("expression_code")
-	NotificationChannelIsNil     = errutils.BadRequest("'notification_channel' is nil")
-	NotificationChannelTypeError = errutils.BadRequest("'notification_channel' is not a chan map[string]interface{}")
+	ExpressionStyleIsRequired    = commons.IsRequired("expression_style")
+	ExpressionCodeIsRequired     = commons.IsRequired("expression_code")
+	NotificationChannelIsNil     = commons.BadRequest("'notification_channel' is nil")
+	NotificationChannelTypeError = commons.BadRequest("'notification_channel' is not a chan map[string]interface{}")
 )
 
 func NewAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, error) {
@@ -89,7 +101,7 @@ func NewAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, erro
 		return nil, NotificationChannelTypeError
 	}
 
-	checker, e := makeChecker(attributes)
+	checker, e := makeChecker(attributes, ctx)
 	if nil != e {
 		return nil, e
 	}
@@ -113,9 +125,9 @@ func makeChecker(attributes, ctx map[string]interface{}) (Checker, error) {
 		return nil, ExpressionCodeIsRequired
 	}
 
-	switch {
+	switch style {
 	case "json":
 		return makeJsonChecker(code)
 	}
-	return nil, errutils.BadRequest("expression style '" + style + "' is unknown")
+	return nil, commons.BadRequest("expression style '" + style + "' is unknown")
 }

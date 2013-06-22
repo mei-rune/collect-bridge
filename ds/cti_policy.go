@@ -8,26 +8,19 @@ import (
 )
 
 var (
-	id_column        *types.ColumnDefinition = nil
-	tablename_column *types.ColumnDefinition = nil
-
-	class_table_inherit_columns = []*types.ColumnDefinition{&types.ColumnDefinition{types.AttributeDefinition{Name: "tablename",
+	tablename_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "tablename",
 		Type:       types.GetTypeDefinition("string"),
-		Collection: types.COLLECTION_UNKNOWN}},
-		&types.ColumnDefinition{types.AttributeDefinition{Name: "id",
-			Type:       types.GetTypeDefinition("objectId"),
-			Collection: types.COLLECTION_UNKNOWN}}}
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	class_table_inherit_columns = []*types.ColumnDefinition{tablename_column, id_column}
 
 	class_table_inherit_definition = &types.TableDefinition{Name: "cti",
 		UnderscoreName: "cti",
-		CollectionName: "cti"}
+		CollectionName: "cti",
+		Id:             id_column}
 )
 
 func init() {
-	tablename_column = class_table_inherit_columns[0]
-	id_column = class_table_inherit_columns[1]
-	class_table_inherit_definition.Id = class_table_inherit_columns[1]
-
 	attributes := map[string]*types.ColumnDefinition{class_table_inherit_columns[0].Name: class_table_inherit_columns[0],
 		class_table_inherit_columns[1].Name: class_table_inherit_columns[1]}
 
@@ -47,11 +40,14 @@ func (self *default_cti_policy) insert(table *types.TableDefinition,
 
 func (self *default_cti_policy) count(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
-	effected_single, e := self.simple.count(table, params)
-	if nil != e {
-		return 0, e
+	effected_all := int64(0)
+	if !table.IsAbstract {
+		effected_single, e := self.simple.count(table, params)
+		if nil != e {
+			return 0, e
+		}
+		effected_all = effected_single
 	}
-	effected_all := effected_single
 
 	for _, child := range table.OwnChildren.All() {
 		effected_single, e := self.cti.count(child, params)
@@ -63,18 +59,43 @@ func (self *default_cti_policy) count(table *types.TableDefinition,
 	return effected_all, nil
 }
 
-func (self *default_cti_policy) findById(table *types.TableDefinition,
-	id interface{}) (map[string]interface{}, error) {
-	result, e := self.simple.findById(table, id)
-	if nil == e {
-		return result, nil
-	}
-	if e != sql.ErrNoRows {
-		return nil, e
+func (self *default_cti_policy) snapshot(table *types.TableDefinition,
+	params map[string]string) ([]map[string]interface{}, error) {
+
+	var results []map[string]interface{}
+	var e error
+
+	if !table.IsAbstract {
+		results, e = self.simple.snapshot(table, params)
+		if nil != e && e != sql.ErrNoRows {
+			return nil, e
+		}
 	}
 
 	for _, child := range table.OwnChildren.All() {
-		result, e = self.cti.findById(child, id)
+		results_single, e := self.cti.snapshot(child, params)
+		if nil != e && e != sql.ErrNoRows {
+			return nil, e
+		}
+		results = append(results, results_single...)
+	}
+	return results, nil
+}
+
+func (self *default_cti_policy) findById(table *types.TableDefinition,
+	id interface{}) (map[string]interface{}, error) {
+	if !table.IsAbstract {
+		result, e := self.simple.findById(table, id)
+		if nil == e {
+			return result, nil
+		}
+		if e != sql.ErrNoRows {
+			return nil, e
+		}
+	}
+
+	for _, child := range table.OwnChildren.All() {
+		result, e := self.cti.findById(child, id)
 		if nil == e {
 			return result, nil
 		}
@@ -89,9 +110,15 @@ func (self *default_cti_policy) findById(table *types.TableDefinition,
 
 func (self *default_cti_policy) find(table *types.TableDefinition,
 	params map[string]string) ([]map[string]interface{}, error) {
-	results, e := self.simple.find(table, params)
-	if nil != e && e != sql.ErrNoRows {
-		return nil, e
+
+	var results []map[string]interface{}
+	var e error
+
+	if !table.IsAbstract {
+		results, e = self.simple.find(table, params)
+		if nil != e && e != sql.ErrNoRows {
+			return nil, e
+		}
 	}
 
 	for _, child := range table.OwnChildren.All() {
@@ -106,16 +133,19 @@ func (self *default_cti_policy) find(table *types.TableDefinition,
 
 func (self *default_cti_policy) updateById(table *types.TableDefinition, id interface{},
 	updated_attributes map[string]interface{}) error {
-	e := self.simple.updateById(table, id, updated_attributes)
-	if nil == e {
-		return nil
-	}
-	if e != sql.ErrNoRows {
-		return e
+
+	if !table.IsAbstract {
+		e := self.simple.updateById(table, id, updated_attributes)
+		if nil == e {
+			return nil
+		}
+		if e != sql.ErrNoRows {
+			return e
+		}
 	}
 
 	for _, child := range table.OwnChildren.All() {
-		e = self.cti.updateById(child, id, updated_attributes)
+		e := self.cti.updateById(child, id, updated_attributes)
 		if nil == e {
 			return nil
 		}
@@ -130,14 +160,18 @@ func (self *default_cti_policy) updateById(table *types.TableDefinition, id inte
 
 func (self *default_cti_policy) update(table *types.TableDefinition,
 	params map[string]string, updated_attributes map[string]interface{}) (int64, error) {
-	effected_single, e := self.simple.update(table, params, updated_attributes)
-	if nil != e {
-		return 0, e
+
+	effected_all := int64(0)
+	if !table.IsAbstract {
+		effected_single, e := self.simple.update(table, params, updated_attributes)
+		if nil != e {
+			return 0, e
+		}
+		effected_all = effected_single
 	}
-	effected_all := effected_single
 
 	for _, child := range table.OwnChildren.All() {
-		effected_single, e = self.cti.update(child, params, updated_attributes)
+		effected_single, e := self.cti.update(child, params, updated_attributes)
 		if nil != e {
 			return 0, e
 		}
@@ -147,17 +181,20 @@ func (self *default_cti_policy) update(table *types.TableDefinition,
 }
 
 func (self *default_cti_policy) deleteById(table *types.TableDefinition, id interface{}) error {
-	e := self.simple.deleteById(table, id)
-	if nil == e {
-		return nil
-	}
 
-	if e != sql.ErrNoRows {
-		return e
+	if !table.IsAbstract {
+		e := self.simple.deleteById(table, id)
+		if nil == e {
+			return nil
+		}
+
+		if e != sql.ErrNoRows {
+			return e
+		}
 	}
 
 	for _, child := range table.OwnChildren.All() {
-		e = self.cti.deleteById(child, id)
+		e := self.cti.deleteById(child, id)
 		if nil == e {
 			return nil
 		}
@@ -172,14 +209,18 @@ func (self *default_cti_policy) deleteById(table *types.TableDefinition, id inte
 
 func (self *default_cti_policy) delete(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
-	effected_single, e := self.simple.delete(table, params)
-	if nil != e {
-		return 0, e
+
+	effected_all := int64(0)
+	if !table.IsAbstract {
+		effected_single, e := self.simple.delete(table, params)
+		if nil != e {
+			return 0, e
+		}
+		effected_all = effected_single
 	}
-	effected_all := effected_single
 
 	for _, child := range table.OwnChildren.All() {
-		effected_single, e = self.cti.delete(child, params)
+		effected_single, e := self.cti.delete(child, params)
 		if nil != e {
 			return 0, e
 		}
@@ -190,13 +231,16 @@ func (self *default_cti_policy) delete(table *types.TableDefinition,
 
 func (self *default_cti_policy) forEach(table *types.TableDefinition, params map[string]string,
 	cb func(table *types.TableDefinition, id interface{}) error) error {
-	e := self.simple.forEach(table, params, cb)
-	if nil != e {
-		return e
+
+	if !table.IsAbstract {
+		e := self.simple.forEach(table, params, cb)
+		if nil != e {
+			return e
+		}
 	}
 
 	for _, child := range table.OwnChildren.All() {
-		e = self.cti.forEach(child, params, cb)
+		e := self.cti.forEach(child, params, cb)
 		if nil != e {
 			return e
 		}
@@ -217,6 +261,11 @@ func (self *postgresql_cti_policy) insert(table *types.TableDefinition,
 func (self *postgresql_cti_policy) count(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
 	return self.simple.count(table, params)
+}
+
+func (self *postgresql_cti_policy) snapshot(table *types.TableDefinition,
+	params map[string]string) ([]map[string]interface{}, error) {
+	return self.simple.snapshot(table, params)
 }
 
 func (self *postgresql_cti_policy) findById(table *types.TableDefinition,

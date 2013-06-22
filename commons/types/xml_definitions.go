@@ -13,6 +13,7 @@ type XMLClassDefinitions struct {
 type XMLClassDefinition struct {
 	Name                string                   `xml:"name,attr"`
 	Base                string                   `xml:"base,attr,omitempty"`
+	Abstract            string                   `xml:"abstract,attr,omitempty"`
 	Attributes          []XMLAttributeDefinition `xml:"property"`
 	BelongsTo           []XMLBelongsTo           `xml:"belongs_to"`
 	HasMany             []XMLHasMany             `xml:"has_many"`

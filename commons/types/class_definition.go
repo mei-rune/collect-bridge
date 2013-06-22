@@ -39,6 +39,7 @@ type ClassDefinition struct {
 	Super          *ClassDefinition
 	Name           string
 	UnderscoreName string
+	IsAbstract     bool
 	OwnAttributes  map[string]*AttributeDefinition
 	Attributes     map[string]*AttributeDefinition
 	OwnChildren    []*ClassDefinition

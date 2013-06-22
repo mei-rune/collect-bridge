@@ -4,18 +4,28 @@ import (
 	"commons"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
 
 type Checker interface {
-	Run(value interface{}, res map[string]interface{}) bool
+	Run(value interface{}, res map[string]interface{}) (int, error)
 }
 
-type jsonFunc func(value interface{}, res map[string]interface{}) bool
+type jsonFunc func(value interface{}, res map[string]interface{}) (bool, error)
 
-func (self jsonFunc) Run(value interface{}, res map[string]interface{}) bool {
-	return self(value, res)
+func (f jsonFunc) Run(value interface{}, res map[string]interface{}) (int, error) {
+	r, e := f(value, res)
+	if nil != e {
+		return 0, e
+	}
+
+	if r {
+		return 1, nil
+	} else {
+		return 0, nil
+	}
 }
 
 type jsonExpression struct {
@@ -24,9 +34,9 @@ type jsonExpression struct {
 	Value     string `json:"value"`
 }
 
-func makeJsonChecker(code stirng) (Checker, error) {
+func makeJsonChecker(code string) (Checker, error) {
 	var exp jsonExpression
-	if e := json.Unmarshal(code, &exp); nil != e {
+	if e := json.Unmarshal([]byte(code), &exp); nil != e {
 		return nil, errors.New("unmarshal expression failed, " + e.Error())
 	}
 
@@ -46,18 +56,18 @@ func makeJsonChecker(code stirng) (Checker, error) {
 			if nil != e {
 				return nil, errors.New("'value' is not a float, " + e.Error())
 			}
-			return floatf(exp.Attribute, f64)
+			return floatf(exp.Attribute, f64), nil
 		}
 	} else if intf, ok := int_ops[exp.Value]; ok {
-		i64, e := strconv.ParseInt(exp.Value, 64)
+		i64, e := strconv.ParseInt(exp.Value, 10, 64)
 		if nil != e {
 			return nil, errors.New("'value' is not a int64, " + e.Error())
 		}
-		return intf(exp.Attribute, i64)
+		return intf(exp.Attribute, i64), nil
 	}
 
 	if stringf, ok := string_ops[exp.Value]; ok {
-		return stringf(exp.Attribute, exp.Value)
+		return stringf(exp.Attribute, exp.Value), nil
 	}
 
 	return nil, errors.New("operator '" + exp.Operator + "' is unknown")
@@ -89,100 +99,173 @@ var (
 		"equals":       str_equals}
 )
 
-func get_int64(value interface{}, name string) int64 {
-	m := value.(map[string]interface{})
-	return commons.GetInt64(m, name)
+func get_int64(value interface{}, name string) (int64, error) {
+	m, ok := value.(map[string]interface{})
+	if !ok {
+		return 0, fmt.Errorf("value is not a map[string]interface{}, actual is %T", value)
+	}
+	return commons.TryGetInt64(m, name)
 }
 
 func int_gt(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_int64(attribute, value) > operand
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		i64, e := get_int64(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return i64 > operand, nil
 	}
 }
 func int_gte(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_int64(attribute, value) >= operand
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		i64, e := get_int64(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return i64 >= operand, nil
 	}
 }
 func int_lt(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_int64(attribute, value) < operand
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		i64, e := get_int64(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return i64 < operand, nil
 	}
 }
 func int_lte(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_int64(attribute, value) <= operand
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		i64, e := get_int64(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return i64 <= operand, nil
 	}
 }
 func int_not_equals(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_int64(attribute, value) != operand
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		i64, e := get_int64(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return i64 != operand, nil
 	}
 }
 func int_equals(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_int64(attribute, value) == operand
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		i64, e := get_int64(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return i64 == operand, nil
 	}
 }
 
-func get_float(value interface{}, name string) float {
-	m := value.(map[string]interface{})
-	return commons.Getfloat(m, name)
+func get_float(value interface{}, name string) (float64, error) {
+	m, ok := value.(map[string]interface{})
+	if !ok {
+		return 0, fmt.Errorf("value is not a map[string]interface{}, actual is %T", value)
+	}
+	return commons.TryGetFloat(m, name)
 }
 
-func float_gt(attribute string, operand float) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_float(attribute, value) > operand
+func float_gt(attribute string, operand float64) jsonFunc {
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		f64, e := get_float(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return f64 > operand, nil
 	}
 }
-func float_gte(attribute string, operand float) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_float(attribute, value) >= operand
+func float_gte(attribute string, operand float64) jsonFunc {
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		f64, e := get_float(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return f64 >= operand, nil
 	}
 }
-func float_lt(attribute string, operand float) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_float(attribute, value) < operand
+func float_lt(attribute string, operand float64) jsonFunc {
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		f64, e := get_float(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return f64 < operand, nil
 	}
 }
-func float_lte(attribute string, operand float) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_float(attribute, value) <= operand
+func float_lte(attribute string, operand float64) jsonFunc {
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		f64, e := get_float(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return f64 <= operand, nil
 	}
 }
-func float_not_equals(attribute string, operand float) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_float(attribute, value) != operand
+func float_not_equals(attribute string, operand float64) jsonFunc {
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		f64, e := get_float(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return f64 != operand, nil
 	}
 }
-func float_equals(attribute string, operand float) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_float(attribute, value) == operand
+func float_equals(attribute string, operand float64) jsonFunc {
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		f64, e := get_float(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return f64 == operand, nil
 	}
 }
 
-func get_string(value interface{}, name string) string {
-	m := value.(map[string]interface{})
-	return commons.GetString(m, name)
+func get_string(value interface{}, name string) (string, error) {
+	m, ok := value.(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("value is not a map[string]interface{}, actual is %T", value)
+	}
+	return commons.TryGetString(m, name)
 }
 
 func string_not_contains(attribute string, operand string) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return !strings.Contains(get_string(attribute, value), operand)
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		v, e := get_string(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return !strings.Contains(v, operand), nil
 	}
 }
 func string_contains(attribute string, operand string) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return strings.Contains(get_string(attribute, value), operand)
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		v, e := get_string(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return strings.Contains(v, operand), nil
 	}
 }
 func str_not_equals(attribute string, operand string) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_string(attribute, value) != operand
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		v, e := get_string(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return v != operand, nil
 	}
 }
 func str_equals(attribute string, operand string) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) bool {
-		return get_string(attribute, value) == operand
+	return func(value interface{}, res map[string]interface{}) (bool, error) {
+		v, e := get_string(value, attribute)
+		if nil != e {
+			return false, e
+		}
+		return v == operand, nil
 	}
 }

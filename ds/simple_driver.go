@@ -29,8 +29,40 @@ type driver interface {
 
 	count(table *types.TableDefinition, params map[string]string) (int64, error)
 
+	snapshot(table *types.TableDefinition, params map[string]string) ([]map[string]interface{}, error)
+
 	forEach(table *types.TableDefinition, params map[string]string,
 		cb func(table *types.TableDefinition, id interface{}) error) error
+}
+
+var (
+	id_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "id",
+		Type:       types.GetTypeDefinition("objectId"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	created_at_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "created_at",
+		Type:       types.GetTypeDefinition("datetime"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	updated_at_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "updated_at",
+		Type:       types.GetTypeDefinition("datetime"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	snapshot_columns = []*types.ColumnDefinition{id_column, created_at_column, updated_at_column}
+
+	snapshot_definition = &types.TableDefinition{Name: "snapshot",
+		UnderscoreName: "snapshot",
+		CollectionName: "snapshot",
+		Id:             id_column}
+)
+
+func init() {
+	attributes := map[string]*types.ColumnDefinition{id_column.Name: id_column,
+		created_at_column.Name: created_at_column,
+		updated_at_column.Name: updated_at_column}
+
+	snapshot_definition.OwnAttributes = attributes
+	snapshot_definition.Attributes = attributes
 }
 
 const (
@@ -210,6 +242,34 @@ func (self *simple_driver) count(table *types.TableDefinition,
 		return 0, e
 	}
 	return count, nil
+}
+
+func (self *simple_driver) snapshot(table *types.TableDefinition,
+	params map[string]string) ([]map[string]interface{}, error) {
+	var buffer bytes.Buffer
+	buffer.WriteString("SELECT ")
+	writeColumns(snapshot_columns, &buffer)
+	buffer.WriteString(self.from)
+	buffer.WriteString(table.CollectionName)
+	builder := self.newWhere(1, table, &buffer)
+
+	if table.IsSingleTableInheritance() {
+		builder.equalClass("type", table)
+	}
+
+	e := builder.build(params)
+	if nil != e {
+		return nil, e
+	}
+	//fmt.Println(buffer.String(), builder.params)
+	q := &QueryImpl{drv: self,
+		isSingleTableInheritance: false,
+		columns:                  snapshot_columns,
+		table:                    snapshot_definition,
+		sql:                      buffer.String(),
+		parameters:               builder.params}
+
+	return q.All()
 }
 
 func (self *simple_driver) buildSQLQueryWithObjectId(table *types.TableDefinition) (QueryBuilder, error) {
@@ -415,6 +475,10 @@ func (self *simple_driver) insert(table *types.TableDefinition,
 		return 0, e
 	}
 
+	if table.IsAbstract {
+		return 0, errors.New("table '" + table.Name + "' is abstract.")
+	}
+
 	var buffer bytes.Buffer
 	var values bytes.Buffer
 	params := make([]interface{}, 0, len(table.Attributes))
@@ -575,6 +639,7 @@ func (self *simple_driver) updateById(table *types.TableDefinition, id interface
 
 	builder.buildWhereById(id)
 
+	//fmt.Println(buffer.String(), builder.params)
 	res, e := self.db.Exec(buffer.String(), builder.params...)
 	if nil != e {
 		return e

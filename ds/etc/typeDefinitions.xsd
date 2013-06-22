@@ -230,6 +230,11 @@
 								<xs:documentation>指向一个 classDefinition 作为它的父类, 其值应是某个 classDefinition 实例的 name 值</xs:documentation>
 							</xs:annotation>
 						</xs:attribute>
+						<xs:attribute name="abstract" type="boolean" use="optional">
+							<xs:annotation>
+								<xs:documentation>表示这个类是抽象的</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
 					</xs:complexType>
 				</xs:element>
 				<xs:element name="designFor" type="xs:anyType" minOccurs="0">

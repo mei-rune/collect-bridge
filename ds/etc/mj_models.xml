@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classDefinitions lastModified="2013-02-13T08:57:30" xmlns="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.meijing.com.cn/mdbs/1/typeDefinitions typeDefinitions.xsd">
-  <class name="ManagedObject">
+  <class name="ManagedObject" abstract="true">
     <property name="description">
       <restriction base="string">
         <maxLength>2000</maxLength>
@@ -129,7 +129,7 @@
     <belongs_to name="device2" >Device</belongs_to>
   </class>
 
-  <class name="Attributes">
+  <class name="Attributes" abstract="true">
     <property name="description">
       <restriction base="string">
         <maxLength>2000</maxLength>
@@ -138,10 +138,10 @@
     <belongs_to>ManagedObject</belongs_to>
   </class>
 
-  <class name="AccessParam" base="Attributes">
+  <class name="AccessParam" base="Attributes" abstract="true">
   </class>
 
-  <class name="EndpointParam" base="AccessParam">
+  <class name="EndpointParam" base="AccessParam" abstract="true">
     <property name="address">
       <restriction base="ipAddress">
         <required />
@@ -252,7 +252,7 @@
     <belongs_to name="device_id" >Device</belongs_to>
   </class>
 
-  <class name="Trigger">
+  <class name="Trigger" abstract="true">
     <property name="name">
       <restriction base="string">
         <required />
@@ -277,7 +277,7 @@
     <has_many polymorphic="true">Action</has_many>
   </class>
 
-  <class name="Action">
+  <class name="Action" abstract="true">
     <property name="name">
       <restriction base="string">
         <required />

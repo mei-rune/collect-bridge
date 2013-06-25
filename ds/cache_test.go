@@ -22,6 +22,7 @@ func TestCacheBasic(t *testing.T) {
 		}
 
 		cache := NewCache(100*time.Minute, client, "device")
+		defer cache.Close()
 
 		t.Log("test Get")
 		//fmt.Println("test Get")
@@ -112,6 +113,7 @@ func TestCacheAlreadyDelete(t *testing.T) {
 		}
 
 		cache := NewCache(100*time.Minute, client, "device")
+		defer cache.Close()
 		d1, _ := cache.Get(fmt.Sprint(id1))
 		d2, _ := cache.Get(fmt.Sprint(id2))
 		d3, _ := cache.Get(fmt.Sprint(id3))
@@ -163,6 +165,7 @@ func TestCacheAdd(t *testing.T) {
 		}
 
 		cache := NewCache(100*time.Minute, client, "device")
+		defer cache.Close()
 		d1, _ := cache.Get(fmt.Sprint(id1))
 		if nil == d1 {
 			return
@@ -194,6 +197,7 @@ func TestCacheRefresh(t *testing.T) {
 		}
 
 		cache := NewCache(100*time.Minute, client, "device")
+		defer cache.Close()
 		d1, _ := cache.Get(fmt.Sprint(id1))
 		d2, _ := cache.Get(fmt.Sprint(id2))
 		d3, _ := cache.Get(fmt.Sprint(id3))
@@ -274,6 +278,7 @@ func TestCachesBasic(t *testing.T) {
 		}
 
 		caches := NewCaches(100*time.Minute, client, nil)
+		defer caches.Close()
 
 		messages := make([]string, 0, 3)
 		excepted := []string{"GET,/device/@count", "GET,/device/1"}
@@ -305,6 +310,48 @@ func TestCachesBasic(t *testing.T) {
 	})
 }
 
+func TestCachesBasicAlias(t *testing.T) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		deleteBy(t, client, "device", map[string]string{})
+
+		id1 := createMockDevice(t, client, "1")
+		if "" == id1 {
+			return
+		}
+
+		caches := NewCaches(100*time.Minute, client, map[string]string{"d": "device"})
+		defer caches.Close()
+
+		messages := make([]string, 0, 3)
+		excepted := []string{"GET,/device/@count", "GET,/device/1"}
+
+		ws_instance.Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+			messages = append(messages, fmt.Sprintf("%s,%s", req.Request.Method, req.Request.URL))
+			chain.ProcessFilter(req, resp)
+		})
+
+		cache1, _ := caches.GetCache("d")
+		d1, _ := cache1.Get(fmt.Sprint(id1))
+
+		if nil == d1 {
+			return
+		}
+
+		validMockDevice(t, client, "1", d1)
+
+		cache2, _ := caches.GetCache("d")
+
+		if !reflect.DeepEqual(excepted, messages) {
+			t.Errorf("excepted_messages != actual_messages, excepted is %v, actual is %v", excepted, messages)
+		}
+
+		if cache1 != cache2 {
+			t.Error("cache1 != cache2")
+		}
+
+	})
+}
+
 func TestCachesFailed(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 
@@ -317,6 +364,7 @@ func TestCachesFailed(t *testing.T) {
 		})
 
 		caches := NewCaches(100*time.Minute, client, nil)
+		defer caches.Close()
 		cache1, e1 := caches.GetCache("devdddice")
 		cache2, e2 := caches.GetCache("devdddice")
 
@@ -347,6 +395,7 @@ func TestCachesNetworkFailed(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 
 		caches := NewCaches(100*time.Minute, NewClient("http://127.0.0.1:803"), nil)
+		defer caches.Close()
 		cache1, e1 := caches.GetCache("devdddice")
 		cache2, e2 := caches.GetCache("devdddice")
 
@@ -381,6 +430,29 @@ func TestCachesClose(t *testing.T) {
 			caches := NewCaches(100*time.Minute, client, nil)
 			caches.Close()
 			caches.GetCache("df")
+
+			return
+		}()
+
+		if nil == e {
+			t.Error("except panic, but no panic")
+		}
+	})
+}
+
+func TestCacheCloseInCaches(t *testing.T) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		e := func() (e error) {
+			defer func() {
+				if o := recover(); nil != o {
+					e = fmt.Errorf("%v", o)
+				}
+			}()
+
+			caches := NewCaches(100*time.Minute, client, nil)
+			cache, _ := caches.GetCache("device")
+			caches.Close()
+			cache.Get("1")
 			return
 		}()
 

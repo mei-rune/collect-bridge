@@ -88,10 +88,12 @@ func (c *Caches) serve() {
 	for {
 		req := <-c.ch
 		if nil == req {
+			c.clearCache()
 			break
 		}
 
 		if INTERRUPT == req.action {
+			c.clearCache()
 			if nil != req.ch {
 				req.ch <- req
 			}
@@ -99,6 +101,15 @@ func (c *Caches) serve() {
 		}
 		c.doCommand(req)
 	}
+}
+
+func (c *Caches) clearCache() {
+	for _, cache := range c.caches {
+		if nil != cache {
+			cache.Close()
+		}
+	}
+	c.caches = make(map[string]*Cache)
 }
 
 func (c *Caches) doCommand(req *caches_request) {

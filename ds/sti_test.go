@@ -95,7 +95,7 @@ func clearAll(t *testing.T, client *Client) {
 	deleteBy(t, client, "printer", map[string]string{})
 }
 func TestSTIByFindAllDocuments(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -122,7 +122,7 @@ func TestSTIByFindAllDocuments(t *testing.T) {
 }
 
 func TestSTIByFindDocuments(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -152,7 +152,7 @@ func TestSTIByFindDocuments(t *testing.T) {
 }
 
 func TestSTIByDeleteAllPrintedBooks(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -179,7 +179,7 @@ func TestSTIByDeleteAllPrintedBooks(t *testing.T) {
 }
 
 func TestSTIByDeleteAllPrintedDocuments(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -207,7 +207,7 @@ func TestSTIByDeleteAllPrintedDocuments(t *testing.T) {
 }
 
 func TestSTIByDeleteAllPrintedDocuments2(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -237,7 +237,7 @@ func TestSTIByDeleteAllPrintedDocuments2(t *testing.T) {
 }
 
 func TestSTIByDeleteAllDocuments(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -264,7 +264,7 @@ func TestSTIByDeleteAllDocuments(t *testing.T) {
 }
 
 func TestSTIByPrintedBooksDeleteWithQuery(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -315,7 +315,7 @@ func TestSTIByPrintedBooksDeleteWithQuery(t *testing.T) {
 }
 
 func TestSTIByPrintedDocumentsDeleteWithQuery(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -364,7 +364,7 @@ func TestSTIByPrintedDocumentsDeleteWithQuery(t *testing.T) {
 }
 
 func TestSTIByDocumentsDeleteWithQuery(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -414,7 +414,7 @@ func TestSTIByDocumentsDeleteWithQuery(t *testing.T) {
 }
 
 func TestSTIByUpdateAllDocuments(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -453,7 +453,7 @@ func TestSTIByUpdateAllDocuments(t *testing.T) {
 }
 
 func TestSTIByBaseClassUpdateAllDocuments(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -491,7 +491,7 @@ func TestSTIByBaseClassUpdateAllDocuments(t *testing.T) {
 	})
 }
 func TestSTIByBaseClassUpdateAllDocuments2(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -542,7 +542,7 @@ func TestSTIByBaseClassUpdateAllDocuments2(t *testing.T) {
 }
 
 func TestSTIByTopClassUpdateAllDocuments(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -582,7 +582,7 @@ func TestSTIByTopClassUpdateAllDocuments(t *testing.T) {
 }
 
 func TestSTIByUpdateDocuments(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -621,7 +621,7 @@ func TestSTIByUpdateDocuments(t *testing.T) {
 }
 
 func TestSTIByBaseClassUpdateDocuments(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())
@@ -661,7 +661,7 @@ func TestSTIByBaseClassUpdateDocuments(t *testing.T) {
 }
 
 func TestSTIByTopClassUpdateDocuments(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		clearAll(t, client)
 		website1 := saveIt(t, client, "website", createWebsite())
 		website2 := saveIt(t, client, "website", createWebsite())

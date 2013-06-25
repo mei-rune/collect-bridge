@@ -2,17 +2,22 @@ package ds
 
 import (
 	"commons"
-	"commons/as"
+	"commons/types"
+	"database/sql"
 	"expvar"
 	"flag"
 	"fmt"
 	"github.com/runner-mei/go-restful"
+	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	_ "runtime/pprof"
+	"testing"
+	"time"
 )
 
 var (
@@ -22,9 +27,15 @@ var (
 	goroutines  = flag.Int("connections", 10, "the db connection number")
 	address     = flag.String("http", ":7071", "the address of http")
 
-	is_test                         = false
-	sinstance   *server             = nil
-	ws_instance *restful.WebService = nil
+	//test_db    = flag.String("test.db", "sqlite3", "the db driver name for test")
+	//test_dbUrl = flag.String("test.dburl", "test.sqlite3.db", "the db url")
+
+	test_db                          = flag.String("test.db", "postgres", "the db driver name for test")
+	test_dbUrl                       = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
+	test_address                     = flag.String("test.http", ":7071", "the address of http")
+	is_test                          = false
+	sinstance    *server             = nil
+	ws_instance  *restful.WebService = nil
 )
 
 func getStatus(params map[string]interface{}, default_code int) int {
@@ -32,7 +43,7 @@ func getStatus(params map[string]interface{}, default_code int) int {
 	if !ok {
 		return default_code
 	}
-	i64, e := as.AsInt(code)
+	i64, e := commons.AsInt(code)
 	if nil != e {
 		return default_code
 	}
@@ -195,4 +206,381 @@ func Main() {
 		// mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 		http.ListenAndServe(*address, nil)
 	}
+}
+
+func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB), cb func(db *Client, definitions *types.TableDefinitions)) {
+	definitions, err := types.LoadTableDefinitions(file)
+	if nil != err {
+		t.Errorf("read file '%s' failed, %s", file, err.Error())
+		t.FailNow()
+		return
+	}
+	conn, err := sql.Open(*test_db, *test_dbUrl)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	defer func() {
+		if nil != conn {
+			conn.Close()
+		}
+	}()
+
+	init_cb(*test_db, conn)
+	conn.Close()
+	conn = nil
+
+	*drv = *test_db
+	*dbUrl = *test_dbUrl
+	*address = *test_address
+	*models_file = file
+	is_test = true
+
+	Main()
+	defer restful.ClearRegisteredWebServices()
+	var listener net.Listener = nil
+
+	ch := make(chan string)
+
+	go func() {
+		l, e := net.Listen("tcp", *address)
+		if nil != e {
+			ch <- e.Error()
+			return
+		}
+
+		defer func() {
+			ch <- "exit"
+		}()
+		ch <- "ok"
+		listener = l
+		http.Serve(l, nil)
+	}()
+
+	s := <-ch
+	if "ok" != s {
+		return
+	}
+
+	time.Sleep(10 * time.Microsecond)
+	cb(NewClient("http://127.0.0.1"+*test_address), definitions)
+
+	if nil != sinstance {
+		sinstance.Close()
+		sinstance = nil
+	}
+	if nil != listener {
+		listener.Close()
+	}
+	restful.ClearRegisteredWebServices()
+
+	<-ch
+}
+
+func SrvTest(t *testing.T, file string, cb func(client *Client, definitions *types.TableDefinitions)) {
+	testBase(t, file, func(drv string, conn *sql.DB) {
+		sql_str := `
+DROP TABLE IF EXISTS alerts;
+DROP TABLE IF EXISTS redis_commands;
+DROP TABLE IF EXISTS actions;
+DROP TABLE IF EXISTS metric_triggers;
+DROP TABLE IF EXISTS triggers;
+DROP TABLE IF EXISTS wbem_params;
+DROP TABLE IF EXISTS ssh_params;
+DROP TABLE IF EXISTS snmp_params;
+DROP TABLE IF EXISTS endpoint_params;
+DROP TABLE IF EXISTS access_params;
+DROP TABLE IF EXISTS addresses;
+DROP TABLE IF EXISTS interfaces;
+DROP TABLE IF EXISTS links;
+DROP TABLE IF EXISTS devices;
+DROP TABLE IF EXISTS managed_objects;
+DROP TABLE IF EXISTS attributes;
+
+CREATE TABLE managed_objects (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        varchar(250),
+  description varchar(2000),
+  created_at  timestamp,
+  updated_at  timestamp
+);
+
+CREATE TABLE attributes (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  managed_object_id  integer,
+  description        varchar(2000)
+);
+
+CREATE TABLE devices (
+	id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  name          varchar(250),
+  description   varchar(2000),
+  created_at    timestamp,
+  updated_at    timestamp,
+
+  address       varchar(250),
+  manufacturer  integer,
+  catalog       integer,
+  oid           varchar(250),
+  services      integer,
+  location      varchar(2000),
+  type          varchar(100)
+);
+
+
+CREATE TABLE links (
+	id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  name                    varchar(250),
+  description             varchar(2000),
+  created_at              timestamp,
+  updated_at              timestamp,
+
+  custom_speed_up         integer,
+  custom_speed_down       integer,
+  device1                 integer,
+  ifIndex1                integer,
+  device2                 integer,
+  ifIndex2                integer,
+  sampling_direct         integer
+);
+
+CREATE TABLE  interfaces (
+	id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  name                    varchar(250),
+  description             varchar(2000),
+  created_at              timestamp,
+  updated_at              timestamp,
+  ifIndex                 integer,
+  ifDescr                 varchar(2000),
+  ifType                  integer,
+  ifMtu                   integer,
+  ifSpeed                 integer,
+  ifPhysAddress           varchar(50),
+  device_id               integer
+) ;
+
+CREATE TABLE addresses (
+	id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  name                    varchar(250),
+  description             varchar(2000),
+  created_at              timestamp,
+  updated_at              timestamp,
+  address                 varchar(50),
+  ifIndex                 integer,
+  netmask                 varchar(50),
+  bcastAddress            integer,
+  reasmMaxSize            integer,
+  device_id               integer
+);
+
+
+CREATE TABLE access_params (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  managed_object_id  integer,
+  description        varchar(2000)
+) ;
+
+
+CREATE TABLE endpoint_params (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  managed_object_id  integer,
+  description        varchar(2000),
+  address            varchar(50),
+  port               integer
+) ;
+
+
+CREATE TABLE snmp_params (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  managed_object_id  integer,
+  description        varchar(2000),
+
+  address            varchar(50),
+  port               integer,
+  version            varchar(50),
+  community          varchar(250)
+) ;
+
+CREATE TABLE ssh_params (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  managed_object_id  integer,
+  description        varchar(2000),
+
+  address            varchar(50),
+  port               integer,
+  user_name          varchar(50),
+  user_password      varchar(250)
+);
+
+CREATE TABLE wbem_params (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  managed_object_id  integer,
+  description        varchar(2000),
+  url                varchar(2000),
+  user_name          varchar(50),
+  user_password      varchar(250)
+) ;
+
+
+CREATE TABLE triggers (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  name          varchar(250),
+  expression    varchar(250),
+  attachment    varchar(2000),
+  description   varchar(2000),
+
+  parent_type   varchar(250),
+  parent_id     integer
+);
+
+CREATE TABLE metric_triggers (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  name               varchar(250),
+  expression         varchar(250),
+  attachment         varchar(2000),
+  description        varchar(2000),
+
+  parent_type        varchar(250),
+  parent_id          integer,
+  metric             varchar(250),
+  managed_object_id  integer
+) ;
+
+CREATE TABLE actions (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  name               varchar(250),
+  description        varchar(2000),
+  parent_type        varchar(250),
+  parent_id          integer
+);
+
+CREATE TABLE redis_commands (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  name               varchar(250),
+  description        varchar(2000),
+  parent_type        varchar(250),
+  parent_id          integer,
+
+  command            varchar(10),
+  arg0               varchar(200),
+  arg1               varchar(200),
+  arg2               varchar(200),
+  arg3               varchar(200),
+  arg4               varchar(200)
+);
+
+
+CREATE TABLE alerts (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  name               varchar(250),
+  description        varchar(2000),
+  parent_type        varchar(250),
+  parent_id          integer,
+
+  max_repeated       integer,
+  expression_style   varchar(50),
+  expression_code    varchar(2000)
+);
+
+
+DROP TABLE IF EXISTS documents;
+create table documents (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  name               varchar(100),
+  type               varchar(100), 
+  page_count         integer, 
+  author             varchar(100), 
+  bytes              integer,
+  journal_id         integer,
+  isbn               varchar(100),
+  compressed_format  varchar(10), 
+  website_id         integer, 
+  user_id            integer,
+  printer_id         integer,
+  publish_at         integer
+);
+
+DROP TABLE IF EXISTS websites;
+CREATE TABLE websites (id  INTEGER PRIMARY KEY AUTOINCREMENT, url varchar(200));
+
+DROP TABLE IF EXISTS printers;
+CREATE TABLE printers (id  INTEGER PRIMARY KEY AUTOINCREMENT, name varchar(200));
+
+DROP TABLE IF EXISTS topics;
+CREATE TABLE topics (id  INTEGER PRIMARY KEY AUTOINCREMENT, name varchar(200));
+
+-- tables for CLOB
+DROP TABLE IF EXISTS zip_files;
+CREATE TABLE zip_files (id  INTEGER PRIMARY KEY AUTOINCREMENT, body text, document_id integer);
+`
+
+		sql_file := drv + "_test.sql"
+		if "postgres" == drv && *IsPostgresqlInherit {
+			sql_file = drv + "_inherit_test.sql"
+		}
+
+		if !commons.FileExists(sql_file) {
+			file := "../ds/" + drv + "_test.sql"
+			if "postgres" == drv && *IsPostgresqlInherit {
+				file = "../ds/" + drv + "_inherit_test.sql"
+			}
+
+			if commons.FileExists(file) {
+				sql_file = file
+			}
+		}
+		if r, err := os.Open(sql_file); nil == err {
+			all, err := ioutil.ReadAll(r)
+			if nil != err {
+				t.Fatal(err)
+				t.FailNow()
+				return
+			}
+			sql_str = string(all)
+			t.Log("load " + sql_file)
+		}
+
+		_, err := conn.Exec(sql_str)
+		if err != nil {
+			t.Fatal(err)
+			t.FailNow()
+			return
+		}
+
+		if "sqlite3" == drv {
+			_, err = conn.Exec(`CREATE TABLE IF NOT EXISTS alerts (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  name               varchar(250),
+  description        varchar(2000),
+  parent_type        varchar(250),
+  parent_id          integer,
+
+  max_repeated       integer,
+  expression_style   varchar(50),
+  expression_code    varchar(2000)
+);`)
+			if err != nil {
+				t.Fatal(err)
+				t.FailNow()
+				return
+			}
+		}
+
+	}, cb)
+}
+
+func createJson(t *testing.T, client *Client, target, msg string) string {
+	_, id, e := client.CreateJson("http://127.0.0.1:7071/"+target, []byte(msg))
+	if nil != e {
+		t.Errorf("create %s failed, %v", target, e)
+		t.FailNow()
+	}
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
+	}
+	return id
+}
+
+func CreateMockDevice(t *testing.T, client *Client, factor string) string {
+	return createJson(t, client, "device", fmt.Sprintf(`{"name":"dd%s", "type":"device", "address":"192.168.1.%s", "catalog":%s, "services":2%s, "managed_address":"20.0.8.110"}`, factor, factor, factor, factor))
 }

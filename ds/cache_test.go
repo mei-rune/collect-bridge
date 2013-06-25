@@ -10,7 +10,7 @@ import (
 )
 
 func TestCacheBasic(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -100,7 +100,7 @@ func TestCacheBasic(t *testing.T) {
 }
 
 func TestCacheAlreadyDelete(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -154,7 +154,7 @@ func TestCacheAlreadyDelete(t *testing.T) {
 }
 
 func TestCacheAdd(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -182,7 +182,7 @@ func TestCacheAdd(t *testing.T) {
 }
 
 func TestCacheRefresh(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -240,5 +240,152 @@ func TestCacheRefresh(t *testing.T) {
 			t.Errorf("3 != len(messages), excepted is %v, actual is %v", excepted, messages)
 		}
 
+	})
+}
+
+func TestCacheClose(t *testing.T) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		e := func() (e error) {
+			defer func() {
+				if o := recover(); nil != o {
+					e = fmt.Errorf("%v", o)
+				}
+			}()
+
+			cache := NewCache(100*time.Minute, client, "device")
+			cache.Close()
+			cache.Get("df")
+			return
+		}()
+
+		if nil == e {
+			t.Error("except panic, but no panic")
+		}
+	})
+}
+
+func TestCachesBasic(t *testing.T) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		deleteBy(t, client, "device", map[string]string{})
+
+		id1 := createMockDevice(t, client, "1")
+		if "" == id1 {
+			return
+		}
+
+		caches := NewCaches(100*time.Minute, client, nil)
+
+		messages := make([]string, 0, 3)
+		excepted := []string{"GET,/device/@count", "GET,/device/1"}
+
+		ws_instance.Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+			messages = append(messages, fmt.Sprintf("%s,%s", req.Request.Method, req.Request.URL))
+			chain.ProcessFilter(req, resp)
+		})
+
+		cache1, _ := caches.GetCache("device")
+		d1, _ := cache1.Get(fmt.Sprint(id1))
+
+		if nil == d1 {
+			return
+		}
+
+		validMockDevice(t, client, "1", d1)
+
+		cache2, _ := caches.GetCache("device")
+
+		if !reflect.DeepEqual(excepted, messages) {
+			t.Errorf("excepted_messages != actual_messages, excepted is %v, actual is %v", excepted, messages)
+		}
+
+		if cache1 != cache2 {
+			t.Error("cache1 != cache2")
+		}
+
+	})
+}
+
+func TestCachesFailed(t *testing.T) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+
+		messages := make([]string, 0, 3)
+		excepted := []string{"GET,/devdddice/@count"}
+
+		ws_instance.Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+			messages = append(messages, fmt.Sprintf("%s,%s", req.Request.Method, req.Request.URL))
+			chain.ProcessFilter(req, resp)
+		})
+
+		caches := NewCaches(100*time.Minute, client, nil)
+		cache1, e1 := caches.GetCache("devdddice")
+		cache2, e2 := caches.GetCache("devdddice")
+
+		if nil != cache1 {
+			t.Error("cache1 is not nil")
+		}
+
+		if nil != cache2 {
+			t.Error("cache2 is not nil")
+		}
+
+		if nil != e1 {
+			t.Error("e1 is not nil")
+		}
+
+		if nil != e2 {
+			t.Error("e2 is not nil")
+		}
+
+		if !reflect.DeepEqual(excepted, messages) {
+			t.Errorf("excepted_messages != actual_messages, excepted is %v, actual is %v", excepted, messages)
+		}
+
+	})
+}
+
+func TestCachesNetworkFailed(t *testing.T) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+
+		caches := NewCaches(100*time.Minute, NewClient("http://127.0.0.1:803"), nil)
+		cache1, e1 := caches.GetCache("devdddice")
+		cache2, e2 := caches.GetCache("devdddice")
+
+		if nil != cache1 {
+			t.Error("cache1 is not nil")
+		}
+
+		if nil != cache2 {
+			t.Error("cache2 is not nil")
+		}
+
+		if nil == e1 {
+			t.Error("e1 is nil")
+		}
+
+		if nil == e2 {
+			t.Error("e2 is nil")
+		}
+
+	})
+}
+
+func TestCachesClose(t *testing.T) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		e := func() (e error) {
+			defer func() {
+				if o := recover(); nil != o {
+					e = fmt.Errorf("%v", o)
+				}
+			}()
+
+			caches := NewCaches(100*time.Minute, client, nil)
+			caches.Close()
+			caches.GetCache("df")
+			return
+		}()
+
+		if nil == e {
+			t.Error("except panic, but no panic")
+		}
 	})
 }

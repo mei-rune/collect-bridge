@@ -1,13 +1,14 @@
 package metrics
 
 import (
+	"commons"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 )
 
-type MatchFunc func(matcher *Matcher, params map[string]string, value string) bool
+type MatchFunc func(matcher *Matcher, params commons.Map, value string) bool
 
 type Matcher struct {
 	Method      string
@@ -157,49 +158,49 @@ func NewMatcher(method string, arguments []string) (*Matcher, error) {
 	return nil, errors.New("Unsupported method - '" + method + "'")
 }
 
-func match_in(self *Matcher, params map[string]string, value string) bool {
+func match_in(self *Matcher, params commons.Map, value string) bool {
 	_, ok := self.valueMap[value]
 	return ok
 }
 
-func match_equal(self *Matcher, params map[string]string, value string) bool {
+func match_equal(self *Matcher, params commons.Map, value string) bool {
 	return self.Arguments[0] == value
 }
 
-func match_start_with(self *Matcher, params map[string]string, value string) bool {
+func match_start_with(self *Matcher, params commons.Map, value string) bool {
 	return strings.HasPrefix(value, self.Arguments[0])
 }
 
-func match_end_with(self *Matcher, params map[string]string, value string) bool {
+func match_end_with(self *Matcher, params commons.Map, value string) bool {
 	return strings.HasSuffix(value, self.Arguments[0])
 }
 
-func match_contains(self *Matcher, params map[string]string, value string) bool {
+func match_contains(self *Matcher, params commons.Map, value string) bool {
 	return -1 != strings.Index(value, self.Arguments[0])
 }
 
-func match_in_with_ignore_case(self *Matcher, params map[string]string, value string) bool {
+func match_in_with_ignore_case(self *Matcher, params commons.Map, value string) bool {
 	_, ok := self.valueMap[strings.ToLower(value)]
 	return ok
 }
 
-func match_equal_with_ignore_case(self *Matcher, params map[string]string, value string) bool {
+func match_equal_with_ignore_case(self *Matcher, params commons.Map, value string) bool {
 	return self.Arguments[0] == strings.ToLower(value)
 }
 
-func match_start_with_and_ignore_case(self *Matcher, params map[string]string, value string) bool {
+func match_start_with_and_ignore_case(self *Matcher, params commons.Map, value string) bool {
 	return strings.HasPrefix(strings.ToLower(value), self.Arguments[0])
 }
 
-func match_end_with_and_ignore_case(self *Matcher, params map[string]string, value string) bool {
+func match_end_with_and_ignore_case(self *Matcher, params commons.Map, value string) bool {
 	return strings.HasSuffix(strings.ToLower(value), self.Arguments[0])
 }
 
-func match_contains_with_ignore_case(self *Matcher, params map[string]string, value string) bool {
+func match_contains_with_ignore_case(self *Matcher, params commons.Map, value string) bool {
 	return -1 != strings.Index(strings.ToLower(value), self.Arguments[0])
 }
 
-func match_regex(self *Matcher, params map[string]string, value string) bool {
+func match_regex(self *Matcher, params commons.Map, value string) bool {
 	return self.re.MatchString(value)
 }
 
@@ -209,17 +210,17 @@ func NewMatchers() Matchers {
 	return make([]*Matcher, 0, 5)
 }
 
-func (self Matchers) Match(params map[string]string, debuging bool) (bool, error) {
+func (self Matchers) Match(params commons.Map, debugging bool) (bool, error) {
 	if nil == self || 0 == len(self) {
 		return true, nil
 	}
 
-	if debuging {
+	if debugging {
 		error := make([]string, 0)
 		for _, m := range self {
-			value, ok := params[m.Attribute]
-			if !ok {
-				error = append(error, "'"+m.Attribute+"' is not exists!")
+			value := params.GetString(m.Attribute, "")
+			if 0 == len(value) {
+				error = append(error, commons.IsRequired(m.Attribute).Error())
 			} else if !m.f(m, params, value) {
 				error = append(error, "'"+m.Attribute+"' is not match - "+m.Description+"!")
 			}
@@ -229,9 +230,9 @@ func (self Matchers) Match(params map[string]string, debuging bool) (bool, error
 		}
 	} else {
 		for _, m := range self {
-			value, ok := params[m.Attribute]
-			if !ok {
-				return false, errors.New("'" + m.Attribute + "' is not exists!")
+			value := params.GetString(m.Attribute, "")
+			if 0 == len(value) {
+				return false, commons.IsRequired(m.Attribute)
 			}
 
 			if !m.f(m, params, value) {

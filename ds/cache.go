@@ -15,12 +15,13 @@ const (
 	SET        = 3
 	REFRESH    = 4
 	REFRESH_OK = 5
+	INTERRUPT  = 6 // interrupt
 )
 
-type request struct {
+type cache_request struct {
 	action int
 	id     string
-	ch     chan *request
+	ch     chan *cache_request
 
 	snapshots map[string]*RecordVersion
 
@@ -31,7 +32,7 @@ type request struct {
 
 type Cache struct {
 	objects map[string]map[string]interface{}
-	ch      chan *request
+	ch      chan *cache_request
 
 	is_refreshing bool
 	ticker        *time.Ticker
@@ -42,12 +43,25 @@ type Cache struct {
 func NewCache(refresh time.Duration, client *Client, target string) *Cache {
 	cache := &Cache{
 		objects: make(map[string]map[string]interface{}),
-		ch:      make(chan *request, 5),
+		ch:      make(chan *cache_request, 5),
 		ticker:  time.NewTicker(refresh),
 		client:  client,
 		target:  target}
 	go cache.serve()
 	return cache
+}
+
+func (c *Cache) Close() {
+	ch := make(chan *cache_request)
+	defer close(ch)
+
+	c.ch <- &cache_request{
+		action: INTERRUPT,
+		ch:     ch}
+
+	<-ch
+
+	return
 }
 
 var emptyParams = map[string]string{}
@@ -62,7 +76,7 @@ func (c *Cache) Refresh() error {
 		return e
 	}
 
-	c.ch <- &request{
+	c.ch <- &cache_request{
 		action:    REFRESH,
 		snapshots: snapshots}
 	return nil
@@ -107,23 +121,23 @@ func (c *Cache) compare(snapshots map[string]*RecordVersion) {
 }
 
 func (c *Cache) Set(id string, res map[string]interface{}) {
-	c.ch <- &request{
+	c.ch <- &cache_request{
 		action: SET,
 		id:     id,
 		result: res}
 }
 
 func (c *Cache) Delete(id string) {
-	c.ch <- &request{
+	c.ch <- &cache_request{
 		action: DELETE,
 		id:     id}
 }
 
 func (c *Cache) Get(id string) (map[string]interface{}, error) {
-	ch := make(chan *request)
+	ch := make(chan *cache_request)
 	defer close(ch)
 
-	c.ch <- &request{
+	c.ch <- &cache_request{
 		action: GET,
 		ch:     ch,
 		id:     id}
@@ -133,10 +147,10 @@ func (c *Cache) Get(id string) (map[string]interface{}, error) {
 }
 
 func (c *Cache) Find(id string) map[string]interface{} {
-	ch := make(chan *request)
+	ch := make(chan *cache_request)
 	defer close(ch)
 
-	c.ch <- &request{
+	c.ch <- &cache_request{
 		action: ONLYFIND,
 		ch:     ch,
 		id:     id}
@@ -174,20 +188,28 @@ func (c *Cache) serve() {
 			if !c.is_refreshing {
 				c.is_refreshing = true
 				go func() {
-					defer func() { c.ch <- &request{action: REFRESH_OK} }()
+					defer func() { c.ch <- &cache_request{action: REFRESH_OK} }()
 					c.Refresh()
 				}()
 			}
 		case req := <-c.ch:
 			if nil == req {
-				break
+				goto end
+			}
+			if INTERRUPT == req.action {
+				if nil != req.ch {
+					req.ch <- req
+				}
+				goto end
 			}
 			c.doCommand(req)
 		}
 	}
+end:
+	fmt.Println("exited while recv a close command.")
 }
 
-func (c *Cache) doCommand(req *request) {
+func (c *Cache) doCommand(req *cache_request) {
 	switch req.action {
 	case REFRESH_OK:
 		c.is_refreshing = false
@@ -228,5 +250,10 @@ func (c *Cache) doCommand(req *request) {
 			req.result = nil
 		}
 		req.ch <- req
+	default:
+		if nil != req.ch {
+			req.e = fmt.Errorf("unsupported command - %v", req.action)
+			req.ch <- req
+		}
 	}
 }

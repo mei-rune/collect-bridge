@@ -3,91 +3,13 @@ package ds
 import (
 	"commons/types"
 	"database/sql"
-	"flag"
 	"fmt"
 	_ "github.com/lib/pq"
-	"github.com/runner-mei/go-restful"
-	"net"
-	"net/http"
 	"reflect"
 	"testing"
-	"time"
 )
 
-var (
-	test_address = flag.String("test.http", ":7071", "the address of http")
-)
-
-func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB), cb func(db *Client, definitions *types.TableDefinitions)) {
-	definitions, err := types.LoadTableDefinitions(file)
-	if nil != err {
-		t.Errorf("read file '%s' failed, %s", file, err.Error())
-		t.FailNow()
-		return
-	}
-	conn, err := sql.Open(*test_db, *test_dbUrl)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-	defer func() {
-		if nil != conn {
-			conn.Close()
-		}
-	}()
-
-	init_cb(*test_db, conn)
-	conn.Close()
-	conn = nil
-
-	*drv = *test_db
-	*dbUrl = *test_dbUrl
-	*address = *test_address
-	*models_file = file
-	is_test = true
-
-	Main()
-	defer restful.ClearRegisteredWebServices()
-	var listener net.Listener = nil
-
-	ch := make(chan string)
-
-	go func() {
-		l, e := net.Listen("tcp", *address)
-		if nil != e {
-			ch <- e.Error()
-			return
-		}
-
-		defer func() {
-			ch <- "exit"
-		}()
-		ch <- "ok"
-		listener = l
-		http.Serve(l, nil)
-	}()
-
-	s := <-ch
-	if "ok" != s {
-		return
-	}
-
-	time.Sleep(10 * time.Microsecond)
-	cb(NewClient("http://127.0.0.1"+*test_address), definitions)
-
-	if nil != sinstance {
-		sinstance.Close()
-		sinstance = nil
-	}
-	if nil != listener {
-		listener.Close()
-	}
-	restful.ClearRegisteredWebServices()
-
-	<-ch
-}
-
-func srvTest(t *testing.T, file string, cb func(db *Client, definitions *types.TableDefinitions)) {
+func serverTest(t *testing.T, file string, cb func(db *Client, definitions *types.TableDefinitions)) {
 	testBase(t, file, func(drv string, conn *sql.DB) {
 		_, err := conn.Exec("DROP TABLE IF EXISTS people")
 		if err != nil {
@@ -182,7 +104,7 @@ func convert(table *types.TableDefinition, values map[string]interface{}) map[st
 	return res
 }
 func TestSrvInsert(t *testing.T) {
-	srvTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
+	serverTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
@@ -225,7 +147,7 @@ func TestSrvInsert(t *testing.T) {
 }
 
 func TestSrvUpdateById(t *testing.T) {
-	srvTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
+	serverTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
@@ -282,7 +204,7 @@ func TestSrvUpdateById(t *testing.T) {
 }
 
 func TestSrvUpdateByParams(t *testing.T) {
-	srvTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
+	serverTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
@@ -344,7 +266,7 @@ func TestSrvUpdateByParams(t *testing.T) {
 }
 
 func TestSrvFindById(t *testing.T) {
-	srvTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
+	serverTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
@@ -380,7 +302,7 @@ func TestSrvFindById(t *testing.T) {
 }
 
 // func TestSrvWhere(t *testing.T) {
-// 	srvTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
+// 	serverTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
 // 		person := definitions.Find("Person")
 // 		if nil == person {
 // 			t.Error("Person is not defined")
@@ -437,7 +359,7 @@ func TestSrvFindById(t *testing.T) {
 // }
 
 func TestSrvFindByParams(t *testing.T) {
-	srvTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
+	serverTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
@@ -479,7 +401,7 @@ func TestSrvFindByParams(t *testing.T) {
 }
 
 func TestSrvDeleteById(t *testing.T) {
-	srvTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
+	serverTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")
@@ -511,7 +433,7 @@ func TestSrvDeleteById(t *testing.T) {
 }
 
 func TestSrvDeleteByParams(t *testing.T) {
-	srvTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
+	serverTest(t, "etc/test1.xml", func(db *Client, definitions *types.TableDefinitions) {
 		person := definitions.Find("Person")
 		if nil == person {
 			t.Error("Person is not defined")

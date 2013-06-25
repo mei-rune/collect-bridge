@@ -1,34 +1,7 @@
-package as
+package commons
 
 import (
-	"errors"
 	"strconv"
-)
-
-var (
-	IsNotMap       = errors.New("type assertion to map[string]interface{} failed")
-	IsNotArray     = errors.New("type assertion to []interface{} failed")
-	IsNotBool      = errors.New("type assertion to bool failed")
-	IsNotInt8      = errors.New("type assertion to int8 failed")
-	IsNotInt16     = errors.New("type assertion to int16 failed")
-	IsNotInt32     = errors.New("type assertion to int32 failed")
-	IsNotInt64     = errors.New("type assertion to int64 failed")
-	Int8OutRange   = errors.New("type assertion to int8 failed, out range")
-	Int16OutRange  = errors.New("type assertion to int16 failed, out range")
-	Int32OutRange  = errors.New("type assertion to int32 failed, out range")
-	Int64OutRange  = errors.New("type assertion to int64 failed, out range")
-	IsNotUint8     = errors.New("type assertion to uint8 failed")
-	IsNotUint16    = errors.New("type assertion to uint16 failed")
-	IsNotUint32    = errors.New("type assertion to uint32 failed")
-	IsNotUint64    = errors.New("type assertion to uint64 failed")
-	Uint8OutRange  = errors.New("type assertion to uint8 failed, out range")
-	Uint16OutRange = errors.New("type assertion to uint16 failed, out range")
-	Uint32OutRange = errors.New("type assertion to uint32 failed, out range")
-	Uint64OutRange = errors.New("type assertion to uint64 failed, out range")
-
-	IsNotFloat32 = errors.New("type assertion to float32 failed")
-	IsNotFloat64 = errors.New("type assertion to float64 failed")
-	IsNotString  = errors.New("type assertion to string failed")
 )
 
 // Map type AsSerts to `map`

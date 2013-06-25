@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"commons"
 	"strings"
 	"testing"
 )
@@ -108,7 +109,7 @@ func TestMatchs(t *testing.T) {
 			}
 			matchers = append(matchers, matcher)
 		}
-		ok, e := matchers.Match(data.params, data.debuging)
+		ok, e := matchers.Match(commons.StringMap(data.params), data.debuging)
 		if ok != data.matchResult {
 			t.Errorf("match %d failed, excepted is %v, actual is %v", i, data.matchResult, ok)
 		}

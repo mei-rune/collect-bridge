@@ -8,8 +8,13 @@ import (
 	"fmt"
 	"github.com/runner-mei/go-restful"
 	"log"
+	//"path/filepath"
 	"runtime"
 	"sync/atomic"
+)
+
+var (
+	TABLE_NOT_EXISTS = commons.BadRequestCode + 80
 )
 
 type server struct {
@@ -23,6 +28,13 @@ type server struct {
 }
 
 func NewServer(drv, dbUrl, file string, goroutines int) (*server, error) {
+	// if !commons.FileExists(file) {
+	// 	s, _ := filepath.Abs(filepath.Join("..", "ds", file))
+	// 	fmt.Println("test", s)
+	// 	if commons.FileExists(filepath.Join("..", "ds", file)) {
+	// 		file = filepath.Join("..", "ds", file)
+	// 	}
+	// }
 	definitions, e := types.LoadTableDefinitions(file)
 	if nil != e {
 		return nil, fmt.Errorf("read file '%s' failed, %s", file, e.Error())
@@ -131,7 +143,7 @@ func (self *server) call(req *restful.Request,
 					}
 					buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
 				}
-				result_ch <- commons.ReturnError(commons.InternalErrorCode, buffer.String())
+				result_ch <- commons.ReturnWithInternalError(buffer.String())
 			}
 		}()
 		result_ch <- cb(srv, db)
@@ -153,16 +165,16 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
 		t := req.PathParameter("type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
+			return commons.ReturnWithIsRequired("type")
 		}
 		table := self.definitions.FindByUnderscoreName(t)
 		if nil == table {
-			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("id")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'id' is required.")
+			return commons.ReturnWithIsRequired("id")
 		}
 
 		switch t {
@@ -173,7 +185,7 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 			}
 			res, e := db.count(table, params)
 			if nil != e {
-				return commons.ReturnError(commons.InternalErrorCode, e.Error())
+				return commons.ReturnWithInternalError(e.Error())
 			}
 			return commons.Return(res)
 		case "@snapshot":
@@ -183,7 +195,7 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 			}
 			res, e := db.snapshot(table, params)
 			if nil != e {
-				return commons.ReturnError(commons.InternalErrorCode, e.Error())
+				return commons.ReturnWithInternalError(e.Error())
 			}
 			return commons.Return(res)
 		default:
@@ -198,7 +210,7 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 				if sql.ErrNoRows == e {
 					return commons.ReturnError(commons.NotFoundCode, e.Error())
 				}
-				return commons.ReturnError(commons.InternalErrorCode, e.Error())
+				return commons.ReturnWithInternalError(e.Error())
 			} else {
 				return commons.Return(res)
 			}
@@ -210,11 +222,11 @@ func (self *server) FindByParams(req *restful.Request, resp *restful.Response) {
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
 		t := req.PathParameter("type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
+			return commons.ReturnWithIsRequired("type")
 		}
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
 		}
 
 		params := make(map[string]string)
@@ -224,7 +236,7 @@ func (self *server) FindByParams(req *restful.Request, resp *restful.Response) {
 
 		res, e := db.find(defintion, params)
 		if nil != e {
-			return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			return commons.ReturnWithInternalError(e.Error())
 		}
 
 		return commons.Return(res)
@@ -235,16 +247,16 @@ func (self *server) Children(req *restful.Request, resp *restful.Response) {
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
 		t := req.PathParameter("parent_type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'parent_type' is required.")
+			return commons.ReturnWithIsRequired("parent_type")
 		}
 		parent_type := self.definitions.FindByUnderscoreName(t)
 		if nil == parent_type {
-			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("parent_id")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'parent_id' is required.")
+			return commons.ReturnWithIsRequired("parent_id")
 		}
 
 		parent_id, e := parent_type.Id.Type.Parse(t)
@@ -256,16 +268,16 @@ func (self *server) Children(req *restful.Request, resp *restful.Response) {
 
 		t = req.PathParameter("type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
+			return commons.ReturnWithIsRequired("type")
 		}
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
 		}
 
 		res, e := db.children(parent_type, parent_id, defintion, req.PathParameter("foreign_key"))
 		if nil != e {
-			return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			return commons.ReturnWithInternalError(e.Error())
 		}
 
 		return commons.Return(res)
@@ -276,16 +288,16 @@ func (self *server) Parent(req *restful.Request, resp *restful.Response) {
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
 		t := req.PathParameter("child_type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'child_type' is required.")
+			return commons.ReturnWithIsRequired("child_type")
 		}
 		child_type := self.definitions.FindByUnderscoreName(t)
 		if nil == child_type {
-			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("child_id")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'child_id' is required.")
+			return commons.ReturnWithIsRequired("child_id")
 		}
 
 		child_id, e := child_type.Id.Type.Parse(t)
@@ -297,17 +309,17 @@ func (self *server) Parent(req *restful.Request, resp *restful.Response) {
 
 		t = req.PathParameter("type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
+			return commons.ReturnWithIsRequired("type")
 		}
 
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
 		}
 
 		res, e := db.parent(child_type, child_id, defintion, req.PathParameter("foreign_key"))
 		if nil != e {
-			return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			return commons.ReturnWithInternalError(e.Error())
 		}
 
 		return commons.Return(res)
@@ -318,16 +330,16 @@ func (self *server) UpdateById(req *restful.Request, resp *restful.Response) {
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
 		t := req.PathParameter("type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
+			return commons.ReturnWithIsRequired("type")
 		}
 		table := self.definitions.FindByUnderscoreName(t)
 		if nil == table {
-			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("id")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'id' is required.")
+			return commons.ReturnWithIsRequired("id")
 		}
 
 		id, e := table.Id.Type.Parse(t)
@@ -348,7 +360,7 @@ func (self *server) UpdateById(req *restful.Request, resp *restful.Response) {
 			if sql.ErrNoRows == e {
 				return commons.ReturnError(commons.NotFoundCode, e.Error())
 			}
-			return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			return commons.ReturnWithInternalError(e.Error())
 		} else {
 			return commons.Return(true).SetEffected(1)
 		}
@@ -359,11 +371,11 @@ func (self *server) UpdateByParams(req *restful.Request, resp *restful.Response)
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
 		t := req.PathParameter("type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
+			return commons.ReturnWithIsRequired("type")
 		}
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
 		}
 		var attributes map[string]interface{}
 		e := req.ReadEntity(&attributes)
@@ -376,7 +388,7 @@ func (self *server) UpdateByParams(req *restful.Request, resp *restful.Response)
 		}
 		affected, e := db.update(defintion, params, attributes)
 		if nil != e {
-			return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			return commons.ReturnWithInternalError(e.Error())
 		} else {
 			return commons.Return(true).SetEffected(affected)
 		}
@@ -387,16 +399,16 @@ func (self *server) DeleteById(req *restful.Request, resp *restful.Response) {
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
 		t := req.PathParameter("type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
+			return commons.ReturnWithIsRequired("type")
 		}
 		table := self.definitions.FindByUnderscoreName(t)
 		if nil == table {
-			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("id")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'id' is required.")
+			return commons.ReturnWithIsRequired("id")
 		}
 
 		id, e := table.Id.Type.Parse(t)
@@ -411,7 +423,7 @@ func (self *server) DeleteById(req *restful.Request, resp *restful.Response) {
 			if sql.ErrNoRows == e {
 				return commons.ReturnError(commons.NotFoundCode, e.Error())
 			}
-			return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			return commons.ReturnWithInternalError(e.Error())
 		} else {
 			return commons.Return(true).SetEffected(1)
 		}
@@ -422,11 +434,11 @@ func (self *server) DeleteByParams(req *restful.Request, resp *restful.Response)
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
 		t := req.PathParameter("type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
+			return commons.ReturnWithIsRequired("type")
 		}
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(commons.BadRequestCode, "table '"+t+"' is not exists.")
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
 		}
 
 		params := make(map[string]string)
@@ -435,7 +447,7 @@ func (self *server) DeleteByParams(req *restful.Request, resp *restful.Response)
 		}
 		affected, e := db.delete(defintion, params)
 		if nil != e {
-			return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			return commons.ReturnWithInternalError(e.Error())
 		} else {
 			return commons.Return(true).SetEffected(affected)
 		}
@@ -446,7 +458,7 @@ func (self *server) Create(req *restful.Request, resp *restful.Response) {
 	self.call(req, resp, func(srv *server, db *session) commons.Result {
 		t := req.PathParameter("type")
 		if 0 == len(t) {
-			return commons.ReturnError(commons.IsRequiredCode, "'type' is required.")
+			return commons.ReturnWithIsRequired("type")
 		}
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {

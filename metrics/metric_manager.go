@@ -39,13 +39,13 @@ func (self *MetricManager) Put(params map[string]string) (commons.Result, error)
 		return nil, commons.BodyIsEmpty
 	}
 
-	var definition MetricDefinition
+	var definition RouteDefinition
 	e := json.Unmarshal([]byte(j), &definition)
 	if nil != e {
 		return nil, fmt.Errorf("Unmarshal body to route_definitions failed -- %s\n%s", e.Error(), j)
 	}
 
-	rs, e := NewMetricSpec(&definition)
+	rs, e := NewRouteSpec(&definition)
 	if nil != e {
 		return nil, errors.New("parse route definitions failed.\n" + e.Error())
 	}
@@ -64,14 +64,14 @@ func (self *MetricManager) Create(params map[string]string) (commons.Result, err
 		return nil, commons.BodyIsEmpty
 	}
 
-	routes_definitions := make([]MetricDefinition, 0)
+	routes_definitions := make([]RouteDefinition, 0)
 	e := json.Unmarshal([]byte(j), &routes_definitions)
 	if nil != e {
 		return nil, fmt.Errorf("Unmarshal body to route_definitions failed -- %s\n%s", e.Error(), j)
 	}
 	ss := make([]string, 0, 10)
 	for _, rd := range routes_definitions {
-		rs, e := NewMetricSpec(&rd)
+		rs, e := NewRouteSpec(&rd)
 		if nil != e {
 			ss = append(ss, e.Error())
 		} else {

@@ -3,7 +3,7 @@ package metrics
 import (
 	"bytes"
 	"code.google.com/p/mahonia"
-	"commons/as"
+	"commons"
 	"errors"
 	"fmt"
 	"snmp"
@@ -89,7 +89,7 @@ func TryGetInt32(params map[string]string, values map[string]interface{}, idx st
 			}
 		}
 	default:
-		i, e := as.AsInt32(value)
+		i, e := commons.AsInt32(value)
 		if nil == e {
 			return i, nil
 		}
@@ -132,7 +132,7 @@ func TryGetUint32(params map[string]string, values map[string]interface{}, idx s
 			}
 		}
 	default:
-		i, e := as.AsUint32(value)
+		i, e := commons.AsUint32(value)
 		if nil == e {
 			return i, nil
 		}
@@ -175,7 +175,7 @@ func TryGetInt64(params map[string]string, values map[string]interface{}, idx st
 			}
 		}
 	default:
-		i, e := as.AsInt64(value)
+		i, e := commons.AsInt64(value)
 		if nil == e {
 			return i, nil
 		}
@@ -218,7 +218,7 @@ func TryGetUint64(params map[string]string, values map[string]interface{}, idx s
 			}
 		}
 	default:
-		i, e := as.AsUint64(value)
+		i, e := commons.AsUint64(value)
 		if nil == e {
 			return i, nil
 		}
@@ -282,7 +282,7 @@ func TryGetString(params map[string]string, values map[string]interface{}, idx s
 		}
 		return v, nil
 	default:
-		s, e := as.AsString(value)
+		s, e := commons.AsString(value)
 		if nil != e {
 			return s, nil
 		}

@@ -3,7 +3,6 @@ package ds
 import (
 	"commons/types"
 	"database/sql"
-	"flag"
 	"fmt"
 	_ "github.com/lib/pq"
 	"reflect"
@@ -12,12 +11,6 @@ import (
 )
 
 var (
-	//test_db    = flag.String("test.db", "sqlite3", "the db driver name for test")
-	//test_dbUrl = flag.String("test.dburl", "test.sqlite3.db", "the db url")
-
-	test_db    = flag.String("test.db", "postgres", "the db driver name for test")
-	test_dbUrl = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
-
 	personName    = "people"
 	personClsName = "Person"
 

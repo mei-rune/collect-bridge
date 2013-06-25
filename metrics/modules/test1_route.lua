@@ -13,16 +13,12 @@
 
 method = "get"
 name = 'interface'
-
 description = [[ xxxxxxx
 ]]
 
 author = "Mfk"
-
 license = "xxxxxxx"
-
 level = {"system", "12"}
-
 categories = {"default", "safe"}
 
 

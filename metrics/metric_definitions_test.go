@@ -8,10 +8,10 @@ import (
 
 var data_for_tests = []struct {
 	json              string
-	route_definitions []MetricDefinition
+	route_definitions []RouteDefinition
 }{
 	{`[{"level":["system","12"],"name":"interface","method":"get","file":"test1_route.lua","action":{"action":"table","method":"get","oid":"1.3.6.7","schema":"snmp"},"match":[{"method":"equal","arguments":["ss","equal(ss)"]},{"method":"start_with","arguments":["tt","start_with(tt)"]},{"method":"end_with","arguments":["aa","end_with(aa)"]},{"method":"contains","arguments":["cc","contains(cc)"]},{"method":"match","arguments":["aa","match(aa{0, 3})"]}],"categories":["default","safe"]}]`,
-		[]MetricDefinition{MetricDefinition{Level: []string{"system", "12"},
+		[]RouteDefinition{RouteDefinition{Level: []string{"system", "12"},
 			Name:   "interface",
 			Method: "get",
 			File:   "test1_route.lua",
@@ -49,7 +49,7 @@ func TestEncode(t *testing.T) {
 
 func TestDecode(t *testing.T) {
 	for i, data := range data_for_tests {
-		rds := make([]MetricDefinition, 0)
+		rds := make([]RouteDefinition, 0)
 		e := json.Unmarshal([]byte(data.json), &rds)
 		if nil != e {
 			t.Errorf("Unmarshal %d failed -- %s", i, e.Error())

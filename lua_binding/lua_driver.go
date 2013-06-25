@@ -744,7 +744,7 @@ func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]str
 		panic(fmt.Sprintf("type of result is not map[string]interface{} type - [%T]%v - %v", ret, ret, driver.Name))
 	}
 
-	sm := commons.StringMap(res)
+	sm := commons.InterfaceMap(res)
 	r := commons.Return(sm.Get("value"))
 	r.SetError(sm.GetInt("error_code", 0), sm.GetString("error_message", ""))
 	r.SetOptions(sm.GetObject("options"))

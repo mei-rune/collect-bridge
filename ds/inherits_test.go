@@ -251,7 +251,7 @@ func initAccessParamsData2(t *testing.T, client *Client) []string {
 		sshid1, sshid2, sshid3, sshid4, sshid5, wbemid1, wbemid2, wbemid3, wbemid4, wbemid5}
 }
 func TestInheritsForFindBy(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "access_param", map[string]string{})
 		idlist := initAccessParamsData(t, client)
 
@@ -294,7 +294,7 @@ func TestInheritsForFindBy(t *testing.T) {
 }
 
 func TestInheritsForFindById(t *testing.T) {
-	srvTest2(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "access_param", map[string]string{})
 		idlist := initAccessParamsData2(t, client)
 

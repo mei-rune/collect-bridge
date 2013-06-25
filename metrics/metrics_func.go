@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"commons"
-	"commons/as"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -592,7 +591,7 @@ func (self *systemType) Init(params map[string]interface{}, drvName string) comm
 	restric := false
 	v, ok := params["restric"]
 	if ok {
-		restric = as.AsBoolWithDefaultValue(v, restric)
+		restric = commons.AsBoolWithDefaultValue(v, restric)
 	}
 
 	dt := commons.SearchFile("etc/device_types.json")

@@ -1,7 +1,6 @@
 package commons
 
 import (
-	"commons/as"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -160,6 +159,8 @@ type Map interface {
 	GetObject(key string) map[string]interface{}
 
 	GetObjects(key string) []map[string]interface{}
+
+	TryGet(key string) (interface{}, bool)
 
 	TryGetBool(key string) (bool, error)
 
@@ -364,7 +365,7 @@ func (self *SimpleResult) Options() Map {
 	if nil == self.Voptions {
 		self.Voptions = make(map[string]interface{})
 	}
-	return StringMap(self.Voptions)
+	return InterfaceMap(self.Voptions)
 }
 
 func (self *SimpleResult) CreatedAt() time.Time {
@@ -392,49 +393,49 @@ func (self *AnyValue) AsInterface() interface{} {
 }
 
 func (self *AnyValue) AsBool() (bool, error) {
-	return as.AsBool(self.Value)
+	return AsBool(self.Value)
 }
 
 func (self *AnyValue) AsInt() (int, error) {
-	return as.AsInt(self.Value)
+	return AsInt(self.Value)
 }
 
 func (self *AnyValue) AsInt32() (int32, error) {
-	return as.AsInt32(self.Value)
+	return AsInt32(self.Value)
 }
 
 func (self *AnyValue) AsInt64() (int64, error) {
-	return as.AsInt64(self.Value)
+	return AsInt64(self.Value)
 }
 
 func (self *AnyValue) AsUint() (uint, error) {
-	return as.AsUint(self.Value)
+	return AsUint(self.Value)
 }
 
 func (self *AnyValue) AsUint32() (uint32, error) {
-	return as.AsUint32(self.Value)
+	return AsUint32(self.Value)
 }
 
 func (self *AnyValue) AsUint64() (uint64, error) {
-	return as.AsUint64(self.Value)
+	return AsUint64(self.Value)
 }
 
 func (self *AnyValue) AsString() (string, error) {
-	return as.AsString(self.Value)
+	return AsString(self.Value)
 }
 
 func (self *AnyValue) AsArray() ([]interface{}, error) {
 	if m, ok := self.Value.([]interface{}); ok {
 		return m, nil
 	}
-	return nil, as.IsNotArray
+	return nil, IsNotArray
 }
 
 func (self *AnyValue) AsObject() (map[string]interface{}, error) {
 	if m, ok := self.Value.(map[string]interface{}); ok {
 		return m, nil
 	}
-	return nil, as.IsNotMap
+	return nil, IsNotMap
 }
 
 func (self *AnyValue) AsObjects() ([]map[string]interface{}, error) {
@@ -444,115 +445,44 @@ func (self *AnyValue) AsObjects() ([]map[string]interface{}, error) {
 
 	a, ok := self.Value.([]interface{})
 	if !ok {
-		return nil, as.IsNotArray
+		return nil, IsNotArray
 	}
 
 	res := make([]map[string]interface{}, 0, len(a))
 	for _, v := range a {
 		m, ok := v.(map[string]interface{})
 		if !ok {
-			return nil, as.IsNotMap
+			return nil, IsNotMap
 		}
 		res = append(res, m)
 	}
 	return res, nil
 }
 
-type StringMap map[string]interface{}
-
-func (self StringMap) Contains(key string) bool {
-	_, ok := self[key]
-	return ok
+func ReturnWithInternalError(message string) Result {
+	return ReturnError(InternalErrorCode, message)
 }
 
-func (self StringMap) Get(key string) interface{} {
-	return self[key]
+func ReturnWithBadRequest(message string) Result {
+	return ReturnError(BadRequestCode, message)
 }
 
-func (self StringMap) GetBool(key string, defaultValue bool) bool {
-	return GetBool(self, key, defaultValue)
+func ReturnWithNotAcceptable(message string) Result {
+	return ReturnError(NotAcceptableCode, message)
 }
 
-func (self StringMap) GetInt(key string, defaultValue int) int {
-	return GetInt(self, key, defaultValue)
+func ReturnWithIsRequired(name string) Result {
+	return ReturnError(BadRequestCode, "'"+name+"' is required.")
 }
 
-func (self StringMap) GetInt32(key string, defaultValue int32) int32 {
-	return GetInt32(self, key, defaultValue)
+func ReturnWithNotFound(id string) Result {
+	return ReturnError(NotFoundCode, "'"+id+"' is not found.")
 }
 
-func (self StringMap) GetInt64(key string, defaultValue int64) int64 {
-	return GetInt64(self, key, defaultValue)
+func ReturnWithRecordNotFound(id string) Result {
+	return ReturnWithNotFound(id)
 }
 
-func (self StringMap) GetUint(key string, defaultValue uint) uint {
-	return GetUint(self, key, defaultValue)
-}
-
-func (self StringMap) GetUint32(key string, defaultValue uint32) uint32 {
-	return GetUint32(self, key, defaultValue)
-}
-
-func (self StringMap) GetUint64(key string, defaultValue uint64) uint64 {
-	return GetUint64(self, key, defaultValue)
-}
-
-func (self StringMap) GetString(key, defaultValue string) string {
-	return GetString(self, key, defaultValue)
-}
-
-func (self StringMap) GetArray(key string) []interface{} {
-	return GetArray(self, key)
-}
-
-func (self StringMap) GetObject(key string) map[string]interface{} {
-	return GetObject(self, key)
-}
-
-func (self StringMap) GetObjects(key string) []map[string]interface{} {
-	return GetObjects(self, key)
-}
-
-func (self StringMap) ToMap() map[string]interface{} {
-	return map[string]interface{}(self)
-}
-
-func (self StringMap) TryGetBool(key string) (bool, error) {
-	return TryGetBool(self, key)
-}
-
-func (self StringMap) TryGetInt(key string) (int, error) {
-	return TryGetInt(self, key)
-}
-
-func (self StringMap) TryGetInt32(key string) (int32, error) {
-	return TryGetInt32(self, key)
-}
-
-func (self StringMap) TryGetInt64(key string) (int64, error) {
-	return TryGetInt64(self, key)
-}
-
-func (self StringMap) TryGetUint(key string) (uint, error) {
-	return TryGetUint(self, key)
-}
-
-func (self StringMap) TryGetUint32(key string) (uint32, error) {
-	return TryGetUint32(self, key)
-}
-
-func (self StringMap) TryGetUint64(key string) (uint64, error) {
-	return TryGetUint64(self, key)
-}
-
-func (self StringMap) TryGetString(key string) (string, error) {
-	return TryGetString(self, key)
-}
-
-func (self StringMap) TryGetObject(key string) (map[string]interface{}, error) {
-	return TryGetObject(self, key)
-}
-
-func (self StringMap) TryGetObjects(key string) ([]map[string]interface{}, error) {
-	return TryGetObjects(self, key)
+func ReturnWithRecordAlreadyExists(id string) Result {
+	return ReturnError(NotAcceptableCode, "'"+id+"' is already exists.")
 }

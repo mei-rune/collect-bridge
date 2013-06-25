@@ -27,7 +27,7 @@ type server struct {
 	ch chan func(srv *server, db *session) bool
 }
 
-func NewServer(drv, dbUrl, file string, goroutines int) (*server, error) {
+func newServer(drv, dbUrl, file string, goroutines int) (*server, error) {
 	// if !commons.FileExists(file) {
 	// 	s, _ := filepath.Abs(filepath.Join("..", "ds", file))
 	// 	fmt.Println("test", s)

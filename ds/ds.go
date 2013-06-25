@@ -4,7 +4,7 @@ import (
 	"commons"
 	"commons/types"
 	"database/sql"
-	"expvar"
+	_ "expvar"
 	"flag"
 	"fmt"
 	"github.com/runner-mei/go-restful"
@@ -38,18 +38,6 @@ var (
 	ws_instance  *restful.WebService = nil
 )
 
-func getStatus(params map[string]interface{}, default_code int) int {
-	code, ok := params["code"]
-	if !ok {
-		return default_code
-	}
-	i64, e := commons.AsInt(code)
-	if nil != e {
-		return default_code
-	}
-	return int(i64)
-}
-
 func mainHandle(req *restful.Request, resp *restful.Response) {
 	errFile := "_log_/error.html"
 	_, err := os.Stat(errFile)
@@ -63,20 +51,6 @@ func mainHandle(req *restful.Request, resp *restful.Response) {
 		return
 	}
 	resp.Write([]byte("Hello, World!"))
-}
-
-func expvarHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintf(w, "{\n")
-	first := true
-	expvar.Do(func(kv expvar.KeyValue) {
-		if !first {
-			fmt.Fprintf(w, ",\n")
-		}
-		first = false
-		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
-	})
-	fmt.Fprintf(w, "\n}\n")
 }
 
 func Main() {
@@ -93,7 +67,7 @@ func Main() {
 			*models_file = file
 		}
 	}
-	srv, e := NewServer(*drv, *dbUrl, *models_file, *goroutines)
+	srv, e := newServer(*drv, *dbUrl, *models_file, *goroutines)
 	if nil != e {
 		fmt.Println(e)
 		return

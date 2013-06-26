@@ -118,7 +118,8 @@ func (self *metric_proxy) GetArrayWithDefault(metric_name string, params commons
 	return defaultValue
 }
 
-func (self *metric_proxy) GetObjectWithDefault(metric_name string, params commons.Map, defaultValue map[string]interface{}) map[string]interface{} {
+func (self *metric_proxy) GetObjectWithDefault(metric_name string, params commons.Map,
+	defaultValue map[string]interface{}) map[string]interface{} {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return defaultValue
@@ -129,7 +130,8 @@ func (self *metric_proxy) GetObjectWithDefault(metric_name string, params common
 	return defaultValue
 }
 
-func (self *metric_proxy) GetObjectsWithDefault(metric_name string, params commons.Map, defaultValue []map[string]interface{}) []map[string]interface{} {
+func (self *metric_proxy) GetObjectsWithDefault(metric_name string, params commons.Map,
+	defaultValue []map[string]interface{}) []map[string]interface{} {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return defaultValue
@@ -140,7 +142,7 @@ func (self *metric_proxy) GetObjectsWithDefault(metric_name string, params commo
 	return defaultValue
 }
 
-func (self *metric_proxy) GetBool(metric_name string, params commons.Map) (bool, commons.RuntimeError) {
+func (self *metric_proxy) GetBool(metric_name string, params commons.Map) (bool, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return false, res.Error()
@@ -148,7 +150,7 @@ func (self *metric_proxy) GetBool(metric_name string, params commons.Map) (bool,
 	return res.Value().AsBool()
 }
 
-func (self *metric_proxy) GetInt(metric_name string, params commons.Map) (int, commons.RuntimeError) {
+func (self *metric_proxy) GetInt(metric_name string, params commons.Map) (int, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return 0, res.Error()
@@ -156,7 +158,7 @@ func (self *metric_proxy) GetInt(metric_name string, params commons.Map) (int, c
 	return res.Value().AsInt()
 }
 
-func (self *metric_proxy) GetInt32(metric_name string, params commons.Map) (int32, commons.RuntimeError) {
+func (self *metric_proxy) GetInt32(metric_name string, params commons.Map) (int32, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return 0, res.Error()
@@ -164,7 +166,7 @@ func (self *metric_proxy) GetInt32(metric_name string, params commons.Map) (int3
 	return res.Value().AsInt32()
 }
 
-func (self *metric_proxy) GetInt64(metric_name string, params commons.Map) (int64, commons.RuntimeError) {
+func (self *metric_proxy) GetInt64(metric_name string, params commons.Map) (int64, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return 0, res.Error()
@@ -172,7 +174,7 @@ func (self *metric_proxy) GetInt64(metric_name string, params commons.Map) (int6
 	return res.Value().AsInt64()
 }
 
-func (self *metric_proxy) GetUint(metric_name string, params commons.Map) (uint, commons.RuntimeError) {
+func (self *metric_proxy) GetUint(metric_name string, params commons.Map) (uint, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return 0, res.Error()
@@ -180,7 +182,7 @@ func (self *metric_proxy) GetUint(metric_name string, params commons.Map) (uint,
 	return res.Value().AsUint()
 }
 
-func (self *metric_proxy) GetUint32(metric_name string, params commons.Map) (uint32, commons.RuntimeError) {
+func (self *metric_proxy) GetUint32(metric_name string, params commons.Map) (uint32, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return 0, res.Error()
@@ -188,7 +190,7 @@ func (self *metric_proxy) GetUint32(metric_name string, params commons.Map) (uin
 	return res.Value().AsUint32()
 }
 
-func (self *metric_proxy) GetUint64(metric_name string, params commons.Map) (uint64, commons.RuntimeError) {
+func (self *metric_proxy) GetUint64(metric_name string, params commons.Map) (uint64, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return 0, res.Error()
@@ -196,7 +198,7 @@ func (self *metric_proxy) GetUint64(metric_name string, params commons.Map) (uin
 	return res.Value().AsUint64()
 }
 
-func (self *metric_proxy) GetString(metric_name string, params commons.Map) (string, commons.RuntimeError) {
+func (self *metric_proxy) GetString(metric_name string, params commons.Map) (string, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return "", res.Error()
@@ -204,7 +206,7 @@ func (self *metric_proxy) GetString(metric_name string, params commons.Map) (str
 	return res.Value().AsString()
 }
 
-func (self *metric_proxy) GetObject(metric_name string, params commons.Map) (map[string]interface{}, commons.RuntimeError) {
+func (self *metric_proxy) GetObject(metric_name string, params commons.Map) (map[string]interface{}, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return nil, res.Error()
@@ -212,7 +214,7 @@ func (self *metric_proxy) GetObject(metric_name string, params commons.Map) (map
 	return res.Value().AsObject()
 }
 
-func (self *metric_proxy) GetArray(metric_name string, params commons.Map) ([]interface{}, commons.RuntimeError) {
+func (self *metric_proxy) GetArray(metric_name string, params commons.Map) ([]interface{}, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return nil, res.Error()
@@ -220,7 +222,7 @@ func (self *metric_proxy) GetArray(metric_name string, params commons.Map) ([]in
 	return res.Value().AsArray()
 }
 
-func (self *metric_proxy) GetObjects(metric_name string, params commons.Map) ([]map[string]interface{}, commons.RuntimeError) {
+func (self *metric_proxy) GetObjects(metric_name string, params commons.Map) ([]map[string]interface{}, error) {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return nil, res.Error()

@@ -3,6 +3,7 @@ package metrics
 import (
 	"commons"
 	"ds"
+	"errors"
 	"strings"
 )
 
@@ -26,14 +27,14 @@ type context struct {
 	top_params commons.Map
 }
 
-func (self context) getCache(key string) (*ds.Cache, commons.RuntimeError) {
+func (self context) getCache(key string) (*ds.Cache, error) {
 	return self.caches.GetCache(key)
 }
 
 func (self context) Set(key string, value interface{}) {
 	panic("context is only read.")
 }
-func (self context) cache(t string) (commons.Map, commons.RuntimeError) {
+func (self context) cache(t string) (commons.Map, error) {
 	if m, ok := self.local[t]; ok {
 		return m, nil
 	}
@@ -44,7 +45,7 @@ func (self context) cache(t string) (commons.Map, commons.RuntimeError) {
 	}
 
 	if nil == cache {
-		return nil, commons.NewRuntimeError(commons.NotFoundCode, "table '"+t+"' is not exists.")
+		return nil, errors.New("table '" + t + "' is not exists.")
 	}
 
 	res, e := cache.Get(self.managed_id)
@@ -228,7 +229,7 @@ func (self context) ToMap() map[string]interface{} {
 	return nil
 }
 
-func (self context) GetBool(key string) (bool, commons.RuntimeError) {
+func (self context) GetBool(key string) (bool, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return false, commons.NotExists
@@ -240,7 +241,7 @@ func (self context) GetBool(key string) (bool, commons.RuntimeError) {
 	return res.GetBool(field)
 }
 
-func (self context) GetInt(key string) (int, commons.RuntimeError) {
+func (self context) GetInt(key string) (int, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return 0, commons.NotExists
@@ -252,7 +253,7 @@ func (self context) GetInt(key string) (int, commons.RuntimeError) {
 	return res.GetInt(field)
 }
 
-func (self context) GetInt32(key string) (int32, commons.RuntimeError) {
+func (self context) GetInt32(key string) (int32, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return 0, commons.NotExists
@@ -264,7 +265,7 @@ func (self context) GetInt32(key string) (int32, commons.RuntimeError) {
 	return res.GetInt32(field)
 }
 
-func (self context) GetInt64(key string) (int64, commons.RuntimeError) {
+func (self context) GetInt64(key string) (int64, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return 0, commons.NotExists
@@ -276,7 +277,7 @@ func (self context) GetInt64(key string) (int64, commons.RuntimeError) {
 	return res.GetInt64(field)
 }
 
-func (self context) GetUint(key string) (uint, commons.RuntimeError) {
+func (self context) GetUint(key string) (uint, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return 0, commons.NotExists
@@ -288,7 +289,7 @@ func (self context) GetUint(key string) (uint, commons.RuntimeError) {
 	return res.GetUint(field)
 }
 
-func (self context) GetUint32(key string) (uint32, commons.RuntimeError) {
+func (self context) GetUint32(key string) (uint32, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return 0, commons.NotExists
@@ -300,7 +301,7 @@ func (self context) GetUint32(key string) (uint32, commons.RuntimeError) {
 	return res.GetUint32(field)
 }
 
-func (self context) GetUint64(key string) (uint64, commons.RuntimeError) {
+func (self context) GetUint64(key string) (uint64, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return 0, commons.NotExists
@@ -312,7 +313,7 @@ func (self context) GetUint64(key string) (uint64, commons.RuntimeError) {
 	return res.GetUint64(field)
 }
 
-func (self context) GetString(key string) (string, commons.RuntimeError) {
+func (self context) GetString(key string) (string, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return "", commons.NotExists
@@ -324,7 +325,7 @@ func (self context) GetString(key string) (string, commons.RuntimeError) {
 	return res.GetString(field)
 }
 
-func (self context) GetObject(key string) (map[string]interface{}, commons.RuntimeError) {
+func (self context) GetObject(key string) (map[string]interface{}, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return nil, commons.NotExists
@@ -336,7 +337,7 @@ func (self context) GetObject(key string) (map[string]interface{}, commons.Runti
 	return res.GetObject(field)
 }
 
-func (self context) GetArray(key string) ([]interface{}, commons.RuntimeError) {
+func (self context) GetArray(key string) ([]interface{}, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return nil, commons.NotExists
@@ -348,7 +349,7 @@ func (self context) GetArray(key string) ([]interface{}, commons.RuntimeError) {
 	return res.GetArray(field)
 }
 
-func (self context) GetObjects(key string) ([]map[string]interface{}, commons.RuntimeError) {
+func (self context) GetObjects(key string) ([]map[string]interface{}, error) {
 	t, field := split(key)
 	if 0 == len(t) {
 		return nil, commons.NotExists

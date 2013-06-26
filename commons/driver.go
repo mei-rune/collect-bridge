@@ -83,7 +83,7 @@ func (self *DriverManager) Names() []string {
 }
 
 var (
-	METRIC_DRVS          = map[string]func(ctx map[string]interface{}) (Driver, RuntimeError){}
+	METRIC_DRVS          = map[string]func(ctx map[string]interface{}) (Driver, error){}
 	NotImplementedResult = ReturnError(NotImplementedCode, "not implemented")
 )
 
@@ -112,27 +112,27 @@ type Result interface {
 type Any interface {
 	AsInterface() interface{}
 
-	AsBool() (bool, RuntimeError)
+	AsBool() (bool, error)
 
-	AsInt() (int, RuntimeError)
+	AsInt() (int, error)
 
-	AsInt32() (int32, RuntimeError)
+	AsInt32() (int32, error)
 
-	AsInt64() (int64, RuntimeError)
+	AsInt64() (int64, error)
 
-	AsUint() (uint, RuntimeError)
+	AsUint() (uint, error)
 
-	AsUint32() (uint32, RuntimeError)
+	AsUint32() (uint32, error)
 
-	AsUint64() (uint64, RuntimeError)
+	AsUint64() (uint64, error)
 
-	AsString() (string, RuntimeError)
+	AsString() (string, error)
 
-	AsObject() (map[string]interface{}, RuntimeError)
+	AsObject() (map[string]interface{}, error)
 
-	AsArray() ([]interface{}, RuntimeError)
+	AsArray() ([]interface{}, error)
 
-	AsObjects() ([]map[string]interface{}, RuntimeError)
+	AsObjects() ([]map[string]interface{}, error)
 }
 
 type Map interface {
@@ -166,27 +166,27 @@ type Map interface {
 
 	GetObjectsWithDefault(key string, defaultValue []map[string]interface{}) []map[string]interface{}
 
-	GetBool(key string) (bool, RuntimeError)
+	GetBool(key string) (bool, error)
 
-	GetInt(key string) (int, RuntimeError)
+	GetInt(key string) (int, error)
 
-	GetInt32(key string) (int32, RuntimeError)
+	GetInt32(key string) (int32, error)
 
-	GetInt64(key string) (int64, RuntimeError)
+	GetInt64(key string) (int64, error)
 
-	GetUint(key string) (uint, RuntimeError)
+	GetUint(key string) (uint, error)
 
-	GetUint32(key string) (uint32, RuntimeError)
+	GetUint32(key string) (uint32, error)
 
-	GetUint64(key string) (uint64, RuntimeError)
+	GetUint64(key string) (uint64, error)
 
-	GetString(key string) (string, RuntimeError)
+	GetString(key string) (string, error)
 
-	GetArray(key string) ([]interface{}, RuntimeError)
+	GetArray(key string) ([]interface{}, error)
 
-	GetObject(key string) (map[string]interface{}, RuntimeError)
+	GetObject(key string) (map[string]interface{}, error)
 
-	GetObjects(key string) ([]map[string]interface{}, RuntimeError)
+	GetObjects(key string) ([]map[string]interface{}, error)
 
 	ToMap() map[string]interface{}
 }
@@ -240,10 +240,6 @@ func ReturnError(code int, msg string) *SimpleResult {
 	return Return(nil).SetError(code, msg)
 }
 
-func ReturnWithError(e RuntimeError) *SimpleResult {
-	return ReturnError(e.Code(), e.Error())
-}
-
 func (self *SimpleResult) SetValue(value interface{}) *SimpleResult {
 	self.Vvalue = value
 	return self
@@ -264,31 +260,6 @@ func (self *SimpleResult) SetOption(key string, value interface{}) *SimpleResult
 		self.Voptions = make(map[string]interface{})
 	}
 	self.Voptions[key] = value
-	return self
-}
-
-func (self *SimpleResult) SetErrorMessage(msg string) *SimpleResult {
-	if 0 == len(msg) {
-		return self
-	}
-	if nil == self.Verr {
-		self.Verr = &ApplicationError{Vcode: 500, Vmessage: msg}
-	} else {
-		self.Verr.Vmessage = msg
-	}
-	return self
-}
-
-func (self *SimpleResult) SetErrorCode(code int) *SimpleResult {
-	if 0 == code {
-		return self
-	}
-
-	if nil == self.Verr {
-		self.Verr = &ApplicationError{Vcode: code}
-	} else {
-		self.Verr.Vcode = code
-	}
 	return self
 }
 
@@ -402,53 +373,53 @@ func (self *AnyValue) AsInterface() interface{} {
 	return self.Value
 }
 
-func (self *AnyValue) AsBool() (bool, RuntimeError) {
+func (self *AnyValue) AsBool() (bool, error) {
 	return AsBool(self.Value)
 }
 
-func (self *AnyValue) AsInt() (int, RuntimeError) {
+func (self *AnyValue) AsInt() (int, error) {
 	return AsInt(self.Value)
 }
 
-func (self *AnyValue) AsInt32() (int32, RuntimeError) {
+func (self *AnyValue) AsInt32() (int32, error) {
 	return AsInt32(self.Value)
 }
 
-func (self *AnyValue) AsInt64() (int64, RuntimeError) {
+func (self *AnyValue) AsInt64() (int64, error) {
 	return AsInt64(self.Value)
 }
 
-func (self *AnyValue) AsUint() (uint, RuntimeError) {
+func (self *AnyValue) AsUint() (uint, error) {
 	return AsUint(self.Value)
 }
 
-func (self *AnyValue) AsUint32() (uint32, RuntimeError) {
+func (self *AnyValue) AsUint32() (uint32, error) {
 	return AsUint32(self.Value)
 }
 
-func (self *AnyValue) AsUint64() (uint64, RuntimeError) {
+func (self *AnyValue) AsUint64() (uint64, error) {
 	return AsUint64(self.Value)
 }
 
-func (self *AnyValue) AsString() (string, RuntimeError) {
+func (self *AnyValue) AsString() (string, error) {
 	return AsString(self.Value)
 }
 
-func (self *AnyValue) AsArray() ([]interface{}, RuntimeError) {
+func (self *AnyValue) AsArray() ([]interface{}, error) {
 	if m, ok := self.Value.([]interface{}); ok {
 		return m, nil
 	}
 	return nil, IsNotArray
 }
 
-func (self *AnyValue) AsObject() (map[string]interface{}, RuntimeError) {
+func (self *AnyValue) AsObject() (map[string]interface{}, error) {
 	if m, ok := self.Value.(map[string]interface{}); ok {
 		return m, nil
 	}
 	return nil, IsNotMap
 }
 
-func (self *AnyValue) AsObjects() ([]map[string]interface{}, RuntimeError) {
+func (self *AnyValue) AsObjects() ([]map[string]interface{}, error) {
 	if o, ok := self.Value.([]map[string]interface{}); ok {
 		return o, nil
 	}
@@ -495,4 +466,8 @@ func ReturnWithRecordNotFound(id string) Result {
 
 func ReturnWithRecordAlreadyExists(id string) Result {
 	return ReturnError(NotAcceptableCode, "'"+id+"' is already exists.")
+}
+
+func ReturnWithNotImplemented() Result {
+	return ReturnError(InternalErrorCode, "not implemented")
 }

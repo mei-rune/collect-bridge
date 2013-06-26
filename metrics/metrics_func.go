@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"commons"
+	"errors"
 	"fmt"
 	"strconv"
 )
@@ -22,15 +23,11 @@ var (
 	snmpNotExistsError   = commons.IsRequired("parameter of snmp")
 )
 
-func internalError(e error) commons.RuntimeError {
-	return commons.InternalError(e.Error())
-}
-
 type snmpBase struct {
 	drv commons.Driver
 }
 
-func (self *snmpBase) copyParameter(params commons.Map, snmp_params map[string]string, rw string) commons.RuntimeError {
+func (self *snmpBase) copyParameter(params commons.Map, snmp_params map[string]string, rw string) error {
 	version := params.GetStringWithDefault("snmp.version", "")
 	if 0 == len(version) {
 		return snmpNotExistsError
@@ -56,7 +53,7 @@ func (self *snmpBase) copyParameter(params commons.Map, snmp_params map[string]s
 	return nil
 }
 
-func (self *snmpBase) Get(params commons.Map, oid string) (map[string]interface{}, commons.RuntimeError) {
+func (self *snmpBase) Get(params commons.Map, oid string) (map[string]interface{}, error) {
 	snmp_params := make(map[string]string)
 	snmp_params["snmp.oid"] = oid
 	snmp_params["snmp.action"] = "get"
@@ -75,7 +72,7 @@ func (self *snmpBase) Get(params commons.Map, oid string) (map[string]interface{
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
-		return nil, commons.InternalError(fmt.Sprintf("snmp result is not a map[string]interface{}, actual is [%T]%v.", rv, rv))
+		return nil, fmt.Errorf("snmp result is not a map[string]interface{}, actual is [%T]%v.", rv, rv)
 	}
 	return values, nil
 }
@@ -83,7 +80,7 @@ func (self *snmpBase) Get(params commons.Map, oid string) (map[string]interface{
 func (self *snmpBase) GetResult(params commons.Map, oid string, rt result_type) commons.Result {
 	values, e := self.Get(params, oid)
 	if nil != e {
-		return commons.ReturnWithError(e)
+		return commons.ReturnWithInternalError(e.Error())
 	}
 
 	switch rt {
@@ -128,65 +125,59 @@ func (self *snmpBase) GetResult(params commons.Map, oid string, rt result_type) 
 	}
 }
 
-func (self *snmpBase) GetString(params commons.Map, oid string) (string, commons.RuntimeError) {
+func (self *snmpBase) GetString(params commons.Map, oid string) (string, error) {
 	values, e := self.Get(params, oid)
 	if nil != e {
 		return "", e
 	}
-	s, e := TryGetString(params, values, oid)
-	return s, internalError(e)
+	return TryGetString(params, values, oid)
 }
 
-func (self *snmpBase) GetOid(params commons.Map, oid string) (string, commons.RuntimeError) {
+func (self *snmpBase) GetOid(params commons.Map, oid string) (string, error) {
 	values, e := self.Get(params, oid)
 	if nil != e {
 		return "", e
 	}
-	s, e := TryGetOid(params, values, oid)
-	return s, internalError(e)
+	return TryGetOid(params, values, oid)
 }
 
-func (self *snmpBase) GetInt32(params commons.Map, oid string) (int32, commons.RuntimeError) {
+func (self *snmpBase) GetInt32(params commons.Map, oid string) (int32, error) {
 	values, e := self.Get(params, oid)
 	if nil != e {
 		return 0, e
 	}
-	i32, e := TryGetInt32(params, values, oid, 0)
-	return i32, internalError(e)
+	return TryGetInt32(params, values, oid, 0)
 }
 
-func (self *snmpBase) GetInt64(params commons.Map, oid string) (int64, commons.RuntimeError) {
+func (self *snmpBase) GetInt64(params commons.Map, oid string) (int64, error) {
 	values, e := self.Get(params, oid)
 	if nil != e {
 		return 0, e
 	}
-	i64, e := TryGetInt64(params, values, oid, 0)
-	return i64, internalError(e)
+	return TryGetInt64(params, values, oid, 0)
 }
 
-func (self *snmpBase) GetUint32(params commons.Map, oid string) (uint32, commons.RuntimeError) {
+func (self *snmpBase) GetUint32(params commons.Map, oid string) (uint32, error) {
 	values, e := self.Get(params, oid)
 	if nil != e {
 		return 0, e
 	}
-	u32, e := TryGetUint32(params, values, oid, 0)
-	return u32, internalError(e)
+	return TryGetUint32(params, values, oid, 0)
 }
 
-func (self *snmpBase) GetUint64(params commons.Map, oid string) (uint64, commons.RuntimeError) {
+func (self *snmpBase) GetUint64(params commons.Map, oid string) (uint64, error) {
 	values, e := self.Get(params, oid)
 	if nil != e {
 		return 0, e
 	}
-	u64, e := TryGetUint64(params, values, oid, 0)
-	return u64, internalError(e)
+	return TryGetUint64(params, values, oid, 0)
 }
 
 func (self *snmpBase) GetTable(params commons.Map, oid, columns string,
-	cb func(key string, row map[string]interface{}) commons.RuntimeError) (e commons.RuntimeError) {
+	cb func(key string, row map[string]interface{}) error) (e error) {
 	defer func() {
 		if o := recover(); nil != o {
-			e = commons.InternalError(fmt.Sprint(o))
+			e = errors.New(fmt.Sprint(o))
 		}
 	}()
 
@@ -210,34 +201,33 @@ func (self *snmpBase) GetTable(params commons.Map, oid, columns string,
 	}
 	values, ok := rv.(map[string]interface{})
 	if !ok {
-		return commons.InternalError(fmt.Sprintf("snmp result must is not a map[string]interface{} - [%T]%v.", rv, rv))
+		return fmt.Errorf("snmp result must is not a map[string]interface{} - [%T]%v.", rv, rv)
 	}
 
 	for key, r := range values {
 		row, ok := r.(map[string]interface{})
 		if !ok {
-			em := fmt.Sprintf("row with key is '%s' process failed, it is not a map[string]interface{} - [%T]%v.", key, r, r)
-			return commons.InternalError(em)
+			return fmt.Errorf("row with key is '%s' process failed, it is not a map[string]interface{} - [%T]%v.", key, r, r)
 		}
 
 		e := cb(key, row)
 		if nil != e {
-			if commons.InterruptErrorCode == e.Code() {
+			if commons.InterruptError == e {
 				break
 			}
 
-			return commons.InternalError("row with key is '" + key + "' process failed, " + e.Error())
+			return errors.New("row with key is '" + key + "' process failed, " + e.Error())
 		}
 	}
 	return nil
 }
 
 func (self *snmpBase) GetOneResult(params commons.Map, oid, columns string,
-	cb func(key string, row map[string]interface{}) (map[string]interface{}, commons.RuntimeError)) commons.Result {
-	var err commons.RuntimeError
+	cb func(key string, row map[string]interface{}) (map[string]interface{}, error)) commons.Result {
+	var err error
 	var result map[string]interface{} = nil
-	err = self.GetTable(params, oid, columns, func(key string, row map[string]interface{}) commons.RuntimeError {
-		var e commons.RuntimeError
+	err = self.GetTable(params, oid, columns, func(key string, row map[string]interface{}) error {
+		var e error
 		result, e = cb(key, row)
 		if nil == e {
 			return commons.InterruptError
@@ -245,16 +235,16 @@ func (self *snmpBase) GetOneResult(params commons.Map, oid, columns string,
 		return e
 	})
 	if nil == err {
-		return commons.ReturnWithError(err)
+		return commons.ReturnWithInternalError(err.Error())
 	}
 	return commons.Return(result)
 }
 
 func (self *snmpBase) GetAllResult(params commons.Map, oid, columns string,
-	cb func(key string, row map[string]interface{}) (map[string]interface{}, commons.RuntimeError)) commons.Result {
-	var err commons.RuntimeError
+	cb func(key string, row map[string]interface{}) (map[string]interface{}, error)) commons.Result {
+	var err error
 	var results []map[string]interface{} = nil
-	err = self.GetTable(params, oid, columns, func(key string, row map[string]interface{}) commons.RuntimeError {
+	err = self.GetTable(params, oid, columns, func(key string, row map[string]interface{}) error {
 		result, e := cb(key, row)
 		if nil != e {
 			return e
@@ -263,7 +253,7 @@ func (self *snmpBase) GetAllResult(params commons.Map, oid, columns string,
 		return nil
 	})
 	if nil == err {
-		return commons.ReturnWithError(err)
+		return commons.ReturnWithInternalError(err.Error())
 	}
 	return commons.Return(results)
 }
@@ -322,7 +312,7 @@ type systemInfo struct {
 
 func (self *systemInfo) Get(params commons.Map) commons.Result {
 	return self.GetOneResult(params, "1.3.6.1.2.1.1", "",
-		func(key string, old_row map[string]interface{}) (map[string]interface{}, commons.RuntimeError) {
+		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			oid := GetOid(params, old_row, "2")
 			services := GetUint32(params, old_row, "7", 0)
 
@@ -348,7 +338,7 @@ type interfaceAll struct {
 
 func (self *interfaceAll) Get(params commons.Map) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
-		func(key string, old_row map[string]interface{}) (map[string]interface{}, commons.RuntimeError) {
+		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
 			new_row["ifIndex"] = GetInt32(params, old_row, "1", -1)
 			new_row["ifDescr"] = GetString(params, old_row, "2")
@@ -381,7 +371,7 @@ type interfaceDescr struct {
 
 func (self *interfaceDescr) Get(params commons.Map) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6",
-		func(key string, old_row map[string]interface{}) (map[string]interface{}, commons.RuntimeError) {
+		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
 			new_row["ifIndex"] = GetInt32(params, old_row, "1", -1)
 			new_row["ifDescr"] = GetString(params, old_row, "2")
@@ -398,15 +388,15 @@ type systemType struct {
 	device2id map[string]int
 }
 
-func ErrorIsRestric(msg string, restric bool, log *commons.Logger) commons.RuntimeError {
+func ErrorIsRestric(msg string, restric bool, log *commons.Logger) error {
 	if !restric {
 		log.DEBUG.Print(msg)
 		return nil
 	}
-	return commons.NewRuntimeError(commons.InternalErrorCode, msg)
+	return errors.New(msg)
 }
 
-// func (self *systemType) Init(params map[string]interface{}, drvName string) commons.RuntimeError {
+// func (self *systemType) Init(params map[string]interface{}, drvName string) error {
 // 	e := self.snmpBase.Init(params, drvName)
 // 	if nil != e {
 // 		return e
@@ -474,49 +464,49 @@ func (self *systemType) Get(params commons.Map) commons.Result {
 SERVICES:
 	services, e := params.GetUint32("sys.services")
 	if nil != e {
-		return commons.ReturnWithError(e)
+		return commons.ReturnWithInternalError(e.Error())
 	}
 	return commons.Return((services & 0x7) >> 1)
 }
 
 // func init() {
-// 	commons.METRIC_DRVS["sys.oid"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+// 	commons.METRIC_DRVS["sys.oid"] = func(params map[string]interface{}) (commons.Driver, error) {
 // 		drv := &systemOid{}
 // 		return drv, drv.Init(params, "snmp")
 // 	}
-// 	commons.METRIC_DRVS["sys.descr"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+// 	commons.METRIC_DRVS["sys.descr"] = func(params map[string]interface{}) (commons.Driver, error) {
 // 		drv := &systemDescr{}
 // 		return drv, drv.Init(params, "snmp")
 // 	}
-// 	commons.METRIC_DRVS["sys.name"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+// 	commons.METRIC_DRVS["sys.name"] = func(params map[string]interface{}) (commons.Driver, error) {
 // 		drv := &systemName{}
 // 		return drv, drv.Init(params, "snmp")
 // 	}
-// 	commons.METRIC_DRVS["sys.services"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+// 	commons.METRIC_DRVS["sys.services"] = func(params map[string]interface{}) (commons.Driver, error) {
 // 		drv := &systemServices{}
 // 		return drv, drv.Init(params, "snmp")
 // 	}
-// 	commons.METRIC_DRVS["sys.upTime"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+// 	commons.METRIC_DRVS["sys.upTime"] = func(params map[string]interface{}) (commons.Driver, error) {
 // 		drv := &systemUpTime{}
 // 		return drv, drv.Init(params, "snmp")
 // 	}
-// 	commons.METRIC_DRVS["sys.type"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+// 	commons.METRIC_DRVS["sys.type"] = func(params map[string]interface{}) (commons.Driver, error) {
 // 		drv := &systemType{}
 // 		return drv, drv.Init(params, "snmp")
 // 	}
-// 	commons.METRIC_DRVS["sys.location"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+// 	commons.METRIC_DRVS["sys.location"] = func(params map[string]interface{}) (commons.Driver, error) {
 // 		drv := &systemLocation{}
 // 		return drv, drv.Init(params, "snmp")
 // 	}
-// 	commons.METRIC_DRVS["sys"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+// 	commons.METRIC_DRVS["sys"] = func(params map[string]interface{}) (commons.Driver, error) {
 // 		drv := &systemInfo{}
 // 		return drv, drv.Init(params, "snmp")
 // 	}
-// 	commons.METRIC_DRVS["interface"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+// 	commons.METRIC_DRVS["interface"] = func(params map[string]interface{}) (commons.Driver, error) {
 // 		drv := &interfaceAll{}
 // 		return drv, drv.Init(params, "snmp")
 // 	}
-// 	commons.METRIC_DRVS["interfaceDescr"] = func(params map[string]interface{}) (commons.Driver, commons.RuntimeError) {
+// 	commons.METRIC_DRVS["interfaceDescr"] = func(params map[string]interface{}) (commons.Driver, error) {
 // 		drv := &interfaceDescr{}
 // 		return drv, drv.Init(params, "snmp")
 // 	}
@@ -623,7 +613,7 @@ SERVICES:
 // 	return findDefaultFunc(oid, self.set_methods)
 // }
 
-// func (self *dispatcherBase) Init(params map[string]interface{}, drvName string) commons.RuntimeError {
+// func (self *dispatcherBase) Init(params map[string]interface{}, drvName string) error {
 // 	self.get_methods = make(map[uint]map[string]DispatchFunc, 1000)
 // 	self.set_methods = make(map[uint]map[string]DispatchFunc, 1000)
 // 	return self.snmpBase.Init(params, drvName)

@@ -7,6 +7,7 @@ package lua_binding
 import "C"
 import (
 	"commons"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -37,24 +38,24 @@ func fileExists(dir string) bool {
 	return !info.IsDir()
 }
 
-func ToString(drv *LuaDriver, index int) (string, commons.RuntimeError) {
+func ToString(drv *LuaDriver, index int) (string, error) {
 	if nil == drv.LS {
-		return "", commons.InternalError("lua_State is nil")
+		return "", errors.New("lua_State is nil")
 	}
 
 	if 0 == C.lua_isstring(drv.LS, C.int(index)) {
-		return "", commons.InternalError(fmt.Sprintf("stack[%d] is not a string.", index))
+		return "", errors.New(fmt.Sprintf("stack[%d] is not a string.", index))
 	}
 
 	var length C.size_t
 	cs := C.lua_tolstring(drv.LS, C.int(index), &length)
 	if nil == cs {
-		return "", commons.InternalError("lua_State is not string?")
+		return "", errors.New("lua_State is not string?")
 	}
 	return C.GoStringN(cs, C.int(length)), nil
 }
 
-func ToAny(drv *LuaDriver, index int) (interface{}, commons.RuntimeError) {
+func ToAny(drv *LuaDriver, index int) (interface{}, error) {
 	return toAny(drv.LS, C.int(index))
 }
 
@@ -128,21 +129,21 @@ func pushAnyTest(drv *LuaDriver, any interface{}) interface{} {
 // C.lua_pop(L, 1)
 //}
 
-func toThread(ls *C.lua_State, idx C.int) (*C.lua_State, commons.RuntimeError) {
+func toThread(ls *C.lua_State, idx C.int) (*C.lua_State, error) {
 	if C.LUA_TTHREAD != C.lua_type(ls, idx) {
-		return nil, commons.InternalError("it is not a 'lua_State'")
+		return nil, errors.New("it is not a 'lua_State'")
 	}
 
 	new_th := C.lua_tothread(ls, idx)
 	if nil == new_th {
-		return nil, commons.InternalError("it is nil")
+		return nil, errors.New("it is nil")
 	}
 	return new_th, nil
 }
 
-func toAny(ls *C.lua_State, index C.int) (interface{}, commons.RuntimeError) {
+func toAny(ls *C.lua_State, index C.int) (interface{}, error) {
 	if nil == ls {
-		return nil, commons.InternalError("lua_State is nil")
+		return nil, errors.New("lua_State is nil")
 	}
 
 	t := C.lua_type(ls, index)
@@ -157,7 +158,7 @@ func toAny(ls *C.lua_State, index C.int) (interface{}, commons.RuntimeError) {
 		}
 		return false, nil
 	case C.LUA_TLIGHTUSERDATA:
-		return nil, commons.InternalError("convert lightuserdata is not implemented")
+		return nil, errors.New("convert lightuserdata is not implemented")
 	case C.LUA_TNUMBER:
 		if iv := C.lua_tointegerx(ls, index, nil); 0 != int64(iv) {
 			return int64(iv), nil
@@ -172,18 +173,18 @@ func toAny(ls *C.lua_State, index C.int) (interface{}, commons.RuntimeError) {
 	case C.LUA_TTABLE:
 		return toTable(ls, index)
 	case C.LUA_TFUNCTION:
-		return nil, commons.InternalError("convert function is not implemented")
+		return nil, errors.New("convert function is not implemented")
 	case C.LUA_TUSERDATA:
-		return nil, commons.InternalError("convert userdata is not implemented")
+		return nil, errors.New("convert userdata is not implemented")
 	case C.LUA_TTHREAD:
 		return toThread(ls, index)
 	default:
-		return nil, commons.InternalError("not implemented")
+		return nil, errors.New("not implemented")
 	}
 	return nil, nil
 }
 
-func convertMapToArray(m map[int]interface{}) ([]interface{}, commons.RuntimeError) {
+func convertMapToArray(m map[int]interface{}) ([]interface{}, error) {
 	res := make([]interface{}, 0, len(m)+16)
 	for k, v := range m {
 		if len(res) > k {
@@ -192,7 +193,7 @@ func convertMapToArray(m map[int]interface{}) ([]interface{}, commons.RuntimeErr
 			res = append(res, v)
 		} else {
 			if k > 50000 {
-				return nil, commons.InternalError("ooooooooooooooo! array is too big!")
+				return nil, errors.New("ooooooooooooooo! array is too big!")
 			}
 
 			for i := len(res); i < k; i++ {
@@ -203,14 +204,14 @@ func convertMapToArray(m map[int]interface{}) ([]interface{}, commons.RuntimeErr
 	}
 	return res, nil
 }
-func toTable(ls *C.lua_State, index C.int) (interface{}, commons.RuntimeError) {
+func toTable(ls *C.lua_State, index C.int) (interface{}, error) {
 
 	if nil == ls {
-		return nil, commons.InternalError("lua_State is nil")
+		return nil, errors.New("lua_State is nil")
 	}
 
 	if LUA_TTABLE != C.lua_type(ls, index) {
-		return nil, commons.InternalError(fmt.Sprintf("stack[%d] is not a table.", index))
+		return nil, errors.New(fmt.Sprintf("stack[%d] is not a table.", index))
 	}
 
 	res1 := make(map[int]interface{}, 10)
@@ -230,7 +231,7 @@ func toTable(ls *C.lua_State, index C.int) (interface{}, commons.RuntimeError) {
 		if 0 != C.lua_isnumber(ls, -2) {
 			idx := int(C.lua_tointegerx(ls, -2, nil))
 			if 0 == idx {
-				return nil, commons.InternalError(fmt.Sprintf("read index from stack[%d] fail.", index))
+				return nil, errors.New(fmt.Sprintf("read index from stack[%d] fail.", index))
 			}
 			any, err := toAny(ls, -1)
 			if nil != err {
@@ -245,12 +246,12 @@ func toTable(ls *C.lua_State, index C.int) (interface{}, commons.RuntimeError) {
 			}
 			k, err := toString(ls, -2)
 			if nil != err {
-				return nil, commons.InternalError("read key failed, " + err.Error())
+				return nil, errors.New("read key failed, " + err.Error())
 			}
 
 			res2[k] = any
 		} else {
-			return nil, commons.InternalError(fmt.Sprintf("key must is a string or number while read table from stack[%d] fail.", index))
+			return nil, errors.New(fmt.Sprintf("key must is a string or number while read table from stack[%d] fail.", index))
 		}
 		/* removes 'value'; keeps 'key' for next iteration */
 		C.lua_settop(ls, -2) // C.lua_pop(ls, 1)
@@ -258,7 +259,7 @@ func toTable(ls *C.lua_State, index C.int) (interface{}, commons.RuntimeError) {
 
 	if 0 != len(res1) {
 		if 0 != len(res2) {
-			return nil, commons.InternalError(fmt.Sprintf("data of stack[%d] is mixed with array and map, it is unsupported type", index))
+			return nil, errors.New(fmt.Sprintf("data of stack[%d] is mixed with array and map, it is unsupported type", index))
 		}
 
 		return convertMapToArray(res1)
@@ -271,14 +272,14 @@ func toTable(ls *C.lua_State, index C.int) (interface{}, commons.RuntimeError) {
 	return res2, nil
 }
 
-func toParams(ls *C.lua_State, index C.int) (map[string]string, commons.RuntimeError) {
+func toParams(ls *C.lua_State, index C.int) (map[string]string, error) {
 
 	if nil == ls {
-		return nil, commons.InternalError("lua_State is nil")
+		return nil, errors.New("lua_State is nil")
 	}
 
 	if LUA_TTABLE != C.lua_type(ls, index) {
-		return nil, commons.InternalError(fmt.Sprintf("stack[%d] is not a table.", index))
+		return nil, errors.New(fmt.Sprintf("stack[%d] is not a table.", index))
 	}
 
 	res := make(map[string]string, 10)
@@ -292,11 +293,11 @@ func toParams(ls *C.lua_State, index C.int) (map[string]string, commons.RuntimeE
 		/* 'key' is at index -2 and 'value' at index -1 */
 		k, err := toString(ls, -2)
 		if nil != err {
-			return nil, commons.InternalError("read key failed, " + err.Error())
+			return nil, errors.New("read key failed, " + err.Error())
 		}
 		v, err := toString(ls, -1)
 		if nil != err {
-			return nil, commons.InternalError("read value failed, " + err.Error())
+			return nil, errors.New("read value failed, " + err.Error())
 		}
 
 		res[k] = v
@@ -307,62 +308,62 @@ func toParams(ls *C.lua_State, index C.int) (map[string]string, commons.RuntimeE
 	return res, nil
 }
 
-func toInteger(ls *C.lua_State, index C.int) (int, commons.RuntimeError) {
+func toInteger(ls *C.lua_State, index C.int) (int, error) {
 	if nil == ls {
-		return 0, commons.InternalError("lua_State is nil")
+		return 0, errors.New("lua_State is nil")
 	}
 	var isnum C.int = 0
 	iv := C.lua_tointegerx(ls, index, &isnum)
 	if 0 == isnum {
-		return 0, commons.InternalError("It is not a number")
+		return 0, errors.New("It is not a number")
 	}
 	return int(iv), nil
 }
 
-func toString(ls *C.lua_State, index C.int) (string, commons.RuntimeError) {
+func toString(ls *C.lua_State, index C.int) (string, error) {
 	if nil == ls {
-		return "", commons.InternalError("lua_State is nil")
+		return "", errors.New("lua_State is nil")
 	}
 
 	if 0 == C.lua_isstring(ls, index) {
-		return "", commons.InternalError(fmt.Sprintf("stack[%d] is not a string.", index))
+		return "", errors.New(fmt.Sprintf("stack[%d] is not a string.", index))
 	}
 
 	var length C.size_t
 	cs := C.lua_tolstring(ls, index, &length)
 	if nil == cs {
-		return "", commons.InternalError("lua_State is not string?")
+		return "", errors.New("lua_State is not string?")
 	}
 	return C.GoStringN(cs, C.int(length)), nil
 }
 
-func toError(ls *C.lua_State, index C.int) commons.RuntimeError {
+func toError(ls *C.lua_State, index C.int) error {
 	if nil == ls {
-		return commons.InternalError("lua_State is nil")
+		return errors.New("lua_State is nil")
 	}
 	var length C.size_t
 	cs := C.lua_tolstring(ls, index, &length)
 	if nil == cs {
 		return nil
 	}
-	return commons.InternalError(C.GoStringN(cs, C.int(length)))
+	return errors.New(C.GoStringN(cs, C.int(length)))
 }
 
-func getError(ls *C.lua_State, ret C.int, msg string) commons.RuntimeError {
+func getError(ls *C.lua_State, ret C.int, msg string) error {
 	if nil == ls {
-		return commons.InternalError("lua_State is nil")
+		return errors.New("lua_State is nil")
 	}
 
 	var length C.size_t
 	cs := C.lua_tolstring(ls, -1, &length)
 	if nil == cs {
-		return commons.InternalError(fmt.Sprintf("%s, return code is %d", msg, ret))
+		return errors.New(fmt.Sprintf("%s, return code is %d", msg, ret))
 	}
 	s := C.GoStringN(cs, C.int(length))
-	return commons.InternalError(fmt.Sprintf("%s, commons.RuntimeError message: %s", msg, s))
+	return errors.New(fmt.Sprintf("%s, error message: %s", msg, s))
 }
 
-func pushError(ls *C.lua_State, e commons.RuntimeError) {
+func pushError(ls *C.lua_State, e error) {
 	if nil == ls {
 		return
 	}
@@ -418,8 +419,6 @@ func pushAny(ls *C.lua_State, any interface{}) {
 	case string:
 		pushString(ls, v)
 	case error:
-		pushString(ls, v.Error())
-	case commons.RuntimeError:
 		pushError(ls, v)
 	case []interface{}:
 		pushArray(ls, v)

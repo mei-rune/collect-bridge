@@ -40,11 +40,11 @@ func NewPingerDriver(drvMgr *commons.DriverManager) *PingerDriver {
 func (self *PingerDriver) Get(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return commons.ReturnWithError(commons.IdNotExists)
+		return commons.ReturnWithIsRequired("id")
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithError(commons.RecordNotFound(id))
+		return commons.ReturnWithRecordNotFound(id)
 	}
 
 	values := make([][2]string, 0, 10)
@@ -64,12 +64,12 @@ func (self *PingerDriver) Get(params map[string]string) commons.Result {
 func (self *PingerDriver) Put(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return commons.ReturnWithError(commons.IdNotExists)
+		return commons.ReturnWithIsRequired("id")
 	}
 
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithError(commons.RecordNotFound(id))
+		return commons.ReturnWithRecordNotFound(id)
 	}
 
 	port, ok := params["snmp.port"]
@@ -79,16 +79,16 @@ func (self *PingerDriver) Put(params map[string]string) commons.Result {
 
 	body, ok := params["body"]
 	if !ok {
-		return commons.ReturnWithError(commons.BodyNotExists)
+		return commons.ReturnWithIsRequired("body")
 	}
 	if "" == body {
-		return commons.ReturnWithError(commons.IsRequired("body"))
+		return commons.ReturnWithIsRequired("body")
 	}
 	ipList := make([]string, 0, 100)
 	e := json.Unmarshal([]byte(body), &ipList)
 	if nil != e {
-		return commons.ReturnError(commons.BadRequestCode,
-			"read body failed, it is not []string of json - "+e.Error()+body)
+		return commons.ReturnWithBadRequest(
+			"read body failed, it is not []string of json - " + e.Error() + body)
 	}
 
 	communities := params["snmp.communities"]
@@ -108,7 +108,7 @@ func (self *PingerDriver) Put(params map[string]string) commons.Result {
 	for _, ip_raw := range ipList {
 		ip_range, e := netutils.ParseIPRange(ip_raw)
 		if nil != e {
-			return commons.ReturnError(commons.InternalErrorCode, e.Error())
+			return commons.ReturnWithInternalError(e.Error())
 		}
 
 		for i, v := range versions {
@@ -125,7 +125,7 @@ func (self *PingerDriver) Put(params map[string]string) commons.Result {
 				for ip_range.HasNext() {
 					e = pinger.Send(net.JoinHostPort(ip_range.Current().String(), port), v, community)
 					if nil != e {
-						return commons.ReturnError(commons.InternalErrorCode, e.Error())
+						return commons.ReturnWithInternalError(e.Error())
 					}
 				}
 			}
@@ -143,13 +143,13 @@ func (self *PingerDriver) Create(params map[string]string) commons.Result {
 	params2 := make(map[string]string)
 	e := json.Unmarshal([]byte(body), &params2)
 	if nil != e {
-		return commons.ReturnError(commons.BadRequestCode, "read body failed, it is not map[string]string of json - "+e.Error())
+		return commons.ReturnWithBadRequest("read body failed, it is not map[string]string of json - " + e.Error())
 	}
 	network, _ := params2["network"]
 	if "" == network {
 		network, _ = params["network"]
 		if "" == network {
-			return commons.ReturnWithError(commons.IsRequired("network"))
+			return commons.ReturnWithIsRequired("network")
 		}
 	}
 
@@ -161,12 +161,12 @@ func (self *PingerDriver) Create(params map[string]string) commons.Result {
 	id := network + "," + address
 	_, ok := self.pingers[id]
 	if ok {
-		return commons.ReturnWithError(commons.RecordAlreadyExists(id))
+		return commons.ReturnWithRecordAlreadyExists(id)
 	}
 
 	pinger, err := NewPinger(network, address, 256)
 	if nil != err {
-		return commons.ReturnError(500, err.Error())
+		return commons.ReturnWithInternalError(err.Error())
 	}
 	self.pingers[id] = pinger
 	return commons.Return(id)
@@ -175,11 +175,11 @@ func (self *PingerDriver) Create(params map[string]string) commons.Result {
 func (self *PingerDriver) Delete(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return commons.ReturnWithError(commons.IdNotExists).SetValue(false)
+		return commons.ReturnWithIsRequired("id")
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithError(commons.RecordNotFound(id)).SetValue(false)
+		return commons.ReturnWithRecordNotFound(id)
 
 	}
 	delete(self.pingers, id)

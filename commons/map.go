@@ -5,8 +5,6 @@ import (
 	"strconv"
 )
 
-var MultipleValuesError = NewRuntimeError(NotAcceptableCode, "Multiple values meet the conditions")
-
 func GetBoolWithDefault(attributes map[string]interface{}, key string, defaultValue bool) bool {
 	res, e := GetBool(attributes, key)
 	if nil != e {
@@ -15,7 +13,7 @@ func GetBoolWithDefault(attributes map[string]interface{}, key string, defaultVa
 	return res
 }
 
-func GetBool(attributes map[string]interface{}, key string) (bool, RuntimeError) {
+func GetBool(attributes map[string]interface{}, key string) (bool, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return false, NotExists
@@ -34,7 +32,7 @@ func GetIntWithDefault(attributes map[string]interface{}, key string, defaultVal
 	return res
 }
 
-func GetInt(attributes map[string]interface{}, key string) (int, RuntimeError) {
+func GetInt(attributes map[string]interface{}, key string) (int, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return 0, NotExists
@@ -53,7 +51,7 @@ func GetUintWithDefault(attributes map[string]interface{}, key string, defaultVa
 	return res
 }
 
-func GetUint(attributes map[string]interface{}, key string) (uint, RuntimeError) {
+func GetUint(attributes map[string]interface{}, key string) (uint, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return 0, NotExists
@@ -72,7 +70,7 @@ func GetFloatWithDefault(attributes map[string]interface{}, key string, defaultV
 	return res
 }
 
-func GetFloat(attributes map[string]interface{}, key string) (float64, RuntimeError) {
+func GetFloat(attributes map[string]interface{}, key string) (float64, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return 0, NotExists
@@ -91,7 +89,7 @@ func GetInt32WithDefault(attributes map[string]interface{}, key string, defaultV
 	return res
 }
 
-func GetInt32(attributes map[string]interface{}, key string) (int32, RuntimeError) {
+func GetInt32(attributes map[string]interface{}, key string) (int32, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return 0, NotExists
@@ -110,7 +108,7 @@ func GetInt64WithDefault(attributes map[string]interface{}, key string, defaultV
 	return res
 }
 
-func GetInt64(attributes map[string]interface{}, key string) (int64, RuntimeError) {
+func GetInt64(attributes map[string]interface{}, key string) (int64, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return 0, NotExists
@@ -129,7 +127,7 @@ func GetUint32WithDefault(attributes map[string]interface{}, key string, default
 	return res
 }
 
-func GetUint32(attributes map[string]interface{}, key string) (uint32, RuntimeError) {
+func GetUint32(attributes map[string]interface{}, key string) (uint32, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return 0, NotExists
@@ -147,7 +145,7 @@ func GetUint64WithDefault(attributes map[string]interface{}, key string, default
 	}
 	return res
 }
-func GetUint64(attributes map[string]interface{}, key string) (uint64, RuntimeError) {
+func GetUint64(attributes map[string]interface{}, key string) (uint64, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return 0, NotExists
@@ -164,7 +162,7 @@ func GetStringWithDefault(attributes map[string]interface{}, key string, default
 	}
 	return res
 }
-func GetString(attributes map[string]interface{}, key string) (string, RuntimeError) {
+func GetString(attributes map[string]interface{}, key string) (string, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return "", NotExists
@@ -175,7 +173,7 @@ func GetString(attributes map[string]interface{}, key string) (string, RuntimeEr
 	return AsString(v)
 }
 
-func GetArray(attributes map[string]interface{}, key string) ([]interface{}, RuntimeError) {
+func GetArray(attributes map[string]interface{}, key string) ([]interface{}, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return nil, NotExists
@@ -226,7 +224,7 @@ func GetObjectWithDefault(attributes map[string]interface{}, key string, default
 	return res
 }
 
-func GetObject(attributes map[string]interface{}, key string) (map[string]interface{}, RuntimeError) {
+func GetObject(attributes map[string]interface{}, key string) (map[string]interface{}, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return nil, NotExists
@@ -260,7 +258,7 @@ func GetObjectsWithDefault(attributes map[string]interface{}, key string, defaul
 	return results
 }
 
-func GetObjects(attributes map[string]interface{}, key string) ([]map[string]interface{}, RuntimeError) {
+func GetObjects(attributes map[string]interface{}, key string) ([]map[string]interface{}, error) {
 	v, ok := attributes[key]
 	if !ok {
 		return nil, NotExists
@@ -410,47 +408,47 @@ func (self InterfaceMap) ToMap() map[string]interface{} {
 	return map[string]interface{}(self)
 }
 
-func (self InterfaceMap) GetBool(key string) (bool, RuntimeError) {
+func (self InterfaceMap) GetBool(key string) (bool, error) {
 	return GetBool(self, key)
 }
 
-func (self InterfaceMap) GetInt(key string) (int, RuntimeError) {
+func (self InterfaceMap) GetInt(key string) (int, error) {
 	return GetInt(self, key)
 }
 
-func (self InterfaceMap) GetInt32(key string) (int32, RuntimeError) {
+func (self InterfaceMap) GetInt32(key string) (int32, error) {
 	return GetInt32(self, key)
 }
 
-func (self InterfaceMap) GetInt64(key string) (int64, RuntimeError) {
+func (self InterfaceMap) GetInt64(key string) (int64, error) {
 	return GetInt64(self, key)
 }
 
-func (self InterfaceMap) GetUint(key string) (uint, RuntimeError) {
+func (self InterfaceMap) GetUint(key string) (uint, error) {
 	return GetUint(self, key)
 }
 
-func (self InterfaceMap) GetUint32(key string) (uint32, RuntimeError) {
+func (self InterfaceMap) GetUint32(key string) (uint32, error) {
 	return GetUint32(self, key)
 }
 
-func (self InterfaceMap) GetUint64(key string) (uint64, RuntimeError) {
+func (self InterfaceMap) GetUint64(key string) (uint64, error) {
 	return GetUint64(self, key)
 }
 
-func (self InterfaceMap) GetString(key string) (string, RuntimeError) {
+func (self InterfaceMap) GetString(key string) (string, error) {
 	return GetString(self, key)
 }
 
-func (self InterfaceMap) GetObject(key string) (map[string]interface{}, RuntimeError) {
+func (self InterfaceMap) GetObject(key string) (map[string]interface{}, error) {
 	return GetObject(self, key)
 }
 
-func (self InterfaceMap) GetArray(key string) ([]interface{}, RuntimeError) {
+func (self InterfaceMap) GetArray(key string) ([]interface{}, error) {
 	return GetArray(self, key)
 }
 
-func (self InterfaceMap) GetObjects(key string) ([]map[string]interface{}, RuntimeError) {
+func (self InterfaceMap) GetObjects(key string) ([]map[string]interface{}, error) {
 	return GetObjects(self, key)
 }
 
@@ -592,7 +590,7 @@ func (self StringMap) ToMap() map[string]interface{} {
 	return nil
 }
 
-func (self StringMap) GetBool(key string) (bool, RuntimeError) {
+func (self StringMap) GetBool(key string) (bool, error) {
 	s, ok := self[key]
 	if !ok {
 		return false, NotExists
@@ -607,7 +605,7 @@ func (self StringMap) GetBool(key string) (bool, RuntimeError) {
 	}
 }
 
-func (self StringMap) GetInt(key string) (int, RuntimeError) {
+func (self StringMap) GetInt(key string) (int, error) {
 	s, ok := self[key]
 	if !ok {
 		return 0, NotExists
@@ -619,7 +617,7 @@ func (self StringMap) GetInt(key string) (int, RuntimeError) {
 	return int(i), nil
 }
 
-func (self StringMap) GetInt32(key string) (int32, RuntimeError) {
+func (self StringMap) GetInt32(key string) (int32, error) {
 	s, ok := self[key]
 	if !ok {
 		return 0, NotExists
@@ -631,7 +629,7 @@ func (self StringMap) GetInt32(key string) (int32, RuntimeError) {
 	return int32(i), nil
 }
 
-func (self StringMap) GetInt64(key string) (int64, RuntimeError) {
+func (self StringMap) GetInt64(key string) (int64, error) {
 	s, ok := self[key]
 	if !ok {
 		return 0, NotExists
@@ -643,7 +641,7 @@ func (self StringMap) GetInt64(key string) (int64, RuntimeError) {
 	return int64(i), nil
 }
 
-func (self StringMap) GetUint(key string) (uint, RuntimeError) {
+func (self StringMap) GetUint(key string) (uint, error) {
 	s, ok := self[key]
 	if !ok {
 		return 0, NotExists
@@ -655,7 +653,7 @@ func (self StringMap) GetUint(key string) (uint, RuntimeError) {
 	return uint(i), nil
 }
 
-func (self StringMap) GetUint32(key string) (uint32, RuntimeError) {
+func (self StringMap) GetUint32(key string) (uint32, error) {
 	s, ok := self[key]
 	if !ok {
 		return 0, NotExists
@@ -667,7 +665,7 @@ func (self StringMap) GetUint32(key string) (uint32, RuntimeError) {
 	return uint32(i), nil
 }
 
-func (self StringMap) GetUint64(key string) (uint64, RuntimeError) {
+func (self StringMap) GetUint64(key string) (uint64, error) {
 	s, ok := self[key]
 	if !ok {
 		return 0, NotExists
@@ -681,7 +679,7 @@ func (self StringMap) GetUint64(key string) (uint64, RuntimeError) {
 
 }
 
-func (self StringMap) GetString(key string) (string, RuntimeError) {
+func (self StringMap) GetString(key string) (string, error) {
 	s, ok := self[key]
 	if !ok {
 		return "", NotExists
@@ -689,15 +687,15 @@ func (self StringMap) GetString(key string) (string, RuntimeError) {
 	return s, nil
 }
 
-func (self StringMap) GetObject(key string) (map[string]interface{}, RuntimeError) {
+func (self StringMap) GetObject(key string) (map[string]interface{}, error) {
 	return nil, typeError("it is a map[string]string, not support GetObject")
 }
 
-func (self StringMap) GetArray(key string) ([]interface{}, RuntimeError) {
+func (self StringMap) GetArray(key string) ([]interface{}, error) {
 	return nil, typeError("it is a map[string]string, not support GetArray")
 }
 
-func (self StringMap) GetObjects(key string) ([]map[string]interface{}, RuntimeError) {
+func (self StringMap) GetObjects(key string) ([]map[string]interface{}, error) {
 	return nil, typeError("it is a map[string]string, not support GetObjects")
 }
 
@@ -914,7 +912,7 @@ func (self ProxyMap) ToMap() map[string]interface{} {
 	return self.values.ToMap()
 }
 
-func (self ProxyMap) GetBool(key string) (bool, RuntimeError) {
+func (self ProxyMap) GetBool(key string) (bool, error) {
 	b, e := self.values.GetBool(key)
 	if nil == e {
 		return b, e
@@ -922,7 +920,7 @@ func (self ProxyMap) GetBool(key string) (bool, RuntimeError) {
 	return self.proxy.GetBool(key)
 }
 
-func (self ProxyMap) GetInt(key string) (int, RuntimeError) {
+func (self ProxyMap) GetInt(key string) (int, error) {
 	i, e := self.values.GetInt(key)
 	if nil == e {
 		return i, e
@@ -930,7 +928,7 @@ func (self ProxyMap) GetInt(key string) (int, RuntimeError) {
 	return self.proxy.GetInt(key)
 }
 
-func (self ProxyMap) GetInt32(key string) (int32, RuntimeError) {
+func (self ProxyMap) GetInt32(key string) (int32, error) {
 	i, e := self.values.GetInt32(key)
 	if nil == e {
 		return i, e
@@ -938,7 +936,7 @@ func (self ProxyMap) GetInt32(key string) (int32, RuntimeError) {
 	return self.proxy.GetInt32(key)
 }
 
-func (self ProxyMap) GetInt64(key string) (int64, RuntimeError) {
+func (self ProxyMap) GetInt64(key string) (int64, error) {
 	i, e := self.values.GetInt64(key)
 	if nil == e {
 		return i, e
@@ -946,7 +944,7 @@ func (self ProxyMap) GetInt64(key string) (int64, RuntimeError) {
 	return self.proxy.GetInt64(key)
 }
 
-func (self ProxyMap) GetUint(key string) (uint, RuntimeError) {
+func (self ProxyMap) GetUint(key string) (uint, error) {
 	i, e := self.values.GetUint(key)
 	if nil == e {
 		return i, e
@@ -954,7 +952,7 @@ func (self ProxyMap) GetUint(key string) (uint, RuntimeError) {
 	return self.proxy.GetUint(key)
 }
 
-func (self ProxyMap) GetUint32(key string) (uint32, RuntimeError) {
+func (self ProxyMap) GetUint32(key string) (uint32, error) {
 	i, e := self.values.GetUint32(key)
 	if nil == e {
 		return i, e
@@ -962,7 +960,7 @@ func (self ProxyMap) GetUint32(key string) (uint32, RuntimeError) {
 	return self.proxy.GetUint32(key)
 }
 
-func (self ProxyMap) GetUint64(key string) (uint64, RuntimeError) {
+func (self ProxyMap) GetUint64(key string) (uint64, error) {
 	i, e := self.values.GetUint64(key)
 	if nil == e {
 		return i, e
@@ -970,7 +968,7 @@ func (self ProxyMap) GetUint64(key string) (uint64, RuntimeError) {
 	return self.proxy.GetUint64(key)
 }
 
-func (self ProxyMap) GetString(key string) (string, RuntimeError) {
+func (self ProxyMap) GetString(key string) (string, error) {
 	s, e := self.values.GetString(key)
 	if nil == e {
 		return s, e
@@ -978,7 +976,7 @@ func (self ProxyMap) GetString(key string) (string, RuntimeError) {
 	return self.proxy.GetString(key)
 }
 
-func (self ProxyMap) GetObject(key string) (map[string]interface{}, RuntimeError) {
+func (self ProxyMap) GetObject(key string) (map[string]interface{}, error) {
 	s, e := self.values.GetObject(key)
 	if nil == e {
 		return s, e
@@ -986,7 +984,7 @@ func (self ProxyMap) GetObject(key string) (map[string]interface{}, RuntimeError
 	return self.proxy.GetObject(key)
 }
 
-func (self ProxyMap) GetArray(key string) ([]interface{}, RuntimeError) {
+func (self ProxyMap) GetArray(key string) ([]interface{}, error) {
 	s, e := self.values.GetArray(key)
 	if nil == e {
 		return s, e
@@ -994,7 +992,7 @@ func (self ProxyMap) GetArray(key string) ([]interface{}, RuntimeError) {
 	return self.proxy.GetArray(key)
 }
 
-func (self ProxyMap) GetObjects(key string) ([]map[string]interface{}, RuntimeError) {
+func (self ProxyMap) GetObjects(key string) ([]map[string]interface{}, error) {
 	s, e := self.values.GetObjects(key)
 	if nil == e {
 		return s, e

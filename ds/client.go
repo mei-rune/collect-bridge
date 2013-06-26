@@ -17,7 +17,7 @@ func NewClient(url string) *Client {
 }
 
 func marshalError(e error) commons.RuntimeError {
-	return commons.NewRuntimeError(commons.BadRequestCode, "marshal failed, "+e.Error())
+	return commons.NewApplicationError(commons.BadRequestCode, "marshal failed, "+e.Error())
 }
 
 func (self *Client) Create(target string, body map[string]interface{}) (string, commons.RuntimeError) {
@@ -70,12 +70,12 @@ func (self *Client) CreateJson(url string, msg []byte) (commons.Result, string, 
 	}
 
 	if nil == res.LastInsertId() {
-		return nil, "", commons.InternalError("lastInsertId is nil")
+		return nil, "", commons.NewApplicationError(commons.InternalErrorCode, "lastInsertId is nil")
 	}
 
 	result := fmt.Sprint(res.LastInsertId())
 	if "-1" == res.LastInsertId() {
-		return nil, "", commons.InternalError("lastInsertId is -1")
+		return nil, "", commons.NewApplicationError(commons.InternalErrorCode, "lastInsertId is -1")
 	}
 
 	return res, result, nil
@@ -91,7 +91,7 @@ func (self *Client) UpdateById(target, id string, body map[string]interface{}) c
 		return err
 	}
 	if 1 != c {
-		return commons.InternalError(fmt.Sprintln("update row with id is '%s', effected row is %d", id, c))
+		return commons.NewApplicationError(commons.InternalErrorCode, fmt.Sprintf("update row with id is '%s', effected row is %d", id, c))
 	}
 	return nil
 }
@@ -113,7 +113,7 @@ func (self *Client) UpdateJson(url string, msg []byte) (int64, commons.RuntimeEr
 	}
 	result := res.Effected()
 	if -1 == result {
-		return -1, commons.InternalError("effected rows is -1")
+		return -1, commons.NewApplicationError(commons.InternalErrorCode, "effected rows is -1")
 	}
 	return result, nil
 }
@@ -131,7 +131,7 @@ func (self *Client) DeleteBy(target string, params map[string]string) (int64, co
 	}
 	result := res.Effected()
 	if -1 == result {
-		return -1, commons.InternalError("effected rows is -1")
+		return -1, commons.NewApplicationError(commons.InternalErrorCode, "effected rows is -1")
 	}
 	return result, nil
 }
@@ -145,7 +145,7 @@ func (self *Client) Count(target string, params map[string]string) (int64, commo
 
 	result, err := res.Value().AsInt64()
 	if nil != err {
-		return -1, commons.InternalError(err.Error())
+		return -1, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
 	}
 	return result, nil
 }
@@ -212,18 +212,18 @@ func (self *Client) Snapshot(target string, params map[string]string) (map[strin
 	}
 	results, err := res.Value().AsObjects()
 	if nil != err {
-		return nil, commons.InternalError(err.Error())
+		return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
 	}
 
 	snapshots := make(map[string]*RecordVersion)
 	for i, res := range results {
 		id := res["id"]
 		if nil == id {
-			return nil, commons.InternalError(fmt.Sprintf("'id' is nil in the results[%v]", i))
+			return nil, commons.NewApplicationError(commons.InternalErrorCode, fmt.Sprintf("'id' is nil in the results[%v]", i))
 		}
 		snapshot, err := GetRecordVersionFrom(res)
 		if nil != err {
-			return nil, commons.InternalError(err.Error())
+			return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
 		}
 		snapshots[fmt.Sprint(id)] = snapshot
 	}
@@ -249,7 +249,7 @@ func (self *Client) FindByWithIncludes(target string, params map[string]string, 
 	}
 	result, err := res.Value().AsObjects()
 	if nil != err {
-		return nil, commons.InternalError(err.Error())
+		return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
 	}
 	return result, nil
 }
@@ -266,7 +266,7 @@ func (self *Client) FindByIdWithIncludes(target, id string, includes string) (
 	}
 	result, err := res.Value().AsObject()
 	if nil != err {
-		return nil, commons.InternalError(err.Error())
+		return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
 	}
 	//fmt.Printf("res = %#v\r\n\r\n", res)
 	//fmt.Printf("value = %#v\r\n\r\n", res.InterfaceValue())
@@ -284,7 +284,7 @@ func (self *Client) Children(parent, parent_id, target string, params map[string
 	}
 	result, err := res.Value().AsObjects()
 	if nil != err {
-		return nil, commons.InternalError(err.Error())
+		return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
 	}
 	return result, nil
 }
@@ -299,7 +299,7 @@ func (self *Client) Parent(child, child_id, target string) (map[string]interface
 	}
 	result, err := res.Value().AsObject()
 	if nil != err {
-		return nil, commons.InternalError(err.Error())
+		return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
 	}
 	return result, nil
 }

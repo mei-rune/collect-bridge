@@ -7,10 +7,9 @@ import (
 )
 
 type RuntimeError interface {
-	Error() string
 	Code() int
+	Error() string
 }
-
 type ApplicationError struct {
 	Vcode    int    `json:"code,omitempty"`
 	Vmessage string `json:"message,omitempty"`
@@ -24,16 +23,8 @@ func (err *ApplicationError) Error() string {
 	return err.Vmessage
 }
 
-func NewRuntimeError(code int, message string) RuntimeError {
-	return &ApplicationError{Vcode: code, Vmessage: message}
-}
-
-func GetCode(e error, default_code int) int {
-	a, ok := e.(RuntimeError)
-	if !ok {
-		return default_code
-	}
-	return a.Code()
+func NewApplicationError(code int, msg string) *ApplicationError {
+	return &ApplicationError{Vcode: code, Vmessage: msg}
 }
 
 type MutiErrors struct {
@@ -77,20 +68,16 @@ func NewError(v interface{}) error {
 }
 
 func IsTimeout(e error) bool {
-	a, ok := e.(RuntimeError)
-	if ok {
-		return a.Code() == TimeoutErr.Code()
-	}
-	return ok
+	return timeout_message == TimeoutErr.Error()
 }
 
-func IsNotFound(e error) bool {
-	a, ok := e.(RuntimeError)
-	if ok {
-		return a.Code() == 404
-	}
-	return ok
-}
+// func IsNotFound(e error) bool {
+// 	a, ok := e.(error)
+// 	if ok {
+// 		return a.Code() == 404
+// 	}
+// 	return ok
+// }
 
 const (
 	timeout_message = "time out"
@@ -157,74 +144,65 @@ var (
 	IsRequiredCode                   = BadRequestCode
 	TableIsNotExists                 = BadRequestCode + 80
 
-	ContinueError      = NewRuntimeError(ContinueCode, "continue")
-	NotImplemented     = NewRuntimeError(NotImplementedCode, "not implemented")
-	TimeoutErr         = NewRuntimeError(GatewayTimeoutCode, timeout_message)
-	DieError           = NewRuntimeError(InternalErrorCode, "die.")
-	NotExists          = NewRuntimeError(NotFoundCode, "not found.")
-	IdNotExists        = NewRuntimeError(BadRequestCode, "'id' is required.")
-	BodyNotExists      = NewRuntimeError(BadRequestCode, "'body' is required.")
-	BodyIsEmpty        = NewRuntimeError(BadRequestCode, "'body' is empty.")
-	ServiceUnavailable = NewRuntimeError(ServiceUnavailableCode, "service temporary unavailable, try again later")
-	ValueIsNil         = NewRuntimeError(InternalErrorCode, "value is nil.")
-	NotIntValue        = NewRuntimeError(InternalErrorCode, "it is not a int.")
-	InterruptError     = NewRuntimeError(InterruptErrorCode, "interrupt error")
+	ContinueError      = errors.New("continue")
+	NotImplemented     = errors.New("not implemented")
+	TimeoutErr         = errors.New(timeout_message)
+	DieError           = errors.New("die.")
+	NotExists          = errors.New("not found.")
+	IdNotExists        = errors.New("'id' is required.")
+	BodyNotExists      = errors.New("'body' is required.")
+	BodyIsEmpty        = errors.New("'body' is empty.")
+	ServiceUnavailable = errors.New("service temporary unavailable, try again later")
+	ValueIsNil         = errors.New("value is nil.")
+	NotIntValue        = errors.New("it is not a int.")
+	InterruptError     = errors.New("interrupt error")
 
-	IsNotMapOrArray  = typeError("it is not a map[string]interface{} or a []interface{}.")
-	IsNotMap         = typeError("it is not a map[string]interface{}.")
-	IsNotArray       = typeError("it is not a []interface{}.")
-	IsNotBool        = typeError("it is not a bool.")
-	IsNotInt8        = typeError("it is not a int8.")
-	IsNotInt16       = typeError("it is not a int16.")
-	IsNotInt32       = typeError("it is not a int32.")
-	IsNotInt64       = typeError("it is not a int64.")
-	Int8OutRange     = typeError("it is not a int8, out range")
-	Int16OutRange    = typeError("it is not a int16, out range")
-	Int32OutRange    = typeError("it is not a int32, out range")
-	Int64OutRange    = typeError("it is not a int64, out range")
-	IsNotUint8       = typeError("it is not a uint8.")
-	IsNotUint16      = typeError("it is not a uint16.")
-	IsNotUint32      = typeError("it is not a uint32.")
-	IsNotUint64      = typeError("it is not a uint64.")
-	Uint8OutRange    = typeError("it is not a uint8, out range")
-	Uint16OutRange   = typeError("it is not a uint16, out range")
-	Uint32OutRange   = typeError("it is not a uint32, out range")
-	Uint64OutRange   = typeError("it is not a uint64, out range")
-	IsNotFloat32     = typeError("it is not a float32.")
-	IsNotFloat64     = typeError("it is not a float64.")
-	IsNotString      = typeError("it is not a string.")
-	ParameterIsNil   = NewRuntimeError(NilValueCode, "parameter is nil.")
-	ParameterIsEmpty = NewRuntimeError(ParameterIsEmptyCode, "parameter is empty.")
+	IsNotMapOrArray = typeError("it is not a map[string]interface{} or a []interface{}.")
+	IsNotMap        = typeError("it is not a map[string]interface{}.")
+	IsNotArray      = typeError("it is not a []interface{}.")
+	IsNotBool       = typeError("it is not a bool.")
+	IsNotInt8       = typeError("it is not a int8.")
+	IsNotInt16      = typeError("it is not a int16.")
+	IsNotInt32      = typeError("it is not a int32.")
+	IsNotInt64      = typeError("it is not a int64.")
+	Int8OutRange    = typeError("it is not a int8, out range")
+	Int16OutRange   = typeError("it is not a int16, out range")
+	Int32OutRange   = typeError("it is not a int32, out range")
+	Int64OutRange   = typeError("it is not a int64, out range")
+	IsNotUint8      = typeError("it is not a uint8.")
+	IsNotUint16     = typeError("it is not a uint16.")
+	IsNotUint32     = typeError("it is not a uint32.")
+	IsNotUint64     = typeError("it is not a uint64.")
+	Uint8OutRange   = typeError("it is not a uint8, out range")
+	Uint16OutRange  = typeError("it is not a uint16, out range")
+	Uint32OutRange  = typeError("it is not a uint32, out range")
+	Uint64OutRange  = typeError("it is not a uint64, out range")
+	IsNotFloat32    = typeError("it is not a float32.")
+	IsNotFloat64    = typeError("it is not a float64.")
+	IsNotString     = typeError("it is not a string.")
+
+	ParameterIsNil   = errors.New("parameter is nil.")
+	ParameterIsEmpty = errors.New("parameter is empty.")
+
+	MultipleValuesError = errors.New("Multiple values meet the conditions")
 )
 
-func typeError(message string) RuntimeError {
-	return NewRuntimeError(TypeErrorCode, message)
+func typeError(message string) error {
+	return errors.New("[type_error]" + message)
 }
 
-func InternalError(message string) RuntimeError {
-	return NewRuntimeError(InternalErrorCode, message)
+func IsRequired(name string) error {
+	return errors.New("'" + name + "' is required.")
 }
 
-func BadRequest(message string) RuntimeError {
-	return NewRuntimeError(BadRequestCode, message)
+func NotFound(id string) error {
+	return errors.New("'" + id + "' is not found.")
 }
 
-func NotAcceptable(message string) RuntimeError {
-	return NewRuntimeError(NotAcceptableCode, message)
-}
-
-func IsRequired(name string) RuntimeError {
-	return NewRuntimeError(BadRequestCode, "'"+name+"' is required.")
-}
-
-func NotFound(id string) RuntimeError {
-	return NewRuntimeError(NotFoundCode, "'"+id+"' is not found.")
-}
-
-func RecordNotFound(id string) RuntimeError {
+func RecordNotFound(id string) error {
 	return NotFound(id)
 }
 
-func RecordAlreadyExists(id string) RuntimeError {
-	return NewRuntimeError(NotAcceptableCode, "'"+id+"' is already exists.")
+func RecordAlreadyExists(id string) error {
+	return errors.New("'" + id + "' is already exists.")
 }

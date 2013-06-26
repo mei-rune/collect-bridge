@@ -11,6 +11,7 @@ package lua_binding
 import "C"
 import (
 	"commons"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -43,7 +44,7 @@ const (
 type NativeMethod struct {
 	Name     string
 	Read     func(drv *LuaDriver, ctx *Continuous)
-	Write    func(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError)
+	Write    func(drv *LuaDriver, ctx *Continuous) (int, error)
 	Callback func(drv *LuaDriver, ctx *Continuous)
 }
 
@@ -56,7 +57,7 @@ var (
 	method_exit_lua = &NativeMethod{
 		Name: "method_exit_lua",
 		Read: nil,
-		Write: func(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
+		Write: func(drv *LuaDriver, ctx *Continuous) (int, error) {
 			err := ctx.PushStringParam("__exit__")
 			if nil != err {
 				return -1, err
@@ -90,7 +91,7 @@ type Continuous struct {
 
 	on_end func(drv *LuaDriver, ctx *Continuous)
 
-	Error       commons.RuntimeError
+	Error       error
 	IntValue    int
 	StringValue string
 	Params      map[string]string
@@ -108,47 +109,47 @@ func (self *Continuous) clear() {
 	self.Any = nil
 }
 
-func (self *Continuous) ToErrorParam(idx int) commons.RuntimeError {
+func (self *Continuous) ToErrorParam(idx int) error {
 	return toError(self.LS, C.int(idx))
 }
 
-func (self *Continuous) ToAnyParam(idx int) (interface{}, commons.RuntimeError) {
+func (self *Continuous) ToAnyParam(idx int) (interface{}, error) {
 	return toAny(self.LS, C.int(idx))
 }
 
-func (self *Continuous) ToParamsParam(idx int) (map[string]string, commons.RuntimeError) {
+func (self *Continuous) ToParamsParam(idx int) (map[string]string, error) {
 	return toParams(self.LS, C.int(idx))
 }
 
-func (self *Continuous) ToStringParam(idx int) (string, commons.RuntimeError) {
+func (self *Continuous) ToStringParam(idx int) (string, error) {
 	return toString(self.LS, C.int(idx))
 }
 
-func (self *Continuous) ToIntParam(idx int) (int, commons.RuntimeError) {
+func (self *Continuous) ToIntParam(idx int) (int, error) {
 	return toInteger(self.LS, C.int(idx))
 }
 
-func (self *Continuous) PushResultParam(any commons.Result) commons.RuntimeError {
+func (self *Continuous) PushResultParam(any commons.Result) error {
 	pushResult(self.LS, any)
 	return nil
 }
 
-func (self *Continuous) PushAnyParam(any interface{}) commons.RuntimeError {
+func (self *Continuous) PushAnyParam(any interface{}) error {
 	pushAny(self.LS, any)
 	return nil
 }
 
-func (self *Continuous) PushParamsParam(params map[string]string) commons.RuntimeError {
+func (self *Continuous) PushParamsParam(params map[string]string) error {
 	pushParams(self.LS, params)
 	return nil
 }
 
-func (self *Continuous) PushStringParam(s string) commons.RuntimeError {
+func (self *Continuous) PushStringParam(s string) error {
 	pushString(self.LS, s)
 	return nil
 }
 
-func (self *Continuous) PushErrorParam(e commons.RuntimeError) commons.RuntimeError {
+func (self *Continuous) PushErrorParam(e error) error {
 	pushError(self.LS, e)
 	return nil
 }
@@ -161,14 +162,14 @@ func readCallArguments(drv *LuaDriver, ctx *Continuous) {
 	ctx.Params, ctx.Error = ctx.ToParamsParam(3)
 }
 
-func writeCallResult(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
+func writeCallResult(drv *LuaDriver, ctx *Continuous) (int, error) {
 	err := ctx.PushResultParam(ctx.Result)
 	if nil != err {
 		return -1, err
 	}
 	return 1, nil
 }
-func writeCallAnyResult(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
+func writeCallAnyResult(drv *LuaDriver, ctx *Continuous) (int, error) {
 	err := ctx.PushAnyParam(ctx.Any)
 	if nil != err {
 		return -1, err
@@ -188,7 +189,7 @@ func readActionResult(drv *LuaDriver, ctx *Continuous) {
 	//ctx.Error = ctx.ToErrorParam(-1)
 }
 
-func writeActionArguments(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
+func writeActionArguments(drv *LuaDriver, ctx *Continuous) (int, error) {
 
 	err := ctx.PushStringParam(ctx.StringValue)
 	if nil != err {
@@ -272,7 +273,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 			ctx.IntValue, _ = ctx.ToIntParam(2)
 			ctx.StringValue, _ = ctx.ToStringParam(3)
 		},
-		Write: func(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
+		Write: func(drv *LuaDriver, ctx *Continuous) (int, error) {
 			//drv.INFO.Printf("log ================ [%v]%v", ctx.IntValue, ctx.StringValue)
 			//drv.INFO.Print(ctx.StringValue)
 			switch {
@@ -307,7 +308,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 			var e error
 			ctx.Any, e = commons.EnumerateFiles(ctx.StringValue)
 			if nil != e {
-				ctx.Error = commons.InternalError(e.Error())
+				ctx.Error = errors.New(e.Error())
 			}
 		}}, &NativeMethod{
 		Name: "io_ext.file_exists",
@@ -353,7 +354,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 				fmt.Printf("%d = [%v][%v]\n", i, ctx.StringValue, ctx.Error)
 			}
 		},
-		Write: func(drv *LuaDriver, ctx *Continuous) (int, commons.RuntimeError) {
+		Write: func(drv *LuaDriver, ctx *Continuous) (int, error) {
 			for i := 0; i < 10; i++ {
 				ctx.PushAnyParam(i)
 				ctx.PushAnyParam(nil)
@@ -376,13 +377,13 @@ func (self *LuaDriver) CallbackWith(methods ...*NativeMethod) error {
 			return nil
 		}
 		if "" == m.Name {
-			return commons.InternalError("'name' is empty.")
+			return errors.New("'name' is empty.")
 		}
 		if nil == m.Callback && nil == m.Write {
-			return commons.InternalError("'callback' of '" + m.Name + "' is nil.")
+			return errors.New("'callback' of '" + m.Name + "' is nil.")
 		}
 		if _, ok := self.methods[m.Name]; ok {
-			return commons.InternalError("'" + m.Name + "' is already exists.")
+			return errors.New("'" + m.Name + "' is already exists.")
 		}
 		//if nil != self.DEBUG {
 		//	self.DEBUG.Printf("register function '%s'", m.Name)
@@ -547,7 +548,7 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 			if nil != ctx.Error {
 				ctx.status = LUA_EXECUTE_FAILED
 				ctx.IntValue = C.LUA_ERRERR
-				ctx.Error = commons.InternalError("push arguments failed - " + ctx.Error.Error())
+				ctx.Error = errors.New("push arguments failed - " + ctx.Error.Error())
 				return ctx
 			}
 		} else {
@@ -571,19 +572,19 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 			ctx.status = LUA_EXECUTE_YIELD
 			if 0 == C.lua_gettop(ls) {
 				ctx.IntValue = int(ret)
-				ctx.Error = commons.InternalError("script execute failed - return arguments is empty.")
+				ctx.Error = errors.New("script execute failed - return arguments is empty.")
 				return ctx
 			}
 
 			action, err := toString(ls, 1)
 			if nil != err {
 				ctx.IntValue = int(ret)
-				ctx.Error = commons.InternalError("script execute failed, read action failed, " + err.Error())
+				ctx.Error = errors.New("script execute failed, read action failed, " + err.Error())
 				return ctx
 			}
 			ctx.method, ok = self.methods[action]
 			if !ok {
-				ctx.Error = commons.InternalError(fmt.Sprintf("unsupport action '%s'", action))
+				ctx.Error = errors.New(fmt.Sprintf("unsupport action '%s'", action))
 				ctx.Any = nil
 				ctx.method = method_missing
 			}
@@ -608,10 +609,10 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 	return ctx
 }
 
-func toContinuous(values []interface{}) (ctx *Continuous, err commons.RuntimeError) {
+func toContinuous(values []interface{}) (ctx *Continuous, err error) {
 
 	if 2 <= len(values) && nil != values[1] {
-		err = values[1].(commons.RuntimeError)
+		err = values[1].(error)
 	}
 
 	if nil != values[0] {
@@ -619,13 +620,13 @@ func toContinuous(values []interface{}) (ctx *Continuous, err commons.RuntimeErr
 		ctx, ok = values[0].(*Continuous)
 		if !ok {
 			if nil != err {
-				err = commons.InternalError(fmt.Sprintf("oooooooo! It is not a Continuous - %v\n%v", values[0], err))
+				err = errors.New(fmt.Sprintf("oooooooo! It is not a Continuous - %v\n%v", values[0], err))
 			} else {
-				err = commons.InternalError(fmt.Sprintf("oooooooo! It is not a Continuous - %v", values[0]))
+				err = errors.New(fmt.Sprintf("oooooooo! It is not a Continuous - %v", values[0]))
 			}
 		}
 	} else if nil == err {
-		err = commons.InternalError("oooooooo! return a nil")
+		err = errors.New("oooooooo! return a nil")
 	}
 	return
 }
@@ -633,7 +634,7 @@ func toContinuous(values []interface{}) (ctx *Continuous, err commons.RuntimeErr
 func (self *LuaDriver) newContinuous(action string, params map[string]string) *Continuous {
 	if nil == self.LS {
 		return &Continuous{status: LUA_EXECUTE_FAILED,
-			Error: commons.InternalError("lua status is nil.")}
+			Error: errors.New("lua status is nil.")}
 	}
 
 	method := &NativeMethod{
@@ -652,17 +653,17 @@ func (self *LuaDriver) newContinuous(action string, params map[string]string) *C
 	switch ctx.status {
 	case LUA_EXECUTE_CONTINUE:
 		ctx.status = LUA_EXECUTE_FAILED
-		ctx.Error = commons.InternalError("synchronization call is prohibited while the process of creating thread.")
+		ctx.Error = errors.New("synchronization call is prohibited while the process of creating thread.")
 		return ctx
 	case LUA_EXECUTE_END:
 		ctx.status = LUA_EXECUTE_FAILED
-		ctx.Error = commons.InternalError("'core.lua' is directly exited.")
+		ctx.Error = errors.New("'core.lua' is directly exited.")
 		return ctx
 	case LUA_EXECUTE_YIELD:
 		new_th, err := toThread(self.LS, -1)
 		if nil != err {
 			ctx.status = LUA_EXECUTE_FAILED
-			ctx.Error = commons.InternalError("main fiber return error by yeild, " + err.Error())
+			ctx.Error = errors.New("main fiber return error by yeild, " + err.Error())
 			return ctx
 		}
 
@@ -677,16 +678,16 @@ func (self *LuaDriver) newContinuous(action string, params map[string]string) *C
 	default:
 		ctx.status = LUA_EXECUTE_FAILED
 		if nil == ctx.Error {
-			ctx.Error = commons.InternalError("switch to main fiber failed.")
+			ctx.Error = errors.New("switch to main fiber failed.")
 		} else {
-			ctx.Error = commons.InternalError("switch to main fiber failed, " + ctx.Error.Error())
+			ctx.Error = errors.New("switch to main fiber failed, " + ctx.Error.Error())
 		}
 		return ctx
 	}
 	return ctx
 }
 
-func (driver *LuaDriver) invoke(action string, params map[string]string) (interface{}, commons.RuntimeError) {
+func (driver *LuaDriver) invoke(action string, params map[string]string) (interface{}, error) {
 	t := 5 * time.Minute
 	old := time.Now()
 
@@ -736,7 +737,7 @@ func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]str
 		if nil == err {
 			return commons.ReturnError(commons.InternalErrorCode, "error is nil")
 		}
-		return commons.ReturnError(err.Code(), err.Error())
+		return commons.ReturnError(commons.InternalErrorCode, err.Error())
 	}
 
 	res, ok := ret.(map[string]interface{})

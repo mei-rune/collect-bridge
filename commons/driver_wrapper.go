@@ -101,7 +101,7 @@ func (self *DriverWrapper) Start() (err error) {
 
 	msg := <-self.ch
 	if DRV_MESSAGE_RET_PANIC == msg.command {
-		err = NewRuntimeError(msg.returnResult.ErrorCode(), msg.returnResult.ErrorMessage())
+		err = errors.New(msg.returnResult.ErrorMessage())
 		return
 	}
 
@@ -292,7 +292,7 @@ func (self *DriverWrapper) safelyCall(msg *driver_message) *driver_message {
 
 func (self *DriverWrapper) invoke(cmd int, params map[string]string, f func()) Result {
 	if !self.IsAlive() {
-		return ReturnError(DieError.Code(), DieError.Error())
+		return ReturnError(ServiceUnavailableCode, DieError.Error())
 	}
 
 	msg := getCachedCh()
@@ -321,7 +321,7 @@ func (self *DriverWrapper) invoke(cmd int, params map[string]string, f func()) R
 		}
 		return resp.returnResult
 	case <-time.After(self.timeout):
-		return ReturnError(TimeoutErr.Code(), TimeoutErr.Error())
+		return ReturnError(GatewayTimeoutCode, TimeoutErr.Error())
 	}
 	return nil
 }

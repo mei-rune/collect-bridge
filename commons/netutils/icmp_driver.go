@@ -31,11 +31,11 @@ func NewICMPDriver(drvMgr *commons.DriverManager) *ICMPDriver {
 func (self *ICMPDriver) Get(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return commons.ReturnWithError(commons.IdNotExists)
+		return commons.ReturnWithIsRequired("id")
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithError(commons.RecordNotFound(id))
+		return commons.ReturnWithNotFound(id)
 	}
 
 	values := make([]string, 0, 10)
@@ -45,7 +45,7 @@ func (self *ICMPDriver) Get(params map[string]string) commons.Result {
 			if commons.IsTimeout(e) {
 				break
 			}
-			return commons.Return(values).SetError(500, e.Error())
+			return commons.Return(values).SetError(commons.InterruptErrorCode, e.Error())
 		}
 		values = append(values, addr.String())
 	}
@@ -55,37 +55,37 @@ func (self *ICMPDriver) Get(params map[string]string) commons.Result {
 func (self *ICMPDriver) Put(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return commons.ReturnWithError(commons.IdNotExists)
+		return commons.ReturnWithIsRequired("id")
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithError(commons.RecordNotFound(id))
+		return commons.ReturnWithNotFound(id)
 	}
 
 	body, ok := params["body"]
 	if !ok {
-		return commons.ReturnWithError(commons.BodyNotExists)
+		return commons.ReturnWithIsRequired("body")
 	}
 	if "" == body {
-		return commons.ReturnWithError(commons.IsRequired("body"))
+		return commons.ReturnWithIsRequired("body")
 	}
 	ipList := make([]string, 0, 100)
 	e := json.Unmarshal([]byte(body), &ipList)
 	if nil != e {
-		return commons.ReturnWithError(commons.BadRequest("read body failed, it is not []string of json - " + e.Error() + body))
+		return commons.ReturnWithBadRequest("read body failed, it is not []string of json - " + e.Error() + body)
 	}
 
 	for _, ip_raw := range ipList {
 
 		ip_range, e := ParseIPRange(ip_raw)
 		if nil != e {
-			return commons.ReturnError(500, e.Error())
+			return commons.ReturnWithInternalError(e.Error())
 		}
 
 		for ip_range.HasNext() {
 			e = pinger.Send(ip_range.Current().String(), nil)
 			if nil != e {
-				return commons.ReturnError(500, e.Error())
+				return commons.ReturnWithInternalError(e.Error())
 			}
 		}
 	}
@@ -101,13 +101,13 @@ func (self *ICMPDriver) Create(params map[string]string) commons.Result {
 	params2 := make(map[string]string)
 	e := json.Unmarshal([]byte(body), &params2)
 	if nil != e {
-		return commons.ReturnError(commons.BadRequestCode, "read body failed, it is not map[string]string of json - "+e.Error())
+		return commons.ReturnWithBadRequest("read body failed, it is not map[string]string of json - " + e.Error())
 	}
 	network, _ := params2["network"]
 	if "" == network {
 		network, _ = params["network"]
 		if "" == network {
-			return commons.ReturnWithError(commons.IsRequired("network"))
+			return commons.ReturnWithIsRequired("network")
 		}
 	}
 
@@ -119,7 +119,7 @@ func (self *ICMPDriver) Create(params map[string]string) commons.Result {
 	id := network + "," + address
 	_, ok := self.pingers[id]
 	if ok {
-		return commons.ReturnWithError(commons.RecordAlreadyExists(id))
+		return commons.ReturnWithRecordAlreadyExists(id)
 	}
 
 	echo, _ := params2["echo"]
@@ -132,7 +132,7 @@ func (self *ICMPDriver) Create(params map[string]string) commons.Result {
 
 	icmp, err := NewPinger(network, address, []byte(echo), 256)
 	if nil != err {
-		return commons.ReturnError(500, err.Error())
+		return commons.ReturnWithInternalError(err.Error())
 	}
 	self.pingers[id] = icmp
 	return commons.Return(id)
@@ -141,11 +141,11 @@ func (self *ICMPDriver) Create(params map[string]string) commons.Result {
 func (self *ICMPDriver) Delete(params map[string]string) commons.Result {
 	id, ok := params["id"]
 	if !ok {
-		return commons.ReturnWithError(commons.IdNotExists)
+		return commons.ReturnWithIsRequired("id")
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithError(commons.RecordNotFound(id))
+		return commons.ReturnWithNotFound(id)
 	}
 	delete(self.pingers, id)
 	pinger.Close()

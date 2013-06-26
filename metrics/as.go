@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"code.google.com/p/mahonia"
 	"commons"
+	"errors"
 	"fmt"
 	"snmp"
 	"strings"
@@ -61,7 +62,7 @@ func GetInt32(params commons.Map, values map[string]interface{}, idx string, def
 	return i
 }
 
-func TryGetInt32(params commons.Map, values map[string]interface{}, idx string, defaultValue int32) (int32, commons.RuntimeError) {
+func TryGetInt32(params commons.Map, values map[string]interface{}, idx string, defaultValue int32) (int32, error) {
 	value, ok := values[idx]
 	if !ok {
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
@@ -93,7 +94,7 @@ func TryGetInt32(params commons.Map, values map[string]interface{}, idx string, 
 			return i, nil
 		}
 	}
-	return defaultValue, commons.InternalError(fmt.Sprintf("row with key is '%s' cann`t convert to int32, value is `%v`.", idx, value))
+	return defaultValue, fmt.Errorf("row with key is '%s' cann`t convert to int32, value is `%v`.", idx, value)
 }
 
 func GetUint32(params commons.Map, values map[string]interface{}, idx string, defaultValue uint32) uint32 {
@@ -104,7 +105,7 @@ func GetUint32(params commons.Map, values map[string]interface{}, idx string, de
 	return i
 }
 
-func TryGetUint32(params commons.Map, values map[string]interface{}, idx string, defaultValue uint32) (uint32, commons.RuntimeError) {
+func TryGetUint32(params commons.Map, values map[string]interface{}, idx string, defaultValue uint32) (uint32, error) {
 	value, ok := values[idx]
 	if !ok {
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
@@ -136,7 +137,7 @@ func TryGetUint32(params commons.Map, values map[string]interface{}, idx string,
 			return i, nil
 		}
 	}
-	return defaultValue, commons.InternalError(fmt.Sprintf("row with key is '%s' cann`t convert to uint32, value is `%v`.", idx, value))
+	return defaultValue, fmt.Errorf("row with key is '%s' cann`t convert to uint32, value is `%v`.", idx, value)
 }
 
 func GetInt64(params commons.Map, values map[string]interface{}, idx string, defaultValue int64) int64 {
@@ -147,7 +148,7 @@ func GetInt64(params commons.Map, values map[string]interface{}, idx string, def
 	return i
 }
 
-func TryGetInt64(params commons.Map, values map[string]interface{}, idx string, defaultValue int64) (int64, commons.RuntimeError) {
+func TryGetInt64(params commons.Map, values map[string]interface{}, idx string, defaultValue int64) (int64, error) {
 	value, ok := values[idx]
 	if !ok {
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
@@ -179,7 +180,7 @@ func TryGetInt64(params commons.Map, values map[string]interface{}, idx string, 
 			return i, nil
 		}
 	}
-	return defaultValue, commons.InternalError(fmt.Sprintf("row with key is '%s' cann`t convert to int64, value is `%v`.", idx, value))
+	return defaultValue, fmt.Errorf("row with key is '%s' cann`t convert to int64, value is `%v`.", idx, value)
 }
 
 func GetUint64(params commons.Map, values map[string]interface{}, idx string, defaultValue uint64) uint64 {
@@ -190,7 +191,7 @@ func GetUint64(params commons.Map, values map[string]interface{}, idx string, de
 	return i
 }
 
-func TryGetUint64(params commons.Map, values map[string]interface{}, idx string, defaultValue uint64) (uint64, commons.RuntimeError) {
+func TryGetUint64(params commons.Map, values map[string]interface{}, idx string, defaultValue uint64) (uint64, error) {
 	value, ok := values[idx]
 	if !ok {
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
@@ -222,7 +223,7 @@ func TryGetUint64(params commons.Map, values map[string]interface{}, idx string,
 			return i, nil
 		}
 	}
-	return defaultValue, commons.InternalError(fmt.Sprintf("row with key is '%s' cann`t convert to uint64, value is `%v`.", idx, value))
+	return defaultValue, fmt.Errorf("row with key is '%s' cann`t convert to uint64, value is `%v`.", idx, value)
 }
 
 func GetOid(params commons.Map, values map[string]interface{}, idx string) string {
@@ -233,7 +234,7 @@ func GetOid(params commons.Map, values map[string]interface{}, idx string) strin
 	return s
 }
 
-func TryGetOid(params commons.Map, values map[string]interface{}, idx string) (string, commons.RuntimeError) {
+func TryGetOid(params commons.Map, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
@@ -260,7 +261,7 @@ func GetString(params commons.Map, values map[string]interface{}, idx string) st
 	return s
 }
 
-func TryGetString(params commons.Map, values map[string]interface{}, idx string) (string, commons.RuntimeError) {
+func TryGetString(params commons.Map, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
@@ -268,14 +269,14 @@ func TryGetString(params commons.Map, values map[string]interface{}, idx string)
 	switch v := value.(type) {
 	case snmp.SnmpValue:
 		if snmp.SNMP_SYNTAX_OCTETSTRING != v.GetSyntax() {
-			return "", commons.InternalError("value is not string - '" + v.String() + "'.")
+			return "", errors.New("value is not string - '" + v.String() + "'.")
 		}
 		return bytesToString(params, v.GetBytes()), nil
 	case string:
 		sv, e := snmp.NewSnmpValue(v)
 		if nil == e {
 			if snmp.SNMP_SYNTAX_OCTETSTRING != sv.GetSyntax() {
-				return "", commons.InternalError("value is not string - '" + v + "'.")
+				return "", errors.New("value is not string - '" + v + "'.")
 			}
 			return bytesToString(params, sv.GetBytes()), nil
 		}
@@ -286,7 +287,7 @@ func TryGetString(params commons.Map, values map[string]interface{}, idx string)
 			return s, nil
 		}
 	}
-	return "", commons.InternalError(fmt.Sprintf("row with key is '%s' cann`t convert to string, value is `%v`.", idx, value))
+	return "", fmt.Errorf("row with key is '%s' cann`t convert to string, value is `%v`.", idx, value)
 }
 
 func GetHardwareAddress(params commons.Map, values map[string]interface{}, idx string) string {
@@ -297,7 +298,7 @@ func GetHardwareAddress(params commons.Map, values map[string]interface{}, idx s
 	return s
 }
 
-func parseMAC(s string) (string, commons.RuntimeError) {
+func parseMAC(s string) (string, error) {
 	switch len(s) {
 	case 0:
 		return "", nil
@@ -308,9 +309,9 @@ func parseMAC(s string) (string, commons.RuntimeError) {
 	case 16:
 		return s[:2] + ":" + s[2:4] + ":" + s[4:6] + ":" + s[6:8] + ":" + s[8:10] + ":" + s[10:12] + ":" + s[12:14] + ":" + s[14:], nil
 	}
-	return "", commons.InternalError("'" + s + "' is invalid hardware address")
+	return "", errors.New("'" + s + "' is invalid hardware address")
 }
-func TryGetHardwareAddress(params commons.Map, values map[string]interface{}, idx string) (string, commons.RuntimeError) {
+func TryGetHardwareAddress(params commons.Map, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
@@ -327,7 +328,7 @@ func TryGetHardwareAddress(params commons.Map, values map[string]interface{}, id
 		}
 		return v, nil
 	}
-	return "", commons.InternalError(fmt.Sprintf("row with key is '%s' cann`t convert to hardwareAddress, value is `%v`.", idx, value))
+	return "", fmt.Errorf("row with key is '%s' cann`t convert to hardwareAddress, value is `%v`.", idx, value)
 }
 
 func GetIPAddress(params commons.Map, values map[string]interface{}, idx string) string {
@@ -338,7 +339,7 @@ func GetIPAddress(params commons.Map, values map[string]interface{}, idx string)
 	return s
 }
 
-func TryGetIPAddress(params commons.Map, values map[string]interface{}, idx string) (string, commons.RuntimeError) {
+func TryGetIPAddress(params commons.Map, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
@@ -355,5 +356,5 @@ func TryGetIPAddress(params commons.Map, values map[string]interface{}, idx stri
 		}
 		return v, nil
 	}
-	return "", commons.InternalError(fmt.Sprintf("row with key is '%s' cann`t convert to ipAddress, value is `%v`.", idx, value))
+	return "", fmt.Errorf("row with key is '%s' cann`t convert to ipAddress, value is `%v`.", idx, value)
 }

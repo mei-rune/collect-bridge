@@ -2,6 +2,7 @@ package snmp
 
 import (
 	"commons"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -33,7 +34,7 @@ func getTimeout(params map[string]string, timeout time.Duration) time.Duration {
 	return ret
 }
 
-func getVersion(params map[string]string) (SnmpVersion, commons.RuntimeError) {
+func getVersion(params map[string]string) (SnmpVersion, error) {
 	v, ok := params["snmp.version"]
 	if !ok {
 		return SNMP_V2C, nil
@@ -41,7 +42,7 @@ func getVersion(params map[string]string) (SnmpVersion, commons.RuntimeError) {
 	return parseVersion(v)
 }
 
-func parseVersion(v string) (SnmpVersion, commons.RuntimeError) {
+func parseVersion(v string) (SnmpVersion, error) {
 	switch v {
 	case "v1", "V1", "1":
 		return SNMP_V1, nil
@@ -50,10 +51,10 @@ func parseVersion(v string) (SnmpVersion, commons.RuntimeError) {
 	case "v3", "V3", "3":
 		return SNMP_V3, nil
 	}
-	return SNMP_Verr, commons.BadRequest("Unsupported version - " + v)
+	return SNMP_Verr, errors.New("Unsupported version - " + v)
 }
 
-func getAction(params map[string]string) (SnmpType, commons.RuntimeError) {
+func getAction(params map[string]string) (SnmpType, error) {
 	v, ok := params["snmp.action"]
 	if !ok {
 		return SNMP_PDU_GET, nil
@@ -70,27 +71,27 @@ func getAction(params map[string]string) (SnmpType, commons.RuntimeError) {
 	case "set", "Set", "SET", "put", "Put", "PUT":
 		return SNMP_PDU_SET, nil
 	}
-	return SNMP_PDU_GET, commons.BadRequest(fmt.Sprintf("error pdu type: %s", v))
+	return SNMP_PDU_GET, fmt.Errorf("error pdu type: %s", v)
 }
 
-func internalError(msg string, err error) commons.RuntimeError {
+func internalError(msg string, err error) error {
 	if nil == err {
-		return commons.InternalError(msg)
+		return errors.New(msg)
 	}
-	return commons.InternalError(msg + "-" + err.Error())
+	return errors.New(msg + "-" + err.Error())
 }
 
 func internalErrorResult(msg string, err error) commons.Result {
 	if nil == err {
-		return commons.ReturnError(commons.InternalErrorCode, msg)
+		return commons.ReturnWithInternalError(msg)
 	}
-	return commons.ReturnError(commons.InternalErrorCode, msg+"-"+err.Error())
+	return commons.ReturnWithInternalError(msg + "-" + err.Error())
 }
 
 var HostIsRequired = commons.IsRequired("snmp.host")
 var OidIsRequired = commons.IsRequired("snmp.oid")
 
-func getHost(params map[string]string) (string, commons.RuntimeError) {
+func getHost(params map[string]string) (string, error) {
 	host, ok := params["snmp.host"]
 	if !ok {
 		if address, ok := params["snmp.address"]; ok {
@@ -110,12 +111,12 @@ func getHost(params map[string]string) (string, commons.RuntimeError) {
 func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) commons.Result {
 	host, e := getHost(params)
 	if nil != e {
-		return commons.ReturnWithError(e)
+		return commons.ReturnWithBadRequest(e.Error())
 	}
 
 	oid, ok := params["snmp.oid"]
 	if !ok {
-		return commons.ReturnWithError(OidIsRequired)
+		return commons.ReturnWithIsRequired("snmp.oid")
 	}
 
 	client, err := self.GetClient(host)
@@ -135,7 +136,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) common
 
 	version, e := getVersion(params)
 	if SNMP_Verr == version {
-		return commons.ReturnWithError(e)
+		return commons.ReturnWithBadRequest(e.Error())
 	}
 
 	req, err := client.CreatePDU(action, version)
@@ -206,7 +207,7 @@ func (self *SnmpDriver) Put(params map[string]string) commons.Result {
 }
 
 func (self *SnmpDriver) Create(params map[string]string) commons.Result {
-	return commons.NotImplementedResult
+	return commons.ReturnWithNotImplemented()
 }
 
 func (self *SnmpDriver) Delete(params map[string]string) commons.Result {
@@ -222,7 +223,7 @@ func (self *SnmpDriver) Delete(params map[string]string) commons.Result {
 		return commons.Return(true)
 	}
 
-	return commons.ReturnWithError(commons.NotImplemented)
+	return commons.ReturnWithNotImplemented()
 }
 
 var (
@@ -230,7 +231,7 @@ var (
 )
 
 func (self *SnmpDriver) getNext(params map[string]string, client Client, next_oid SnmpOid,
-	version SnmpVersion, timeout time.Duration) (VariableBinding, commons.RuntimeError) {
+	version SnmpVersion, timeout time.Duration) (VariableBinding, error) {
 	var err error
 
 	req, err := client.CreatePDU(SNMP_PDU_GETNEXT, version)
@@ -269,7 +270,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 	oid_s := start_oid.GetString()
 	version, e := getVersion(params)
 	if SNMP_Verr == version {
-		return commons.ReturnWithError(e)
+		return commons.ReturnWithBadRequest(e.Error())
 	}
 
 	timeout := getTimeout(params, self.timeout)
@@ -278,7 +279,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 	for {
 		vb, err := self.getNext(params, client, next_oid, version, timeout)
 		if nil != err {
-			return commons.ReturnWithError(err)
+			return commons.ReturnWithInternalError(err.Error())
 		}
 
 		if !strings.HasPrefix(vb.Oid.GetString(), oid_s) {
@@ -325,7 +326,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 
 	version, e := getVersion(params)
 	if SNMP_Verr == version {
-		return commons.ReturnWithError(e)
+		return commons.ReturnWithBadRequest(e.Error())
 	}
 
 	timeout := getTimeout(params, self.timeout)

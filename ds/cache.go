@@ -2,6 +2,7 @@ package ds
 
 import (
 	"bytes"
+	"commons"
 	"fmt"
 	"log"
 	"runtime"
@@ -27,7 +28,7 @@ type cache_request struct {
 
 	ok     bool
 	result map[string]interface{}
-	e      error
+	e      commons.RuntimeError
 }
 
 type Cache struct {
@@ -66,11 +67,11 @@ func (c *Cache) Close() {
 
 var emptyParams = map[string]string{}
 
-func (c *Cache) LoadAll() ([]map[string]interface{}, error) {
+func (c *Cache) LoadAll() ([]map[string]interface{}, commons.RuntimeError) {
 	return c.client.FindBy(c.target, emptyParams)
 }
 
-func (c *Cache) Refresh() error {
+func (c *Cache) Refresh() commons.RuntimeError {
 	snapshots, e := c.client.Snapshot(c.target, emptyParams)
 	if nil != e {
 		return e
@@ -133,7 +134,7 @@ func (c *Cache) Delete(id string) {
 		id:     id}
 }
 
-func (c *Cache) Get(id string) (map[string]interface{}, error) {
+func (c *Cache) Get(id string) (map[string]interface{}, commons.RuntimeError) {
 	ch := make(chan *cache_request)
 	defer close(ch)
 
@@ -252,7 +253,7 @@ func (c *Cache) doCommand(req *cache_request) {
 		req.ch <- req
 	default:
 		if nil != req.ch {
-			req.e = fmt.Errorf("unsupported command - %v", req.action)
+			req.e = commons.InternalError(fmt.Sprintf("unsupported command - %v", req.action))
 			req.ch <- req
 		}
 	}

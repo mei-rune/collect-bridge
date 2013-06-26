@@ -54,7 +54,7 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 		query_params[k] = v[len(v)-1]
 	}
 	params := commons.Proxy(commons.StringMap(query_params),
-		lazyMap{managed_type: managed_type,
+		context{managed_type: managed_type,
 			managed_id: managed_id,
 			caches:     self.caches})
 

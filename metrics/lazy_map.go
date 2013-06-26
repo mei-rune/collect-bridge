@@ -14,56 +14,27 @@ func split(exp string) (string, string) {
 	return exp[:idx], exp[idx+2:]
 }
 
-type lazyMap struct {
+type context struct {
 	managed_type string
 	managed_id   string
 	caches       *ds.Caches
 
-	local      map[string]*ds.Cache
+	local      map[string]commons.Map
 	snmp       commons.Map
 	sys        commons.Map
 	proxy      *metric_proxy
 	top_params commons.Map
 }
 
-func (self lazyMap) getCache(key string) (*ds.Cache, error) {
+func (self context) getCache(key string) (*ds.Cache, commons.RuntimeError) {
 	return self.caches.GetCache(key)
 }
 
-func (self lazyMap) Set(key string, value interface{}) {
-	panic("lazyMap is only read.")
+func (self context) Set(key string, value interface{}) {
+	panic("context is only read.")
 }
-
-func (self lazyMap) Contains(key string) bool {
-	idx := strings.IndexRune(key, '.')
-	if -1 == idx {
-		return false
-	}
-
-	t := key[:idx]
-	if "sys" == t {
-		t = self.managed_type
-	}
-	cache, e := self.getCache(t)
-	if nil != e {
-		return false
-	}
-	if nil == cache {
-		return false
-	}
-	res, e := cache.Get(self.managed_id)
-	if nil != e {
-		return false
-	}
-
-	_, ok := res[key[idx+1:]]
-	return ok
-}
-
-func (self lazyMap) cache(t string) (commons.Map, error) {
-	if nil == self.local {
-		self.local = make(map[string]commons.Map)
-	} else if m, ok := self.local[t]; ok {
+func (self context) cache(t string) (commons.Map, commons.RuntimeError) {
+	if m, ok := self.local[t]; ok {
 		return m, nil
 	}
 
@@ -82,266 +53,309 @@ func (self lazyMap) cache(t string) (commons.Map, error) {
 	}
 
 	self.local[t] = commons.InterfaceMap(res)
-	return commons.InterfaceMap(res)
+	return commons.InterfaceMap(res), nil
 }
 
-func (self lazyMap) Fetch(key string) (interface{}, bool) {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return nil, false
-	}
-
-	t := key[:idx]
-	if "sys" == t {
-		t = self.managed_type
-	}
-	cache, e := self.getCache(t)
-	if nil != e {
-		return nil, false
-	}
-	if nil == cache {
-		return nil, false
-	}
-	res, e := cache.Get(self.managed_id)
-	if nil != e {
-		return nil, false
-	}
-	v, ok := res[key[idx+1:]]
-	return v, ok
-}
-
-func (self lazyMap) GetWithDefault(key string, defaultValue interface{}) interface{} {
+func (self context) Contains(key string) bool {
 	t, field := split(key)
-	switch t {
-	case "sys":
-		return self.sys().GetWithDefault(field, defaultValue)
-	case "snmp":
-		return self.snmp().GetWithDefault(field, defaultValue)
+	if 0 == len(t) {
+		return false
 	}
-	return self.cache(t).GetWithDefault(field, defaultValue)
+	res, e := self.cache(t)
+	if nil != e {
+		return false
+	}
+	return res.Contains(field)
 }
 
-func (self lazyMap) GetBoolWithDefault(key string, defaultValue bool) bool {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) Fetch(key string) (interface{}, bool) {
+	t, field := split(key)
+	if 0 == len(t) {
+		return nil, false
+	}
+	res, e := self.cache(t)
+	if nil != e {
+		return nil, false
+	}
+	return res.Fetch(field)
+}
+
+func (self context) GetWithDefault(key string, defaultValue interface{}) interface{} {
+	t, field := split(key)
+	if 0 == len(t) {
 		return defaultValue
 	}
-	b, e := commons.AsBool(v)
+	res, e := self.cache(t)
 	if nil != e {
 		return defaultValue
 	}
-	return b
+	return res.GetWithDefault(field, defaultValue)
 }
 
-func (self lazyMap) GetIntWithDefault(key string, defaultValue int) int {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetBoolWithDefault(key string, defaultValue bool) bool {
+	t, field := split(key)
+	if 0 == len(t) {
 		return defaultValue
 	}
-	i, e := commons.AsInt(v)
+	res, e := self.cache(t)
 	if nil != e {
 		return defaultValue
 	}
-	return i
+	return res.GetBoolWithDefault(field, defaultValue)
 }
 
-func (self lazyMap) GetInt32WithDefault(key string, defaultValue int32) int32 {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetIntWithDefault(key string, defaultValue int) int {
+	t, field := split(key)
+	if 0 == len(t) {
 		return defaultValue
 	}
-	i, e := commons.AsInt32(v)
+	res, e := self.cache(t)
 	if nil != e {
 		return defaultValue
 	}
-	return i
+	return res.GetIntWithDefault(field, defaultValue)
 }
 
-func (self lazyMap) GetInt64WithDefault(key string, defaultValue int64) int64 {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetInt32WithDefault(key string, defaultValue int32) int32 {
+	t, field := split(key)
+	if 0 == len(t) {
 		return defaultValue
 	}
-	i, e := commons.AsInt64(v)
+	res, e := self.cache(t)
 	if nil != e {
 		return defaultValue
 	}
-	return i
+	return res.GetInt32WithDefault(field, defaultValue)
 }
 
-func (self lazyMap) GetUintWithDefault(key string, defaultValue uint) uint {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetInt64WithDefault(key string, defaultValue int64) int64 {
+	t, field := split(key)
+	if 0 == len(t) {
 		return defaultValue
 	}
-	u, e := commons.AsUint(v)
+	res, e := self.cache(t)
 	if nil != e {
 		return defaultValue
 	}
-	return u
+	return res.GetInt64WithDefault(field, defaultValue)
 }
 
-func (self lazyMap) GetUint32WithDefault(key string, defaultValue uint32) uint32 {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetUintWithDefault(key string, defaultValue uint) uint {
+	t, field := split(key)
+	if 0 == len(t) {
 		return defaultValue
 	}
-	u, e := commons.AsUint32(v)
+	res, e := self.cache(t)
 	if nil != e {
 		return defaultValue
 	}
-	return u
+	return res.GetUintWithDefault(field, defaultValue)
 }
 
-func (self lazyMap) GetUint64WithDefault(key string, defaultValue uint64) uint64 {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetUint32WithDefault(key string, defaultValue uint32) uint32 {
+	t, field := split(key)
+	if 0 == len(t) {
 		return defaultValue
 	}
-	u, e := commons.AsUint64(v)
+	res, e := self.cache(t)
 	if nil != e {
 		return defaultValue
 	}
-	return u
+	return res.GetUint32WithDefault(field, defaultValue)
 }
 
-func (self lazyMap) GetStringWithDefault(key, defaultValue string) string {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetUint64WithDefault(key string, defaultValue uint64) uint64 {
+	t, field := split(key)
+	if 0 == len(t) {
 		return defaultValue
 	}
-	u, e := commons.AsString(v)
+	res, e := self.cache(t)
 	if nil != e {
 		return defaultValue
 	}
-	return u
+	return res.GetUint64WithDefault(field, defaultValue)
 }
 
-func (self lazyMap) GetArrayWithDefault(key string, defaultValue []interface{}) []interface{} {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetStringWithDefault(key, defaultValue string) string {
+	t, field := split(key)
+	if 0 == len(t) {
 		return defaultValue
 	}
-	u, e := commons.AsArray(v)
+	res, e := self.cache(t)
 	if nil != e {
 		return defaultValue
 	}
-	return u
+	return res.GetStringWithDefault(field, defaultValue)
 }
 
-func (self lazyMap) GetObjectWithDefault(key string, defaultValue map[string]interface{}) map[string]interface{} {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetArrayWithDefault(key string, defaultValue []interface{}) []interface{} {
+	t, field := split(key)
+	if 0 == len(t) {
 		return defaultValue
 	}
-
-	if m, ok := v.(map[string]interface{}); ok {
-		return m
-	}
-	return defaultValue
-}
-
-func (self lazyMap) GetObjectsWithDefault(key string, defaultValue []map[string]interface{}) []map[string]interface{} {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
-	}
-
-	o, e := commons.AsObjects(v)
+	res, e := self.cache(t)
 	if nil != e {
 		return defaultValue
 	}
-	return o
+	return res.GetArrayWithDefault(field, defaultValue)
 }
 
-func (self lazyMap) ToMap() map[string]interface{} {
+func (self context) GetObjectWithDefault(key string, defaultValue map[string]interface{}) map[string]interface{} {
+	t, field := split(key)
+	if 0 == len(t) {
+		return defaultValue
+	}
+	res, e := self.cache(t)
+	if nil != e {
+		return defaultValue
+	}
+	return res.GetObjectWithDefault(field, defaultValue)
+}
+
+func (self context) GetObjectsWithDefault(key string, defaultValue []map[string]interface{}) []map[string]interface{} {
+	t, field := split(key)
+	if 0 == len(t) {
+		return defaultValue
+	}
+	res, e := self.cache(t)
+	if nil != e {
+		return defaultValue
+	}
+	return res.GetObjectsWithDefault(field, defaultValue)
+}
+
+func (self context) ToMap() map[string]interface{} {
 	return nil
 }
 
-func (self lazyMap) GetBool(key string) (bool, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetBool(key string) (bool, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return false, commons.NotExists
 	}
-	return commons.AsBool(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return false, e
+	}
+	return res.GetBool(field)
 }
 
-func (self lazyMap) GetInt(key string) (int, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetInt(key string) (int, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return 0, commons.NotExists
 	}
-	return commons.AsInt(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return 0, e
+	}
+	return res.GetInt(field)
 }
 
-func (self lazyMap) GetInt32(key string) (int32, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetInt32(key string) (int32, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return 0, commons.NotExists
 	}
-	return commons.AsInt32(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return 0, e
+	}
+	return res.GetInt32(field)
 }
 
-func (self lazyMap) GetInt64(key string) (int64, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetInt64(key string) (int64, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return 0, commons.NotExists
 	}
-	return commons.AsInt64(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return 0, e
+	}
+	return res.GetInt64(field)
 }
 
-func (self lazyMap) GetUint(key string) (uint, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetUint(key string) (uint, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return 0, commons.NotExists
 	}
-	return commons.AsUint(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return 0, e
+	}
+	return res.GetUint(field)
 }
 
-func (self lazyMap) GetUint32(key string) (uint32, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetUint32(key string) (uint32, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return 0, commons.NotExists
 	}
-	return commons.AsUint32(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return 0, e
+	}
+	return res.GetUint32(field)
 }
 
-func (self lazyMap) GetUint64(key string) (uint64, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetUint64(key string) (uint64, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return 0, commons.NotExists
 	}
-	return commons.AsUint64(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return 0, e
+	}
+	return res.GetUint64(field)
 }
 
-func (self lazyMap) GetString(key string) (string, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetString(key string) (string, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return "", commons.NotExists
 	}
-	return commons.AsString(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return "", e
+	}
+	return res.GetString(field)
 }
 
-func (self lazyMap) GetObject(key string) (map[string]interface{}, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetObject(key string) (map[string]interface{}, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return nil, commons.NotExists
 	}
-	return commons.AsObject(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return nil, e
+	}
+	return res.GetObject(field)
 }
 
-func (self lazyMap) GetArray(key string) ([]interface{}, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetArray(key string) ([]interface{}, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return nil, commons.NotExists
 	}
-	return commons.AsArray(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return nil, e
+	}
+	return res.GetArray(field)
 }
 
-func (self lazyMap) GetObjects(key string) ([]map[string]interface{}, commons.RuntimeError) {
-	v, ok := self.Fetch(key)
-	if !ok {
+func (self context) GetObjects(key string) ([]map[string]interface{}, commons.RuntimeError) {
+	t, field := split(key)
+	if 0 == len(t) {
 		return nil, commons.NotExists
 	}
-	return commons.AsObjects(v)
+	res, e := self.cache(t)
+	if nil != e {
+		return nil, e
+	}
+	return res.GetObjects(field)
 }

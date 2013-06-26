@@ -13,10 +13,6 @@ import (
 	"sync/atomic"
 )
 
-var (
-	TABLE_NOT_EXISTS = commons.BadRequestCode + 80
-)
-
 type server struct {
 	drv          string
 	dbUrl        string
@@ -169,7 +165,7 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 		}
 		table := self.definitions.FindByUnderscoreName(t)
 		if nil == table {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("id")
@@ -226,7 +222,7 @@ func (self *server) FindByParams(req *restful.Request, resp *restful.Response) {
 		}
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		params := make(map[string]string)
@@ -251,7 +247,7 @@ func (self *server) Children(req *restful.Request, resp *restful.Response) {
 		}
 		parent_type := self.definitions.FindByUnderscoreName(t)
 		if nil == parent_type {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("parent_id")
@@ -272,7 +268,7 @@ func (self *server) Children(req *restful.Request, resp *restful.Response) {
 		}
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		res, e := db.children(parent_type, parent_id, defintion, req.PathParameter("foreign_key"))
@@ -292,7 +288,7 @@ func (self *server) Parent(req *restful.Request, resp *restful.Response) {
 		}
 		child_type := self.definitions.FindByUnderscoreName(t)
 		if nil == child_type {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("child_id")
@@ -314,7 +310,7 @@ func (self *server) Parent(req *restful.Request, resp *restful.Response) {
 
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		res, e := db.parent(child_type, child_id, defintion, req.PathParameter("foreign_key"))
@@ -334,7 +330,7 @@ func (self *server) UpdateById(req *restful.Request, resp *restful.Response) {
 		}
 		table := self.definitions.FindByUnderscoreName(t)
 		if nil == table {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("id")
@@ -375,7 +371,7 @@ func (self *server) UpdateByParams(req *restful.Request, resp *restful.Response)
 		}
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 		var attributes map[string]interface{}
 		e := req.ReadEntity(&attributes)
@@ -403,7 +399,7 @@ func (self *server) DeleteById(req *restful.Request, resp *restful.Response) {
 		}
 		table := self.definitions.FindByUnderscoreName(t)
 		if nil == table {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("id")
@@ -438,7 +434,7 @@ func (self *server) DeleteByParams(req *restful.Request, resp *restful.Response)
 		}
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		params := make(map[string]string)
@@ -510,7 +506,7 @@ func (self *server) CreateByParent(req *restful.Request, resp *restful.Response)
 		}
 		parent_type := self.definitions.FindByUnderscoreName(t)
 		if nil == parent_type {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		t = req.PathParameter("parent_id")
@@ -531,7 +527,7 @@ func (self *server) CreateByParent(req *restful.Request, resp *restful.Response)
 		}
 		defintion := self.definitions.FindByUnderscoreName(t)
 		if nil == defintion {
-			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
 		var attributes map[string]interface{}

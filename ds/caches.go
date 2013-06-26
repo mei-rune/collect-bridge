@@ -2,7 +2,7 @@ package ds
 
 import (
 	"bytes"
-	"errors"
+	"commons"
 	"fmt"
 	"log"
 	"runtime"
@@ -22,7 +22,7 @@ type caches_request struct {
 	ch     chan *caches_request
 	target string
 	cache  *Cache
-	e      error
+	e      commons.RuntimeError
 }
 
 func NewCaches(refresh time.Duration, client *Client, alias map[string]string) *Caches {
@@ -41,9 +41,9 @@ func NewCaches(refresh time.Duration, client *Client, alias map[string]string) *
 	return caches
 }
 
-func (c *Caches) GetCache(target string) (*Cache, error) {
+func (c *Caches) GetCache(target string) (*Cache, commons.RuntimeError) {
 	if 0 == len(target) {
-		return nil, errors.New("target is empty.")
+		return nil, commons.ParameterIsEmpty
 	}
 
 	ch := make(chan *caches_request)
@@ -117,7 +117,7 @@ func (c *Caches) doCommand(req *caches_request) {
 	case GET:
 		cache, ok := c.caches[req.target]
 		if !ok {
-			var e error
+			var e commons.RuntimeError
 			cache, e = c.createCache(req.target)
 			if nil != e {
 				req.e = e
@@ -129,16 +129,16 @@ func (c *Caches) doCommand(req *caches_request) {
 		req.ch <- req
 	default:
 		if nil != req.ch {
-			req.e = fmt.Errorf("unsupported command - %v", req.action)
+			req.e = commons.InternalError(fmt.Sprintf("unsupported command - %v", req.action))
 			req.ch <- req
 		}
 	}
 }
 
-func (c *Caches) createCache(target string) (*Cache, error) {
+func (c *Caches) createCache(target string) (*Cache, commons.RuntimeError) {
 	_, e := c.client.Count(target, emptyParams)
 	if nil != e {
-		if e.Code() == TABLE_NOT_EXISTS {
+		if e.Code() == commons.TableIsNotExists {
 			return nil, nil
 		}
 		return nil, e

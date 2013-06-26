@@ -112,25 +112,27 @@ type Result interface {
 type Any interface {
 	AsInterface() interface{}
 
-	AsBool() (bool, error)
+	AsBool() (bool, RuntimeError)
 
-	AsInt() (int, error)
+	AsInt() (int, RuntimeError)
 
-	AsInt32() (int32, error)
+	AsInt32() (int32, RuntimeError)
 
-	AsInt64() (int64, error)
+	AsInt64() (int64, RuntimeError)
 
-	AsUint() (uint, error)
+	AsUint() (uint, RuntimeError)
 
-	AsUint32() (uint32, error)
+	AsUint32() (uint32, RuntimeError)
 
-	AsUint64() (uint64, error)
+	AsUint64() (uint64, RuntimeError)
 
-	AsString() (string, error)
+	AsString() (string, RuntimeError)
 
-	AsObject() (map[string]interface{}, error)
+	AsObject() (map[string]interface{}, RuntimeError)
 
-	AsObjects() ([]map[string]interface{}, error)
+	AsArray() ([]interface{}, RuntimeError)
+
+	AsObjects() ([]map[string]interface{}, RuntimeError)
 }
 
 type Map interface {
@@ -400,53 +402,53 @@ func (self *AnyValue) AsInterface() interface{} {
 	return self.Value
 }
 
-func (self *AnyValue) AsBool() (bool, error) {
+func (self *AnyValue) AsBool() (bool, RuntimeError) {
 	return AsBool(self.Value)
 }
 
-func (self *AnyValue) AsInt() (int, error) {
+func (self *AnyValue) AsInt() (int, RuntimeError) {
 	return AsInt(self.Value)
 }
 
-func (self *AnyValue) AsInt32() (int32, error) {
+func (self *AnyValue) AsInt32() (int32, RuntimeError) {
 	return AsInt32(self.Value)
 }
 
-func (self *AnyValue) AsInt64() (int64, error) {
+func (self *AnyValue) AsInt64() (int64, RuntimeError) {
 	return AsInt64(self.Value)
 }
 
-func (self *AnyValue) AsUint() (uint, error) {
+func (self *AnyValue) AsUint() (uint, RuntimeError) {
 	return AsUint(self.Value)
 }
 
-func (self *AnyValue) AsUint32() (uint32, error) {
+func (self *AnyValue) AsUint32() (uint32, RuntimeError) {
 	return AsUint32(self.Value)
 }
 
-func (self *AnyValue) AsUint64() (uint64, error) {
+func (self *AnyValue) AsUint64() (uint64, RuntimeError) {
 	return AsUint64(self.Value)
 }
 
-func (self *AnyValue) AsString() (string, error) {
+func (self *AnyValue) AsString() (string, RuntimeError) {
 	return AsString(self.Value)
 }
 
-func (self *AnyValue) AsArray() ([]interface{}, error) {
+func (self *AnyValue) AsArray() ([]interface{}, RuntimeError) {
 	if m, ok := self.Value.([]interface{}); ok {
 		return m, nil
 	}
 	return nil, IsNotArray
 }
 
-func (self *AnyValue) AsObject() (map[string]interface{}, error) {
+func (self *AnyValue) AsObject() (map[string]interface{}, RuntimeError) {
 	if m, ok := self.Value.(map[string]interface{}); ok {
 		return m, nil
 	}
 	return nil, IsNotMap
 }
 
-func (self *AnyValue) AsObjects() ([]map[string]interface{}, error) {
+func (self *AnyValue) AsObjects() ([]map[string]interface{}, RuntimeError) {
 	if o, ok := self.Value.([]map[string]interface{}); ok {
 		return o, nil
 	}

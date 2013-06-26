@@ -1,5 +1,9 @@
 package metrics
 
+import (
+	"commons"
+)
+
 type metric_proxy struct {
 	*dispatcher
 }
@@ -20,7 +24,7 @@ func (self *metric_proxy) GetBoolWithDefault(metric_name string, params commons.
 	if res.HasError() {
 		return defaultValue
 	}
-	if b, ok := res.Value().AsBool(); ok {
+	if b, ok := res.Value().AsBool(); nil == ok {
 		return b
 	}
 	return defaultValue
@@ -31,7 +35,7 @@ func (self *metric_proxy) GetIntWithDefault(metric_name string, params commons.M
 	if res.HasError() {
 		return defaultValue
 	}
-	if i, ok := res.Value().AsInt(); ok {
+	if i, ok := res.Value().AsInt(); nil == ok {
 		return i
 	}
 	return defaultValue
@@ -42,7 +46,7 @@ func (self *metric_proxy) GetInt32WithDefault(metric_name string, params commons
 	if res.HasError() {
 		return defaultValue
 	}
-	if i, ok := res.Value().AsInt32(); ok {
+	if i, ok := res.Value().AsInt32(); nil == ok {
 		return i
 	}
 	return defaultValue
@@ -53,7 +57,7 @@ func (self *metric_proxy) GetInt64WithDefault(metric_name string, params commons
 	if res.HasError() {
 		return defaultValue
 	}
-	if i, ok := res.Value().AsInt64(); ok {
+	if i, ok := res.Value().AsInt64(); nil == ok {
 		return i
 	}
 	return defaultValue
@@ -64,7 +68,7 @@ func (self *metric_proxy) GetUintWithDefault(metric_name string, params commons.
 	if res.HasError() {
 		return defaultValue
 	}
-	if u, ok := res.Value().AsUint(); ok {
+	if u, ok := res.Value().AsUint(); nil == ok {
 		return u
 	}
 	return defaultValue
@@ -75,7 +79,7 @@ func (self *metric_proxy) GetUint32WithDefault(metric_name string, params common
 	if res.HasError() {
 		return defaultValue
 	}
-	if u, ok := res.Value().AsUint32(); ok {
+	if u, ok := res.Value().AsUint32(); nil == ok {
 		return u
 	}
 	return defaultValue
@@ -86,18 +90,18 @@ func (self *metric_proxy) GetUint64WithDefault(metric_name string, params common
 	if res.HasError() {
 		return defaultValue
 	}
-	if u, ok := res.Value().AsUint64(); ok {
+	if u, ok := res.Value().AsUint64(); nil == ok {
 		return u
 	}
 	return defaultValue
 }
 
-func (self *metric_proxy) GetStringWithDefault(key, defaultValue string) string {
+func (self *metric_proxy) GetStringWithDefault(metric_name string, params commons.Map, defaultValue string) string {
 	res := self.Get(metric_name, params)
 	if res.HasError() {
 		return defaultValue
 	}
-	if s, ok := res.Value().AsString(); ok {
+	if s, ok := res.Value().AsString(); nil == ok {
 		return s
 	}
 	return defaultValue
@@ -108,7 +112,7 @@ func (self *metric_proxy) GetArrayWithDefault(metric_name string, params commons
 	if res.HasError() {
 		return defaultValue
 	}
-	if a, ok := res.Value().AsArray(); ok {
+	if a, ok := res.Value().AsArray(); nil == ok {
 		return a
 	}
 	return defaultValue
@@ -119,7 +123,7 @@ func (self *metric_proxy) GetObjectWithDefault(metric_name string, params common
 	if res.HasError() {
 		return defaultValue
 	}
-	if a, ok := res.Value().AsObject(); ok {
+	if a, ok := res.Value().AsObject(); nil == ok {
 		return a
 	}
 	return defaultValue
@@ -130,7 +134,7 @@ func (self *metric_proxy) GetObjectsWithDefault(metric_name string, params commo
 	if res.HasError() {
 		return defaultValue
 	}
-	if a, ok := res.Value().AsObjects(); ok {
+	if a, ok := res.Value().AsObjects(); nil == ok {
 		return a
 	}
 	return defaultValue

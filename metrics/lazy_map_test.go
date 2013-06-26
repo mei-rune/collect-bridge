@@ -20,7 +20,7 @@ func TestLazyMapBasic(t *testing.T) {
 		}
 
 		ds.CreateMockDeviceForTest(t, client, "1")
-		lazy_map := &lazyMap{managed_type: "device", managed_id: "1", caches: ds.NewCaches(100*time.Minute, client, nil)}
+		lazy_map := &context{managed_type: "device", managed_id: "1", caches: ds.NewCaches(100*time.Minute, client, nil)}
 		s := lazy_map.GetStringWithDefault("device#name", "")
 		if s != "dd1" {
 			t.Errorf("name is error, excepted is %v, actual is %v", "dd1", s)

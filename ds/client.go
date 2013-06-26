@@ -202,7 +202,7 @@ func GetTime(v interface{}, t *time.Time) error {
 }
 
 func (self *Client) Snapshot(target string, params map[string]string) (map[string]*RecordVersion,
-	error) {
+	commons.RuntimeError) {
 	url := self.CreateUrl().
 		Concat(target, "@snapshot").
 		WithQueries(params, "@").ToUrl()
@@ -219,11 +219,11 @@ func (self *Client) Snapshot(target string, params map[string]string) (map[strin
 	for i, res := range results {
 		id := res["id"]
 		if nil == id {
-			return nil, fmt.Errorf("'id' is nil in the results[%v]", i)
+			return nil, commons.InternalError(fmt.Sprintf("'id' is nil in the results[%v]", i))
 		}
 		snapshot, err := GetRecordVersionFrom(res)
 		if nil != err {
-			return nil, err
+			return nil, commons.InternalError(err.Error())
 		}
 		snapshots[fmt.Sprint(id)] = snapshot
 	}

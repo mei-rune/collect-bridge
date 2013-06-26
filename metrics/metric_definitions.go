@@ -33,12 +33,14 @@ func NewRouteSpec(rd *RouteDefinition) (*RouteSpec, error) {
 		name:     rd.Name,
 		matchers: NewMatchers()}
 
-	for i, def := range rd.Match {
-		matcher, e := NewMatcher(def.Method, def.Arguments)
-		if nil != e {
-			return nil, fmt.Errorf("Create matcher %d failed, %v", i, e.Error())
+	if nil != rd.Match {
+		for i, def := range rd.Match {
+			matcher, e := NewMatcher(def.Method, def.Arguments)
+			if nil != e {
+				return nil, fmt.Errorf("Create matcher %d failed, %v", i, e.Error())
+			}
+			rs.matchers = append(rs.matchers, matcher)
 		}
-		rs.matchers = append(rs.matchers, matcher)
 	}
 
 	return rs, nil

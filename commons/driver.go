@@ -134,49 +134,57 @@ type Any interface {
 }
 
 type Map interface {
-	Get(key string) interface{}
+	Set(key string, value interface{})
+
+	Fetch(key string) (interface{}, bool)
 
 	Contains(key string) bool
 
-	GetBool(key string, defaultValue bool) bool
+	GetWithDefault(key string, defaultValue interface{}) interface{}
 
-	GetInt(key string, defaultValue int) int
+	GetBoolWithDefault(key string, defaultValue bool) bool
 
-	GetInt32(key string, defaultValue int32) int32
+	GetIntWithDefault(key string, defaultValue int) int
 
-	GetInt64(key string, defaultValue int64) int64
+	GetInt32WithDefault(key string, defaultValue int32) int32
 
-	GetUint(key string, defaultValue uint) uint
+	GetInt64WithDefault(key string, defaultValue int64) int64
 
-	GetUint32(key string, defaultValue uint32) uint32
+	GetUintWithDefault(key string, defaultValue uint) uint
 
-	GetUint64(key string, defaultValue uint64) uint64
+	GetUint32WithDefault(key string, defaultValue uint32) uint32
 
-	GetString(key, defaultValue string) string
+	GetUint64WithDefault(key string, defaultValue uint64) uint64
 
-	GetArray(key string) []interface{}
+	GetStringWithDefault(key, defaultValue string) string
 
-	GetObject(key string) map[string]interface{}
+	GetArrayWithDefault(key string, defaultValue []interface{}) []interface{}
 
-	GetObjects(key string) []map[string]interface{}
+	GetObjectWithDefault(key string, defaultValue map[string]interface{}) map[string]interface{}
 
-	TryGet(key string) (interface{}, bool)
+	GetObjectsWithDefault(key string, defaultValue []map[string]interface{}) []map[string]interface{}
 
-	TryGetBool(key string) (bool, error)
+	GetBool(key string) (bool, RuntimeError)
 
-	TryGetInt(key string) (int, error)
+	GetInt(key string) (int, RuntimeError)
 
-	TryGetInt32(key string) (int32, error)
+	GetInt32(key string) (int32, RuntimeError)
 
-	TryGetInt64(key string) (int64, error)
+	GetInt64(key string) (int64, RuntimeError)
 
-	TryGetUint(key string) (uint, error)
+	GetUint(key string) (uint, RuntimeError)
 
-	TryGetUint32(key string) (uint32, error)
+	GetUint32(key string) (uint32, RuntimeError)
 
-	TryGetUint64(key string) (uint64, error)
+	GetUint64(key string) (uint64, RuntimeError)
 
-	TryGetString(key string) (string, error)
+	GetString(key string) (string, RuntimeError)
+
+	GetArray(key string) ([]interface{}, RuntimeError)
+
+	GetObject(key string) (map[string]interface{}, RuntimeError)
+
+	GetObjects(key string) ([]map[string]interface{}, RuntimeError)
 
 	ToMap() map[string]interface{}
 }

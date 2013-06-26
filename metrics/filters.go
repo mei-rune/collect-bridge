@@ -218,7 +218,7 @@ func (self Matchers) Match(params commons.Map, debugging bool) (bool, error) {
 	if debugging {
 		error := make([]string, 0)
 		for _, m := range self {
-			value := params.GetString(m.Attribute, "")
+			value := params.GetStringWithDefault(m.Attribute, "")
 			if 0 == len(value) {
 				error = append(error, commons.IsRequired(m.Attribute).Error())
 			} else if !m.f(m, params, value) {
@@ -230,7 +230,7 @@ func (self Matchers) Match(params commons.Map, debugging bool) (bool, error) {
 		}
 	} else {
 		for _, m := range self {
-			value := params.GetString(m.Attribute, "")
+			value := params.GetStringWithDefault(m.Attribute, "")
 			if 0 == len(value) {
 				return false, commons.IsRequired(m.Attribute)
 			}

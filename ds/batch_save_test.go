@@ -74,6 +74,15 @@ var (
 		"name":          "meifakun-PC",
 		"oid":           "1.3.6.1.4.1.311.1.1.3.1.1",
 		"services":      76}
+
+	dev_js = map[string]interface{}{
+		"address":     "192.168.1.9",
+		"catalog":     2,
+		"description": "Hardware: Intel64 Family 6 Model 58 Stepping 9 AT/AT COMPATIBLE - Software:Windows Version 6.1 (Build 7601 Multiprocessor Free)",
+		"location":    "",
+		"name":        "meifakun-PC",
+		"oid":         "1.3.6.1.4.1.311.1.1.3.1.1",
+		"services":    76}
 )
 
 func checkStringField(t *testing.T, actual, excepted map[string]interface{}, name string) {
@@ -146,6 +155,43 @@ func TestIntCreateDevice(t *testing.T) {
 		deleteBy(t, client, "action", map[string]string{})
 
 		id := create(t, client, "device", js)
+
+		checkDevice(t, findById(t, client, "device", id), js)
+		t.Log("find device ok")
+		checkInterface(t, findOne(t, client, "interface", map[string]string{"device_id": id, "ifIndex": "1"}), if1)
+		checkInterface(t, findOne(t, client, "interface", map[string]string{"device_id": id, "ifIndex": "9"}), if2)
+
+		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
+		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
+
+		checkSnmpParams(t, findOne(t, client, "snmp_param", map[string]string{"managed_object_id": id, "address": "192.168.1.9"}), snmp_params)
+	})
+}
+func TestIntCreateDeviceByParent(t *testing.T) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		deleteBy(t, client, "device", map[string]string{})
+		deleteBy(t, client, "interface", map[string]string{})
+		deleteBy(t, client, "trigger", map[string]string{})
+		deleteBy(t, client, "action", map[string]string{})
+
+		id := create(t, client, "device", dev_js)
+
+		// "$access_param": []map[string]interface{}{snmp_params, wbem_params},
+		// "$address":      []interface{}{ip1, ip2, ip3},
+		// "$interface":    map[string]interface{}{"1": if1, "9": if2},
+		// "$trigger":      []interface{}{rule1, rule2},
+
+		createByParent(t, client, "device", id, "snmp_param", snmp_params)
+		createByParent(t, client, "device", id, "wbem_param", wbem_params)
+		createByParent(t, client, "device", id, "address", ip1)
+		createByParent(t, client, "device", id, "address", ip2)
+		createByParent(t, client, "device", id, "address", ip3)
+
+		createByParent(t, client, "device", id, "interface", if1)
+		createByParent(t, client, "device", id, "interface", if2)
+
+		createByParent(t, client, "device", id, "trigger", rule1)
+		createByParent(t, client, "device", id, "trigger", rule2)
 
 		checkDevice(t, findById(t, client, "device", id), js)
 		t.Log("find device ok")

@@ -140,6 +140,8 @@ var (
 	LockedCode                       = 423
 	FailedDependencyCode             = 424
 	UpgradeRequiredCode              = 426
+	TypeErrorCode                    = 460
+	NilValueCode                     = 461
 	InternalErrorCode                = 500
 	NotImplementedCode               = 501
 	BadGatewayCode                   = 502
@@ -150,6 +152,7 @@ var (
 	InsufficientStorageCode          = 507
 	NotExtendedCode                  = 510
 	NetworkErrorCode                 = 560
+	InterruptErrorCode               = 561
 	IsRequiredCode                   = BadRequestCode
 
 	ContinueError      = NewRuntimeError(ContinueCode, "continue")
@@ -163,31 +166,37 @@ var (
 	ServiceUnavailable = NewRuntimeError(ServiceUnavailableCode, "service temporary unavailable, try again later")
 	ValueIsNil         = NewRuntimeError(InternalErrorCode, "value is nil.")
 	NotIntValue        = NewRuntimeError(InternalErrorCode, "it is not a int.")
+	InterruptError     = NewRuntimeError(InterruptErrorCode, "interrupt error")
 
-	IsNotMapOrArray = errors.New("it is not a map[string]interface{} or a []interface{}.")
-	IsNotMap        = errors.New("it is not a map[string]interface{}.")
-	IsNotArray      = errors.New("it is not a []interface{}.")
-	IsNotBool       = errors.New("it is not a bool.")
-	IsNotInt8       = errors.New("it is not a int8.")
-	IsNotInt16      = errors.New("it is not a int16.")
-	IsNotInt32      = errors.New("it is not a int32.")
-	IsNotInt64      = errors.New("it is not a int64.")
-	Int8OutRange    = errors.New("it is not a int8, out range")
-	Int16OutRange   = errors.New("it is not a int16, out range")
-	Int32OutRange   = errors.New("it is not a int32, out range")
-	Int64OutRange   = errors.New("it is not a int64, out range")
-	IsNotUint8      = errors.New("it is not a uint8.")
-	IsNotUint16     = errors.New("it is not a uint16.")
-	IsNotUint32     = errors.New("it is not a uint32.")
-	IsNotUint64     = errors.New("it is not a uint64.")
-	Uint8OutRange   = errors.New("it is not a uint8, out range")
-	Uint16OutRange  = errors.New("it is not a uint16, out range")
-	Uint32OutRange  = errors.New("it is not a uint32, out range")
-	Uint64OutRange  = errors.New("it is not a uint64, out range")
-	IsNotFloat32    = errors.New("it is not a float32.")
-	IsNotFloat64    = errors.New("it is not a float64.")
-	IsNotString     = errors.New("it is not a string.")
+	IsNotMapOrArray = typeError("it is not a map[string]interface{} or a []interface{}.")
+	IsNotMap        = typeError("it is not a map[string]interface{}.")
+	IsNotArray      = typeError("it is not a []interface{}.")
+	IsNotBool       = typeError("it is not a bool.")
+	IsNotInt8       = typeError("it is not a int8.")
+	IsNotInt16      = typeError("it is not a int16.")
+	IsNotInt32      = typeError("it is not a int32.")
+	IsNotInt64      = typeError("it is not a int64.")
+	Int8OutRange    = typeError("it is not a int8, out range")
+	Int16OutRange   = typeError("it is not a int16, out range")
+	Int32OutRange   = typeError("it is not a int32, out range")
+	Int64OutRange   = typeError("it is not a int64, out range")
+	IsNotUint8      = typeError("it is not a uint8.")
+	IsNotUint16     = typeError("it is not a uint16.")
+	IsNotUint32     = typeError("it is not a uint32.")
+	IsNotUint64     = typeError("it is not a uint64.")
+	Uint8OutRange   = typeError("it is not a uint8, out range")
+	Uint16OutRange  = typeError("it is not a uint16, out range")
+	Uint32OutRange  = typeError("it is not a uint32, out range")
+	Uint64OutRange  = typeError("it is not a uint64, out range")
+	IsNotFloat32    = typeError("it is not a float32.")
+	IsNotFloat64    = typeError("it is not a float64.")
+	IsNotString     = typeError("it is not a string.")
+	ParameterIsNil  = NewRuntimeError(NilValueCode, "value is nil.")
 )
+
+func typeError(message string) RuntimeError {
+	return NewRuntimeError(TypeErrorCode, message)
+}
 
 func InternalError(message string) RuntimeError {
 	return NewRuntimeError(InternalErrorCode, message)

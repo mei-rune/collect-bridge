@@ -501,3 +501,50 @@ func (self *server) Create(req *restful.Request, resp *restful.Response) {
 		}
 	})
 }
+
+func (self *server) CreateByParent(req *restful.Request, resp *restful.Response) {
+	self.call(req, resp, func(srv *server, db *session) commons.Result {
+		t := req.PathParameter("parent_type")
+		if 0 == len(t) {
+			return commons.ReturnWithIsRequired("parent_type")
+		}
+		parent_type := self.definitions.FindByUnderscoreName(t)
+		if nil == parent_type {
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+		}
+
+		t = req.PathParameter("parent_id")
+		if 0 == len(t) {
+			return commons.ReturnWithIsRequired("parent_id")
+		}
+
+		parent_id, e := parent_type.Id.Type.Parse(t)
+		if nil != e {
+			return commons.ReturnError(commons.BadRequestCode,
+				fmt.Sprintf("'parent_id' is not a '%v', actual value is '%v'",
+					parent_type.Id.Type.Name(), t))
+		}
+
+		t = req.PathParameter("type")
+		if 0 == len(t) {
+			return commons.ReturnWithIsRequired("type")
+		}
+		defintion := self.definitions.FindByUnderscoreName(t)
+		if nil == defintion {
+			return commons.ReturnError(TABLE_NOT_EXISTS, "table '"+t+"' is not exists.")
+		}
+
+		var attributes map[string]interface{}
+		e = req.ReadEntity(&attributes)
+		if nil != e {
+			return commons.ReturnError(commons.BadRequestCode, "read body failed - "+e.Error())
+		}
+
+		lastInsertId, e := db.insertByParent(parent_type, parent_id, defintion, req.PathParameter("foreign_key"), attributes)
+		if nil != e {
+			return commons.ReturnError(commons.InternalErrorCode, e.Error())
+		} else {
+			return commons.Return(true).SetLastInsertId(lastInsertId)
+		}
+	})
+}

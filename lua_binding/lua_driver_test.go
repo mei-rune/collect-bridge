@@ -2,7 +2,6 @@ package lua_binding
 
 import (
 	"commons"
-	c "commons/as"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -55,17 +54,17 @@ func checkArray(t *testing.T, old interface{}) {
 	var res interface{}
 	var err error
 
-	array, err := c.AsArray(old)
+	array, err := commons.AsArray(old)
 	if nil != err {
 		t.Errorf("test array - "+err.Error()+" - %v", old)
 	} else {
-		res, err = c.AsInt(array[0])
+		res, err = commons.AsInt(array[0])
 		checkResult(t, int(1), array[0], res, err, "test int in array - ")
 
-		res, err = c.AsUint(array[1])
+		res, err = commons.AsUint(array[1])
 		checkResult(t, uint(2), array[1], res, err, "test uint in array - ")
 
-		res, err = c.AsString(array[2])
+		res, err = commons.AsString(array[2])
 		checkResult(t, "s1", array[2], res, err, "test string in array - ")
 	}
 }
@@ -75,19 +74,19 @@ func checkMap(t *testing.T, old interface{}) {
 	var res interface{}
 	var err error
 
-	assoc, err := c.AsMap(old)
+	assoc, err := commons.AsMap(old)
 	if nil != err {
 		t.Errorf("test map - "+err.Error()+" - %v", old)
 	} else {
 		fmt.Print(assoc)
 
-		res, err = c.AsInt(assoc["a1"])
+		res, err = commons.AsInt(assoc["a1"])
 		checkResult(t, int(1), assoc["a1"], res, err, "test int in map - ")
 
-		res, err = c.AsUint(assoc["a2"])
+		res, err = commons.AsUint(assoc["a2"])
 		checkResult(t, uint(2), assoc["a2"], res, err, "test uint in map - ")
 
-		res, err = c.AsString(assoc["a3"])
+		res, err = commons.AsString(assoc["a3"])
 		checkResult(t, "s3", assoc["a3"], res, err, "test string in array - ")
 	}
 }
@@ -158,51 +157,51 @@ func TestPushAny(t *testing.T) {
 	if nil == old {
 		panic("nil == old")
 	}
-	res, err = c.AsBool(old)
+	res, err = commons.AsBool(old)
 	checkResult(t, true, old, res, err, "test bool - ")
 
 	old = pushAnyTest(drv, int8(8))
-	res, err = c.AsInt8(old)
+	res, err = commons.AsInt8(old)
 	checkResult(t, int8(8), old, res, err, "test int8 - ")
 
 	old = pushAnyTest(drv, int16(16))
-	res, err = c.AsInt16(old)
+	res, err = commons.AsInt16(old)
 	checkResult(t, int16(16), old, res, err, "test int16 - ")
 
 	old = pushAnyTest(drv, int32(32))
-	res, err = c.AsInt32(old)
+	res, err = commons.AsInt32(old)
 	checkResult(t, int32(32), old, res, err, "test int32 - ")
 
 	old = pushAnyTest(drv, int64(64))
-	res, err = c.AsInt64(old)
+	res, err = commons.AsInt64(old)
 	checkResult(t, int64(64), old, res, err, "test int64 - ")
 
 	old = pushAnyTest(drv, uint8(98))
-	res, err = c.AsUint8(old)
+	res, err = commons.AsUint8(old)
 	checkResult(t, uint8(98), old, res, err, "test uint8 - ")
 
 	old = pushAnyTest(drv, uint16(916))
-	res, err = c.AsUint16(old)
+	res, err = commons.AsUint16(old)
 	checkResult(t, uint16(916), old, res, err, "test uint16 - ")
 
 	old = pushAnyTest(drv, uint32(932))
-	res, err = c.AsUint32(old)
+	res, err = commons.AsUint32(old)
 	checkResult(t, uint32(932), old, res, err, "test uint32 - ")
 
 	old = pushAnyTest(drv, uint64(964))
-	res, err = c.AsUint64(old)
+	res, err = commons.AsUint64(old)
 	checkResult(t, uint64(964), old, res, err, "test uint64 - ")
 
 	old = pushAnyTest(drv, uint(123))
-	res, err = c.AsUint(old)
+	res, err = commons.AsUint(old)
 	checkResult(t, uint(123), old, res, err, "test uint - ")
 
 	old = pushAnyTest(drv, int(223))
-	res, err = c.AsInt(old)
+	res, err = commons.AsInt(old)
 	checkResult(t, int(223), old, res, err, "test int - ")
 
 	old = pushAnyTest(drv, "aa")
-	res, err = c.AsString(old)
+	res, err = commons.AsString(old)
 	checkResult(t, "aa", old, res, err, "test string - ")
 
 	old = pushAnyTest(drv, []interface{}{int8(1), uint8(2), "s1"})
@@ -214,7 +213,7 @@ func TestPushAny(t *testing.T) {
 	old = pushAnyTest(drv, []interface{}{int8(1), uint8(2), "s1", map[string]interface{}{"a1": 1, "a2": uint(2), "a3": "s3"}})
 	checkArray(t, old)
 
-	array, err := c.AsArray(old)
+	array, err := commons.AsArray(old)
 	if nil == err {
 		t.Log("test map in array")
 		checkMap(t, array[3])
@@ -224,7 +223,7 @@ func TestPushAny(t *testing.T) {
 	old = pushAnyTest(drv, map[string]interface{}{"a1": 1, "a2": uint(2), "a3": "s3", "a4": []interface{}{int8(1), uint8(2), "s1"}})
 	checkMap(t, old)
 
-	assoc, err := c.AsMap(old)
+	assoc, err := commons.AsMap(old)
 	if nil == err {
 		t.Log("test array in map")
 		checkArray(t, assoc["a4"])

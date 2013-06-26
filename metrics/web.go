@@ -1,27 +1,25 @@
 package metrics
 
 import (
-	"commons"
-	"commons/types"
-	"database/sql"
-	"expvar"
+	_ "expvar"
 	"flag"
-	"fmt"
 	"github.com/runner-mei/go-restful"
-	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"path/filepath"
 	_ "runtime/pprof"
-	"testing"
 	"time"
 )
 
 var (
-	address = flag.String("http", ":7071", "the address of http")
+	address = flag.String("metrics.http", ":7072", "the address of http")
+	ds_url  = flag.String("ds.url", "127.0.0.1:7071", "the address of http")
+	refresh = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
+
+	is_test                           = false
+	srv_instance  *server             = nil
+	wsrv_instance *restful.WebService = nil
 )
 
 func mainHandle(req *restful.Request, resp *restful.Response) {
@@ -47,21 +45,12 @@ func Main() {
 		return
 	}
 
-	srv, e := NewServer(*drv, *dbUrl, *models_file, *goroutines)
-	if nil != e {
-		fmt.Println(e)
-		return
-	}
-
-	defer func() {
-		if is_test {
-			sinstance = srv
-		} else {
-			srv.Close()
-		}
-	}()
+	srv := newServer(*ds_url, *refresh)
 
 	ws := new(restful.WebService)
+	if is_test {
+		ws.Path("metrics")
+	}
 	ws.Route(ws.GET("/").To(mainHandle))
 
 	ws.Consumes(restful.MIME_XML, restful.MIME_JSON).
@@ -80,13 +69,13 @@ func Main() {
 		Param(ws.PathParameter("metric_name", "name of the metric").DataType("string"))) // on the response
 
 	ws.Route(ws.POST("/{type}/{id}/{metric_name}").To(srv.Create).
-		Doc("put a metric").
+		Doc("create a metric").
 		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
 		Param(ws.PathParameter("id", "identifier of the instance").DataType("string")).
 		Param(ws.PathParameter("metric_name", "name of the metric").DataType("string"))) // on the response
 
 	ws.Route(ws.DELETE("/{type}/{id}/{metric_name}").To(srv.Delete).
-		Doc("put a metric").
+		Doc("delete a metric").
 		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
 		Param(ws.PathParameter("id", "identifier of the instance").DataType("string")).
 		Param(ws.PathParameter("metric_name", "name of the metric").DataType("string"))) // on the response
@@ -94,7 +83,9 @@ func Main() {
 	restful.Add(ws)
 
 	if is_test {
-		ws_instance = ws
+		wsrv_instance = ws
+		srv_instance = srv
+		log.Println("[ds-test] serving at '" + *address + "'")
 	} else {
 		log.Println("[ds] serving at '" + *address + "'")
 		http.ListenAndServe(*address, nil)

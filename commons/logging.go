@@ -53,8 +53,8 @@ func (self *Logger) InitLoggerWith(attributes map[string]interface{}, prefix str
 		outputWriter = v
 	}
 
-	prefixName := GetString(attributes, prefix+"prefix", "app")
-	logFlag := GetInt(attributes, prefix+"flag", log.LstdFlags)
+	prefixName := GetStringWithDefault(attributes, prefix+"prefix", "app")
+	logFlag := GetIntWithDefault(attributes, prefix+"flag", log.LstdFlags)
 
 	if nil != outputCallback {
 		self.InitLoggerWithCallback(outputCallback, prefixName, logFlag)

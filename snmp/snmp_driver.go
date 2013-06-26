@@ -95,7 +95,7 @@ func getHost(params map[string]string) (string, commons.RuntimeError) {
 	if !ok {
 		if address, ok := params["snmp.address"]; ok {
 			host = address
-			if port, ok := params["snmp.port"]; ok {
+			if port, ok := params["snmp.port"]; ok && 0 != len(port) {
 				host += (":" + port)
 			} else {
 				host += ":161"

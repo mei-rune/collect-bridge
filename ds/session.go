@@ -296,6 +296,30 @@ func (self *session) save(table *types.TableDefinition, params map[string]string
 	}
 }
 
+func (self *session) insertByParent(parent_table *types.TableDefinition, parent_id interface{},
+	target *types.TableDefinition, foreignKey string, attributes map[string]interface{}) (int64, error) {
+	assocation, e := parent_table.GetAssocation(target, foreignKey, types.HAS_MANY, types.HAS_ONE)
+	if nil != e {
+		return 0, e
+	}
+
+	var is_polymorphic bool
+	switch assocation.Type() {
+	case types.HAS_ONE:
+		hasOne := assocation.(*types.HasOne)
+		is_polymorphic = hasOne.Polymorphic
+		foreignKey = hasOne.ForeignKey
+	case types.HAS_MANY:
+		hasMany := assocation.(*types.HasMany)
+		is_polymorphic = hasMany.Polymorphic
+		foreignKey = hasMany.ForeignKey
+	default:
+		return 0, errors.New("unsupported assocation type - " + assocation.Type().String())
+	}
+
+	return self.createChild(target, parent_table, parent_id, attributes, foreignKey, is_polymorphic)
+}
+
 func (self *session) createChildren(parent_table *types.TableDefinition,
 	parent_id interface{}, attributes map[string]interface{}) error {
 	for name, v := range attributes {

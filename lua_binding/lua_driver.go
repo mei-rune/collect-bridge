@@ -745,12 +745,12 @@ func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]str
 	}
 
 	sm := commons.InterfaceMap(res)
-	r := commons.Return(sm.Get("value"))
-	r.SetError(sm.GetInt("error_code", 0), sm.GetString("error_message", ""))
-	r.SetOptions(sm.GetObject("options"))
-	r.SetWarnings(sm.Get("warnings"))
-	r.SetEffected(sm.GetInt64("effected", -1))
-	r.SetLastInsertId(sm.Get("lastInsertId"))
+	r := commons.Return(sm.GetWithDefault("value", nil))
+	r.SetError(sm.GetIntWithDefault("error_code", 0), sm.GetStringWithDefault("error_message", ""))
+	r.SetOptions(sm.GetObjectWithDefault("options", nil))
+	r.SetWarnings(sm.GetWithDefault("warnings", nil))
+	r.SetEffected(sm.GetInt64WithDefault("effected", -1))
+	r.SetLastInsertId(sm.GetWithDefault("lastInsertId", nil))
 	return r
 }
 

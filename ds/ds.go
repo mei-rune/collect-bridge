@@ -34,7 +34,7 @@ var (
 	test_dbUrl                       = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
 	test_address                     = flag.String("test.http", ":7071", "the address of http")
 	is_test                          = false
-	sinstance    *server             = nil
+	srv_instance *server             = nil
 	ws_instance  *restful.WebService = nil
 )
 
@@ -75,7 +75,7 @@ func Main() {
 
 	defer func() {
 		if is_test {
-			sinstance = srv
+			srv_instance = srv
 		} else {
 			srv.Close()
 		}
@@ -94,8 +94,21 @@ func Main() {
 		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
 		Param(ws.PathParameter("foreign_key", "foreign key of the parant").DataType("string"))) // on the response
 
+	ws.Route(ws.POST("/{parent_type}/{parent_id}/children/{type}/{foreign_key}").To(srv.CreateByParent).
+		Doc("create a object instance by parent id").
+		Param(ws.PathParameter("parent_type", "type of the parent").DataType("string")).
+		Param(ws.PathParameter("parent_id", "id of the parent").DataType("string")).
+		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
+		Param(ws.PathParameter("foreign_key", "foreign key of the parant").DataType("string"))) // on the response
+
 	ws.Route(ws.GET("/{parent_type}/{parent_id}/children/{type}").To(srv.Children).
 		Doc("get a object instance by parent id").
+		Param(ws.PathParameter("parent_type", "type of the parent").DataType("string")).
+		Param(ws.PathParameter("parent_id", "id of the parent").DataType("string")).
+		Param(ws.PathParameter("type", "type of the instance").DataType("string"))) // on the response
+
+	ws.Route(ws.POST("/{parent_type}/{parent_id}/children/{type}").To(srv.CreateByParent).
+		Doc("create a object instance by parent id").
 		Param(ws.PathParameter("parent_type", "type of the parent").DataType("string")).
 		Param(ws.PathParameter("parent_id", "id of the parent").DataType("string")).
 		Param(ws.PathParameter("type", "type of the instance").DataType("string"))) // on the response
@@ -239,9 +252,9 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 	time.Sleep(10 * time.Microsecond)
 	cb(NewClient("http://127.0.0.1"+*test_address), definitions)
 
-	if nil != sinstance {
-		sinstance.Close()
-		sinstance = nil
+	if nil != srv_instance {
+		srv_instance.Close()
+		srv_instance = nil
 	}
 	if nil != listener {
 		listener.Close()
@@ -555,6 +568,30 @@ func createJson(t *testing.T, client *Client, target, msg string) string {
 	return id
 }
 
-func CreateMockDevice(t *testing.T, client *Client, factor string) string {
+func CreateItForTest(t *testing.T, client *Client, target string, values map[string]interface{}) string {
+	id, e := client.Create(target, values)
+	if nil != e {
+		t.Errorf("create %s failed, %v", target, e)
+		t.FailNow()
+	}
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
+	}
+	return id
+}
+
+func CreateItByParentForTest(t *testing.T, client *Client, parnet_type, parent_id, target string, values map[string]interface{}) string {
+	id, e := client.CreateByParent(parnet_type, parent_id, target, values)
+	if nil != e {
+		t.Errorf("create %s failed, %v", target, e)
+		t.FailNow()
+	}
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
+	}
+	return id
+}
+
+func CreateMockDeviceForTest(t *testing.T, client *Client, factor string) string {
 	return createJson(t, client, "device", fmt.Sprintf(`{"name":"dd%s", "type":"device", "address":"192.168.1.%s", "catalog":%s, "services":2%s, "managed_address":"20.0.8.110"}`, factor, factor, factor, factor))
 }

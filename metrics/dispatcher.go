@@ -8,21 +8,33 @@ import (
 
 var route_debuging = flag.Bool("dispatch.route.debugging", false, "set max size of pdu")
 
-type Dispatcher struct {
+type dispatcher struct {
 	for_get    map[string]*Route
 	for_put    map[string]*Route
 	for_create map[string]*Route
 	for_delete map[string]*Route
+
+	drvManager *commons.DriverManager
 }
 
-func NewDispatcher() *Dispatcher {
-	return &Dispatcher{for_get: make(map[string]*Route),
+func Newdispatcher() *dispatcher {
+	dispatch := &dispatcher{for_get: make(map[string]*Route),
 		for_put:    make(map[string]*Route),
 		for_create: make(map[string]*Route),
 		for_delete: make(map[string]*Route)}
+
+	// drv := &systemInfo{}
+	// drv.Init(map[string]interface{}{"snmp": snmp.NewSnmpDriver(10*time.Second, nil)}, "snmp")
+	// rs, _ := NewRouteSpec(&RouteDefinition{Name: "sys", Method: "get"})
+	// rs.invoke = func(params commons.Map) commons.Result {
+	// 	drv.Get(params)
+	// }
+	// dispatch.registerSpec(rs)
+
+	return dispatch
 }
 
-func (self *Dispatcher) registerSpec(rs *RouteSpec) error {
+func (self *dispatcher) registerSpec(rs *RouteSpec) error {
 	switch rs.definition.Method {
 	case "get", "Get", "GET":
 		route, _ := self.for_get[rs.name]
@@ -61,7 +73,7 @@ func (self *Dispatcher) registerSpec(rs *RouteSpec) error {
 	}
 }
 
-func (self *Dispatcher) unregisterSpec(name, id string) {
+func (self *dispatcher) unregisterSpec(name, id string) {
 	for _, instances := range []map[string]*Route{self.for_get,
 		self.for_put, self.for_create, self.for_delete} {
 		if "" == name {
@@ -78,64 +90,48 @@ func (self *Dispatcher) unregisterSpec(name, id string) {
 	}
 }
 
-func (self *Dispatcher) clear() {
+func (self *dispatcher) clear() {
 	self.for_get = make(map[string]*Route)
 	self.for_put = make(map[string]*Route)
 	self.for_create = make(map[string]*Route)
 	self.for_delete = make(map[string]*Route)
 }
 
-func (self *Dispatcher) Get(params commons.Map) commons.Result {
-	metric_name := params.GetString("metric_name", "")
-	if 0 == len(metric_name) {
-		return commons.ReturnWithIsRequired("metric_name")
-	}
+func notAcceptable(metric_name string) commons.Result {
+	return commons.ReturnWithNotAcceptable("'" + metric_name + "' is not acceptable.")
+}
 
+func (self *dispatcher) Get(metric_name string, params commons.Map) commons.Result {
 	route := self.for_get[metric_name]
 	if nil == route {
-		return commons.ReturnWithNotAcceptable(metric_name)
+		return notAcceptable(metric_name)
 	}
 
 	return route.Invoke(params)
 }
 
-func (self *Dispatcher) Put(params commons.Map) commons.Result {
-	metric_name := params.GetString("metric_name", "")
-	if 0 == len(metric_name) {
-		return commons.ReturnWithIsRequired("metric_name")
-	}
-
+func (self *dispatcher) Put(metric_name string, params commons.Map) commons.Result {
 	route := self.for_put[metric_name]
 	if nil == route {
-		return commons.ReturnWithNotAcceptable(metric_name)
+		return notAcceptable(metric_name)
 	}
 
 	return route.Invoke(params)
 }
 
-func (self *Dispatcher) Create(params commons.Map) commons.Result {
-	metric_name := params.GetString("metric_name", "")
-	if 0 == len(metric_name) {
-		return commons.ReturnWithIsRequired("metric_name")
-	}
-
+func (self *dispatcher) Create(metric_name string, params commons.Map) commons.Result {
 	route := self.for_create[metric_name]
 	if nil == route {
-		return commons.ReturnWithNotAcceptable(metric_name)
+		return notAcceptable(metric_name)
 	}
 
 	return route.Invoke(params)
 }
 
-func (self *Dispatcher) Delete(params commons.Map) commons.Result {
-	metric_name := params.GetString("metric_name", "")
-	if 0 == len(metric_name) {
-		return commons.ReturnWithIsRequired("metric_name")
-	}
-
+func (self *dispatcher) Delete(metric_name string, params commons.Map) commons.Result {
 	route := self.for_delete[metric_name]
 	if nil == route {
-		return commons.ReturnWithNotAcceptable(metric_name)
+		return notAcceptable(metric_name)
 	}
 
 	return route.Invoke(params)

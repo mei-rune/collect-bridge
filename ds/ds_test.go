@@ -41,7 +41,7 @@ func createMockInterface(t *testing.T, client *Client, id, factor string) string
 }
 
 func createMockDevice(t *testing.T, client *Client, factor string) string {
-	return CreateMockDevice(t, client, factor)
+	return CreateMockDeviceForTest(t, client, factor)
 }
 
 func updateMockDevice(t *testing.T, client *Client, id, factor string) {
@@ -121,6 +121,17 @@ func validMockDevice(t *testing.T, client *Client, factor string, drv map[string
 }
 func create(t *testing.T, client *Client, target string, body map[string]interface{}) string {
 	id, e := client.Create(target, body)
+	if nil != e {
+		t.Errorf("create %s failed, %v", target, e)
+		t.FailNow()
+	}
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
+	}
+	return id
+}
+func createByParent(t *testing.T, client *Client, parent_type, parent_id, target string, body map[string]interface{}) string {
+	id, e := client.CreateByParent(parent_type, parent_id, target, body)
 	if nil != e {
 		t.Errorf("create %s failed, %v", target, e)
 		t.FailNow()

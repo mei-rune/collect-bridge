@@ -29,6 +29,15 @@ func (self *Client) Create(target string, body map[string]interface{}) (string, 
 	return id, err
 }
 
+func (self *Client) CreateByParent(parent_type, parent_id, target string, body map[string]interface{}) (string, commons.RuntimeError) {
+	msg, e := json.Marshal(body)
+	if nil != e {
+		return "", marshalError(e)
+	}
+	_, id, err := self.CreateJson(self.CreateUrl().Concat(parent_type, parent_id, "children", target).ToUrl(), msg)
+	return id, err
+}
+
 func (self *Client) SaveBy(target string, params map[string]string,
 	body map[string]interface{}) (string, string, commons.RuntimeError) {
 	url := self.CreateUrl().
@@ -46,7 +55,7 @@ func (self *Client) SaveBy(target string, params map[string]string,
 		if !res.Options().Contains("is_created") {
 			return id, "unknow", err
 		}
-		if res.Options().GetBool("is_created", false) {
+		if res.Options().GetBoolWithDefault("is_created", false) {
 			return id, "new", err
 		}
 		return id, "update", err

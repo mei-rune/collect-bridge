@@ -1,19 +1,52 @@
 package commons
 
 import (
+	"fmt"
 	"strconv"
 )
 
 // Map type AsSerts to `map`
-func AsMap(value interface{}) (map[string]interface{}, error) {
+func AsMap(value interface{}) (map[string]interface{}, RuntimeError) {
 	if m, ok := value.(map[string]interface{}); ok {
 		return m, nil
 	}
 	return nil, IsNotMap
 }
 
+func AsObject(value interface{}) (map[string]interface{}, RuntimeError) {
+	if m, ok := value.(map[string]interface{}); ok {
+		return m, nil
+	}
+	return nil, IsNotMap
+}
+
+func AsObjects(v interface{}) ([]map[string]interface{}, RuntimeError) {
+	results := make([]map[string]interface{}, 0, 10)
+	switch value := v.(type) {
+	case []interface{}:
+		for i, o := range value {
+			r, ok := o.(map[string]interface{})
+			if !ok {
+				return nil, typeError(fmt.Sprintf("v['%s'] is not a map[string]interface{}", i))
+			}
+			results = append(results, r)
+		}
+	case map[string]interface{}:
+		for k, o := range value {
+			r, ok := o.(map[string]interface{})
+			if !ok {
+				return nil, typeError(fmt.Sprintf("v['%s'] is not a map[string]interface{}", k))
+			}
+			results = append(results, r)
+		}
+	default:
+		return nil, IsNotMapOrArray
+	}
+	return results, nil
+}
+
 // Array type AsSerts to an `array`
-func AsArray(value interface{}) ([]interface{}, error) {
+func AsArray(value interface{}) ([]interface{}, RuntimeError) {
 	if a, ok := value.([]interface{}); ok {
 		return a, nil
 	}
@@ -21,7 +54,7 @@ func AsArray(value interface{}) ([]interface{}, error) {
 }
 
 // Bool type AsSerts to `bool`
-func AsBool(value interface{}) (bool, error) {
+func AsBool(value interface{}) (bool, RuntimeError) {
 	if s, ok := value.(bool); ok {
 		return s, nil
 	}
@@ -52,18 +85,18 @@ func AsBoolWithDefaultValue(value interface{}, defaultValue bool) bool {
 	return defaultValue
 }
 
-func AsInt(value interface{}) (int, error) {
+func AsInt(value interface{}) (int, RuntimeError) {
 	a, err := AsInt32(value)
 	return int(a), err
 }
 
-func AsUint(value interface{}) (uint, error) {
+func AsUint(value interface{}) (uint, RuntimeError) {
 	a, err := AsUint32(value)
 	return uint(a), err
 }
 
 // Int type AsSerts to `float64` then converts to `int`
-func AsInt64(value interface{}) (int64, error) {
+func AsInt64(value interface{}) (int64, RuntimeError) {
 	switch v := value.(type) {
 	case int:
 		return int64(v), nil
@@ -103,7 +136,7 @@ func AsInt64(value interface{}) (int64, error) {
 	return 0, IsNotInt64
 }
 
-func AsInt32(value interface{}) (int32, error) {
+func AsInt32(value interface{}) (int32, RuntimeError) {
 	i64, err := AsInt64(value)
 	if nil != err {
 		return 0, IsNotInt32
@@ -114,7 +147,7 @@ func AsInt32(value interface{}) (int32, error) {
 	return int32(i64), nil
 }
 
-func AsInt16(value interface{}) (int16, error) {
+func AsInt16(value interface{}) (int16, RuntimeError) {
 	i64, err := AsInt64(value)
 	if nil != err {
 		return 0, IsNotInt16
@@ -125,7 +158,7 @@ func AsInt16(value interface{}) (int16, error) {
 	return int16(i64), nil
 }
 
-func AsInt8(value interface{}) (int8, error) {
+func AsInt8(value interface{}) (int8, RuntimeError) {
 	i64, err := AsInt64(value)
 	if nil != err {
 		return 0, IsNotInt8
@@ -137,7 +170,7 @@ func AsInt8(value interface{}) (int8, error) {
 }
 
 // Uint type AsSerts to `float64` then converts to `int`
-func AsUint64(value interface{}) (uint64, error) {
+func AsUint64(value interface{}) (uint64, RuntimeError) {
 	switch v := value.(type) {
 	case uint:
 		return uint64(v), nil
@@ -182,12 +215,12 @@ func AsUint64(value interface{}) (uint64, error) {
 		if nil == err {
 			return i64, nil
 		}
-		return i64, err
+		return i64, typeError(err.Error())
 	}
 	return 0, IsNotUint64
 }
 
-func AsUint32(value interface{}) (uint32, error) {
+func AsUint32(value interface{}) (uint32, RuntimeError) {
 	ui64, err := AsUint64(value)
 	if nil != err {
 		return 0, IsNotUint32
@@ -198,7 +231,7 @@ func AsUint32(value interface{}) (uint32, error) {
 	return uint32(ui64), nil
 }
 
-func AsUint16(value interface{}) (uint16, error) {
+func AsUint16(value interface{}) (uint16, RuntimeError) {
 	ui64, err := AsUint64(value)
 	if nil != err {
 		return 0, IsNotUint16
@@ -209,7 +242,7 @@ func AsUint16(value interface{}) (uint16, error) {
 	return uint16(ui64), nil
 }
 
-func AsUint8(value interface{}) (uint8, error) {
+func AsUint8(value interface{}) (uint8, RuntimeError) {
 	ui64, err := AsUint64(value)
 	if nil != err {
 		return 0, IsNotUint8
@@ -221,7 +254,7 @@ func AsUint8(value interface{}) (uint8, error) {
 }
 
 // Uint type AsSerts to `float64` then converts to `int`
-func AsFloat64(value interface{}) (float64, error) {
+func AsFloat64(value interface{}) (float64, RuntimeError) {
 	switch v := value.(type) {
 	case uint:
 		return float64(v), nil
@@ -252,12 +285,12 @@ func AsFloat64(value interface{}) (float64, error) {
 		if nil == err {
 			return f64, nil
 		}
-		return f64, err
+		return f64, typeError(err.Error())
 	}
 	return 0, IsNotFloat64
 }
 
-func AsFloat32(value interface{}) (float32, error) {
+func AsFloat32(value interface{}) (float32, RuntimeError) {
 	f64, err := AsFloat64(value)
 	if nil != err {
 		return 0, IsNotFloat32
@@ -266,7 +299,7 @@ func AsFloat32(value interface{}) (float32, error) {
 }
 
 // String type AsSerts to `string`
-func AsString(value interface{}) (string, error) {
+func AsString(value interface{}) (string, RuntimeError) {
 	switch v := value.(type) {
 	case string:
 		return v, nil

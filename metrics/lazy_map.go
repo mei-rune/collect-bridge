@@ -6,307 +6,103 @@ import (
 	"strings"
 )
 
+func split(exp string) (string, string) {
+	idx := strings.IndexRune(exp, '.')
+	if -1 == idx {
+		return "", exp
+	}
+	return exp[:idx], exp[idx+2:]
+}
+
 type lazyMap struct {
-	id     string
-	caches *ds.Caches
+	managed_type string
+	managed_id   string
+	caches       *ds.Caches
+
+	local      map[string]*ds.Cache
+	snmp       commons.Map
+	sys        commons.Map
+	proxy      *metric_proxy
+	top_params commons.Map
 }
 
 func (self lazyMap) getCache(key string) (*ds.Cache, error) {
 	return self.caches.GetCache(key)
 }
 
+func (self lazyMap) Set(key string, value interface{}) {
+	panic("lazyMap is only read.")
+}
+
 func (self lazyMap) Contains(key string) bool {
-	idx := strings.IndexRune(key, '#')
+	idx := strings.IndexRune(key, '.')
 	if -1 == idx {
 		return false
 	}
 
-	cache, e := self.getCache(key[:idx])
+	t := key[:idx]
+	if "sys" == t {
+		t = self.managed_type
+	}
+	cache, e := self.getCache(t)
 	if nil != e {
 		return false
 	}
 	if nil == cache {
 		return false
 	}
-	res, e := cache.Get(self.id)
+	res, e := cache.Get(self.managed_id)
 	if nil != e {
 		return false
 	}
 
-	_, ok := res[key]
+	_, ok := res[key[idx+1:]]
 	return ok
 }
 
-func (self lazyMap) Get(key string) interface{} {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return nil
+func (self lazyMap) cache(t string) (commons.Map, error) {
+	if nil == self.local {
+		self.local = make(map[string]commons.Map)
+	} else if m, ok := self.local[t]; ok {
+		return m, nil
 	}
 
-	cache, e := self.getCache(key[:idx])
+	cache, e := self.getCache(t)
 	if nil != e {
-		return nil
+		return nil, e
 	}
+
 	if nil == cache {
-		return nil
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return nil
+		return nil, commons.NewRuntimeError(commons.NotFoundCode, "table '"+t+"' is not exists.")
 	}
 
-	return res[key[idx+1:]]
+	res, e := cache.Get(self.managed_id)
+	if nil != e {
+		return nil, e
+	}
+
+	self.local[t] = commons.InterfaceMap(res)
+	return commons.InterfaceMap(res)
 }
 
-func (self lazyMap) GetBool(key string, defaultValue bool) bool {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return defaultValue
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return defaultValue
-	}
-	if nil == cache {
-		return defaultValue
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return defaultValue
-	}
-
-	return commons.InterfaceMap(res).GetBool(key[idx+1:], defaultValue)
-}
-
-func (self lazyMap) GetInt(key string, defaultValue int) int {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return defaultValue
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return defaultValue
-	}
-	if nil == cache {
-		return defaultValue
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return defaultValue
-	}
-
-	return commons.InterfaceMap(res).GetInt(key[idx+1:], defaultValue)
-}
-
-func (self lazyMap) GetInt32(key string, defaultValue int32) int32 {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return defaultValue
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return defaultValue
-	}
-	if nil == cache {
-		return defaultValue
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return defaultValue
-	}
-
-	return commons.InterfaceMap(res).GetInt32(key[idx+1:], defaultValue)
-}
-
-func (self lazyMap) GetInt64(key string, defaultValue int64) int64 {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return defaultValue
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return defaultValue
-	}
-	if nil == cache {
-		return defaultValue
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return defaultValue
-	}
-
-	return commons.InterfaceMap(res).GetInt64(key[idx+1:], defaultValue)
-}
-
-func (self lazyMap) GetUint(key string, defaultValue uint) uint {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return defaultValue
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return defaultValue
-	}
-	if nil == cache {
-		return defaultValue
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return defaultValue
-	}
-
-	return commons.InterfaceMap(res).GetUint(key[idx+1:], defaultValue)
-}
-
-func (self lazyMap) GetUint32(key string, defaultValue uint32) uint32 {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return defaultValue
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return defaultValue
-	}
-	if nil == cache {
-		return defaultValue
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return defaultValue
-	}
-
-	return commons.InterfaceMap(res).GetUint32(key[idx+1:], defaultValue)
-}
-
-func (self lazyMap) GetUint64(key string, defaultValue uint64) uint64 {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return defaultValue
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return defaultValue
-	}
-	if nil == cache {
-		return defaultValue
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return defaultValue
-	}
-
-	return commons.InterfaceMap(res).GetUint64(key[idx+1:], defaultValue)
-}
-
-func (self lazyMap) GetString(key, defaultValue string) string {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return defaultValue
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return defaultValue
-	}
-	if nil == cache {
-		return defaultValue
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return defaultValue
-	}
-
-	return commons.InterfaceMap(res).GetString(key[idx+1:], defaultValue)
-}
-
-func (self lazyMap) GetArray(key string) []interface{} {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return nil
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return nil
-	}
-	if nil == cache {
-		return nil
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return nil
-	}
-
-	return commons.InterfaceMap(res).GetArray(key[idx+1:])
-}
-
-func (self lazyMap) GetObject(key string) map[string]interface{} {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return nil
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return nil
-	}
-	if nil == cache {
-		return nil
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return nil
-	}
-
-	return commons.InterfaceMap(res).GetObject(key[idx+1:])
-}
-
-func (self lazyMap) GetObjects(key string) []map[string]interface{} {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
-		return nil
-	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return nil
-	}
-	if nil == cache {
-		return nil
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return nil
-	}
-
-	return commons.InterfaceMap(res).GetObjects(key[idx+1:])
-}
-
-func (self lazyMap) ToMap() map[string]interface{} {
-	return nil
-}
-
-func (self lazyMap) TryGet(key string) (interface{}, bool) {
+func (self lazyMap) Fetch(key string) (interface{}, bool) {
 	idx := strings.IndexRune(key, '#')
 	if -1 == idx {
 		return nil, false
 	}
 
-	cache, e := self.getCache(key[:idx])
+	t := key[:idx]
+	if "sys" == t {
+		t = self.managed_type
+	}
+	cache, e := self.getCache(t)
 	if nil != e {
 		return nil, false
 	}
 	if nil == cache {
 		return nil, false
 	}
-	res, e := cache.Get(self.id)
+	res, e := cache.Get(self.managed_id)
 	if nil != e {
 		return nil, false
 	}
@@ -314,171 +110,238 @@ func (self lazyMap) TryGet(key string) (interface{}, bool) {
 	return v, ok
 }
 
-func (self lazyMap) TryGetBool(key string) (bool, error) {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
+func (self lazyMap) GetWithDefault(key string, defaultValue interface{}) interface{} {
+	t, field := split(key)
+	switch t {
+	case "sys":
+		return self.sys().GetWithDefault(field, defaultValue)
+	case "snmp":
+		return self.snmp().GetWithDefault(field, defaultValue)
+	}
+	return self.cache(t).GetWithDefault(field, defaultValue)
+}
+
+func (self lazyMap) GetBoolWithDefault(key string, defaultValue bool) bool {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+	b, e := commons.AsBool(v)
+	if nil != e {
+		return defaultValue
+	}
+	return b
+}
+
+func (self lazyMap) GetIntWithDefault(key string, defaultValue int) int {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+	i, e := commons.AsInt(v)
+	if nil != e {
+		return defaultValue
+	}
+	return i
+}
+
+func (self lazyMap) GetInt32WithDefault(key string, defaultValue int32) int32 {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+	i, e := commons.AsInt32(v)
+	if nil != e {
+		return defaultValue
+	}
+	return i
+}
+
+func (self lazyMap) GetInt64WithDefault(key string, defaultValue int64) int64 {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+	i, e := commons.AsInt64(v)
+	if nil != e {
+		return defaultValue
+	}
+	return i
+}
+
+func (self lazyMap) GetUintWithDefault(key string, defaultValue uint) uint {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+	u, e := commons.AsUint(v)
+	if nil != e {
+		return defaultValue
+	}
+	return u
+}
+
+func (self lazyMap) GetUint32WithDefault(key string, defaultValue uint32) uint32 {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+	u, e := commons.AsUint32(v)
+	if nil != e {
+		return defaultValue
+	}
+	return u
+}
+
+func (self lazyMap) GetUint64WithDefault(key string, defaultValue uint64) uint64 {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+	u, e := commons.AsUint64(v)
+	if nil != e {
+		return defaultValue
+	}
+	return u
+}
+
+func (self lazyMap) GetStringWithDefault(key, defaultValue string) string {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+	u, e := commons.AsString(v)
+	if nil != e {
+		return defaultValue
+	}
+	return u
+}
+
+func (self lazyMap) GetArrayWithDefault(key string, defaultValue []interface{}) []interface{} {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+	u, e := commons.AsArray(v)
+	if nil != e {
+		return defaultValue
+	}
+	return u
+}
+
+func (self lazyMap) GetObjectWithDefault(key string, defaultValue map[string]interface{}) map[string]interface{} {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+
+	if m, ok := v.(map[string]interface{}); ok {
+		return m
+	}
+	return defaultValue
+}
+
+func (self lazyMap) GetObjectsWithDefault(key string, defaultValue []map[string]interface{}) []map[string]interface{} {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return defaultValue
+	}
+
+	o, e := commons.AsObjects(v)
+	if nil != e {
+		return defaultValue
+	}
+	return o
+}
+
+func (self lazyMap) ToMap() map[string]interface{} {
+	return nil
+}
+
+func (self lazyMap) GetBool(key string) (bool, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
 		return false, commons.NotExists
 	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return false, e
-	}
-	if nil == cache {
-		return false, commons.NotExists
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return false, commons.NotExists
-	}
-
-	return commons.InterfaceMap(res).TryGetBool(key[idx+1:])
+	return commons.AsBool(v)
 }
 
-func (self lazyMap) TryGetInt(key string) (int, error) {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
+func (self lazyMap) GetInt(key string) (int, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
 		return 0, commons.NotExists
 	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return 0, e
-	}
-	if nil == cache {
-		return 0, commons.NotExists
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return 0, commons.NotExists
-	}
-
-	return commons.InterfaceMap(res).TryGetInt(key[idx+1:])
+	return commons.AsInt(v)
 }
 
-func (self lazyMap) TryGetInt32(key string) (int32, error) {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
+func (self lazyMap) GetInt32(key string) (int32, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
 		return 0, commons.NotExists
 	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return 0, e
-	}
-	if nil == cache {
-		return 0, commons.NotExists
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return 0, commons.NotExists
-	}
-
-	return commons.InterfaceMap(res).TryGetInt32(key[idx+1:])
+	return commons.AsInt32(v)
 }
 
-func (self lazyMap) TryGetInt64(key string) (int64, error) {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
+func (self lazyMap) GetInt64(key string) (int64, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
 		return 0, commons.NotExists
 	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return 0, e
-	}
-	if nil == cache {
-		return 0, commons.NotExists
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return 0, commons.NotExists
-	}
-
-	return commons.InterfaceMap(res).TryGetInt64(key[idx+1:])
+	return commons.AsInt64(v)
 }
 
-func (self lazyMap) TryGetUint(key string) (uint, error) {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
+func (self lazyMap) GetUint(key string) (uint, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
 		return 0, commons.NotExists
 	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return 0, e
-	}
-	if nil == cache {
-		return 0, commons.NotExists
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return 0, commons.NotExists
-	}
-
-	return commons.InterfaceMap(res).TryGetUint(key[idx+1:])
+	return commons.AsUint(v)
 }
 
-func (self lazyMap) TryGetUint32(key string) (uint32, error) {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
+func (self lazyMap) GetUint32(key string) (uint32, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
 		return 0, commons.NotExists
 	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return 0, e
-	}
-	if nil == cache {
-		return 0, commons.NotExists
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return 0, commons.NotExists
-	}
-
-	return commons.InterfaceMap(res).TryGetUint32(key[idx+1:])
+	return commons.AsUint32(v)
 }
 
-func (self lazyMap) TryGetUint64(key string) (uint64, error) {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
+func (self lazyMap) GetUint64(key string) (uint64, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
 		return 0, commons.NotExists
 	}
-
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return 0, e
-	}
-	if nil == cache {
-		return 0, commons.NotExists
-	}
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return 0, commons.NotExists
-	}
-
-	return commons.InterfaceMap(res).TryGetUint64(key[idx+1:])
+	return commons.AsUint64(v)
 }
 
-func (self lazyMap) TryGetString(key string) (string, error) {
-	idx := strings.IndexRune(key, '#')
-	if -1 == idx {
+func (self lazyMap) GetString(key string) (string, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
 		return "", commons.NotExists
 	}
+	return commons.AsString(v)
+}
 
-	cache, e := self.getCache(key[:idx])
-	if nil != e {
-		return "", e
+func (self lazyMap) GetObject(key string) (map[string]interface{}, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return nil, commons.NotExists
 	}
-	if nil == cache {
-		return "", commons.NotExists
-	}
+	return commons.AsObject(v)
+}
 
-	res, e := cache.Get(self.id)
-	if nil != e {
-		return "", commons.NotExists
+func (self lazyMap) GetArray(key string) ([]interface{}, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return nil, commons.NotExists
 	}
+	return commons.AsArray(v)
+}
 
-	return commons.InterfaceMap(res).TryGetString(key[idx+1:])
+func (self lazyMap) GetObjects(key string) ([]map[string]interface{}, commons.RuntimeError) {
+	v, ok := self.Fetch(key)
+	if !ok {
+		return nil, commons.NotExists
+	}
+	return commons.AsObjects(v)
 }

@@ -8,11 +8,10 @@ import (
 )
 
 var (
-	snmp_params = map[string]interface{}{"address": "192.168.1.9",
-		"community": "public",
-		"port":      161,
-		"type":      "snmp_param",
-		"version":   "v2c"}
+	snmp_params = map[string]interface{}{"read_community": "public",
+		"port":    161,
+		"type":    "snmp_param",
+		"version": "v2c"}
 	wbem_params = map[string]interface{}{"url": "tcp://192.168.1.9",
 		"user":     "user1",
 		"password": "password1",
@@ -128,7 +127,7 @@ func checkAddress(t *testing.T, actual, excepted map[string]interface{}) {
 }
 
 func checkSnmpParams(t *testing.T, actual, excepted map[string]interface{}) {
-	for _, name := range []string{"address", "community", "type", "version"} {
+	for _, name := range []string{"read_community", "type", "version"} {
 		checkStringField(t, actual, excepted, name)
 	}
 	for _, name := range []string{"port"} {
@@ -164,7 +163,7 @@ func TestIntCreateDevice(t *testing.T) {
 		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
 		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
 
-		checkSnmpParams(t, findOne(t, client, "snmp_param", map[string]string{"managed_object_id": id, "address": "192.168.1.9"}), snmp_params)
+		checkSnmpParams(t, findOne(t, client, "snmp_param", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
 }
 func TestIntCreateDeviceByParent(t *testing.T) {
@@ -201,7 +200,7 @@ func TestIntCreateDeviceByParent(t *testing.T) {
 		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
 		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
 
-		checkSnmpParams(t, findOne(t, client, "snmp_param", map[string]string{"managed_object_id": id, "address": "192.168.1.9"}), snmp_params)
+		checkSnmpParams(t, findOne(t, client, "snmp_param", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
 }
 
@@ -233,7 +232,7 @@ func TestIntQueryByIncludes(t *testing.T) {
 
 		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
 		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
-		checkSnmpParams(t, findOneFrom(t, drv, "snmp_param", map[string]string{"managed_object_id": id, "address": "192.168.1.9"}), snmp_params)
+		checkSnmpParams(t, findOneFrom(t, drv, "snmp_param", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
 }
 
@@ -265,7 +264,7 @@ func TestIntQueryByIncludesAll(t *testing.T) {
 
 		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
 		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
-		checkSnmpParams(t, findOneFrom(t, drv, "attributes", map[string]string{"managed_object_id": id, "address": "192.168.1.9"}), snmp_params)
+		checkSnmpParams(t, findOneFrom(t, drv, "attributes", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
 }
 

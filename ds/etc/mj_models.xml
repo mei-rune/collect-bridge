@@ -130,11 +130,6 @@
   </class>
 
   <class name="Attributes" abstract="true">
-    <property name="description">
-      <restriction base="string">
-        <maxLength>2000</maxLength>
-      </restriction>
-    </property>
     <belongs_to>ManagedObject</belongs_to>
   </class>
 
@@ -142,11 +137,6 @@
   </class>
 
   <class name="EndpointParam" base="AccessParam" abstract="true">
-    <property name="address">
-      <restriction base="ipAddress">
-        <required />
-      </restriction>
-    </property>
     <property name="port">
       <restriction base="integer">
         <required />
@@ -163,11 +153,82 @@
         <enumeration value="snmp_v3" />
       </restriction>
     </property>
-    <property name="community">
+    <property name="read_community">
       <restriction base="password">
-        <required />
       </restriction>
     </property>
+    <property name="write_community">
+      <restriction base="password">
+      </restriction>
+    </property>
+    <property name="sec_model">
+      <restriction base="string">
+        <maxLength>50</maxLength>
+      </restriction>
+    </property>
+
+    <property name="read_sec_name">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
+    <property name="read_auth_pass">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
+    <property name="read_priv_pass">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
+
+    <property name="write_sec_name">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
+    <property name="write_auth_pass">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
+    <property name="write_priv_pass">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
+    <property name="max_msg_size">
+      <restriction base="integer">
+        <minValue>1024</minValue>
+        <minValue>10240</minValue>
+      </restriction>
+    </property>
+
+    <property name="context_name">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
+    <property name="identifier">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>    
+
+    <property name="engine_id">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
   </class>
 
   <class name="SshParam" base="EndpointParam">

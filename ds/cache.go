@@ -2,6 +2,7 @@ package ds
 
 import (
 	"bytes"
+	"commons"
 	"fmt"
 	"log"
 	"runtime"
@@ -141,9 +142,12 @@ func (c *Cache) Get(id string) (map[string]interface{}, error) {
 		action: GET,
 		ch:     ch,
 		id:     id}
-	r := <-ch
-
-	return r.result, r.e
+	select {
+	case r := <-ch:
+		return r.result, r.e
+	case <-time.After(30 * time.Second):
+		return nil, commons.TimeoutErr
+	}
 }
 
 func (c *Cache) Find(id string) map[string]interface{} {
@@ -154,9 +158,13 @@ func (c *Cache) Find(id string) map[string]interface{} {
 		action: ONLYFIND,
 		ch:     ch,
 		id:     id}
-	r := <-ch
 
-	return r.result
+	select {
+	case r := <-ch:
+		return r.result
+	case <-time.After(30 * time.Second):
+		return nil
+	}
 }
 
 func (c *Cache) set(id string, res map[string]interface{}) {

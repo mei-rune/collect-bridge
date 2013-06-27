@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	_ "runtime/pprof"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -33,7 +34,7 @@ var (
 	test_db                          = flag.String("test.db", "postgres", "the db driver name for test")
 	test_dbUrl                       = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
 	test_address                     = flag.String("test.http", ":7071", "the address of http")
-	is_test                          = false
+	is_test      int32               = 0
 	srv_instance *server             = nil
 	ws_instance  *restful.WebService = nil
 )
@@ -74,7 +75,7 @@ func Main() {
 	}
 
 	defer func() {
-		if is_test {
+		if 1 == atomic.LoadInt32(&is_test) {
 			srv_instance = srv
 		} else {
 			srv.Close()
@@ -172,7 +173,7 @@ func Main() {
 
 	restful.Add(ws)
 
-	if is_test {
+	if 1 == atomic.LoadInt32(&is_test) {
 		ws_instance = ws
 		//http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
 		//http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
@@ -221,27 +222,24 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 	*dbUrl = *test_dbUrl
 	*address = *test_address
 	*models_file = file
-	is_test = true
+	atomic.StoreInt32(&is_test, 1)
 
 	Main()
 	defer restful.ClearRegisteredWebServices()
 	var listener net.Listener = nil
 
+	listener, e := net.Listen("tcp", *address)
+	if nil != e {
+		return
+	}
+
 	ch := make(chan string)
-
 	go func() {
-		l, e := net.Listen("tcp", *address)
-		if nil != e {
-			ch <- e.Error()
-			return
-		}
-
 		defer func() {
 			ch <- "exit"
 		}()
 		ch <- "ok"
-		listener = l
-		http.Serve(l, nil)
+		http.Serve(listener, nil)
 	}()
 
 	s := <-ch
@@ -284,19 +282,6 @@ DROP TABLE IF EXISTS devices;
 DROP TABLE IF EXISTS managed_objects;
 DROP TABLE IF EXISTS attributes;
 
-CREATE TABLE managed_objects (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  name        varchar(250),
-  description varchar(2000),
-  created_at  timestamp,
-  updated_at  timestamp
-);
-
-CREATE TABLE attributes (
-  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-  managed_object_id  integer,
-  description        varchar(2000)
-);
 
 CREATE TABLE devices (
 	id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -361,31 +346,31 @@ CREATE TABLE addresses (
 );
 
 
-CREATE TABLE access_params (
-  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-  managed_object_id  integer,
-  description        varchar(2000)
-) ;
-
-
-CREATE TABLE endpoint_params (
-  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-  managed_object_id  integer,
-  description        varchar(2000),
-  address            varchar(50),
-  port               integer
-) ;
-
 
 CREATE TABLE snmp_params (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   managed_object_id  integer,
-  description        varchar(2000),
 
-  address            varchar(50),
   port               integer,
   version            varchar(50),
-  community          varchar(250)
+
+
+  read_community VARCHAR(50),
+  write_community VARCHAR(50),
+
+  sec_model VARCHAR(50),    -- usm
+  read_sec_name VARCHAR(50),
+  read_auth_pass VARCHAR(50),
+  read_priv_pass VARCHAR(50),
+
+  write_sec_name VARCHAR(50),
+  write_auth_pass VARCHAR(50),
+  write_priv_pass VARCHAR(50),
+
+  max_msg_size INTEGER,
+  context_name VARCHAR(50),
+  identifier VARCHAR(50),
+  engine_id VARCHAR(50)
 ) ;
 
 CREATE TABLE ssh_params (
@@ -594,4 +579,8 @@ func CreateItByParentForTest(t *testing.T, client *Client, parnet_type, parent_i
 
 func CreateMockDeviceForTest(t *testing.T, client *Client, factor string) string {
 	return createJson(t, client, "device", fmt.Sprintf(`{"name":"dd%s", "type":"device", "address":"192.168.1.%s", "catalog":%s, "services":2%s, "managed_address":"20.0.8.110"}`, factor, factor, factor, factor))
+}
+
+func CreateMockSnmpParamsForTest(t *testing.T, client *Client, community string) string {
+	return createJson(t, client, "snmp_param", fmt.Sprintf(`{ "version":"snmp_v2c", "read_community":"%s"}`, community))
 }

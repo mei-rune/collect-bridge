@@ -37,23 +37,18 @@ func srvTest(t *testing.T, file string, cb func(client *ds.Client, definitions *
 		is_test = true
 		Main()
 
-		var listener net.Listener = nil
-
+		listener, e := net.Listen("tcp", *address)
+		if nil != e {
+			return
+		}
 		ch := make(chan string)
 
 		go func() {
-			l, e := net.Listen("tcp", *address)
-			if nil != e {
-				ch <- e.Error()
-				return
-			}
-
 			defer func() {
 				ch <- "exit"
 			}()
 			ch <- "ok"
-			listener = l
-			http.Serve(l, nil)
+			http.Serve(listener, nil)
 		}()
 
 		s := <-ch

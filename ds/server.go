@@ -36,7 +36,7 @@ func newServer(drv, dbUrl, file string, goroutines int) (*server, error) {
 		return nil, fmt.Errorf("read file '%s' failed, %s", file, e.Error())
 	}
 
-	if !is_test {
+	if 1 != atomic.LoadInt32(&is_test) {
 		log.Println("[ds] load '" + file + "'")
 	}
 
@@ -111,7 +111,7 @@ func (self *server) run(db *sql.DB) {
 			break
 		}
 	}
-	if !is_test {
+	if 1 != atomic.LoadInt32(&is_test) {
 		log.Println("server exit")
 	}
 }

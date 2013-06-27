@@ -35,8 +35,7 @@ CREATE SEQUENCE attributes_seq;
 
 CREATE TABLE attributes (
   id integer NOT NULL DEFAULT nextval('attributes_seq')  PRIMARY KEY,
-  managed_object_id integer,
-  description varchar(2000)
+  managed_object_id integer
 );
 
 CREATE TABLE devices (
@@ -98,7 +97,6 @@ CREATE TABLE access_params (
 
 CREATE TABLE endpoint_params (
   -- id integer NOT NULL DEFAULT nextval('attributes_seq')  PRIMARY KEY,
-  address varchar(50),
   port integer,
   CONSTRAINT endpoint_params_pkey PRIMARY KEY (id)
 ) INHERITS (access_params);
@@ -106,8 +104,25 @@ CREATE TABLE endpoint_params (
 
 CREATE TABLE snmp_params (
   -- id integer NOT NULL DEFAULT nextval('attributes_seq')  PRIMARY KEY,
-  version varchar(50),
-  community varchar(250),
+  version VARCHAR(50),
+
+  read_community VARCHAR(50),
+  write_community VARCHAR(50),
+
+  sec_model VARCHAR(50),    -- usm
+  read_sec_name VARCHAR(50),
+  read_auth_pass VARCHAR(50),
+  read_priv_pass VARCHAR(50),
+
+  write_sec_name VARCHAR(50),
+  write_auth_pass VARCHAR(50),
+  write_priv_pass VARCHAR(50),
+
+  max_msg_size INTEGER,
+  context_name VARCHAR(50),
+  identifier VARCHAR(50),
+  engine_id VARCHAR(50),
+
   CONSTRAINT snmp_params_pkey PRIMARY KEY (id)
 ) INHERITS (endpoint_params);
 

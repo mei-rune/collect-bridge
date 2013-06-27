@@ -93,31 +93,30 @@ CREATE TABLE addresses (
 );
 
 
-CREATE TABLE access_params (
-  id                 SERIAL PRIMARY KEY,
-  managed_object_id  integer,
-  description        varchar(2000)
-) ;
-
-
-CREATE TABLE endpoint_params (
-  id                 SERIAL PRIMARY KEY,
-  managed_object_id  integer,
-  description        varchar(2000),
-  address            varchar(50),
-  port               integer
-) ;
-
-
 CREATE TABLE snmp_params (
   id                 SERIAL PRIMARY KEY,
   managed_object_id  integer,
-  description        varchar(2000),
 
-  address            varchar(50),
   port               integer,
   version            varchar(50),
-  community          varchar(250)
+
+  read_community VARCHAR(50),
+  write_community VARCHAR(50),
+
+  sec_model VARCHAR(50),    -- usm
+  read_sec_name VARCHAR(50),
+  read_auth_pass VARCHAR(50),
+  read_priv_pass VARCHAR(50),
+
+  write_sec_name VARCHAR(50),
+  write_auth_pass VARCHAR(50),
+  write_priv_pass VARCHAR(50),
+
+  max_msg_size INTEGER,
+  context_name VARCHAR(50),
+  identifier VARCHAR(50),
+  engine_id VARCHAR(50)
+
 ) ;
 
 CREATE TABLE ssh_params (

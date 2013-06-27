@@ -7,15 +7,15 @@ import (
 )
 
 func createMockSnmpParams(t *testing.T, client *Client, factor string) string {
-	return createJson(t, client, "snmp_param", fmt.Sprintf(`{"address":"20.0.9.%s", "port":%s, "version":"snmp_v2c", "community":"aa"}`, factor, factor))
+	return createJson(t, client, "snmp_param", fmt.Sprintf(`{ "port":%s, "version":"snmp_v2c", "read_community":"aa"}`, factor))
 }
 func createMockSnmpParams2(t *testing.T, client *Client, factor string) string {
-	return createJson(t, client, "access_param", fmt.Sprintf(`{"type":"snmp_param", "address":"20.0.9.%s", "port":%s, "version":"snmp_v2c", "community":"aa"}`, factor, factor))
+	return createJson(t, client, "access_param", fmt.Sprintf(`{"type":"snmp_param", "port":%s, "version":"snmp_v2c", "read_community":"aa"}`, factor))
 }
 
 func validMockSNMPWithFactor(t *testing.T, client *Client, factor string, drvs []map[string]interface{}) {
 	t.Logf("find snmp with " + factor)
-	drv := searchBy(drvs, func(r map[string]interface{}) bool { return r["address"] == "20.0.9."+factor })
+	drv := searchBy(drvs, func(r map[string]interface{}) bool { return fmt.Sprint(r["port"]) == factor })
 	if nil == drv {
 		t.Errorf("find snmp_params with factor=" + factor + " failed")
 	} else {
@@ -31,10 +31,6 @@ func validMockSNMP(t *testing.T, client *Client, factor string, drv map[string]i
 		}
 	}()
 
-	if "20.0.9."+factor != drv["address"].(string) {
-		t.Errorf("excepted address is '20.0.9.%s', actual address is '%v'", factor, drv["address"])
-		return
-	}
 	if atoi(factor) != fetchInt(drv, "port") {
 		t.Errorf("excepted port is '%s', actual port is '%v'", factor, drv["port"])
 		return
@@ -43,22 +39,22 @@ func validMockSNMP(t *testing.T, client *Client, factor string, drv map[string]i
 		t.Errorf("excepted version is 'snmp_v2c', actual version is '%v'", drv["version"])
 		return
 	}
-	if "aa" != drv["community"].(string) {
-		t.Errorf("excepted community is 'aa', actual community is '%v'", drv["community"])
+	if "aa" != drv["read_community"].(string) {
+		t.Errorf("excepted read_community is 'aa', actual read_community is '%v'", drv["read_community"])
 		return
 	}
 }
 
 func createMockSshParams(t *testing.T, client *Client, factor string) string {
-	return createJson(t, client, "ssh_param", fmt.Sprintf(`{"address":"20.0.8.%s", "port":23%s, "user_name":"a%s", "user_password":"cc%s"}`, factor, factor, factor, factor))
+	return createJson(t, client, "ssh_param", fmt.Sprintf(`{ "port":23%s, "user_name":"a%s", "user_password":"cc%s"}`, factor, factor, factor))
 }
 func createMockSshParams2(t *testing.T, client *Client, factor string) string {
-	return createJson(t, client, "access_param", fmt.Sprintf(`{"type":"ssh_param", "address":"20.0.8.%s", "port":23%s, "user_name":"a%s", "user_password":"cc%s"}`, factor, factor, factor, factor))
+	return createJson(t, client, "access_param", fmt.Sprintf(`{"type":"ssh_param", "port":23%s, "user_name":"a%s", "user_password":"cc%s"}`, factor, factor, factor))
 }
 
 func validMockSshWithFactor(t *testing.T, client *Client, factor string, drvs []map[string]interface{}) {
 	t.Logf("find ssh with " + factor)
-	drv := searchBy(drvs, func(r map[string]interface{}) bool { return r["address"] == "20.0.8."+factor })
+	drv := searchBy(drvs, func(r map[string]interface{}) bool { return fmt.Sprint(r["port"]) == "23"+factor })
 	if nil == drv {
 		t.Errorf("find ssh_params with factor=" + factor + " failed")
 	} else {
@@ -67,7 +63,6 @@ func validMockSshWithFactor(t *testing.T, client *Client, factor string, drvs []
 }
 
 func validMockSsh(t *testing.T, client *Client, factor string, drv map[string]interface{}) {
-
 	defer func() {
 		if e := recover(); nil != e {
 			t.Errorf("ssh panic '%v', %v", e, drv)
@@ -75,10 +70,6 @@ func validMockSsh(t *testing.T, client *Client, factor string, drv map[string]in
 		}
 	}()
 
-	if "20.0.8."+factor != drv["address"].(string) {
-		t.Errorf("excepted address is '20.0.8.%s', actual address is '%v'", factor, drv["address"])
-		return
-	}
 	if atoi("23"+factor) != fetchInt(drv, "port") {
 		t.Errorf("excepted port is '23%s', actual port is '%v'", factor, drv["port"])
 		return
@@ -153,6 +144,8 @@ func checkInheritsForFindBy(t *testing.T, client *Client, tName string, all int)
 	if all != len(c) {
 		t.Errorf("%d != len(all.%s), actual is %d", all, tName, c)
 	}
+
+	t.Logf("%#v", c)
 	//t.Logf("check query result by '%v'", tName)
 	switch tName {
 	case "snmp_param":

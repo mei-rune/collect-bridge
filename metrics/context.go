@@ -22,15 +22,10 @@ type context struct {
 	managed_type string
 	managed_id   string
 	mo           commons.Map
-	caches       *ds.Caches
 
 	alias map[string]string
 	local map[string]commons.Map
 	proxy *metric_proxy
-}
-
-func (self *context) getCache(key string) (*ds.Cache, error) {
-	return self.caches.GetCache(key)
 }
 
 func (self *context) Set(key string, value interface{}) {
@@ -59,24 +54,9 @@ func (self *context) cache(t string) (commons.Map, error) {
 	if nil == n || 0 == len(n) {
 		return nil, errors.New("table '" + t + "' is not exists.")
 	}
-	res := n[0]
 
-	// cache, e := self.getCache(t)
-	// if nil != e {
-	// 	return nil, e
-	// }
-
-	// if nil == cache {
-	// 	return nil, errors.New("table '" + t + "' is not exists.")
-	// }
-
-	// res, e := cache.Get(self.managed_id)
-	// if nil != e {
-	// 	return nil, e
-	// }
-
-	self.local[t] = commons.InterfaceMap(res)
-	return commons.InterfaceMap(res), nil
+	self.local[t] = commons.InterfaceMap(n[0])
+	return commons.InterfaceMap(n[0]), nil
 }
 
 func (self *context) Contains(key string) bool {

@@ -130,7 +130,7 @@ func (q *QueryImpl) rowbySingleTableInheritance(rows resultScan) (map[string]int
 	}
 	table := q.table.FindByUnderscoreName(instanceType)
 	if nil == table {
-		return nil, errors.New("table '" + instanceType + "' is undefined")
+		return nil, errors.New("table '" + instanceType + "' is not a subclass of '" + q.table.UnderscoreName + "'.")
 	}
 
 	res := map[string]interface{}{}

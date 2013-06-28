@@ -365,7 +365,7 @@ func (self *TableDefinitions) Register(cls *TableDefinition) {
 	self.underscore2Definitions[cls.UnderscoreName] = cls
 	if table, ok := self.table2definitions[cls.CollectionName]; ok {
 		if table.IsSubclassOf(cls) {
-			// self.table2definitions[cls.CollectionName] = cls
+			self.table2definitions[cls.CollectionName] = cls
 		} else if stiRoot(cls) != stiRoot(table) {
 			panic("table '" + cls.Name + "' and table '" + table.Name + "' is same with collection name.")
 		}

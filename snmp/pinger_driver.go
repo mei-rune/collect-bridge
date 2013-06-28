@@ -44,7 +44,7 @@ func (self *PingerDriver) Get(params map[string]string) commons.Result {
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithRecordNotFound(id)
+		return commons.ReturnWithRecordNotFound("snmp_pinger", id)
 	}
 
 	values := make([][2]string, 0, 10)
@@ -69,7 +69,7 @@ func (self *PingerDriver) Put(params map[string]string) commons.Result {
 
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithRecordNotFound(id)
+		return commons.ReturnWithRecordNotFound("snmp_pinger", id)
 	}
 
 	port, ok := params["snmp.port"]
@@ -179,7 +179,7 @@ func (self *PingerDriver) Delete(params map[string]string) commons.Result {
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithRecordNotFound(id)
+		return commons.ReturnWithRecordNotFound("snmp_pinger", id)
 
 	}
 	delete(self.pingers, id)

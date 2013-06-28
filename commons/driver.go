@@ -462,12 +462,12 @@ func ReturnWithIsRequired(name string) Result {
 	return ReturnError(BadRequestCode, "'"+name+"' is required.")
 }
 
-func ReturnWithNotFound(id string) Result {
-	return ReturnError(NotFoundCode, "'"+id+"' is not found.")
+func ReturnWithNotFound(t, id string) Result {
+	return ReturnError(NotFoundCode, t+" that id is '"+id+"' is not found.")
 }
 
-func ReturnWithRecordNotFound(id string) Result {
-	return ReturnWithNotFound(id)
+func ReturnWithRecordNotFound(t, id string) Result {
+	return ReturnWithNotFound(t, id)
 }
 
 func ReturnWithRecordAlreadyExists(id string) Result {

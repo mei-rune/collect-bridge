@@ -101,6 +101,37 @@ func TestCacheBasic(t *testing.T) {
 	})
 }
 
+func TestCacheBySuper(t *testing.T) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		deleteBy(t, client, "device", map[string]string{})
+
+		id1 := createMockDevice(t, client, "1")
+		id2 := createMockDevice(t, client, "2")
+		id3 := createMockDevice(t, client, "3")
+		id4 := createMockDevice(t, client, "4")
+		if "" == id1 {
+			return
+		}
+
+		cache := NewCache(100*time.Minute, client, "managed_object")
+		defer cache.Close()
+
+		d1, _ := cache.Get(fmt.Sprint(id1))
+		d2, _ := cache.Get(fmt.Sprint(id2))
+		d3, _ := cache.Get(fmt.Sprint(id3))
+		d4, _ := cache.Get(fmt.Sprint(id4))
+
+		if nil == d1 {
+			return
+		}
+
+		validMockDevice(t, client, "1", d1)
+		validMockDevice(t, client, "2", d2)
+		validMockDevice(t, client, "3", d3)
+		validMockDevice(t, client, "4", d4)
+	})
+}
+
 func TestCacheAlreadyDelete(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "device", map[string]string{})

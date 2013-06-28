@@ -84,6 +84,7 @@ func (self *default_cti_policy) snapshot(table *types.TableDefinition,
 
 func (self *default_cti_policy) findById(table *types.TableDefinition,
 	id interface{}) (map[string]interface{}, error) {
+
 	if !table.IsAbstract {
 		result, e := self.simple.findById(table, id)
 		if nil == e {
@@ -307,6 +308,7 @@ func (self *postgresql_cti_policy) findById(table *types.TableDefinition,
 		if nil == new_table {
 			return nil, errors.New("table name '" + tablename + "' is undefined.")
 		}
+
 		return self.simple.findById(new_table, id)
 	}
 	res := make(map[string]interface{})
@@ -418,7 +420,7 @@ func (self *postgresql_cti_policy) forEach(table *types.TableDefinition, params 
 		if last_table.CollectionName != name {
 			new_table := table.FindByTableName(name)
 			if nil == new_table {
-				return errors.New("table '" + name + "' is undefined.")
+				return errors.New("table '" + name + "' is not subtable of '" + table.CollectionName + "'.")
 			}
 
 			last_table = new_table

@@ -3,12 +3,15 @@ package metrics
 import (
 	"commons"
 	"ds"
+	"errors"
+	"fmt"
 	"github.com/runner-mei/go-restful"
 	"time"
 )
 
 type server struct {
 	caches     *ds.Caches
+	mo_cache   *ds.Cache
 	dispatcher *dispatcher
 }
 
@@ -17,8 +20,17 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 	if nil != e {
 		return nil, e
 	}
+	caches := ds.NewCaches(refresh, ds.NewClient(ds_url),
+		"*", map[string]string{"snmp": "snmp_param"})
+	mo_cache, e := caches.GetCache("managed_object")
+	if nil != e {
+		return nil, e
+	}
+	if nil == mo_cache {
+		return nil, errors.New("table 'managed_object' is not exists.")
+	}
 
-	return &server{caches: ds.NewCaches(refresh, ds.NewClient(ds_url), "*", map[string]string{"snmp": "snmp_param"}),
+	return &server{caches: caches, mo_cache: mo_cache,
 		dispatcher: dispatch}, nil
 }
 
@@ -58,20 +70,10 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 		query_params[k] = v[len(v)-1]
 	}
 
-	cache, e := self.caches.GetCache(managed_type)
+	mo, e := self.mo_cache.Get(managed_id)
 	if nil != e {
-		self.returnResult(resp, commons.ReturnWithBadRequest(e.Error()))
-		return
-	}
-
-	if nil == cache {
-		self.returnResult(resp, commons.ReturnError(commons.TableIsNotExists, "table '"+managed_type+"' is not exists."))
-		return
-	}
-
-	mo, e := cache.Get(managed_id)
-	if nil != e {
-		self.returnResult(resp, commons.ReturnWithNotFound(managed_id))
+		fmt.Println(e)
+		self.returnResult(resp, commons.ReturnWithNotFound(managed_type, managed_id))
 		return
 	}
 
@@ -79,7 +81,6 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 		managed_type: managed_type,
 		managed_id:   managed_id,
 		mo:           commons.InterfaceMap(mo),
-		caches:       self.caches,
 		local:        make(map[string]commons.Map),
 		alias:        map[string]string{"snmp": "snmp_param"},
 		proxy:        &metric_proxy{dispatcher: self.dispatcher}}

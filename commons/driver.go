@@ -105,6 +105,7 @@ type Result interface {
 	LastInsertId() interface{}
 	HasOptions() bool
 	Options() Map
+	RawOptions() map[string]interface{}
 	CreatedAt() time.Time
 	ToJson() string
 }
@@ -138,8 +139,6 @@ type Any interface {
 type Map interface {
 	Set(key string, value interface{})
 
-	Fetch(key string) (interface{}, bool)
-
 	Contains(key string) bool
 
 	GetWithDefault(key string, defaultValue interface{}) interface{}
@@ -166,6 +165,8 @@ type Map interface {
 
 	GetObjectsWithDefault(key string, defaultValue []map[string]interface{}) []map[string]interface{}
 
+	Get(key string) (interface{}, error)
+
 	GetBool(key string) (bool, error)
 
 	GetInt(key string) (int, error)
@@ -187,8 +188,6 @@ type Map interface {
 	GetObject(key string) (map[string]interface{}, error)
 
 	GetObjects(key string) ([]map[string]interface{}, error)
-
-	ToMap() map[string]interface{}
 }
 
 type Driver interface {
@@ -347,6 +346,13 @@ func (self *SimpleResult) Options() Map {
 		self.Voptions = make(map[string]interface{})
 	}
 	return InterfaceMap(self.Voptions)
+}
+
+func (self *SimpleResult) RawOptions() map[string]interface{} {
+	if nil == self.Voptions {
+		self.Voptions = make(map[string]interface{})
+	}
+	return self.Voptions
 }
 
 func (self *SimpleResult) CreatedAt() time.Time {

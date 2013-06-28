@@ -11,24 +11,28 @@ import (
 
 const (
 	GET        = 0
-	DELETE     = 1
-	ONLYFIND   = 2
-	SET        = 3
-	REFRESH    = 4
-	REFRESH_OK = 5
-	INTERRUPT  = 6 // interrupt
+	CHILDREN   = 1
+	DELETE     = 2
+	ONLYFIND   = 3
+	SET        = 4
+	REFRESH    = 5
+	REFRESH_OK = 6
+	INTERRUPT  = 7 // interrupt
 )
 
 type cache_request struct {
-	action int
-	id     string
-	ch     chan *cache_request
+	action         int
+	id             string
+	child_type     string
+	child_matchers map[string]commons.Matcher
+	ch             chan *cache_request
 
 	snapshots map[string]*RecordVersion
 
-	ok     bool
-	result map[string]interface{}
-	e      error
+	ok      bool
+	result  map[string]interface{}
+	results []map[string]interface{}
+	e       error
 }
 
 type Cache struct {
@@ -39,15 +43,21 @@ type Cache struct {
 	ticker        *time.Ticker
 	client        *Client
 	target        string
+	includes      string
 }
 
 func NewCache(refresh time.Duration, client *Client, target string) *Cache {
+	return NewCacheWithIncludes(refresh, client, target, "")
+}
+
+func NewCacheWithIncludes(refresh time.Duration, client *Client, target, includes string) *Cache {
 	cache := &Cache{
-		objects: make(map[string]map[string]interface{}),
-		ch:      make(chan *cache_request, 5),
-		ticker:  time.NewTicker(refresh),
-		client:  client,
-		target:  target}
+		objects:  make(map[string]map[string]interface{}),
+		ch:       make(chan *cache_request, 5),
+		ticker:   time.NewTicker(refresh),
+		client:   client,
+		target:   target,
+		includes: includes}
 	go cache.serve()
 	return cache
 }
@@ -68,7 +78,7 @@ func (c *Cache) Close() {
 var emptyParams = map[string]string{}
 
 func (c *Cache) LoadAll() ([]map[string]interface{}, error) {
-	return c.client.FindBy(c.target, emptyParams)
+	return c.client.FindByWithIncludes(c.target, emptyParams, c.includes)
 }
 
 func (c *Cache) Refresh() error {
@@ -150,6 +160,24 @@ func (c *Cache) Get(id string) (map[string]interface{}, error) {
 	}
 }
 
+func (c *Cache) GetChildren(id, child_type string, matchers map[string]commons.Matcher) ([]map[string]interface{}, error) {
+	ch := make(chan *cache_request)
+	defer close(ch)
+
+	c.ch <- &cache_request{
+		action:         CHILDREN,
+		child_type:     child_type,
+		child_matchers: matchers,
+		ch:             ch,
+		id:             id}
+	select {
+	case r := <-ch:
+		return r.results, r.e
+	case <-time.After(30 * time.Second):
+		return nil, commons.TimeoutErr
+	}
+}
+
 func (c *Cache) Find(id string) map[string]interface{} {
 	ch := make(chan *cache_request)
 	defer close(ch)
@@ -216,6 +244,41 @@ func (c *Cache) serve() {
 end:
 	fmt.Println("exited while recv a close command.")
 }
+func (c *Cache) doChildren(req *cache_request) *cache_request {
+	if res, ok := c.objects[req.id]; ok {
+		req.result = res
+	} else {
+		req.result, req.e = c.client.FindByIdWithIncludes(c.target, req.id, c.includes)
+		if nil == req.e {
+			c.set(req.id, req.result)
+		}
+	}
+	// res := req.result["$"+req.child_type]
+	// if nil != res {
+	// 	if result, ok := res.(map[string]interface{}); ok {
+	// 		if nil == req.child_matchers || commons.IsMatch(result, req.child_matchers) {
+	// 			req.results = []map[string]interface{}{result}
+	// 		}
+	// 	} else if results, ok := res.([]interface{}); ok {
+	// 		for _, v := range results {
+	// 			if result, ok := v.(map[string]interface{}); ok {
+	// 				if nil == req.child_matchers || commons.IsMatch(result, req.child_matchers) {
+	// 					req.results = append(req.results, result)
+	// 				}
+	// 			}
+	// 		}
+	// 	} else if results, ok := res.([]map[string]interface{}); ok {
+	// 		for _, result := range results {
+	// 			if nil == req.child_matchers || commons.IsMatch(result, req.child_matchers) {
+	// 				req.results = append(req.results, result)
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	req.results = GetChildrenForm(req.result["$"+req.child_type], req.child_matchers)
+	return req
+}
 
 func (c *Cache) doCommand(req *cache_request) {
 	switch req.action {
@@ -227,12 +290,15 @@ func (c *Cache) doCommand(req *cache_request) {
 		if res, ok := c.objects[req.id]; ok {
 			req.result = res
 		} else {
-			req.result, req.e = c.client.FindById(c.target, req.id)
+			req.result, req.e = c.client.FindByIdWithIncludes(c.target, req.id, c.includes)
 			if nil == req.e {
 				c.set(req.id, req.result)
 			}
 		}
 		req.ch <- req
+
+	case CHILDREN:
+		req.ch <- c.doChildren(req)
 	case SET:
 		c.objects[req.id] = req.result
 		if nil != req.ch {

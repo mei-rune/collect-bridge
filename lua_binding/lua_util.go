@@ -494,7 +494,7 @@ func pushResult(ls *C.lua_State, params commons.Result) {
 	}
 
 	if params.HasOptions() {
-		pushMap(ls, params.Options().ToMap())
+		pushMap(ls, params.RawOptions())
 		C.lua_setfield(ls, -2, cs_options)
 	}
 

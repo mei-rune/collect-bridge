@@ -3,19 +3,22 @@ package metrics
 import (
 	_ "expvar"
 	"flag"
+	"fmt"
 	"github.com/runner-mei/go-restful"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	_ "runtime/pprof"
+	"snmp"
 	"time"
 )
 
 var (
-	address = flag.String("metrics.http", ":7072", "the address of http")
-	ds_url  = flag.String("ds.url", "127.0.0.1:7071", "the address of http")
-	refresh = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
+	address      = flag.String("metrics.http", ":7072", "the address of http")
+	ds_url       = flag.String("ds.url", "http://127.0.0.1:7071", "the address of http")
+	refresh      = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
+	snmp_timeout = flag.Duration("snmp.timeout", 60*time.Second, "the timeout duration of snmp")
 
 	is_test                           = false
 	srv_instance  *server             = nil
@@ -45,7 +48,18 @@ func Main() {
 		return
 	}
 
-	srv := newServer(*ds_url, *refresh)
+	snmp := snmp.NewSnmpDriver(*snmp_timeout, nil)
+	e := snmp.Start()
+	if nil != e {
+		fmt.Println(e)
+		return
+	}
+
+	srv, e := newServer(*ds_url, *refresh, map[string]interface{}{"snmp": snmp})
+	if nil != e {
+		fmt.Println(e)
+		return
+	}
 
 	ws := new(restful.WebService)
 	if is_test {

@@ -20,11 +20,19 @@ type Filter struct {
 	Arguments []string `json:"arguments"`
 }
 
+type Method interface {
+	Call(params commons.Map) commons.Result
+}
+
+var (
+	Methods = map[string]func(params map[string]interface{}) (Method, error){}
+)
+
 type RouteSpec struct {
 	definition *RouteDefinition
 	id, name   string
 	matchers   Matchers
-	invoke     func(params commons.Map) commons.Result
+	invoke     Method
 }
 
 func NewRouteSpec(rd *RouteDefinition) (*RouteSpec, error) {
@@ -81,7 +89,7 @@ func (self *Route) Invoke(params commons.Map) commons.Result {
 		}
 
 		if matched {
-			res := s.invoke(params)
+			res := s.invoke.Call(params)
 			if res.ErrorCode() == commons.ContinueCode {
 				continue
 			}

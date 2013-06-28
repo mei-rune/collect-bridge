@@ -3,18 +3,23 @@ package metrics
 import (
 	"commons"
 	"ds"
-	"fmt"
 	"github.com/runner-mei/go-restful"
 	"time"
 )
 
 type server struct {
 	caches     *ds.Caches
-	dispatcher dispatcher
+	dispatcher *dispatcher
 }
 
-func newServer(ds_url string, refresh time.Duration) *server {
-	return &server{caches: ds.NewCaches(refresh, ds.NewClient(ds_url), map[string]string{"snmp": "snmp_param"})}
+func newServer(ds_url string, refresh time.Duration, params map[string]interface{}) (*server, error) {
+	dispatch, e := newdispatcher(params)
+	if nil != e {
+		return nil, e
+	}
+
+	return &server{caches: ds.NewCaches(refresh, ds.NewClient(ds_url), "*", map[string]string{"snmp": "snmp_param"}),
+		dispatcher: dispatch}, nil
 }
 
 func (self *server) returnResult(resp *restful.Response, res commons.Result) {
@@ -31,7 +36,6 @@ func (self *server) returnResult(resp *restful.Response, res commons.Result) {
 type invoke_func func(self *dispatcher, name string, params commons.Map) commons.Result
 
 func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker invoke_func) {
-	fmt.Println("Invoke", req.Request.URL)
 	managed_type := req.PathParameter("type")
 	if 0 == len(managed_type) {
 		self.returnResult(resp, commons.ReturnWithIsRequired("type"))
@@ -53,12 +57,34 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 	for k, v := range req.Request.URL.Query() {
 		query_params[k] = v[len(v)-1]
 	}
-	params := commons.Proxy(commons.StringMap(query_params),
-		context{managed_type: managed_type,
-			managed_id: managed_id,
-			caches:     self.caches})
 
-	self.returnResult(resp, invoker(&self.dispatcher, metric_name, params))
+	cache, e := self.caches.GetCache(managed_type)
+	if nil != e {
+		self.returnResult(resp, commons.ReturnWithBadRequest(e.Error()))
+		return
+	}
+
+	if nil == cache {
+		self.returnResult(resp, commons.ReturnError(commons.TableIsNotExists, "table '"+managed_type+"' is not exists."))
+		return
+	}
+
+	mo, e := cache.Get(managed_id)
+	if nil != e {
+		self.returnResult(resp, commons.ReturnWithNotFound(managed_id))
+		return
+	}
+
+	params := &context{params: query_params,
+		managed_type: managed_type,
+		managed_id:   managed_id,
+		mo:           commons.InterfaceMap(mo),
+		caches:       self.caches,
+		local:        make(map[string]commons.Map),
+		alias:        map[string]string{"snmp": "snmp_param"},
+		proxy:        &metric_proxy{dispatcher: self.dispatcher}}
+
+	self.returnResult(resp, invoker(self.dispatcher, metric_name, params))
 }
 
 func (self *server) Get(req *restful.Request, resp *restful.Response) {

@@ -1,6 +1,7 @@
 package ds
 
 import (
+	"commons"
 	"commons/types"
 	"fmt"
 	"github.com/runner-mei/go-restful"
@@ -277,7 +278,7 @@ func TestCachesBasic(t *testing.T) {
 			return
 		}
 
-		caches := NewCaches(100*time.Minute, client, nil)
+		caches := NewCaches(100*time.Minute, client, "", nil)
 		defer caches.Close()
 
 		messages := make([]string, 0, 3)
@@ -319,7 +320,7 @@ func TestCachesBasicAlias(t *testing.T) {
 			return
 		}
 
-		caches := NewCaches(100*time.Minute, client, map[string]string{"d": "device"})
+		caches := NewCaches(100*time.Minute, client, "", map[string]string{"d": "device"})
 		defer caches.Close()
 
 		messages := make([]string, 0, 3)
@@ -352,6 +353,65 @@ func TestCachesBasicAlias(t *testing.T) {
 	})
 }
 
+func createSnmpParamsForCache(t *testing.T, client *Client, id, factor string) string {
+	return createJson(t, client, "snmp_param", fmt.Sprintf(`{ "port":%v, "managed_object_id":%v, "version":"snmp_v2c", "read_community":"aa"}`, factor, id))
+}
+
+func TestCacheGetChildren(t *testing.T) {
+	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		deleteBy(t, client, "device", map[string]string{})
+
+		id1 := createMockDevice(t, client, "1")
+		createSnmpParamsForCache(t, client, id1, "11")
+		createSnmpParamsForCache(t, client, id1, "12")
+		id2 := createMockDevice(t, client, "2")
+		createSnmpParamsForCache(t, client, id2, "11")
+		createSnmpParamsForCache(t, client, id2, "12")
+
+		if "" == id1 {
+			return
+		}
+
+		cache := NewCacheWithIncludes(100*time.Minute, client, "device", "*")
+		defer cache.Close()
+
+		d1_11, _ := cache.GetChildren(fmt.Sprint(id1), "attributes", map[string]commons.Matcher{"type": commons.EqualString("snmp_param"),
+			"port": commons.EqualInt(11)})
+		d1_12, _ := cache.GetChildren(fmt.Sprint(id1), "attributes", map[string]commons.Matcher{"type": commons.EqualString("snmp_param"),
+			"port": commons.EqualInt(12)})
+
+		d2_11, _ := cache.GetChildren(fmt.Sprint(id2), "attributes", map[string]commons.Matcher{"type": commons.EqualString("snmp_param"),
+			"port": commons.EqualInt(11)})
+		d2_12, _ := cache.GetChildren(fmt.Sprint(id2), "attributes", map[string]commons.Matcher{"type": commons.EqualString("snmp_param"),
+			"port": commons.EqualInt(12)})
+
+		if nil == d1_11 || 0 == len(d1_11) || nil == d1_11[0] {
+			t.Error("d1_11 is nil")
+		} else {
+			validMockSNMP(t, client, "11", d1_11[0])
+		}
+
+		if nil == d1_12 || 0 == len(d1_12) || nil == d1_12[0] {
+			t.Error("d1_12 is nil")
+		} else {
+			validMockSNMP(t, client, "12", d1_12[0])
+		}
+
+		if nil == d2_11 || 0 == len(d2_11) || nil == d2_11[0] {
+			t.Error("d2_11 is nil")
+		} else {
+			validMockSNMP(t, client, "11", d2_11[0])
+		}
+
+		if nil == d2_12 || 0 == len(d2_12) || nil == d2_12[0] {
+			t.Error("d2_12 is nil")
+		} else {
+			validMockSNMP(t, client, "12", d2_12[0])
+		}
+
+	})
+}
+
 func TestCachesFailed(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 
@@ -363,7 +423,7 @@ func TestCachesFailed(t *testing.T) {
 			chain.ProcessFilter(req, resp)
 		})
 
-		caches := NewCaches(100*time.Minute, client, nil)
+		caches := NewCaches(100*time.Minute, client, "", nil)
 		defer caches.Close()
 		cache1, e1 := caches.GetCache("devdddice")
 		cache2, e2 := caches.GetCache("devdddice")
@@ -394,7 +454,7 @@ func TestCachesFailed(t *testing.T) {
 func TestCachesNetworkFailed(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 
-		caches := NewCaches(100*time.Minute, NewClient("http://127.0.0.1:803"), nil)
+		caches := NewCaches(100*time.Minute, NewClient("http://127.0.0.1:803"), "", nil)
 		defer caches.Close()
 		cache1, e1 := caches.GetCache("devdddice")
 		cache2, e2 := caches.GetCache("devdddice")
@@ -427,7 +487,7 @@ func TestCachesClose(t *testing.T) {
 				}
 			}()
 
-			caches := NewCaches(100*time.Minute, client, nil)
+			caches := NewCaches(100*time.Minute, client, "", nil)
 			caches.Close()
 			caches.GetCache("df")
 
@@ -449,10 +509,11 @@ func TestCacheCloseInCaches(t *testing.T) {
 				}
 			}()
 
-			caches := NewCaches(100*time.Minute, client, nil)
+			caches := NewCaches(100*time.Minute, client, "", nil)
 			cache, _ := caches.GetCache("device")
 			caches.Close()
-			cache.Get("1")
+			v, e := cache.Get("1")
+			t.Log(v, e)
 			return
 		}()
 

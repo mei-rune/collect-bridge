@@ -14,6 +14,7 @@ type Caches struct {
 	caches      map[string]*Cache
 	ch          chan *caches_request
 	client      *Client
+	includes    string
 	refresh     time.Duration
 }
 
@@ -25,7 +26,7 @@ type caches_request struct {
 	e      error
 }
 
-func NewCaches(refresh time.Duration, client *Client, alias map[string]string) *Caches {
+func NewCaches(refresh time.Duration, client *Client, includes string, alias map[string]string) *Caches {
 	alias_names := alias
 	if nil == alias_names {
 		alias_names = map[string]string{}
@@ -35,6 +36,7 @@ func NewCaches(refresh time.Duration, client *Client, alias map[string]string) *
 		caches:      make(map[string]*Cache),
 		ch:          make(chan *caches_request, 5),
 		client:      client,
+		includes:    includes,
 		refresh:     refresh,
 		alias_names: alias_names}
 	go caches.serve()
@@ -54,9 +56,12 @@ func (c *Caches) GetCache(target string) (*Cache, error) {
 	} else {
 		c.ch <- &caches_request{action: GET, ch: ch, target: target}
 	}
-
-	resp := <-ch
-	return resp.cache, resp.e
+	select {
+	case resp := <-ch:
+		return resp.cache, resp.e
+	case <-time.After(30 * time.Second):
+		return nil, commons.TimeoutErr
+	}
 }
 
 func (c *Caches) Close() {
@@ -143,5 +148,5 @@ func (c *Caches) createCache(target string) (*Cache, error) {
 		}
 		return nil, e
 	}
-	return NewCache(c.refresh, c.client, target), nil
+	return NewCacheWithIncludes(c.refresh, c.client, target, c.includes), nil
 }

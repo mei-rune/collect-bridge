@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	//"labix.org/v2/mgo/bson"
+	"encoding/json"
 	"net"
 	"regexp"
 	"strconv"
@@ -91,6 +92,8 @@ func (self *integerType) CreateLengthValidator(minLength,
 
 func (self *integerType) ToInternal(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
+	case json.Number:
+		return v.Int64()
 	case string:
 		i64, err := strconv.ParseInt(v, 10, 64)
 		if nil == err {
@@ -202,6 +205,8 @@ func (self *decimalType) CreateLengthValidator(minLength, maxLength string) (Val
 func (self *decimalType) ToInternal(value interface{}) (interface{}, error) {
 
 	switch v := value.(type) {
+	case json.Number:
+		return v.Float64()
 	case uint:
 		return float64(v), nil
 	case uint8:
@@ -319,6 +324,8 @@ func (self *stringType) CreateLengthValidator(minLength, maxLength string) (Vali
 
 func (self *stringType) ToInternal(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
+	case json.Number:
+		return v.String(), nil
 	case string:
 		return v, nil
 	case *string:
@@ -881,6 +888,9 @@ func (self *SqlIdTypeDefinition) CreateLengthValidator(minLength, maxLength stri
 
 func (self *SqlIdTypeDefinition) ToInternal(v interface{}) (interface{}, error) {
 	switch value := v.(type) {
+	case json.Number:
+		i, e := value.Int64()
+		return i, e
 	case string:
 		i64, e := strconv.ParseInt(value, 10, 0)
 		return int(i64), e
@@ -904,6 +914,10 @@ func (self *SqlIdTypeDefinition) ToInternal(v interface{}) (interface{}, error) 
 		return *value, nil
 	case *sql.NullInt64:
 		return value.Value()
+	case float64:
+		return int(value), nil
+	case float32:
+		return int(value), nil
 	}
 
 	return nil, errors.New("syntex error, it is not a objectId")

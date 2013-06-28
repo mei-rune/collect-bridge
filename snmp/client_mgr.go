@@ -7,11 +7,13 @@ import (
 	"expvar"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
 var (
-	is_unit_test_for_client_mgr = false
+	is_unit_test_for_client_mgr       = false
+	id_seq                      int32 = 0
 )
 
 type ClientManager struct {
@@ -20,14 +22,14 @@ type ClientManager struct {
 }
 
 func (svc *ClientManager) Init() {
-	svc.Name = "client_manager" + strconv.Itoa(time.Now().Second())
+	svc.Name = "client_manager" + strconv.Itoa(int(atomic.AddInt32(&id_seq, 1)))
 	svc.clients = make(map[string]Client)
 	svc.Set(func() {
-		expvar.Publish("clients", expvar.Func(func() interface{} {
+		expvar.Publish(svc.Name+"_clients", expvar.Func(func() interface{} {
 			return fmt.Sprint(len(svc.clients))
 		}))
 
-		expvar.Publish("requests", expvar.Func(func() interface{} {
+		expvar.Publish(svc.Name+"_requests", expvar.Func(func() interface{} {
 			var buf bytes.Buffer
 			for id, client := range svc.clients {
 				buf.WriteString(id)
@@ -86,11 +88,19 @@ func (svc *ClientManager) heartbeat() {
 
 func (mgr *ClientManager) GetClient(host string) (client Client, err error) {
 	values := mgr.SafelyCall(5*time.Minute, func() (Client, error) { return mgr.createClient(host) })
-	if nil != values[0] {
-		client = values[0].(Client)
-	}
-	if nil != values[1] {
-		err = values[1].(error)
+	if 2 <= len(values) {
+		if nil != values[0] {
+			client = values[0].(Client)
+		}
+		if nil != values[1] {
+			err = values[1].(error)
+		}
+	} else if 1 == len(values) {
+		if nil != values[0] {
+			err = values[0].(error)
+		}
+	} else {
+		err = errors.New("return none values")
 	}
 	return
 }

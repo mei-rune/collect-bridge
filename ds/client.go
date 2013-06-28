@@ -303,3 +303,40 @@ func (self *Client) Parent(child, child_id, target string) (map[string]interface
 	}
 	return result, nil
 }
+
+func GetChildrenForm(instance interface{}, matchers map[string]commons.Matcher) []map[string]interface{} {
+	if nil == instance {
+		return nil
+	}
+	if result, ok := instance.(map[string]interface{}); ok {
+		if nil == matchers || commons.IsMatch(result, matchers) {
+			return []map[string]interface{}{result}
+		}
+		return nil
+	}
+
+	var results []map[string]interface{} = nil
+	if values, ok := instance.([]interface{}); ok {
+		for _, v := range values {
+			if result, ok := v.(map[string]interface{}); ok {
+				if nil == matchers || commons.IsMatch(result, matchers) {
+					results = append(results, result)
+				}
+			}
+		}
+		return results
+	}
+
+	if values, ok := instance.([]map[string]interface{}); ok {
+		if nil == matchers {
+			return values
+		}
+
+		for _, result := range values {
+			if commons.IsMatch(result, matchers) {
+				results = append(results, result)
+			}
+		}
+	}
+	return nil
+}

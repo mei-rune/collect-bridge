@@ -82,7 +82,11 @@ func fetchInt(params map[string]interface{}, key string) int {
 	if nil == v {
 		panic(fmt.Sprintf("value of '"+key+"' is nil in %v", params))
 	}
-	return int(v.(float64))
+	i, e := commons.AsInt(v)
+	if nil != e {
+		panic(e.Error())
+	}
+	return i
 }
 func validMockDeviceWithId(t *testing.T, factor string, drv map[string]interface{}, id string) {
 	if nil == drv[id_name] {

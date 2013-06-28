@@ -513,8 +513,8 @@ func (self *simple_driver) insert(table *types.TableDefinition,
 
 			value, e = attribute.Type.ToInternal(v)
 			if nil != e {
-				return 0, fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
-					attribute.Name, attribute.Type.Name(), v)
+				return 0, fmt.Errorf("column '%v' is not a '%v', actual value is '%v', %v",
+					attribute.Name, attribute.Type.Name(), v, e)
 			}
 			value = attribute.Type.ToExternal(value)
 		}

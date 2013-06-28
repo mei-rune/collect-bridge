@@ -63,15 +63,17 @@ func (self *HttpClient) Invoke(action, url string, msg []byte, exceptedCode int)
 		return networkError(e.Error())
 	}
 
-	resp_body := readAllBytes(resp.Body)
 	if resp.StatusCode != exceptedCode {
+		resp_body := readAllBytes(resp.Body)
 		if nil == resp_body || 0 == len(resp_body) {
 			return httpError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
 		}
 		return httpError(resp.StatusCode, string(resp_body))
 	}
 	var result SimpleResult
-	e = json.Unmarshal(resp_body, &result)
+	decoder := json.NewDecoder(resp.Body)
+	decoder.UseNumber()
+	e = decoder.Decode(&result)
 	if nil != e {
 		return unmarshalError(e)
 	}

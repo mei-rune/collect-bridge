@@ -582,5 +582,9 @@ func CreateMockDeviceForTest(t *testing.T, client *Client, factor string) string
 }
 
 func CreateMockSnmpParamsForTest(t *testing.T, client *Client, community string) string {
-	return createJson(t, client, "snmp_param", fmt.Sprintf(`{ "version":"snmp_v2c", "read_community":"%s"}`, community))
+	return createJson(t, client, "snmp_param", fmt.Sprintf(`{ "port":161, "version":"snmp_v2c", "read_community":"%s"}`, community))
+}
+
+func CreateMockSshParamsForTest(t *testing.T, client *Client, pass string) string {
+	return createJson(t, client, "ssh_param", fmt.Sprintf(`{ "port":22, "user_name":"a", "user_password":"%s"}`, pass))
 }

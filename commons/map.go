@@ -272,12 +272,12 @@ func GetObjects(attributes map[string]interface{}, key string) ([]map[string]int
 }
 
 type Matcher interface {
-	Match(key string, actual interface{}) bool
+	Match(actual interface{}) bool
 }
 
 type IntMatcher int
 
-func (self *IntMatcher) Match(key string, actual interface{}) bool {
+func (self *IntMatcher) Match(actual interface{}) bool {
 	i, e := AsInt(actual)
 	if nil != e {
 		return false
@@ -288,6 +288,35 @@ func (self *IntMatcher) Match(key string, actual interface{}) bool {
 func EqualInt(v int) Matcher {
 	m := IntMatcher(v)
 	return &m
+}
+
+type StringMatcher string
+
+func (self *StringMatcher) Match(actual interface{}) bool {
+	s, e := AsString(actual)
+	if nil != e {
+		return false
+	}
+	return s == string(*self)
+}
+
+func EqualString(v string) Matcher {
+	m := StringMatcher(v)
+	return &m
+}
+
+func IsMatch(instance map[string]interface{}, matchers map[string]Matcher) bool {
+	for n, m := range matchers {
+		value, ok := instance[n]
+		if !ok {
+			return false
+		}
+
+		if !m.Match(value) {
+			return false
+		}
+	}
+	return true
 }
 
 func SearchBy(instance interface{}, query map[string]interface{}) []map[string]interface{} {
@@ -305,7 +334,7 @@ func SearchBy(instance interface{}, query map[string]interface{}) []map[string]i
 				break
 			}
 			if matcher, ok := m.(Matcher); ok {
-				if !matcher.Match(n, value) {
+				if !matcher.Match(value) {
 					all = false
 					break
 				}
@@ -404,8 +433,11 @@ func (self InterfaceMap) GetObjectsWithDefault(key string, defaultValue []map[st
 	return GetObjectsWithDefault(self, key, defaultValue)
 }
 
-func (self InterfaceMap) ToMap() map[string]interface{} {
-	return map[string]interface{}(self)
+func (self InterfaceMap) Get(key string) (interface{}, error) {
+	if v, ok := self[key]; ok {
+		return v, nil
+	}
+	return nil, NotExists
 }
 
 func (self InterfaceMap) GetBool(key string) (bool, error) {
@@ -586,8 +618,12 @@ func (self StringMap) GetObjectsWithDefault(key string, defaultValue []map[strin
 	return defaultValue
 }
 
-func (self StringMap) ToMap() map[string]interface{} {
-	return nil
+func (self StringMap) Get(key string) (interface{}, error) {
+	s, ok := self[key]
+	if !ok {
+		return nil, NotExists
+	}
+	return s, nil
 }
 
 func (self StringMap) GetBool(key string) (bool, error) {
@@ -726,190 +762,95 @@ func (self ProxyMap) Contains(key string) bool {
 	return self.proxy.Contains(key)
 }
 
-func (self ProxyMap) Fetch(key string) (interface{}, bool) {
-	v, ok := self.values.Fetch(key)
-	if ok {
-		return v, ok
-	}
-	return self.proxy.Fetch(key)
-}
-
 func (self ProxyMap) GetWithDefault(key string, defaultValue interface{}) interface{} {
-	if v, ok := self.Fetch(key); ok {
-		return v
+	if b, e := self.values.Get(key); nil == e {
+		return b
 	}
-	return defaultValue
+	return self.proxy.GetWithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetBoolWithDefault(key string, defaultValue bool) bool {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetBool(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-	b, e := AsBool(v)
-	if nil != e {
-		return defaultValue
-	}
-	return b
+	return self.proxy.GetBoolWithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetIntWithDefault(key string, defaultValue int) int {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetInt(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-	i, e := AsInt(v)
-	if nil != e {
-		return defaultValue
-	}
-	return i
+	return self.proxy.GetIntWithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetInt32WithDefault(key string, defaultValue int32) int32 {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetInt32(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-	i, e := AsInt32(v)
-	if nil != e {
-		return defaultValue
-	}
-	return i
+	return self.proxy.GetInt32WithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetInt64WithDefault(key string, defaultValue int64) int64 {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetInt64(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-	i, e := AsInt64(v)
-	if nil != e {
-		return defaultValue
-	}
-	return i
+	return self.proxy.GetInt64WithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetUintWithDefault(key string, defaultValue uint) uint {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetUint(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-	i, e := AsUint(v)
-	if nil != e {
-		return defaultValue
-	}
-	return i
+	return self.proxy.GetUintWithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetUint32WithDefault(key string, defaultValue uint32) uint32 {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetUint32(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-	i, e := AsUint32(v)
-	if nil != e {
-		return defaultValue
-	}
-	return i
+	return self.proxy.GetUint32WithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetUint64WithDefault(key string, defaultValue uint64) uint64 {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetUint64(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-	i, e := AsUint64(v)
-	if nil != e {
-		return defaultValue
-	}
-	return i
+	return self.proxy.GetUint64WithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetStringWithDefault(key, defaultValue string) string {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetString(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-	s, e := AsString(v)
-	if nil != e {
-		return defaultValue
-	}
-	return s
+	return self.proxy.GetStringWithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetArrayWithDefault(key string, defaultValue []interface{}) []interface{} {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetArray(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-	a, e := AsArray(v)
-	if nil != e {
-		return defaultValue
-	}
-	return a
+	return self.proxy.GetArrayWithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetObjectWithDefault(key string, defaultValue map[string]interface{}) map[string]interface{} {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetObject(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-
-	res, ok := v.(map[string]interface{})
-	if !ok {
-		return defaultValue
-	}
-	return res
+	return self.proxy.GetObjectWithDefault(key, defaultValue)
 }
 
 func (self ProxyMap) GetObjectsWithDefault(key string, defaultValue []map[string]interface{}) []map[string]interface{} {
-	v, ok := self.Fetch(key)
-	if !ok {
-		return defaultValue
+	if b, e := self.values.GetObjects(key); nil == e {
+		return b
 	}
-	if nil == v {
-		return defaultValue
-	}
-
-	a, e := AsObjects(v)
-	if nil != e {
-		return defaultValue
-	}
-	return a
+	return self.proxy.GetObjectsWithDefault(key, defaultValue)
 }
 
-func (self ProxyMap) ToMap() map[string]interface{} {
-	return self.values.ToMap()
+func (self ProxyMap) Get(key string) (interface{}, error) {
+	if r, e := self.values.Get(key); nil == e {
+		return r, nil
+	}
+	return self.proxy.Get(key)
 }
 
 func (self ProxyMap) GetBool(key string) (bool, error) {

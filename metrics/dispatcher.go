@@ -4,6 +4,7 @@ import (
 	"commons"
 	"errors"
 	"flag"
+	"fmt"
 )
 
 var route_debuging = flag.Bool("dispatch.route.debugging", false, "set max size of pdu")
@@ -17,12 +18,29 @@ type dispatcher struct {
 	drvManager *commons.DriverManager
 }
 
-func Newdispatcher() *dispatcher {
+func newdispatcher(params map[string]interface{}) (*dispatcher, error) {
 	dispatch := &dispatcher{for_get: make(map[string]*Route),
 		for_put:    make(map[string]*Route),
 		for_create: make(map[string]*Route),
 		for_delete: make(map[string]*Route)}
 
+	for k, f := range Methods {
+		method, e := f(params)
+		if nil != e {
+			return nil, errors.New("init '" + k + "' failed, " + e.Error())
+		}
+
+		rs, e := NewRouteSpec(&RouteDefinition{Name: k, Method: "get"})
+		if nil != e {
+			return nil, errors.New("init '" + k + "' failed, " + e.Error())
+		}
+		rs.invoke = method
+
+		e = dispatch.registerSpec(rs)
+		if nil != e {
+			return nil, errors.New("init '" + k + "' failed, " + e.Error())
+		}
+	}
 	// drv := &systemInfo{}
 	// drv.Init(map[string]interface{}{"snmp": snmp.NewSnmpDriver(10*time.Second, nil)}, "snmp")
 	// rs, _ := NewRouteSpec(&RouteDefinition{Name: "sys", Method: "get"})
@@ -31,7 +49,7 @@ func Newdispatcher() *dispatcher {
 	// }
 	// dispatch.registerSpec(rs)
 
-	return dispatch
+	return dispatch, nil
 }
 
 func (self *dispatcher) registerSpec(rs *RouteSpec) error {
@@ -104,6 +122,10 @@ func notAcceptable(metric_name string) commons.Result {
 func (self *dispatcher) Get(metric_name string, params commons.Map) commons.Result {
 	route := self.for_get[metric_name]
 	if nil == route {
+		fmt.Println("Get========")
+		for k, _ := range self.for_get {
+			fmt.Println(k)
+		}
 		return notAcceptable(metric_name)
 	}
 
@@ -113,6 +135,10 @@ func (self *dispatcher) Get(metric_name string, params commons.Map) commons.Resu
 func (self *dispatcher) Put(metric_name string, params commons.Map) commons.Result {
 	route := self.for_put[metric_name]
 	if nil == route {
+		fmt.Println("Put========")
+		for k, _ := range self.for_get {
+			fmt.Println(k)
+		}
 		return notAcceptable(metric_name)
 	}
 
@@ -122,6 +148,11 @@ func (self *dispatcher) Put(metric_name string, params commons.Map) commons.Resu
 func (self *dispatcher) Create(metric_name string, params commons.Map) commons.Result {
 	route := self.for_create[metric_name]
 	if nil == route {
+		fmt.Println("Create========")
+		for k, _ := range self.for_get {
+			fmt.Println(k)
+		}
+
 		return notAcceptable(metric_name)
 	}
 
@@ -131,6 +162,10 @@ func (self *dispatcher) Create(metric_name string, params commons.Map) commons.R
 func (self *dispatcher) Delete(metric_name string, params commons.Map) commons.Result {
 	route := self.for_delete[metric_name]
 	if nil == route {
+		fmt.Println("Delete========")
+		for k, _ := range self.for_get {
+			fmt.Println(k)
+		}
 		return notAcceptable(metric_name)
 	}
 

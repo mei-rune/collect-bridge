@@ -1,6 +1,7 @@
 package commons
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 )
@@ -132,6 +133,11 @@ func AsInt64(value interface{}) (int64, error) {
 		if nil == err {
 			return i64, nil
 		}
+	case json.Number:
+		i64, err := v.Int64()
+		if nil == err {
+			return i64, nil
+		}
 	}
 	return 0, IsNotInt64
 }
@@ -216,6 +222,13 @@ func AsUint64(value interface{}) (uint64, error) {
 			return i64, nil
 		}
 		return i64, typeError(err.Error())
+
+	case json.Number:
+		i64, err := strconv.ParseUint(v.String(), 10, 64)
+		if nil == err {
+			return i64, nil
+		}
+		return i64, typeError(err.Error())
 	}
 	return 0, IsNotUint64
 }
@@ -286,6 +299,9 @@ func AsFloat64(value interface{}) (float64, error) {
 			return f64, nil
 		}
 		return f64, typeError(err.Error())
+
+	case json.Number:
+		return v.Float64()
 	}
 	return 0, IsNotFloat64
 }
@@ -333,6 +349,8 @@ func AsString(value interface{}) (string, error) {
 		} else {
 			return "false", nil
 		}
+	case json.Number:
+		return v.String(), nil
 	}
 	return "", IsNotString
 }

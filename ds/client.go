@@ -260,7 +260,6 @@ func (self *Client) FindByIdWithIncludes(target, id string, includes string) (
 	if 0 != len(includes) {
 		url.WithQuery("includes", includes)
 	}
-	fmt.Println(url.ToUrl())
 	res := self.Invoke("GET", url.ToUrl(), nil, 200)
 	if res.HasError() {
 		return nil, res.Error()

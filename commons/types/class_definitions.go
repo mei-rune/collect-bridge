@@ -113,7 +113,6 @@ func loadOwnAttribute(pr *XMLAttributeDefinition) (cpr *AttributeDefinition, err
 
 	if "created_at" == pr.Name || "updated_at" == pr.Name {
 		if "datetime" != cpr.Type.Name() {
-			fmt.Println("-->", cpr.Type.Name())
 			errs = append(errs, "it is reserved and must is a datetime")
 		}
 

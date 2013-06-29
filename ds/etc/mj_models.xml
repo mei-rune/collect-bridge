@@ -20,7 +20,7 @@
     <has_many polymorphic="true" >Trigger</has_many>
   </class>
 
-  <class name="Device" base="ManagedObject">
+  <class name="NetworkDevice" base="ManagedObject">
     <property name="type">
       <restriction base="string">
         <required />
@@ -35,51 +35,126 @@
       </restriction>
     </property>
 
+    <property name="zh_name">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+
     <property name="address">
       <restriction base="ipAddress">
         <required />
       </restriction>
     </property>
+    
+    <property name="memo">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
 
     <property name="manufacturer">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+
+    <property name="device_type">
       <restriction base="integer">
       </restriction>
     </property>
-    <property name="catalog">
-      <restriction base="integer">
-        <required />
+
+    <property name="owner">
+      <restriction base="string">
+        <maxLength>200</maxLength>
       </restriction>
     </property>
+
     <property name="oid">
       <restriction base="string">
       </restriction>
     </property>
-    <property name="services">
-      <restriction base="integer">
-      </restriction>
-    </property>
+
     <property name="location">
       <restriction base="string">
 				<maxLength>2000</maxLength>
       </restriction>
     </property>
 
-	  <has_many foreignKey="device_id" >Interface</has_many>
-    <has_many foreignKey="device_id" >Address</has_many>
-    <has_many foreignKey="device1" >Link</has_many>
-    <has_many foreignKey="device2" >Link</has_many>
+	  <has_many foreignKey="device_id" >NetworkDevicePort</has_many>
+    <has_many foreignKey="device_id" >NetworkAddress</has_many>
+    <has_many foreignKey="from_device" >NetworkLink</has_many>
+    <has_many foreignKey="to_device" >NetworkLink</has_many>
   </class>
 
-  <class name="Switch" base="Device">
+  <class name="Switch" base="NetworkDevice">
   </class>
 
-  <class name="Route" base="Device">
+  <class name="Route" base="NetworkDevice">
   </class>
 
-  <class name="SwitchRoute" base="Device">
+  <class name="SwitchRoute" base="NetworkDevice">
   </class>
 
-  <class name="Link" base="ManagedObject">
+
+  <class name="NetworkDevicePort" base="ManagedObject">
+    <property name="if_index">
+      <restriction base="integer">
+        <required />
+      </restriction>
+    </property>
+    <property name="if_descr">
+      <restriction base="string">
+        <maxLength>2000</maxLength>
+      </restriction>
+    </property>
+    <property name="if_type">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="if_mtu">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="if_speed">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="if_physAddress">
+      <restriction base="physicalAddress">
+      </restriction>
+    </property>
+    <belongs_to name="device_id" >NetworkDevice</belongs_to>
+  </class>
+
+
+  <class name="NetworkAddress" base="ManagedObject">
+    <property name="address">
+      <restriction base="ipAddress">
+        <required />
+      </restriction>
+    </property>
+    <property name="ifIndex">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="netmask">
+      <restriction base="ipAddress">
+      </restriction>
+    </property>
+    <property name="bcastAddress">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="reasmMaxSize">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <belongs_to name="device_id" >NetworkDevice</belongs_to>
+  </class>
+
+
+  <class name="NetworkLink" base="ManagedObject">
     <property name="name">
       <restriction base="string">
         <required />
@@ -100,33 +175,27 @@
         <maxLength>2000</maxLength>
       </restriction>
     </property>
-    <property name="device1">
+    <property name="from_device">
       <restriction base="objectId">
         <required />
       </restriction>
     </property>
-    <property name="ifIndex1">
+    <property name="from_if_index">
       <restriction base="integer">
       </restriction>
     </property>
-    <property name="device2">
+    <property name="to_device">
       <restriction base="objectId">
         <required />
       </restriction>
     </property>
-    <property name="ifIndex2">
+    <property name="to_if_index">
       <restriction base="integer">
-      </restriction>
-    </property>
-    <property name="sampling_direct">
-      <restriction base="integer">
-        <enumeration value="1" />
-        <enumeration value="2" />
       </restriction>
     </property>
 
-    <belongs_to name="device1" >Device</belongs_to>
-    <belongs_to name="device2" >Device</belongs_to>
+    <belongs_to name="from_device" >NetworkDevice</belongs_to>
+    <belongs_to name="to_device" >NetworkDevice</belongs_to>
   </class>
 
   <class name="Attributes" abstract="true">
@@ -258,60 +327,6 @@
     </property>
   </class>
 
-  <class name="Address" base="ManagedObject">
-    <property name="address">
-      <restriction base="ipAddress">
-        <required />
-      </restriction>
-    </property>
-    <property name="ifIndex">
-      <restriction base="integer">
-      </restriction>
-    </property>
-    <property name="netmask">
-      <restriction base="ipAddress">
-      </restriction>
-    </property>
-    <property name="bcastAddress">
-      <restriction base="integer">
-      </restriction>
-    </property>
-    <property name="reasmMaxSize">
-      <restriction base="integer">
-      </restriction>
-    </property>
-    <belongs_to name="device_id" >Device</belongs_to>
-  </class>
-
-  <class name="Interface" base="ManagedObject">
-    <property name="ifIndex">
-      <restriction base="integer">
-        <required />
-      </restriction>
-    </property>
-    <property name="ifDescr">
-      <restriction base="string">
-				<maxLength>2000</maxLength>
-      </restriction>
-    </property>
-    <property name="ifType">
-      <restriction base="integer">
-      </restriction>
-    </property>
-    <property name="ifMtu">
-      <restriction base="integer">
-      </restriction>
-    </property>
-    <property name="ifSpeed">
-      <restriction base="integer">
-      </restriction>
-    </property>
-    <property name="ifPhysAddress">
-      <restriction base="physicalAddress">
-      </restriction>
-    </property>
-    <belongs_to name="device_id" >Device</belongs_to>
-  </class>
 
   <class name="Trigger" abstract="true">
     <property name="name">

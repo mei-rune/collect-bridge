@@ -297,7 +297,7 @@ func LoadTableDefinitions(nm string) (*TableDefinitions, error) {
 
 		cls := &TableDefinition{Name: xmlDefinition.Name,
 			UnderscoreName: Underscore(xmlDefinition.Name),
-			CollectionName: Tableize(xmlDefinition.Name)}
+			CollectionName: "tpt_" + Tableize(xmlDefinition.Name)}
 
 		switch xmlDefinition.Abstract {
 		case "true":

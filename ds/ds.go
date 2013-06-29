@@ -265,25 +265,25 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 func SrvTest(t *testing.T, file string, cb func(client *Client, definitions *types.TableDefinitions)) {
 	testBase(t, file, func(drv string, conn *sql.DB) {
 		sql_str := `
-DROP TABLE IF EXISTS alerts;
-DROP TABLE IF EXISTS redis_commands;
-DROP TABLE IF EXISTS actions;
-DROP TABLE IF EXISTS metric_triggers;
-DROP TABLE IF EXISTS triggers;
-DROP TABLE IF EXISTS wbem_params;
-DROP TABLE IF EXISTS ssh_params;
-DROP TABLE IF EXISTS snmp_params;
-DROP TABLE IF EXISTS endpoint_params;
-DROP TABLE IF EXISTS access_params;
-DROP TABLE IF EXISTS addresses;
-DROP TABLE IF EXISTS interfaces;
-DROP TABLE IF EXISTS links;
-DROP TABLE IF EXISTS devices;
-DROP TABLE IF EXISTS managed_objects;
-DROP TABLE IF EXISTS attributes;
+DROP TABLE IF EXISTS tpt_alerts;
+DROP TABLE IF EXISTS tpt_redis_commands;
+DROP TABLE IF EXISTS tpt_actions;
+DROP TABLE IF EXISTS tpt_metric_triggers;
+DROP TABLE IF EXISTS tpt_triggers;
+DROP TABLE IF EXISTS tpt_wbem_params;
+DROP TABLE IF EXISTS tpt_ssh_params;
+DROP TABLE IF EXISTS tpt_snmp_params;
+DROP TABLE IF EXISTS tpt_endpoint_params;
+DROP TABLE IF EXISTS tpt_access_params;
+DROP TABLE IF EXISTS tpt_addresses;
+DROP TABLE IF EXISTS tpt_device_port;
+DROP TABLE IF EXISTS tpt_network_links;
+DROP TABLE IF EXISTS tpt_network_devices;
+DROP TABLE IF EXISTS tpt_managed_objects;
+DROP TABLE IF EXISTS tpt_attributes;
 
 
-CREATE TABLE devices (
+CREATE TABLE tpt_networkdevices (
 	id            INTEGER PRIMARY KEY AUTOINCREMENT,
   name          varchar(250),
   description   varchar(2000),
@@ -299,8 +299,23 @@ CREATE TABLE devices (
   type          varchar(100)
 );
 
+CREATE TABLE tpt_network_device_ports (
+	id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  name                    varchar(250),
+  description             varchar(2000),
+  created_at              timestamp,
+  updated_at              timestamp,
+  ifIndex                 integer,
+  ifDescr                 varchar(2000),
+  ifType                  integer,
+  ifMtu                   integer,
+  ifSpeed                 integer,
+  ifPhysAddress           varchar(50),
+  device_id               integer
+) ;
 
-CREATE TABLE links (
+
+CREATE TABLE tpt_networklinks (
 	id                      INTEGER PRIMARY KEY AUTOINCREMENT,
   name                    varchar(250),
   description             varchar(2000),
@@ -316,22 +331,7 @@ CREATE TABLE links (
   sampling_direct         integer
 );
 
-CREATE TABLE  interfaces (
-	id                      INTEGER PRIMARY KEY AUTOINCREMENT,
-  name                    varchar(250),
-  description             varchar(2000),
-  created_at              timestamp,
-  updated_at              timestamp,
-  ifIndex                 integer,
-  ifDescr                 varchar(2000),
-  ifType                  integer,
-  ifMtu                   integer,
-  ifSpeed                 integer,
-  ifPhysAddress           varchar(50),
-  device_id               integer
-) ;
-
-CREATE TABLE addresses (
+CREATE TABLE tpt_addresses (
 	id                      INTEGER PRIMARY KEY AUTOINCREMENT,
   name                    varchar(250),
   description             varchar(2000),
@@ -347,7 +347,7 @@ CREATE TABLE addresses (
 
 
 
-CREATE TABLE snmp_params (
+CREATE TABLE tpt_snmp_params (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   managed_object_id  integer,
 
@@ -373,7 +373,7 @@ CREATE TABLE snmp_params (
   engine_id VARCHAR(50)
 ) ;
 
-CREATE TABLE ssh_params (
+CREATE TABLE tpt_ssh_params (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   managed_object_id  integer,
   description        varchar(2000),
@@ -384,7 +384,7 @@ CREATE TABLE ssh_params (
   user_password      varchar(250)
 );
 
-CREATE TABLE wbem_params (
+CREATE TABLE tpt_wbem_params (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   managed_object_id  integer,
   description        varchar(2000),
@@ -394,7 +394,7 @@ CREATE TABLE wbem_params (
 ) ;
 
 
-CREATE TABLE triggers (
+CREATE TABLE tpt_triggers (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   name          varchar(250),
   expression    varchar(250),
@@ -405,7 +405,7 @@ CREATE TABLE triggers (
   parent_id     integer
 );
 
-CREATE TABLE metric_triggers (
+CREATE TABLE tpt_metric_triggers (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   name               varchar(250),
   expression         varchar(250),
@@ -418,7 +418,7 @@ CREATE TABLE metric_triggers (
   managed_object_id  integer
 ) ;
 
-CREATE TABLE actions (
+CREATE TABLE tpt_actions (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   name               varchar(250),
   description        varchar(2000),
@@ -426,7 +426,7 @@ CREATE TABLE actions (
   parent_id          integer
 );
 
-CREATE TABLE redis_commands (
+CREATE TABLE tpt_redis_commands (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   name               varchar(250),
   description        varchar(2000),
@@ -442,7 +442,7 @@ CREATE TABLE redis_commands (
 );
 
 
-CREATE TABLE alerts (
+CREATE TABLE tpt_alerts (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   name               varchar(250),
   description        varchar(2000),
@@ -456,7 +456,7 @@ CREATE TABLE alerts (
 
 
 DROP TABLE IF EXISTS documents;
-create table documents (
+CREATE TABLE tpt_documents (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   name               varchar(100),
   type               varchar(100), 
@@ -473,17 +473,17 @@ create table documents (
 );
 
 DROP TABLE IF EXISTS websites;
-CREATE TABLE websites (id  INTEGER PRIMARY KEY AUTOINCREMENT, url varchar(200));
+CREATE TABLE tpt_websites (id  INTEGER PRIMARY KEY AUTOINCREMENT, url varchar(200));
 
 DROP TABLE IF EXISTS printers;
-CREATE TABLE printers (id  INTEGER PRIMARY KEY AUTOINCREMENT, name varchar(200));
+CREATE TABLE tpt_printers (id  INTEGER PRIMARY KEY AUTOINCREMENT, name varchar(200));
 
 DROP TABLE IF EXISTS topics;
-CREATE TABLE topics (id  INTEGER PRIMARY KEY AUTOINCREMENT, name varchar(200));
+CREATE TABLE tpt_topics (id  INTEGER PRIMARY KEY AUTOINCREMENT, name varchar(200));
 
 -- tables for CLOB
 DROP TABLE IF EXISTS zip_files;
-CREATE TABLE zip_files (id  INTEGER PRIMARY KEY AUTOINCREMENT, body text, document_id integer);
+CREATE TABLE tpt_zip_files (id  INTEGER PRIMARY KEY AUTOINCREMENT, body text, document_id integer);
 `
 
 		sql_file := drv + "_test.sql"
@@ -520,7 +520,7 @@ CREATE TABLE zip_files (id  INTEGER PRIMARY KEY AUTOINCREMENT, body text, docume
 		}
 
 		if "sqlite3" == drv {
-			_, err = conn.Exec(`CREATE TABLE IF NOT EXISTS alerts (
+			_, err = conn.Exec(`CREATE TABLE IF NOT EXISTS tpt_alerts (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   name               varchar(250),
   description        varchar(2000),
@@ -578,7 +578,7 @@ func CreateItByParentForTest(t *testing.T, client *Client, parnet_type, parent_i
 }
 
 func CreateMockDeviceForTest(t *testing.T, client *Client, factor string) string {
-	return createJson(t, client, "device", fmt.Sprintf(`{"name":"dd%s", "type":"device", "address":"192.168.1.%s", "catalog":%s, "services":2%s, "managed_address":"20.0.8.110"}`, factor, factor, factor, factor))
+	return createJson(t, client, "network_device", fmt.Sprintf(`{"name":"dd%s", "type":"network_device", "address":"192.168.1.%s", "device_type":%s, "services":2%s}`, factor, factor, factor, factor))
 }
 
 func CreateMockSnmpParamsForTest(t *testing.T, client *Client, community string) string {

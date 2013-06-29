@@ -60,21 +60,21 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 	}
 	defer conn.Close()
 
-	_, err = conn.Exec("DROP TABLE IF EXISTS people")
+	_, err = conn.Exec("DROP TABLE IF EXISTS tpt_people")
 	if err != nil {
 		t.Fatal(err)
 		t.FailNow()
 		return
 	}
 
-	_, err = conn.Exec("DROP TABLE IF EXISTS employees")
+	_, err = conn.Exec("DROP TABLE IF EXISTS tpt_employees")
 	if err != nil {
 		t.Fatal(err)
 		t.FailNow()
 		return
 	}
 
-	_, err = conn.Exec("DROP TABLE IF EXISTS managers")
+	_, err = conn.Exec("DROP TABLE IF EXISTS tpt_managers")
 	if err != nil {
 		t.Fatal(err)
 		t.FailNow()
@@ -88,7 +88,7 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 		timezone = " with time zone"
 	}
 
-	_, err = conn.Exec("CREATE TEMP TABLE employees (ID " + primaryKey_decl + ", ID1 int, " +
+	_, err = conn.Exec("CREATE TEMP TABLE tpt_employees (ID " + primaryKey_decl + ", ID1 int, " +
 		"Name varchar(256), " +
 		"Name2 varchar(256), " +
 		"Age int, " +
@@ -105,7 +105,7 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 		return
 	}
 
-	_, err = conn.Exec("CREATE TEMP TABLE managers (ID " + primaryKey_decl + ", ID1 int, " +
+	_, err = conn.Exec("CREATE TEMP TABLE tpt_managers (ID " + primaryKey_decl + ", ID1 int, " +
 		"Name varchar(256), " +
 		"Name2 varchar(256), " +
 		"Age int, " +
@@ -123,7 +123,7 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 		return
 	}
 
-	_, err = conn.Exec("CREATE TEMP TABLE people (ID " + primaryKey_decl + ", ID1 int, " +
+	_, err = conn.Exec("CREATE TEMP TABLE tpt_people (ID " + primaryKey_decl + ", ID1 int, " +
 		"Name varchar(256), " +
 		"Name2 varchar(256), " +
 		"Age int, " +

@@ -1,83 +1,99 @@
 
-DROP TABLE IF EXISTS alerts;
-DROP TABLE IF EXISTS redis_commands;
-DROP TABLE IF EXISTS actions;
-DROP TABLE IF EXISTS metric_triggers;
-DROP TABLE IF EXISTS triggers;
-DROP TABLE IF EXISTS wbem_params;
-DROP TABLE IF EXISTS ssh_params;
-DROP TABLE IF EXISTS snmp_params;
-DROP TABLE IF EXISTS endpoint_params;
-DROP TABLE IF EXISTS access_params;
-DROP TABLE IF EXISTS addresses;
-DROP TABLE IF EXISTS interfaces;
-DROP TABLE IF EXISTS links;
-DROP TABLE IF EXISTS devices;
-DROP TABLE IF EXISTS managed_objects;
-DROP TABLE IF EXISTS attributes;
-DROP SEQUENCE IF EXISTS actions_seq;
-DROP SEQUENCE IF EXISTS triggers_seq;
-DROP SEQUENCE IF EXISTS managed_object_seq;
-DROP SEQUENCE IF EXISTS attributes_seq;
+DROP TABLE IF EXISTS tpt_alerts;
+DROP TABLE IF EXISTS tpt_redis_commands;
+DROP TABLE IF EXISTS tpt_actions;
+DROP TABLE IF EXISTS tpt_metric_triggers;
+DROP TABLE IF EXISTS tpt_triggers;
+DROP TABLE IF EXISTS tpt_wbem_params;
+DROP TABLE IF EXISTS tpt_ssh_params;
+DROP TABLE IF EXISTS tpt_snmp_params;
+DROP TABLE IF EXISTS tpt_endpoint_params;
+DROP TABLE IF EXISTS tpt_access_params;
+DROP TABLE IF EXISTS tpt_network_links;
+DROP TABLE IF EXISTS tpt_network_addresses;
+DROP TABLE IF EXISTS tpt_network_device_ports;
+DROP TABLE IF EXISTS tpt_network_devices;
+DROP TABLE IF EXISTS tpt_managed_objects;
+DROP TABLE IF EXISTS tpt_attributes;
+DROP SEQUENCE IF EXISTS tpt_actions_seq;
+DROP SEQUENCE IF EXISTS tpt_triggers_seq;
+DROP SEQUENCE IF EXISTS tpt_managed_object_seq;
+DROP SEQUENCE IF EXISTS tpt_attributes_seq;
 
 
-CREATE SEQUENCE managed_object_seq;
+CREATE SEQUENCE tpt_managed_object_seq;
 
-CREATE TABLE managed_objects (
-  id integer NOT NULL DEFAULT nextval('managed_object_seq')  PRIMARY KEY,
-  name varchar(250),
+CREATE TABLE tpt_managed_objects (
+  id integer NOT NULL DEFAULT nextval('tpt_managed_object_seq')  PRIMARY KEY,
   description varchar(2000),
   created_at timestamp,
   updated_at timestamp
 );
 
-CREATE SEQUENCE attributes_seq;
+CREATE SEQUENCE tpt_attributes_seq;
 
-CREATE TABLE attributes (
-  id integer NOT NULL DEFAULT nextval('attributes_seq')  PRIMARY KEY,
+CREATE TABLE tpt_attributes (
+  id integer NOT NULL DEFAULT nextval('tpt_attributes_seq')  PRIMARY KEY,
   managed_object_id integer
 );
 
-CREATE TABLE devices (
-  -- id integer NOT NULL DEFAULT nextval('managed_object_seq')  PRIMARY KEY,
-  address       varchar(250),
-  manufacturer  integer,
-  catalog       integer,
-  oid           varchar(250),
-  services      integer,
-  location      varchar(2000),
-  type          varchar(100), 
-  CONSTRAINT devices_pkey PRIMARY KEY (id)
-) INHERITS (managed_objects);
+CREATE TABLE tpt_network_devices (
+  -- id integer NOT NULL DEFAULT nextval('tpt_managed_object_seq')  PRIMARY KEY,
+
+  type VARCHAR(200),
+  name VARCHAR(200),
+  zh_name VARCHAR(200),
+  address VARCHAR(50) NOT NULL,
+  memo VARCHAR(255),
+  manufacturer VARCHAR(100),
+  device_type INT NOT NULL,
+  owner VARCHAR(50),
+  location VARCHAR(200),
+  oid VARCHAR(200),
+  CONSTRAINT tpt_network_devices_pkey PRIMARY KEY (id),
+  CONSTRAINT tpt_network_devices_name_uq unique(address)
+
+) INHERITS (tpt_managed_objects);
 
 
-CREATE TABLE links (
-  -- id integer NOT NULL DEFAULT nextval('managed_object_seq')  PRIMARY KEY,
+CREATE TABLE tpt_network_device_ports (
+  -- id integer NOT NULL DEFAULT nextval('tpt_managed_object_seq')  PRIMARY KEY,
+  name VARCHAR(100),
+  if_index INT NOT NULL,
+  if_descr VARCHAR(255),
+  if_type INT,
+  if_mtu INT,
+  if_speed INT,
+  if_physAddress VARCHAR(255),
+  device_id BIGINT NOT NULL,
 
-  name                    varchar(250),
+  CONSTRAINT tpt_network_device_ports_pkey PRIMARY KEY (id),
+  FOREIGN KEY(device_id) REFERENCES tpt_network_devices(id)
+
+) INHERITS (tpt_managed_objects);
+
+
+CREATE TABLE tpt_network_links (
+  -- id integer NOT NULL DEFAULT nextval('tpt_managed_object_seq')  PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  memo VARCHAR(255),
+  from_device BIGINT NOT NULL,
+  from_if_index BIGINT,
+  to_device BIGINT NOT NULL,
+  to_if_index BIGINT,
+
   custom_speed_up         integer,
   custom_speed_down       integer,
-  device1                 integer,
-  ifIndex1                integer,
-  device2                 integer,
-  ifIndex2                integer,
-  sampling_direct         integer,
-  CONSTRAINT links_pkey PRIMARY KEY (id)
-) INHERITS (managed_objects);
 
-CREATE TABLE  interfaces (
-  -- id integer NOT NULL DEFAULT nextval('managed_object_seq')  PRIMARY KEY,
-  ifIndex integer,
-  ifDescr varchar(2000),
-  ifType integer,
-  ifMtu integer,
-  ifSpeed integer,
-  ifPhysAddress varchar(50),
-  device_id integer,
-  CONSTRAINT interfaces_pkey PRIMARY KEY (id)
-) INHERITS (managed_objects);
+  CONSTRAINT tpt_network_links_pkey PRIMARY KEY (id),
+  FOREIGN KEY(from_device) REFERENCES tpt_network_devices(id),
+  FOREIGN KEY(to_device) REFERENCES tpt_network_devices(id)
 
-CREATE TABLE addresses (
+) INHERITS (tpt_managed_objects);
+
+
+
+CREATE TABLE tpt_network_addresses (
   -- id integer NOT NULL DEFAULT nextval('managed_object_seq')  PRIMARY KEY,
   address varchar(50),
   ifIndex integer,
@@ -85,25 +101,26 @@ CREATE TABLE addresses (
   bcastAddress integer,
   reasmMaxSize integer,
   device_id integer,
-  CONSTRAINT addresses_pkey PRIMARY KEY (id)
-) INHERITS (managed_objects);
+  CONSTRAINT tpt_network_addresses_pkey PRIMARY KEY (id),
+  FOREIGN KEY(device_id) REFERENCES tpt_network_devices(id)
+) INHERITS (tpt_managed_objects);
 
 
-CREATE TABLE access_params (
-  -- id integer NOT NULL DEFAULT nextval('attributes_seq')  PRIMARY KEY,
-  CONSTRAINT access_params_pkey PRIMARY KEY (id)
-) INHERITS (attributes);
+CREATE TABLE tpt_access_params (
+  -- id integer NOT NULL DEFAULT nextval('tpt_attributes_seq')  PRIMARY KEY,
+  CONSTRAINT tpt_access_params_pkey PRIMARY KEY (id)
+) INHERITS (tpt_attributes);
 
 
-CREATE TABLE endpoint_params (
-  -- id integer NOT NULL DEFAULT nextval('attributes_seq')  PRIMARY KEY,
+CREATE TABLE tpt_endpoint_params (
+  -- id integer NOT NULL DEFAULT nextval('tpt_attributes_seq')  PRIMARY KEY,
   port integer,
-  CONSTRAINT endpoint_params_pkey PRIMARY KEY (id)
-) INHERITS (access_params);
+  CONSTRAINT tpt_endpoint_params_pkey PRIMARY KEY (id)
+) INHERITS (tpt_access_params);
 
 
-CREATE TABLE snmp_params (
-  -- id integer NOT NULL DEFAULT nextval('attributes_seq')  PRIMARY KEY,
+CREATE TABLE tpt_snmp_params (
+  -- id integer NOT NULL DEFAULT nextval('tpt_attributes_seq')  PRIMARY KEY,
   version VARCHAR(50),
 
   read_community VARCHAR(50),
@@ -123,28 +140,33 @@ CREATE TABLE snmp_params (
   identifier VARCHAR(50),
   engine_id VARCHAR(50),
 
-  CONSTRAINT snmp_params_pkey PRIMARY KEY (id)
-) INHERITS (endpoint_params);
+  CONSTRAINT tpt_snmp_params_pk PRIMARY KEY (id),
+  FOREIGN KEY(managed_object_id) REFERENCES tpt_network_devices(id)
+) INHERITS (tpt_endpoint_params);
 
-CREATE TABLE ssh_params (
-  -- id integer NOT NULL DEFAULT nextval('attributes_seq')  PRIMARY KEY,
+CREATE TABLE tpt_ssh_params (
+  -- id integer NOT NULL DEFAULT nextval('tpt_attributes_seq')  PRIMARY KEY,
   user_name varchar(50),
   user_password varchar(250),
-  CONSTRAINT ssh_params_pkey PRIMARY KEY (id)
-) INHERITS (endpoint_params);
+  CONSTRAINT tpt_ssh_params_pkey PRIMARY KEY (id),
+  FOREIGN KEY(managed_object_id) REFERENCES tpt_network_devices(id)
+) INHERITS (tpt_endpoint_params);
 
-CREATE TABLE wbem_params (
-  -- id integer NOT NULL DEFAULT nextval('attributes_seq')  PRIMARY KEY,
+
+CREATE TABLE tpt_wbem_params (
+  -- id integer NOT NULL DEFAULT nextval('tpt_attributes_seq')  PRIMARY KEY,
   url varchar(2000),
   user_name varchar(50),
   user_password varchar(250),
-  CONSTRAINT wbem_params_pkey PRIMARY KEY (id)
-) INHERITS (access_params);
+
+  CONSTRAINT tpt_wbem_params_pkey PRIMARY KEY (id),
+  FOREIGN KEY(managed_object_id) REFERENCES tpt_network_devices(id)
+) INHERITS (tpt_access_params);
 
 
-CREATE SEQUENCE triggers_seq;
-CREATE TABLE triggers (
-  id            integer NOT NULL DEFAULT nextval('triggers_seq')  PRIMARY KEY,
+CREATE SEQUENCE tpt_triggers_seq;
+CREATE TABLE tpt_triggers (
+  id            integer NOT NULL DEFAULT nextval('tpt_triggers_seq')  PRIMARY KEY,
   name          varchar(250),
   expression    varchar(250),
   attachment    varchar(2000),
@@ -154,16 +176,16 @@ CREATE TABLE triggers (
   parent_id     integer
 );
 
-CREATE TABLE metric_triggers (
-  -- id integer NOT NULL DEFAULT nextval('triggers_seq')  PRIMARY KEY,
+CREATE TABLE tpt_metric_triggers (
+  -- id integer NOT NULL DEFAULT nextval('tpt_triggers_seq')  PRIMARY KEY,
   metric varchar(250),
   managed_object_id integer,
-  CONSTRAINT metric_triggers_pkey PRIMARY KEY (id)
-) INHERITS (triggers);
+  CONSTRAINT tpt_metric_triggers_pkey PRIMARY KEY (id)
+) INHERITS (tpt_triggers);
 
-CREATE SEQUENCE actions_seq;
-CREATE TABLE actions (
-  id integer NOT NULL DEFAULT nextval('actions_seq')  PRIMARY KEY,
+CREATE SEQUENCE tpt_actions_seq;
+CREATE TABLE tpt_actions (
+  id integer NOT NULL DEFAULT nextval('tpt_actions_seq')  PRIMARY KEY,
   name varchar(250),
   description   varchar(2000),
 
@@ -171,7 +193,7 @@ CREATE TABLE actions (
   parent_id integer
 );
 
-CREATE TABLE redis_commands (
+CREATE TABLE tpt_redis_commands (
   -- id integer NOT NULL DEFAULT nextval('actions_seq')  PRIMARY KEY,
   command varchar(10),
   arg0  varchar(200),
@@ -181,21 +203,21 @@ CREATE TABLE redis_commands (
   arg4  varchar(200),
   
   CONSTRAINT redis_commands_pkey PRIMARY KEY (id)
-) INHERITS (actions);
+) INHERITS (tpt_actions);
 
 
-CREATE TABLE alerts (
+CREATE TABLE tpt_alerts (
   -- id integer NOT NULL DEFAULT nextval('actions_seq')  PRIMARY KEY,
   max_repeated  integer,
   expression_style varchar(50),
   expression_code  varchar(2000),
   
   CONSTRAINT alerts_pkey PRIMARY KEY (id)
-) INHERITS (actions);
+) INHERITS (tpt_actions);
 
 
-DROP TABLE IF EXISTS documents;
-create table documents (
+DROP TABLE IF EXISTS tpt_documents;
+create table tpt_documents (
   id serial PRIMARY KEY,
   name varchar(100),
   type varchar(100), 
@@ -211,15 +233,15 @@ create table documents (
   publish_at integer
 );
 
-DROP TABLE IF EXISTS websites;
-CREATE TABLE websites (id  serial PRIMARY KEY, url varchar(200));
+DROP TABLE IF EXISTS tpt_websites;
+CREATE TABLE tpt_websites (id  serial PRIMARY KEY, url varchar(200));
 
-DROP TABLE IF EXISTS printers;
-CREATE TABLE printers (id  serial PRIMARY KEY, name varchar(200));
+DROP TABLE IF EXISTS tpt_printers;
+CREATE TABLE tpt_printers (id  serial PRIMARY KEY, name varchar(200));
 
-DROP TABLE IF EXISTS topics;
-CREATE TABLE topics (id  serial PRIMARY KEY, name varchar(200));
+DROP TABLE IF EXISTS tpt_topics;
+CREATE TABLE tpt_topics (id  serial PRIMARY KEY, name varchar(200));
 
 -- tables for CLOB
-DROP TABLE IF EXISTS zip_files;
-CREATE TABLE zip_files (id  serial PRIMARY KEY, body text, document_id integer);
+DROP TABLE IF EXISTS tpt_zip_files;
+CREATE TABLE tpt_zip_files (id  serial PRIMARY KEY, body text, document_id integer);

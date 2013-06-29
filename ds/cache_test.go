@@ -12,7 +12,7 @@ import (
 
 func TestCacheBasic(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
 		id2 := createMockDevice(t, client, "2")
@@ -22,7 +22,7 @@ func TestCacheBasic(t *testing.T) {
 			return
 		}
 
-		cache := NewCache(100*time.Minute, client, "device")
+		cache := NewCache(100*time.Minute, client, "network_device")
 		defer cache.Close()
 
 		t.Log("test Get")
@@ -103,7 +103,7 @@ func TestCacheBasic(t *testing.T) {
 
 func TestCacheBySuper(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
 		id2 := createMockDevice(t, client, "2")
@@ -134,7 +134,7 @@ func TestCacheBySuper(t *testing.T) {
 
 func TestCacheAlreadyDelete(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
 		id2 := createMockDevice(t, client, "2")
@@ -144,7 +144,7 @@ func TestCacheAlreadyDelete(t *testing.T) {
 			return
 		}
 
-		cache := NewCache(100*time.Minute, client, "device")
+		cache := NewCache(100*time.Minute, client, "network_device")
 		defer cache.Close()
 		d1, _ := cache.Get(fmt.Sprint(id1))
 		d2, _ := cache.Get(fmt.Sprint(id2))
@@ -160,7 +160,7 @@ func TestCacheAlreadyDelete(t *testing.T) {
 		validMockDevice(t, client, "3", d3)
 		validMockDevice(t, client, "4", d4)
 
-		deleteById(t, client, "device", id4)
+		deleteById(t, client, "network_device", id4)
 
 		d1, _ = cache.Get(fmt.Sprint(id1))
 		d2, _ = cache.Get(fmt.Sprint(id2))
@@ -189,14 +189,14 @@ func TestCacheAlreadyDelete(t *testing.T) {
 
 func TestCacheAdd(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
 		if "" == id1 {
 			return
 		}
 
-		cache := NewCache(100*time.Minute, client, "device")
+		cache := NewCache(100*time.Minute, client, "network_device")
 		defer cache.Close()
 		d1, _ := cache.Get(fmt.Sprint(id1))
 		if nil == d1 {
@@ -218,7 +218,7 @@ func TestCacheAdd(t *testing.T) {
 
 func TestCacheRefresh(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
 		id2 := createMockDevice(t, client, "2")
@@ -228,7 +228,7 @@ func TestCacheRefresh(t *testing.T) {
 			return
 		}
 
-		cache := NewCache(100*time.Minute, client, "device")
+		cache := NewCache(100*time.Minute, client, "network_device")
 		defer cache.Close()
 		d1, _ := cache.Get(fmt.Sprint(id1))
 		d2, _ := cache.Get(fmt.Sprint(id2))
@@ -248,12 +248,12 @@ func TestCacheRefresh(t *testing.T) {
 		}
 
 		updateMockDevice(t, client, id2, "211")
-		deleteById(t, client, "device", id3)
+		deleteById(t, client, "network_device", id3)
 		id4 := createMockDevice(t, client, "4")
 		cache.Refresh()
 
 		messages := make([]string, 0, 3)
-		excepted := []string{"GET,/device/2", "GET,/device/3", "GET,/device/4"}
+		excepted := []string{"GET,/network_device/2", "GET,/network_device/3", "GET,/network_device/4"}
 
 		ws_instance.Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 			messages = append(messages, fmt.Sprintf("%s,%s", req.Request.Method, req.Request.URL))
@@ -288,7 +288,7 @@ func TestCacheClose(t *testing.T) {
 				}
 			}()
 
-			cache := NewCache(100*time.Minute, client, "device")
+			cache := NewCache(100*time.Minute, client, "network_device")
 			cache.Close()
 			cache.Get("df")
 			return
@@ -302,7 +302,7 @@ func TestCacheClose(t *testing.T) {
 
 func TestCachesBasic(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
 		if "" == id1 {
@@ -313,14 +313,14 @@ func TestCachesBasic(t *testing.T) {
 		defer caches.Close()
 
 		messages := make([]string, 0, 3)
-		excepted := []string{"GET,/device/@count", "GET,/device/1"}
+		excepted := []string{"GET,/network_device/@count", "GET,/network_device/1"}
 
 		ws_instance.Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 			messages = append(messages, fmt.Sprintf("%s,%s", req.Request.Method, req.Request.URL))
 			chain.ProcessFilter(req, resp)
 		})
 
-		cache1, _ := caches.GetCache("device")
+		cache1, _ := caches.GetCache("network_device")
 		d1, _ := cache1.Get(fmt.Sprint(id1))
 
 		if nil == d1 {
@@ -329,7 +329,7 @@ func TestCachesBasic(t *testing.T) {
 
 		validMockDevice(t, client, "1", d1)
 
-		cache2, _ := caches.GetCache("device")
+		cache2, _ := caches.GetCache("network_device")
 
 		if !reflect.DeepEqual(excepted, messages) {
 			t.Errorf("excepted_messages != actual_messages, excepted is %v, actual is %v", excepted, messages)
@@ -344,18 +344,18 @@ func TestCachesBasic(t *testing.T) {
 
 func TestCachesBasicAlias(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
 		if "" == id1 {
 			return
 		}
 
-		caches := NewCaches(100*time.Minute, client, "", map[string]string{"d": "device"})
+		caches := NewCaches(100*time.Minute, client, "", map[string]string{"d": "network_device"})
 		defer caches.Close()
 
 		messages := make([]string, 0, 3)
-		excepted := []string{"GET,/device/@count", "GET,/device/1"}
+		excepted := []string{"GET,/network_device/@count", "GET,/network_device/1"}
 
 		ws_instance.Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 			messages = append(messages, fmt.Sprintf("%s,%s", req.Request.Method, req.Request.URL))
@@ -390,7 +390,7 @@ func createSnmpParamsForCache(t *testing.T, client *Client, id, factor string) s
 
 func TestCacheGetChildren(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
 		createSnmpParamsForCache(t, client, id1, "11")
@@ -403,7 +403,7 @@ func TestCacheGetChildren(t *testing.T) {
 			return
 		}
 
-		cache := NewCacheWithIncludes(100*time.Minute, client, "device", "*")
+		cache := NewCacheWithIncludes(100*time.Minute, client, "network_device", "*")
 		defer cache.Close()
 
 		d1_11, _ := cache.GetChildren(fmt.Sprint(id1), "attributes", map[string]commons.Matcher{"type": commons.EqualString("snmp_param"),
@@ -541,7 +541,7 @@ func TestCacheCloseInCaches(t *testing.T) {
 			}()
 
 			caches := NewCaches(100*time.Minute, client, "", nil)
-			cache, _ := caches.GetCache("device")
+			cache, _ := caches.GetCache("network_device")
 			caches.Close()
 			v, e := cache.Get("1")
 			t.Log(v, e)

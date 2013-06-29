@@ -11,9 +11,9 @@ import (
 
 var (
 	mo = map[string]interface{}{"name": "dd",
-		"type":            "device",
+		"type":            "network_device",
 		"address":         "127.0.0.1",
-		"catalog":         1,
+		"device_type":     1,
 		"services":        2,
 		"managed_address": "20.0.8.110"}
 
@@ -78,17 +78,17 @@ func srvTest(t *testing.T, file string, cb func(client *ds.Client, definitions *
 
 func TestGetBasic(t *testing.T) {
 	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
-		_, e := client.DeleteBy("device", emptyParams)
+		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
 
-		id := ds.CreateItForTest(t, client, "device", mo)
-		ds.CreateItByParentForTest(t, client, "device", id, "wbem_param", wbem_params)
-		ds.CreateItByParentForTest(t, client, "device", id, "snmp_param", snmp_params)
+		id := ds.CreateItForTest(t, client, "network_device", mo)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 
-		res := urlGet(t, "device", id, "sys.oid")
+		res := urlGet(t, "network_device", id, "sys.oid")
 		if res.HasError() {
 			t.Error(res.Error())
 			return
@@ -102,17 +102,17 @@ func TestGetBasic(t *testing.T) {
 
 func TestGetTableBasic(t *testing.T) {
 	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
-		_, e := client.DeleteBy("device", emptyParams)
+		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
 
-		id := ds.CreateItForTest(t, client, "device", mo)
-		ds.CreateItByParentForTest(t, client, "device", id, "wbem_param", wbem_params)
-		ds.CreateItByParentForTest(t, client, "device", id, "snmp_param", snmp_params)
+		id := ds.CreateItForTest(t, client, "network_device", mo)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 
-		res := urlGet(t, "device", id, "sys")
+		res := urlGet(t, "network_device", id, "sys")
 		if res.HasError() {
 			t.Error(res.Error())
 			return

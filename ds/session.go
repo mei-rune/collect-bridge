@@ -22,7 +22,6 @@ type session struct {
 }
 
 func newSession(drvName string, conn *sql.DB, tables *types.TableDefinitions) *session {
-
 	simple := simpleDriver(drvName, conn, !*IsPostgresqlInherit, tables)
 	if POSTGRESQL == simple.dbType && *IsPostgresqlInherit {
 		return &session{simple: simple, drv: ctiSupportWithPostgreSQLInherit(simple)}

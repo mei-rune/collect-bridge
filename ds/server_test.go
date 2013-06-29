@@ -11,21 +11,21 @@ import (
 
 func serverTest(t *testing.T, file string, cb func(db *Client, definitions *types.TableDefinitions)) {
 	testBase(t, file, func(drv string, conn *sql.DB) {
-		_, err := conn.Exec("DROP TABLE IF EXISTS people")
+		_, err := conn.Exec("DROP TABLE IF EXISTS tpt_people")
 		if err != nil {
 			t.Fatal(err)
 			t.FailNow()
 			return
 		}
 
-		_, err = conn.Exec("DROP TABLE IF EXISTS employees")
+		_, err = conn.Exec("DROP TABLE IF EXISTS tpt_employees")
 		if err != nil {
 			t.Fatal(err)
 			t.FailNow()
 			return
 		}
 
-		_, err = conn.Exec("DROP TABLE IF EXISTS managers")
+		_, err = conn.Exec("DROP TABLE IF EXISTS tpt_managers")
 		if err != nil {
 			t.Fatal(err)
 			t.FailNow()
@@ -39,7 +39,7 @@ func serverTest(t *testing.T, file string, cb func(db *Client, definitions *type
 			timezone = " with time zone"
 		}
 
-		_, err = conn.Exec("CREATE TABLE employees (ID " + primaryKey_decl + ", ID1 int, " +
+		_, err = conn.Exec("CREATE TABLE tpt_employees (ID " + primaryKey_decl + ", ID1 int, " +
 			"Name varchar(256), " +
 			"Name2 varchar(256), " +
 			"Age int, " +
@@ -56,7 +56,7 @@ func serverTest(t *testing.T, file string, cb func(db *Client, definitions *type
 			return
 		}
 
-		_, err = conn.Exec("CREATE TABLE managers (ID " + primaryKey_decl + ", ID1 int, " +
+		_, err = conn.Exec("CREATE TABLE tpt_managers (ID " + primaryKey_decl + ", ID1 int, " +
 			"Name varchar(256), " +
 			"Name2 varchar(256), " +
 			"Age int, " +
@@ -74,7 +74,7 @@ func serverTest(t *testing.T, file string, cb func(db *Client, definitions *type
 			return
 		}
 
-		_, err = conn.Exec("CREATE TABLE people (ID " + primaryKey_decl + ", ID1 int, " +
+		_, err = conn.Exec("CREATE TABLE tpt_people (ID " + primaryKey_decl + ", ID1 int, " +
 			"Name varchar(256), " +
 			"Name2 varchar(256), " +
 			"Age int, " +

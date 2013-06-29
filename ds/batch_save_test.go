@@ -18,40 +18,40 @@ var (
 		"type":     "wbem_param"}
 
 	if1 = map[string]interface{}{
-		"name":          "1",
-		"ifDescr":       "Software Loopback Interface 1",
-		"ifIndex":       1,
-		"ifMtu":         1500,
-		"ifPhysAddress": "",
-		"ifSpeed":       1073741824,
-		"ifType":        24}
+		"name":           "1",
+		"if_descr":       "Software Loopback Interface 1",
+		"if_index":       1,
+		"if_mtu":         1500,
+		"if_physAddress": "",
+		"if_speed":       1073741824,
+		"if_type":        24}
 	if2 = map[string]interface{}{
-		"name":          "9",
-		"ifDescr":       "RAS Async Adapter",
-		"ifIndex":       9,
-		"ifMtu":         0,
-		"ifPhysAddress": "20:41:53:59:4e:ff",
-		"ifSpeed":       0,
-		"ifType":        23}
+		"name":           "9",
+		"if_descr":       "RAS Async Adapter",
+		"if_index":       9,
+		"if_mtu":         0,
+		"if_physAddress": "20:41:53:59:4e:ff",
+		"if_speed":       0,
+		"if_type":        23}
 	ip1 = map[string]interface{}{
 		"name":         "127.0.0.1",
 		"address":      "127.0.0.1",
 		"bcastAddress": 1,
-		"ifIndex":      1,
+		"if_index":     1,
 		"netmask":      "255.0.0.0",
 		"reasmMaxSize": 65535}
 	ip2 = map[string]interface{}{
 		"name":         "169.254.67.142",
 		"address":      "169.254.67.142",
 		"bcastAddress": 1,
-		"ifIndex":      27,
+		"if_index":     27,
 		"netmask":      "255.255.0.0",
 		"reasmMaxSize": 65535}
 	ip3 = map[string]interface{}{
 		"name":         "192.168.1.9",
 		"address":      "192.168.1.9",
 		"bcastAddress": 1,
-		"ifIndex":      13,
+		"if_index":     13,
 		"netmask":      "255.255.255.0",
 		"reasmMaxSize": 65535}
 
@@ -62,21 +62,21 @@ var (
 	action2 = map[string]interface{}{"name": "action2", "type": "redis_command", "command": "c222", "arg0": "3332"}
 
 	js = map[string]interface{}{
-		"$access_param": []map[string]interface{}{snmp_params, wbem_params},
-		"$address":      []interface{}{ip1, ip2, ip3},
-		"$interface":    map[string]interface{}{"1": if1, "9": if2},
-		"$trigger":      []interface{}{rule1, rule2},
-		"address":       "192.168.1.9",
-		"catalog":       2,
-		"description":   "Hardware: Intel64 Family 6 Model 58 Stepping 9 AT/AT COMPATIBLE - Software:Windows Version 6.1 (Build 7601 Multiprocessor Free)",
-		"location":      "",
-		"name":          "meifakun-PC",
-		"oid":           "1.3.6.1.4.1.311.1.1.3.1.1",
-		"services":      76}
+		"$access_param":        []map[string]interface{}{snmp_params, wbem_params},
+		"$network_address":     []interface{}{ip1, ip2, ip3},
+		"$network_device_port": map[string]interface{}{"1": if1, "9": if2},
+		"$trigger":             []interface{}{rule1, rule2},
+		"address":              "192.168.1.9",
+		"description":          "Hardware: Intel64 Family 6 Model 58 Stepping 9 AT/AT COMPATIBLE - Software:Windows Version 6.1 (Build 7601 Multiprocessor Free)",
+		"location":             "",
+		"name":                 "meifakun-PC",
+		"device_type":          2,
+		"oid":                  "1.3.6.1.4.1.311.1.1.3.1.1",
+		"services":             76}
 
 	dev_js = map[string]interface{}{
 		"address":     "192.168.1.9",
-		"catalog":     2,
+		"device_type": 2,
 		"description": "Hardware: Intel64 Family 6 Model 58 Stepping 9 AT/AT COMPATIBLE - Software:Windows Version 6.1 (Build 7601 Multiprocessor Free)",
 		"location":    "",
 		"name":        "meifakun-PC",
@@ -104,16 +104,16 @@ func checkDevice(t *testing.T, actual, excepted map[string]interface{}) {
 	for _, name := range []string{"address", "description", "location", "name", "oid"} {
 		checkStringField(t, actual, excepted, name)
 	}
-	for _, name := range []string{"catalog", "services"} {
+	for _, name := range []string{"device_type"} {
 		checkIntField(t, actual, excepted, name)
 	}
 }
 
 func checkInterface(t *testing.T, actual, excepted map[string]interface{}) {
-	for _, name := range []string{"ifDescr", "ifPhysAddress"} {
+	for _, name := range []string{"if_descr", "if_physAddress"} {
 		checkStringField(t, actual, excepted, name)
 	}
-	for _, name := range []string{"ifIndex", "ifMtu", "ifSpeed", "ifType"} {
+	for _, name := range []string{"if_index", "if_mtu", "if_speed", "if_type"} {
 		checkIntField(t, actual, excepted, name)
 	}
 }
@@ -121,7 +121,7 @@ func checkAddress(t *testing.T, actual, excepted map[string]interface{}) {
 	for _, name := range []string{"address", "netmask"} {
 		checkStringField(t, actual, excepted, name)
 	}
-	for _, name := range []string{"bcastAddress", "ifIndex", "reasmMaxSize"} {
+	for _, name := range []string{"bcastAddress", "if_index", "reasmMaxSize"} {
 		checkIntField(t, actual, excepted, name)
 	}
 }
@@ -148,57 +148,57 @@ func checkRedisAction(t *testing.T, actual, excepted map[string]interface{}) {
 
 func TestIntCreateDevice(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
-		deleteBy(t, client, "interface", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
+		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
 		deleteBy(t, client, "action", map[string]string{})
 
-		id := create(t, client, "device", js)
+		id := create(t, client, "network_device", js)
 
-		checkDevice(t, findById(t, client, "device", id), js)
+		checkDevice(t, findById(t, client, "network_device", id), js)
 		t.Log("find device ok")
-		checkInterface(t, findOne(t, client, "interface", map[string]string{"device_id": id, "ifIndex": "1"}), if1)
-		checkInterface(t, findOne(t, client, "interface", map[string]string{"device_id": id, "ifIndex": "9"}), if2)
+		checkInterface(t, findOne(t, client, "network_device_port", map[string]string{"device_id": id, "if_index": "1"}), if1)
+		checkInterface(t, findOne(t, client, "network_device_port", map[string]string{"device_id": id, "if_index": "9"}), if2)
 
-		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
-		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
+		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule1"}), rule1)
+		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule2"}), rule2)
 
 		checkSnmpParams(t, findOne(t, client, "snmp_param", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
 }
 func TestIntCreateDeviceByParent(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
-		deleteBy(t, client, "interface", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
+		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
 		deleteBy(t, client, "action", map[string]string{})
 
-		id := create(t, client, "device", dev_js)
+		id := create(t, client, "network_device", dev_js)
 
 		// "$access_param": []map[string]interface{}{snmp_params, wbem_params},
 		// "$address":      []interface{}{ip1, ip2, ip3},
 		// "$interface":    map[string]interface{}{"1": if1, "9": if2},
 		// "$trigger":      []interface{}{rule1, rule2},
 
-		createByParent(t, client, "device", id, "snmp_param", snmp_params)
-		createByParent(t, client, "device", id, "wbem_param", wbem_params)
-		createByParent(t, client, "device", id, "address", ip1)
-		createByParent(t, client, "device", id, "address", ip2)
-		createByParent(t, client, "device", id, "address", ip3)
+		createByParent(t, client, "network_device", id, "snmp_param", snmp_params)
+		createByParent(t, client, "network_device", id, "wbem_param", wbem_params)
+		createByParent(t, client, "network_device", id, "network_address", ip1)
+		createByParent(t, client, "network_device", id, "network_address", ip2)
+		createByParent(t, client, "network_device", id, "network_address", ip3)
 
-		createByParent(t, client, "device", id, "interface", if1)
-		createByParent(t, client, "device", id, "interface", if2)
+		createByParent(t, client, "network_device", id, "network_device_port", if1)
+		createByParent(t, client, "network_device", id, "network_device_port", if2)
 
-		createByParent(t, client, "device", id, "trigger", rule1)
-		createByParent(t, client, "device", id, "trigger", rule2)
+		createByParent(t, client, "network_device", id, "trigger", rule1)
+		createByParent(t, client, "network_device", id, "trigger", rule2)
 
-		checkDevice(t, findById(t, client, "device", id), js)
+		checkDevice(t, findById(t, client, "network_device", id), js)
 		t.Log("find device ok")
-		checkInterface(t, findOne(t, client, "interface", map[string]string{"device_id": id, "ifIndex": "1"}), if1)
-		checkInterface(t, findOne(t, client, "interface", map[string]string{"device_id": id, "ifIndex": "9"}), if2)
+		checkInterface(t, findOne(t, client, "network_device_port", map[string]string{"device_id": id, "if_index": "1"}), if1)
+		checkInterface(t, findOne(t, client, "network_device_port", map[string]string{"device_id": id, "if_index": "9"}), if2)
 
-		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
-		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
+		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule1"}), rule1)
+		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule2"}), rule2)
 
 		checkSnmpParams(t, findOne(t, client, "snmp_param", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
@@ -206,13 +206,13 @@ func TestIntCreateDeviceByParent(t *testing.T) {
 
 func TestIntQueryByIncludes(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
-		deleteBy(t, client, "interface", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
+		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
 		deleteBy(t, client, "action", map[string]string{})
 
-		id := create(t, client, "device", js)
-		drv := findByIdWithIncludes(t, client, "device", id, "interface,trigger,snmp_param")
+		id := create(t, client, "network_device", js)
+		drv := findByIdWithIncludes(t, client, "network_device", id, "network_device_port,trigger,snmp_param")
 
 		checkDevice(t, drv, js)
 		bs, e := json.MarshalIndent(drv, "", "  ")
@@ -222,29 +222,29 @@ func TestIntQueryByIncludes(t *testing.T) {
 			t.Log(string(bs))
 		}
 
-		checkInterface(t, findOneFrom(t, drv, "interface", map[string]string{"ifIndex": "1"}), if1)
-		checkInterface(t, findOneFrom(t, drv, "interface", map[string]string{"ifIndex": "9"}), if2)
+		checkInterface(t, findOneFrom(t, drv, "network_device_port", map[string]string{"if_index": "1"}), if1)
+		checkInterface(t, findOneFrom(t, drv, "network_device_port", map[string]string{"if_index": "9"}), if2)
 		if ExistsInChilren(t, drv, "snmp_param", map[string]string{"type": "wbem_params"}) ||
 			ExistsInChilren(t, drv, "wbem_param", map[string]string{"type": "wbem_params"}) ||
 			ExistsInChilren(t, drv, "access_param", map[string]string{"type": "wbem_params"}) {
 			t.Error("wbem_params in result")
 		}
 
-		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
-		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
+		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule1"}), rule1)
+		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule2"}), rule2)
 		checkSnmpParams(t, findOneFrom(t, drv, "snmp_param", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
 }
 
 func TestIntQueryByIncludesAll(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
-		deleteBy(t, client, "interface", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
+		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
 		deleteBy(t, client, "action", map[string]string{})
 
-		id := create(t, client, "device", js)
-		drv := findByIdWithIncludes(t, client, "device", id, "*")
+		id := create(t, client, "network_device", js)
+		drv := findByIdWithIncludes(t, client, "network_device", id, "*")
 
 		checkDevice(t, drv, js)
 		bs, e := json.MarshalIndent(drv, "", "  ")
@@ -254,37 +254,37 @@ func TestIntQueryByIncludesAll(t *testing.T) {
 			t.Log(string(bs))
 		}
 
-		checkInterface(t, findOneFrom(t, drv, "interface", map[string]string{"ifIndex": "1"}), if1)
-		checkInterface(t, findOneFrom(t, drv, "interface", map[string]string{"ifIndex": "9"}), if2)
+		checkInterface(t, findOneFrom(t, drv, "network_device_port", map[string]string{"if_index": "1"}), if1)
+		checkInterface(t, findOneFrom(t, drv, "network_device_port", map[string]string{"if_index": "9"}), if2)
 		if ExistsInChilren(t, drv, "attributes", map[string]string{"type": "wbem_params"}) ||
 			ExistsInChilren(t, drv, "attributes", map[string]string{"type": "wbem_params"}) ||
 			ExistsInChilren(t, drv, "attributes", map[string]string{"type": "wbem_params"}) {
 			t.Error("wbem_params in result")
 		}
 
-		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"}), rule1)
-		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"}), rule2)
+		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule1"}), rule1)
+		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule2"}), rule2)
 		checkSnmpParams(t, findOneFrom(t, drv, "attributes", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
 }
 
 func TestIntQueryByParent(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
-		deleteBy(t, client, "interface", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
+		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
 		deleteBy(t, client, "action", map[string]string{})
 
-		id := create(t, client, "device", js)
-		interfaces := findByParent(t, client, "device", id, "interface", nil)
+		id := create(t, client, "network_device", js)
+		interfaces := findByParent(t, client, "network_device", id, "network_device_port", nil)
 
-		d1 := searchBy(interfaces, func(r map[string]interface{}) bool { return fmt.Sprint(r["ifIndex"]) == "1" })
-		d2 := searchBy(interfaces, func(r map[string]interface{}) bool { return fmt.Sprint(r["ifIndex"]) == "9" })
+		d1 := searchBy(interfaces, func(r map[string]interface{}) bool { return fmt.Sprint(r["if_index"]) == "1" })
+		d2 := searchBy(interfaces, func(r map[string]interface{}) bool { return fmt.Sprint(r["if_index"]) == "9" })
 
 		checkInterface(t, d1, if1)
 		checkInterface(t, d2, if2)
 
-		triggers := findByParent(t, client, "device", id, "metric_trigger", nil)
+		triggers := findByParent(t, client, "network_device", id, "metric_trigger", nil)
 
 		r1 := searchBy(triggers, func(r map[string]interface{}) bool { return fmt.Sprint(r["name"]) == "rule1" })
 		r2 := searchBy(triggers, func(r map[string]interface{}) bool { return fmt.Sprint(r["name"]) == "rule2" })
@@ -318,23 +318,23 @@ func TestIntQueryByParent(t *testing.T) {
 
 func TestIntQueryByChild(t *testing.T) {
 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
-		deleteBy(t, client, "device", map[string]string{})
-		deleteBy(t, client, "interface", map[string]string{})
+		deleteBy(t, client, "network_device", map[string]string{})
+		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
 		deleteBy(t, client, "action", map[string]string{})
 
-		id := create(t, client, "device", js)
+		id := create(t, client, "network_device", js)
 
-		ifc1 := findOne(t, client, "interface", map[string]string{"device_id": id, "ifIndex": "1"})
-		ifc2 := findOne(t, client, "interface", map[string]string{"device_id": id, "ifIndex": "9"})
+		ifc1 := findOne(t, client, "network_device_port", map[string]string{"device_id": id, "if_index": "1"})
+		ifc2 := findOne(t, client, "network_device_port", map[string]string{"device_id": id, "if_index": "9"})
 
-		checkDevice(t, findByChild(t, client, "device", "interface", fmt.Sprint(ifc1["id"])), js)
-		checkDevice(t, findByChild(t, client, "device", "interface", fmt.Sprint(ifc2["id"])), js)
+		checkDevice(t, findByChild(t, client, "network_device", "network_device_port", fmt.Sprint(ifc1["id"])), js)
+		checkDevice(t, findByChild(t, client, "network_device", "network_device_port", fmt.Sprint(ifc2["id"])), js)
 
-		tr1 := findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule1"})
-		tr2 := findOne(t, client, "trigger", map[string]string{"parent_type": "device", "parent_id": id, "name": "rule2"})
+		tr1 := findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule1"})
+		tr2 := findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule2"})
 
-		checkDevice(t, findByChild(t, client, "device", "trigger", fmt.Sprint(tr1["id"])), js)
-		checkDevice(t, findByChild(t, client, "device", "trigger", fmt.Sprint(tr2["id"])), js)
+		checkDevice(t, findByChild(t, client, "network_device", "trigger", fmt.Sprint(tr1["id"])), js)
+		checkDevice(t, findByChild(t, client, "network_device", "trigger", fmt.Sprint(tr2["id"])), js)
 	})
 }

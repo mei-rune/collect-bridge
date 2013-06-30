@@ -36,6 +36,15 @@ func urlGet(t *testing.T, managed_type, managed_id, target string) commons.Resul
 	self := &commons.HttpClient{Url: "http://127.0.0.1" + *address}
 	url := self.CreateUrl().Concat("metrics", managed_type, managed_id, target).ToUrl()
 	t.Log(url)
+	//fmt.Println(url)
+	return self.Invoke("GET", url, nil, 200)
+}
+
+func nativeGet(t *testing.T, ip, target string, params map[string]string) commons.Result {
+	self := &commons.HttpClient{Url: "http://127.0.0.1" + *address}
+	url := self.CreateUrl().Concat("metrics", ip, target).WithQueries(params, "").ToUrl()
+	t.Log(url)
+	//fmt.Println(url)
 	return self.Invoke("GET", url, nil, 200)
 }
 
@@ -46,6 +55,7 @@ func srvTest(t *testing.T, file string, cb func(client *ds.Client, definitions *
 
 		listener, e := net.Listen("tcp", *address)
 		if nil != e {
+			t.Error("start tcp listen failed,", e)
 			return
 		}
 		ch := make(chan string)
@@ -60,6 +70,7 @@ func srvTest(t *testing.T, file string, cb func(client *ds.Client, definitions *
 
 		s := <-ch
 		if "ok" != s {
+			t.Error("start http listen failed")
 			return
 		}
 
@@ -113,6 +124,100 @@ func TestGetTableBasic(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 
 		res := urlGet(t, "network_device", id, "sys")
+		if res.HasError() {
+			t.Error(res.Error())
+			return
+		}
+		if nil == res.InterfaceValue() {
+			t.Error("values is nil")
+		}
+	})
+}
+
+func TestNativeGetFailed(t *testing.T) {
+	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+		_, e := client.DeleteBy("network_device", emptyParams)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		res := nativeGet(t, "127.0.0.1", "sys.oid", map[string]string{"snmp.version": "v2c"})
+		if !res.HasError() {
+			t.Error("errors is nil")
+			return
+		}
+		if "'snmp.read_community' is required." != res.ErrorMessage() {
+			t.Error(res.Error())
+		}
+	})
+}
+
+func TestNativeGetFailedWithErrorPort(t *testing.T) {
+	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+		_, e := client.DeleteBy("network_device", emptyParams)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		res := nativeGet(t, "127.0.0.1:165", "sys.oid", map[string]string{"snmp.version": "v2c"})
+		if !res.HasError() {
+			t.Error("errors is nil")
+			return
+		}
+		if "'snmp.read_community' is required." != res.ErrorMessage() {
+			t.Error(res.Error())
+		}
+	})
+}
+func TestNativeGetTableFailed(t *testing.T) {
+	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+		_, e := client.DeleteBy("network_device", emptyParams)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		res := nativeGet(t, "127.0.0.1", "sys", map[string]string{"snmp.version": "v2c"})
+		if !res.HasError() {
+			t.Error("errors is nil")
+			return
+		}
+		if "'snmp.read_community' is required." != res.ErrorMessage() {
+			t.Error(res.Error())
+		}
+	})
+}
+
+func TestNativeGetBasic(t *testing.T) {
+	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+		_, e := client.DeleteBy("network_device", emptyParams)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		res := nativeGet(t, "127.0.0.1", "sys.oid", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		if res.HasError() {
+			t.Error(res.Error())
+			return
+		}
+
+		if nil == res.InterfaceValue() {
+			t.Error("values is nil")
+		}
+	})
+}
+
+func TestNativeGetTableBasic(t *testing.T) {
+	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+		_, e := client.DeleteBy("network_device", emptyParams)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		res := nativeGet(t, "127.0.0.1", "sys", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
 		if res.HasError() {
 			t.Error(res.Error())
 			return

@@ -22,11 +22,11 @@ import (
 )
 
 var (
-	models_file = flag.String("models", "etc/mj_models.xml", "the name of models file")
-	dbUrl       = flag.String("dburl", "host=127.0.0.1 dbname=ds user=postgres password=mfk sslmode=disable", "the db url")
-	drv         = flag.String("db", "postgres", "the db driver")
-	goroutines  = flag.Int("connections", 10, "the db connection number")
-	address     = flag.String("http", ":7071", "the address of http")
+	models_file = flag.String("ds.models", "etc/mj_models.xml", "the name of models file")
+	dbUrl       = flag.String("ds.dburl", "host=127.0.0.1 dbname=tpt_extreme user=tpt password=extreme sslmode=disable", "the db url")
+	drv         = flag.String("ds.db", "postgres", "the db driver")
+	goroutines  = flag.Int("ds.connections", 10, "the db connection number")
+	address     = flag.String("ds.http", ":7071", "the address of http")
 
 	//test_db    = flag.String("test.db", "sqlite3", "the db driver name for test")
 	//test_dbUrl = flag.String("test.dburl", "test.sqlite3.db", "the db url")
@@ -200,7 +200,6 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 	definitions, err := types.LoadTableDefinitions(file)
 	if nil != err {
 		t.Errorf("read file '%s' failed, %s", file, err.Error())
-		t.FailNow()
 		return
 	}
 	conn, err := sql.Open(*test_db, *test_dbUrl)
@@ -230,6 +229,7 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 
 	listener, e := net.Listen("tcp", *address)
 	if nil != e {
+		t.Errorf("listen at '%s' failed, %s", *address, e.Error())
 		return
 	}
 
@@ -244,6 +244,7 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 
 	s := <-ch
 	if "ok" != s {
+		t.Errorf("listen at '%s' failed", *address)
 		return
 	}
 

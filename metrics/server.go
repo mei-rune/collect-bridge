@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+var (
+	empty_mo    = map[string]interface{}{}
+	alias_names = map[string]string{"snmp": "snmp_param"}
+)
+
 type server struct {
 	caches     *ds.Caches
 	mo_cache   *ds.Cache
@@ -18,13 +23,13 @@ type server struct {
 func newServer(ds_url string, refresh time.Duration, params map[string]interface{}) (*server, error) {
 	dispatch, e := newdispatcher(params)
 	if nil != e {
-		return nil, e
+		return nil, errors.New("new dispatcher failed, " + e.Error())
 	}
 	caches := ds.NewCaches(refresh, ds.NewClient(ds_url),
 		"*", map[string]string{"snmp": "snmp_param"})
 	mo_cache, e := caches.GetCache("managed_object")
 	if nil != e {
-		return nil, e
+		return nil, errors.New("get cache 'managed_object' failed, " + e.Error())
 	}
 	if nil == mo_cache {
 		return nil, errors.New("table 'managed_object' is not exists.")
@@ -82,24 +87,78 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 		managed_id:   managed_id,
 		mo:           commons.InterfaceMap(mo),
 		local:        make(map[string]commons.Map),
-		alias:        map[string]string{"snmp": "snmp_param"},
+		alias:        alias_names,
+		proxy:        &metric_proxy{dispatcher: self.dispatcher}}
+
+	self.returnResult(resp, invoker(self.dispatcher, metric_name, params))
+}
+
+func (self *server) native_invoke(req *restful.Request, resp *restful.Response, invoker invoke_func) {
+	ip := req.PathParameter("ip")
+	if 0 == len(ip) {
+		self.returnResult(resp, commons.ReturnWithIsRequired("ip"))
+		return
+	}
+	metric_name := req.PathParameter("metric_name")
+	if 0 == len(metric_name) {
+		self.returnResult(resp, commons.ReturnWithIsRequired("metric_name"))
+		return
+	}
+
+	query_params := make(map[string]string)
+	query_params["@address"] = ip
+	query_params["metric_name"] = metric_name
+	for k, v := range req.Request.URL.Query() {
+		query_params[k] = v[len(v)-1]
+	}
+
+	params := &context{params: query_params,
+		managed_type: "unknow_type",
+		managed_id:   "unknow_id",
+		mo:           commons.InterfaceMap(empty_mo),
+		local:        make(map[string]commons.Map),
+		alias:        alias_names,
 		proxy:        &metric_proxy{dispatcher: self.dispatcher}}
 
 	self.returnResult(resp, invoker(self.dispatcher, metric_name, params))
 }
 
 func (self *server) Get(req *restful.Request, resp *restful.Response) {
+	//fmt.Println("Get")
 	self.invoke(req, resp, (*dispatcher).Get)
 }
 
 func (self *server) Put(req *restful.Request, resp *restful.Response) {
+	//fmt.Println("Put")
 	self.invoke(req, resp, (*dispatcher).Put)
 }
 
 func (self *server) Create(req *restful.Request, resp *restful.Response) {
+	//fmt.Println("Create")
 	self.invoke(req, resp, (*dispatcher).Create)
 }
 
 func (self *server) Delete(req *restful.Request, resp *restful.Response) {
+	//fmt.Println("Delete")
 	self.invoke(req, resp, (*dispatcher).Delete)
+}
+
+func (self *server) NativeGet(req *restful.Request, resp *restful.Response) {
+	//fmt.Println("NativeGet")
+	self.native_invoke(req, resp, (*dispatcher).Get)
+}
+
+func (self *server) NativePut(req *restful.Request, resp *restful.Response) {
+	//fmt.Println("NativePut")
+	self.native_invoke(req, resp, (*dispatcher).Put)
+}
+
+func (self *server) NativeCreate(req *restful.Request, resp *restful.Response) {
+	//fmt.Println("NativeCreate")
+	self.native_invoke(req, resp, (*dispatcher).Create)
+}
+
+func (self *server) NativeDelete(req *restful.Request, resp *restful.Response) {
+	//fmt.Println("NativeDelete")
+	self.native_invoke(req, resp, (*dispatcher).Delete)
 }

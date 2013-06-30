@@ -51,13 +51,13 @@ func Main() {
 	snmp := snmp.NewSnmpDriver(*snmp_timeout, nil)
 	e := snmp.Start()
 	if nil != e {
-		fmt.Println(e)
+		fmt.Println("start snmp failed,", e)
 		return
 	}
 
 	srv, e := newServer(*ds_url, *refresh, map[string]interface{}{"snmp": snmp})
 	if nil != e {
-		fmt.Println(e)
+		fmt.Println("init server failed,", e)
 		return
 	}
 
@@ -92,6 +92,26 @@ func Main() {
 		Doc("delete a metric").
 		Param(ws.PathParameter("type", "type of the instance").DataType("string")).
 		Param(ws.PathParameter("id", "identifier of the instance").DataType("string")).
+		Param(ws.PathParameter("metric_name", "name of the metric").DataType("string"))) // on the response
+
+	ws.Route(ws.GET("/{ip}/{metric_name}").To(srv.NativeGet).
+		Doc("get a metric").
+		Param(ws.PathParameter("ip", "ip of the instance").DataType("string")).
+		Param(ws.PathParameter("metric_name", "name of the metric").DataType("string"))) // on the response
+
+	ws.Route(ws.PUT("/{ip}/{metric_name}").To(srv.NativePut).
+		Doc("put a metric").
+		Param(ws.PathParameter("ip", "ip of the instance").DataType("string")).
+		Param(ws.PathParameter("metric_name", "name of the metric").DataType("string"))) // on the response
+
+	ws.Route(ws.POST("/{ip}/{metric_name}").To(srv.NativeCreate).
+		Doc("create a metric").
+		Param(ws.PathParameter("ip", "ip of the instance").DataType("string")).
+		Param(ws.PathParameter("metric_name", "name of the metric").DataType("string"))) // on the response
+
+	ws.Route(ws.DELETE("/{ip}/{metric_name}").To(srv.NativeDelete).
+		Doc("delete a metric").
+		Param(ws.PathParameter("ip", "ip of the instance").DataType("string")).
 		Param(ws.PathParameter("metric_name", "name of the metric").DataType("string"))) // on the response
 
 	restful.Add(ws)

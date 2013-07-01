@@ -48,12 +48,12 @@ func IsRedisCommand(cmd string) bool {
 }
 
 func NewRedisAction(attributes, ctx map[string]interface{}) (ExecuteAction, error) {
-	name, e := commons.TryGetString(attributes, "name")
+	name, e := commons.GetString(attributes, "name")
 	if nil != e {
 		return nil, NameIsRequired
 	}
 
-	command, e := commons.TryGetString(attributes, "command")
+	command, e := commons.GetString(attributes, "command")
 	if nil != e {
 		return nil, CommandIsRequired
 	}
@@ -71,12 +71,12 @@ func NewRedisAction(attributes, ctx map[string]interface{}) (ExecuteAction, erro
 	}
 
 	return &RedisAction{Name: name,
-		Description: commons.GetString(attributes, "description", ""),
+		Description: commons.GetStringWithDefault(attributes, "description", ""),
 		Command:     command,
 		channel:     channel,
-		Arg0:        commons.GetString(attributes, "arg0", ""),
-		Arg1:        commons.GetString(attributes, "arg1", ""),
-		Arg2:        commons.GetString(attributes, "arg2", ""),
-		Arg3:        commons.GetString(attributes, "arg3", ""),
-		Arg4:        commons.GetString(attributes, "arg4", "")}, nil
+		Arg0:        commons.GetStringWithDefault(attributes, "arg0", ""),
+		Arg1:        commons.GetStringWithDefault(attributes, "arg1", ""),
+		Arg2:        commons.GetStringWithDefault(attributes, "arg2", ""),
+		Arg3:        commons.GetStringWithDefault(attributes, "arg3", ""),
+		Arg4:        commons.GetStringWithDefault(attributes, "arg4", "")}, nil
 }

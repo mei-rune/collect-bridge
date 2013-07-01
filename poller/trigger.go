@@ -3,6 +3,7 @@ package poller
 import (
 	"bytes"
 	"commons"
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
@@ -61,13 +62,13 @@ func (self *Trigger) CallActions(t time.Time, res interface{}) {
 const every = "@every "
 
 var (
-	ExpressionSyntexError = commons.BadRequest("'expression' is error syntex")
+	ExpressionSyntexError = errors.New("'expression' is error syntex")
 	NameIsRequired        = commons.IsRequired("name")
 	CommandIsRequired     = commons.IsRequired("command")
 )
 
 func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map[string]interface{}) (*Trigger, error) {
-	name := commons.GetString(attributes, "name", "")
+	name := commons.GetStringWithDefault(attributes, "name", "")
 	if "" == name {
 		return nil, NameIsRequired
 	}
@@ -76,12 +77,12 @@ func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 		return nil, commons.IsRequired("callback")
 	}
 
-	expression := commons.GetString(attributes, "expression", "")
+	expression := commons.GetStringWithDefault(attributes, "expression", "")
 	if "" == expression {
 		return nil, commons.IsRequired("expression")
 	}
 
-	action_specs, e := commons.TryGetObjects(attributes, "$action")
+	action_specs, e := commons.GetObjects(attributes, "$action")
 	if nil != e {
 		return nil, commons.IsRequired("$action")
 	}
@@ -97,7 +98,7 @@ func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 	if strings.HasPrefix(expression, every) {
 		interval, err := commons.ParseDuration(expression[len(every):])
 		if nil != err {
-			return nil, commons.BadRequest(ExpressionSyntexError.Error() + ", " + err.Error())
+			return nil, errors.New(ExpressionSyntexError.Error() + ", " + err.Error())
 		}
 
 		intervalTrigger := &IntervalTrigger{control_ch: make(chan string, 1),
@@ -106,8 +107,8 @@ func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 
 		trigger := &Trigger{Name: name,
 			Expression:  expression,
-			Attachment:  commons.GetString(attributes, "attachment", ""),
-			Description: commons.GetString(attributes, "description", ""),
+			Attachment:  commons.GetStringWithDefault(attributes, "attachment", ""),
+			Description: commons.GetStringWithDefault(attributes, "description", ""),
 			Callback:    callback,
 			Actions:     actions,
 			start: func(t *Trigger) error {

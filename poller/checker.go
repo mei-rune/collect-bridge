@@ -104,7 +104,7 @@ func get_int64(value interface{}, name string) (int64, error) {
 	if !ok {
 		return 0, fmt.Errorf("value is not a map[string]interface{}, actual is %T", value)
 	}
-	return commons.TryGetInt64(m, name)
+	return commons.GetInt64(m, name)
 }
 
 func int_gt(attribute string, operand int64) jsonFunc {
@@ -167,7 +167,7 @@ func get_float(value interface{}, name string) (float64, error) {
 	if !ok {
 		return 0, fmt.Errorf("value is not a map[string]interface{}, actual is %T", value)
 	}
-	return commons.TryGetFloat(m, name)
+	return commons.GetFloat(m, name)
 }
 
 func float_gt(attribute string, operand float64) jsonFunc {
@@ -230,7 +230,7 @@ func get_string(value interface{}, name string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("value is not a map[string]interface{}, actual is %T", value)
 	}
-	return commons.TryGetString(m, name)
+	return commons.GetString(m, name)
 }
 
 func string_not_contains(attribute string, operand string) jsonFunc {

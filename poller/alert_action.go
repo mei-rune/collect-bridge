@@ -3,6 +3,7 @@ package poller
 import (
 	"bytes"
 	"commons"
+	"errors"
 	"fmt"
 	"runtime"
 	"time"
@@ -82,12 +83,12 @@ func (self *AlertAction) Run(t time.Time, value interface{}) {
 var (
 	ExpressionStyleIsRequired    = commons.IsRequired("expression_style")
 	ExpressionCodeIsRequired     = commons.IsRequired("expression_code")
-	NotificationChannelIsNil     = commons.BadRequest("'notification_channel' is nil")
-	NotificationChannelTypeError = commons.BadRequest("'notification_channel' is not a chan map[string]interface{}")
+	NotificationChannelIsNil     = errors.New("'notification_channel' is nil")
+	NotificationChannelTypeError = errors.New("'notification_channel' is not a chan map[string]interface{}")
 )
 
 func NewAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, error) {
-	name, e := commons.TryGetString(attributes, "name")
+	name, e := commons.GetString(attributes, "name")
 	if nil != e {
 		return nil, NameIsRequired
 	}
@@ -108,19 +109,19 @@ func NewAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, erro
 
 	return &AlertAction{name: name,
 		//description: commons.GetString(attributes, "description", ""),
-		maxRepeated: commons.GetInt(attributes, "max_repeated", 0),
+		maxRepeated: commons.GetIntWithDefault(attributes, "max_repeated", 0),
 		result:      map[string]interface{}{"name": name},
 		channel:     channel,
 		checker:     checker}, nil
 }
 
 func makeChecker(attributes, ctx map[string]interface{}) (Checker, error) {
-	style, e := commons.TryGetString(attributes, "expression_style")
+	style, e := commons.GetString(attributes, "expression_style")
 	if nil != e {
 		return nil, ExpressionStyleIsRequired
 	}
 
-	code, e := commons.TryGetString(attributes, "expression_code")
+	code, e := commons.GetString(attributes, "expression_code")
 	if nil != e {
 		return nil, ExpressionCodeIsRequired
 	}
@@ -129,5 +130,5 @@ func makeChecker(attributes, ctx map[string]interface{}) (Checker, error) {
 	case "json":
 		return makeJsonChecker(code)
 	}
-	return nil, commons.BadRequest("expression style '" + style + "' is unknown")
+	return nil, errors.New("expression style '" + style + "' is unknown")
 }

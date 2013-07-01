@@ -37,15 +37,15 @@ func (self *metricJob) Run(t time.Time) {
 }
 
 func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
-	metric, e := commons.TryGetString(attributes, "metric")
+	metric, e := commons.GetString(attributes, "metric")
 	if nil != e {
 		return nil, errors.New("'metric' is required, " + e.Error())
 	}
-	parentType, e := commons.TryGetString(attributes, "parent_type")
+	parentType, e := commons.GetString(attributes, "parent_type")
 	if nil != e {
 		return nil, errors.New("'parent_type' is required, " + e.Error())
 	}
-	parentId, e := commons.TryGetString(attributes, "parent_id")
+	parentId, e := commons.GetString(attributes, "parent_id")
 	if nil != e {
 		return nil, errors.New("'parent_id' is required, " + e.Error())
 	}
@@ -67,7 +67,7 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 }
 
 // func createRequest(nm string, attributes, ctx map[string]interface{}) (string, bytes.Buffer, error) {
-// 	url, e := commons.TryGetString(ctx, "metric_url")
+// 	url, e := commons.GetString(ctx, "metric_url")
 // 	if nil != e {
 // 		return nil, errors.New("'metric_url' is required, " + e.Error())
 // 	}

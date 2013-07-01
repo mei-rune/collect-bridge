@@ -43,16 +43,10 @@ func Runforever() {
 
 	client := ds.NewClient(*mdbUrl)
 	drvMgr := commons.NewDriverManager()
-	drv, e := NewKPIDriver(*address, client)
-	if nil != e {
-		fmt.Println(e)
-		return
-	}
-	drvMgr.Register("kpi", drv)
 
 	redis_channel, err := NewRedis(*redisAddress)
 	if nil != err {
-		fmt.Println(e)
+		fmt.Println(err)
 		return
 	}
 

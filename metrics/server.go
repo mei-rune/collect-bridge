@@ -21,7 +21,7 @@ type server struct {
 }
 
 func newServer(ds_url string, refresh time.Duration, params map[string]interface{}) (*server, error) {
-	dispatch, e := newdispatcher(params)
+	dispatch, e := newDispatcher(params)
 	if nil != e {
 		return nil, errors.New("new dispatcher failed, " + e.Error())
 	}

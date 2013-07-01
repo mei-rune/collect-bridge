@@ -210,6 +210,10 @@ func NewMatchers() Matchers {
 	return make([]*Matcher, 0, 5)
 }
 
+func ToFilters(matcher Matchers) []Filter {
+	return nil
+}
+
 func (self Matchers) Match(params commons.Map, debugging bool) (bool, error) {
 	if nil == self || 0 == len(self) {
 		return true, nil
@@ -241,4 +245,19 @@ func (self Matchers) Match(params commons.Map, debugging bool) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+type FilterBuilder struct {
+}
+
+func Match() *FilterBuilder {
+	return &FilterBuilder{}
+}
+
+func (self *FilterBuilder) Oid(oid string) *FilterBuilder {
+	return self
+}
+
+func (self *FilterBuilder) Build() Matchers {
+	return nil
 }

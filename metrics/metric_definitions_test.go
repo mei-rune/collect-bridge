@@ -10,7 +10,7 @@ var data_for_tests = []struct {
 	json              string
 	route_definitions []RouteDefinition
 }{
-	{`[{"level":["system","12"],"name":"interface","method":"get","file":"test1_route.lua","action":{"action":"table","method":"get","oid":"1.3.6.7","schema":"snmp"},"match":[{"method":"equal","arguments":["ss","equal(ss)"]},{"method":"start_with","arguments":["tt","start_with(tt)"]},{"method":"end_with","arguments":["aa","end_with(aa)"]},{"method":"contains","arguments":["cc","contains(cc)"]},{"method":"match","arguments":["aa","match(aa{0, 3})"]}],"categories":["default","safe"]}]`,
+	{`[{"method":"get","name":"interface","description":"","author":"","license":"","level":["system","12"],"file":"test1_route.lua","action":{"action":"table","method":"get","oid":"1.3.6.7","schema":"snmp"},"match":[{"method":"equal","arguments":["ss","equal(ss)"]},{"method":"start_with","arguments":["tt","start_with(tt)"]},{"method":"end_with","arguments":["aa","end_with(aa)"]},{"method":"contains","arguments":["cc","contains(cc)"]},{"method":"match","arguments":["aa","match(aa{0, 3})"]}],"categories":["default","safe"]}]`,
 		[]RouteDefinition{RouteDefinition{Level: []string{"system", "12"},
 			Name:   "interface",
 			Method: "get",
@@ -41,8 +41,8 @@ func TestEncode(t *testing.T) {
 		}
 		if string(bytes) != data.json {
 			t.Errorf("encode %d failed, result is not match", i)
-			t.Log("      " + data.json)
-			t.Log("      " + string(bytes))
+			t.Log("excepted is ", data.json)
+			t.Log("actual is ", string(bytes))
 		}
 	}
 }

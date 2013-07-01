@@ -321,7 +321,7 @@ func (client *UdpClient) readUDP(conn *net.UDPConn) {
 }
 
 func (client *UdpClient) handleDisConnection(err error) {
-	e := newError(SNMP_CODE_BADNET, err, "")
+	e := newError(SNMP_CODE_BADNET, err, "read from '"+client.host+"' failed")
 
 	for _, req := range client.pendings {
 		req.reply(nil, e)

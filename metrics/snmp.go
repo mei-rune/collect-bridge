@@ -259,6 +259,27 @@ func (self *snmpBase) GetTable(params commons.Map, oid, columns string,
 	return nil
 }
 
+func (self *snmpBase) OneInTable(params commons.Map, oid, columns string,
+	cb func(key string, row map[string]interface{}) error) error {
+	return self.GetTable(params, oid, columns, func(key string, row map[string]interface{}) error {
+		e := cb(key, row)
+		if nil == e {
+			return commons.InterruptError
+		}
+
+		if commons.ContinueError == e {
+			return nil
+		}
+
+		return e
+	})
+}
+
+func (self *snmpBase) EachInTable(params commons.Map, oid, columns string,
+	cb func(key string, row map[string]interface{}) error) error {
+	return self.GetTable(params, oid, columns, cb)
+}
+
 func (self *snmpBase) GetOneResult(params commons.Map, oid, columns string,
 	cb func(key string, row map[string]interface{}) (map[string]interface{}, error)) commons.Result {
 	var err error
@@ -269,6 +290,11 @@ func (self *snmpBase) GetOneResult(params commons.Map, oid, columns string,
 		if nil == e {
 			return commons.InterruptError
 		}
+
+		if commons.ContinueError == e {
+			return nil
+		}
+
 		return e
 	})
 	if nil != err {
@@ -507,58 +533,67 @@ SERVICES:
 }
 
 func init() {
-	Methods["sys.oid"] = func(params map[string]interface{}) (Method, error) {
-		drv := &systemOid{}
-		return drv, drv.Init(params)
-	}
-	Methods["sys.descr"] = func(params map[string]interface{}) (Method, error) {
-		drv := &systemDescr{}
-		return drv, drv.Init(params)
-	}
-	Methods["sys.name"] = func(params map[string]interface{}) (Method, error) {
-		drv := &systemName{}
-		return drv, drv.Init(params)
-	}
-	Methods["sys.services"] = func(params map[string]interface{}) (Method, error) {
-		drv := &systemServices{}
-		return drv, drv.Init(params)
-	}
-	Methods["sys.upTime"] = func(params map[string]interface{}) (Method, error) {
-		drv := &systemUpTime{}
-		return drv, drv.Init(params)
-	}
-	Methods["sys.type"] = func(params map[string]interface{}) (Method, error) {
-		drv := &systemType{}
-		return drv, drv.Init(params)
-	}
-	Methods["sys.location"] = func(params map[string]interface{}) (Method, error) {
-		drv := &systemLocation{}
-		return drv, drv.Init(params)
-	}
-	Methods["sys"] = func(params map[string]interface{}) (Method, error) {
-		drv := &systemInfo{}
-		return drv, drv.Init(params)
-	}
-	Methods["interface"] = func(params map[string]interface{}) (Method, error) {
-		drv := &interfaceAll{}
-		return drv, drv.Init(params)
-	}
-	Methods["interfaceDescr"] = func(params map[string]interface{}) (Method, error) {
-		drv := &interfaceDescr{}
-		return drv, drv.Init(params)
-	}
+
+	Methods["sys_oid"] = newRouteSpec("sys.oid", "the oid of system", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &systemOid{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["sys_descr"] = newRouteSpec("sys.descr", "the oid of system", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &systemDescr{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["sys_name"] = newRouteSpec("sys.name", "the name of system", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &systemName{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["sys_services"] = newRouteSpec("sys.services", "the name of system", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &systemServices{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["sys_upTime"] = newRouteSpec("sys.upTime", "the upTime of system", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &systemUpTime{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["sys_type"] = newRouteSpec("sys.type", "the type of system", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &systemType{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["sys_location"] = newRouteSpec("sys.location", "the location of system", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &systemLocation{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["sys"] = newRouteSpec("sys", "the system info", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &systemInfo{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["interface"] = newRouteSpec("interface", "the interface info", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &interfaceAll{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["interfaceDescr"] = newRouteSpec("interfaceDescr", "the descr part of interface info", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &interfaceDescr{}
+			return drv, drv.Init(params)
+		})
 }
-
-// type DispatchFunc func(params commons.Map) commons.Result
-
-// var emptyResult = make(map[string]interface{})
-
-// type dispatcherBase struct {
-// 	snmpBase
-// 	get, set    DispatchFunc
-// 	get_methods map[uint]map[string]DispatchFunc
-// 	set_methods map[uint]map[string]DispatchFunc
-// }
 
 // func splitsystemOid(oid string) (uint, string) {
 // 	if !strings.HasPrefix(oid, "1.3.6.1.4.1.") {
@@ -581,29 +616,17 @@ func init() {
 // 	return uint(u), oid[idx+1:]
 // }
 
-// func (self *dispatcherBase) RegisterGetFunc(oids []string, get DispatchFunc) {
-// 	for _, oid := range oids {
-// 		main, sub := splitsystemOid(oid)
-// 		methods := self.get_methods[main]
-// 		if nil == methods {
-// 			methods = map[string]DispatchFunc{}
-// 			self.get_methods[main] = methods
-// 		}
-// 		methods[sub] = get
-// 	}
-// }
-
-// func (self *dispatcherBase) RegisterSetFunc(oids []string, set DispatchFunc) {
-// 	for _, oid := range oids {
-// 		main, sub := splitsystemOid(oid)
-// 		methods := self.set_methods[main]
-// 		if nil == methods {
-// 			methods = map[string]DispatchFunc{}
-// 			self.set_methods[main] = methods
-// 		}
-// 		methods[sub] = set
-// 	}
-// }
+// // func (self *dispatcherBase) RegisterGetFunc(oids []string, get DispatchFunc) {
+// // 	for _, oid := range oids {
+// // 		main, sub := splitsystemOid(oid)
+// // 		methods := self.get_methods[main]
+// // 		if nil == methods {
+// // 			methods = map[string]DispatchFunc{}
+// // 			self.get_methods[main] = methods
+// // 		}
+// // 		methods[sub] = get
+// // 	}
+// // }
 
 // func findFunc(oid string, funcs map[uint]map[string]DispatchFunc) DispatchFunc {
 // 	main, sub := splitsystemOid(oid)
@@ -621,14 +644,6 @@ func init() {
 // 	return methods[""]
 // }
 
-// func (self *dispatcherBase) FindGetFunc(oid string) DispatchFunc {
-// 	return findFunc(oid, self.get_methods)
-// }
-
-// func (self *dispatcherBase) FindSetFunc(oid string) DispatchFunc {
-// 	return findFunc(oid, self.set_methods)
-// }
-
 // func findDefaultFunc(oid string, funcs map[uint]map[string]DispatchFunc) DispatchFunc {
 // 	main, sub := splitsystemOid(oid)
 // 	methods := funcs[main]
@@ -639,20 +654,6 @@ func init() {
 // 		return nil
 // 	}
 // 	return methods[""]
-// }
-
-// func (self *dispatcherBase) FindDefaultGetFunc(oid string) DispatchFunc {
-// 	return findDefaultFunc(oid, self.get_methods)
-// }
-
-// func (self *dispatcherBase) FindDefaultSetFunc(oid string) DispatchFunc {
-// 	return findDefaultFunc(oid, self.set_methods)
-// }
-
-// func (self *dispatcherBase) Init(params map[string]interface{}, drvName string) error {
-// 	self.get_methods = make(map[uint]map[string]DispatchFunc, 1000)
-// 	self.set_methods = make(map[uint]map[string]DispatchFunc, 1000)
-// 	return self.snmpBase.Init(params, drvName)
 // }
 
 // func (self *dispatcherBase) invoke(params commons.Map, funcs map[uint]map[string]DispatchFunc) commons.Result {
@@ -685,12 +686,4 @@ func init() {
 // 		return self.get(params)
 // 	}
 // 	return commons.ReturnError(commons.NotAcceptableCode, "Unsupported device - "+oid)
-// }
-
-// func (self *dispatcherBase) Get(params commons.Map) commons.Result {
-// 	return self.invoke(params, self.get_methods)
-// }
-
-// func (self *dispatcherBase) Put(params commons.Map) commons.Result {
-// 	return self.invoke(params, self.set_methods)
 // }

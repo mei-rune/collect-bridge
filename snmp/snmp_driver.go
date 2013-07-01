@@ -78,14 +78,20 @@ func internalError(msg string, err error) error {
 	if nil == err {
 		return errors.New(msg)
 	}
-	return errors.New(msg + "-" + err.Error())
+	if 0 == len(msg) {
+		return err
+	}
+	return errors.New(msg + ", " + err.Error())
 }
 
 func internalErrorResult(msg string, err error) commons.Result {
 	if nil == err {
 		return commons.ReturnWithInternalError(msg)
 	}
-	return commons.ReturnWithInternalError(msg + "-" + err.Error())
+	if 0 == len(msg) {
+		return commons.ReturnWithInternalError(err.Error())
+	}
+	return commons.ReturnWithInternalError(msg + ", " + err.Error())
 }
 
 var HostIsRequired = commons.IsRequired("snmp.host")
@@ -176,7 +182,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) common
 	}
 	resp, err := client.SendAndRecv(req, getTimeout(params, self.timeout))
 	if nil != err {
-		return internalErrorResult("snmp failed", err)
+		return internalErrorResult("", err)
 	}
 
 	if 0 == resp.GetVariableBindings().Len() {

@@ -6,6 +6,7 @@ import (
 	"ds"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -161,12 +162,13 @@ func TestNativeGetFailedWithErrorPort(t *testing.T) {
 			return
 		}
 
-		res := nativeGet(t, "127.0.0.1:165", "sys.oid", map[string]string{"snmp.version": "v2c"})
+		res := nativeGet(t, "127.0.0.1", "sys.oid", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public", "snmp.port": "3244"})
 		if !res.HasError() {
 			t.Error("errors is nil")
 			return
 		}
-		if "'snmp.read_community' is required." != res.ErrorMessage() {
+
+		if !strings.Contains(res.ErrorMessage(), "127.0.0.1:3244") {
 			t.Error(res.Error())
 		}
 	})

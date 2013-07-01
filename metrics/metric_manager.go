@@ -45,12 +45,12 @@ func (self *MetricManager) Put(params map[string]string) (commons.Result, error)
 		return nil, fmt.Errorf("Unmarshal body to route_definitions failed -- %s\n%s", e.Error(), j)
 	}
 
-	rs, e := NewRouteSpec(&definition)
+	rs, e := NewRoute(&definition)
 	if nil != e {
 		return nil, errors.New("parse route definitions failed.\n" + e.Error())
 	}
 
-	self.dispatcher.registerSpec(rs)
+	self.dispatcher.register(rs)
 
 	return commons.Return(true), nil
 }
@@ -71,11 +71,11 @@ func (self *MetricManager) Create(params map[string]string) (commons.Result, err
 	}
 	ss := make([]string, 0, 10)
 	for _, rd := range routes_definitions {
-		rs, e := NewRouteSpec(&rd)
+		rs, e := NewRoute(&rd)
 		if nil != e {
 			ss = append(ss, e.Error())
 		} else {
-			self.dispatcher.registerSpec(rs)
+			self.dispatcher.register(rs)
 		}
 	}
 
@@ -92,6 +92,6 @@ func (self *MetricManager) Delete(params map[string]string) (bool, error) {
 	if !ok {
 		return false, commons.IdNotExists
 	}
-	self.dispatcher.unregisterSpec("", id)
+	self.dispatcher.unregister("", id)
 	return true, nil
 }

@@ -11,10 +11,10 @@ type Job interface {
 	commons.Startable
 }
 
-func NewJob(attributes, ctx map[string]interface{}) (Job, error) {
+func newJob(attributes, ctx map[string]interface{}) (Job, error) {
 	t := attributes["type"]
 	switch t {
-	case "metric_rule":
+	case "metric_trigger":
 		return createMetricJob(attributes, ctx)
 	}
 	return nil, errors.New("unsupport job type - " + fmt.Sprint(t))
@@ -24,11 +24,11 @@ type metricJob struct {
 	*Trigger
 	metric string
 	params map[string]string
-	drv    commons.Driver
+	client commons.HttpClient
 }
 
 func (self *metricJob) Run(t time.Time) {
-	res := self.drv.Get(self.params)
+	res := self.client.Invoke("GET", self.client.Url, nil, 200)
 	if res.HasError() {
 		self.WARN.Printf("read metric '%s' failed, %v", self.metric, res.ErrorMessage())
 		return
@@ -49,18 +49,17 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 	if nil != e {
 		return nil, errors.New("'parent_id' is required, " + e.Error())
 	}
-	drvMgr, ok := ctx["drvMgr"].(*commons.DriverManager)
-	if !ok {
-		return nil, errors.New("'drvMgr' is required")
+	url, e := commons.GetString(ctx, "metrics.url")
+	if nil != e {
+		return nil, errors.New("'metrics.url' is required, " + e.Error())
 	}
-	drv, _ := drvMgr.Connect("kpi")
-	if nil == drv {
-		return nil, errors.New("driver 'kpi' is required.")
+	if 0 == len(url) {
+		return nil, errors.New("'metrics.url' is required.")
 	}
 
 	job := &metricJob{metric: metric,
 		params: map[string]string{"managed_type": parentType, "managed_id": parentId, "metric": metric},
-		drv:    drv}
+		client: commons.HttpClient{Url: commons.NewUrlBuilder(url).Concat(parentType, parentId, metric).ToUrl()}}
 
 	job.Trigger, e = NewTrigger(attributes, func(t time.Time) { job.Run(t) }, ctx)
 	return job, e

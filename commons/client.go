@@ -82,3 +82,69 @@ func (self *HttpClient) Invoke(action, url string, msg []byte, exceptedCode int)
 	}
 	return &result
 }
+
+type Client struct {
+	*HttpClient
+}
+
+func NewClient(url, target string) *Client {
+	if 0 == len(url) {
+		panic("'url' is empty")
+	}
+
+	if 0 == len(target) {
+		panic("'target' is empty")
+	}
+
+	return &Client{HttpClient: &HttpClient{Url: NewUrlBuilder(url).Concat(target).ToUrl()}}
+}
+
+func (self *Client) Create(params map[string]string) Result {
+	body := params["body"]
+
+	if 0 == len(body) {
+		return ReturnWithIsRequired("body")
+	}
+
+	delete(params, "body")
+	return self.Invoke("POST", self.CreateUrl().WithQueries(params, "").ToUrl(), []byte(body), 201)
+}
+
+func (self *Client) Put(params map[string]string) Result {
+	id := params["id"]
+	body := params["body"]
+
+	if 0 == len(id) {
+		return ReturnWithIsRequired("id")
+	}
+
+	if 0 == len(body) {
+		return ReturnWithIsRequired("body")
+	}
+
+	delete(params, "id")
+	delete(params, "body")
+	return self.Invoke("PUT", self.CreateUrl().Concat(id).WithQueries(params, "").ToUrl(), []byte(body), 200)
+}
+
+func (self *Client) Delete(params map[string]string) Result {
+	id := params["id"]
+
+	if 0 == len(id) {
+		return ReturnWithIsRequired("id")
+	}
+
+	delete(params, "id")
+	return self.Invoke("DELETE", self.CreateUrl().Concat(id).WithQueries(params, "").ToUrl(), []byte(""), 200)
+}
+
+func (self *Client) Get(params map[string]string) Result {
+	id := params["id"]
+
+	if 0 == len(id) {
+		return ReturnWithIsRequired("id")
+	}
+
+	delete(params, "id")
+	return self.Invoke("GET", self.CreateUrl().Concat(id).WithQueries(params, "").ToUrl(), []byte(""), 200)
+}

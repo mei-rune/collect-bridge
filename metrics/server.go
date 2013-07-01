@@ -7,6 +7,11 @@ import (
 	"fmt"
 	"github.com/runner-mei/go-restful"
 	"time"
+
+	"commons/types"
+	"net"
+	"net/http"
+	"testing"
 )
 
 var (
@@ -161,4 +166,43 @@ func (self *server) NativeCreate(req *restful.Request, resp *restful.Response) {
 func (self *server) NativeDelete(req *restful.Request, resp *restful.Response) {
 	//fmt.Println("NativeDelete")
 	self.native_invoke(req, resp, (*dispatcher).Delete)
+}
+
+func SrvTest(t *testing.T, file string, cb func(client *ds.Client, definitions *types.TableDefinitions)) {
+	ds.SrvTest(t, file, func(client *ds.Client, definitions *types.TableDefinitions) {
+		is_test = true
+		Main()
+
+		listener, e := net.Listen("tcp", *address)
+		if nil != e {
+			t.Error("start tcp listen failed,", e)
+			return
+		}
+		ch := make(chan string)
+
+		go func() {
+			defer func() {
+				ch <- "exit"
+			}()
+			ch <- "ok"
+			http.Serve(listener, nil)
+		}()
+
+		s := <-ch
+		if "ok" != s {
+			t.Error("start http listen failed")
+			return
+		}
+
+		cb(client, definitions)
+
+		if nil != srv_instance {
+			srv_instance = nil
+		}
+		if nil != listener {
+			listener.Close()
+		}
+		<-ch
+
+	})
 }

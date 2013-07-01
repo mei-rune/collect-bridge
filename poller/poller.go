@@ -1,7 +1,6 @@
 package poller
 
 import (
-	"commons"
 	"ds"
 	"flag"
 	"fmt"
@@ -11,11 +10,12 @@ import (
 )
 
 var (
-	redisAddress  = flag.String("redis", "127.0.0.1:6379", "the address of redis")
+	redisAddress  = flag.String("redis", "127.0.0.1:7073", "the address of redis")
 	listenAddress = flag.String("listen", ":7076", "the address of http")
-	mdbUrl        = flag.String("ds", "http://127.0.0.1:7071/ds", "the address of ds")
-	address       = flag.String("url", "http://127.0.0.1:7070", "the address of bridge")
+	dsUrl         = flag.String("ds", "http://127.0.0.1:7071/ds", "the address of ds")
+	metrics_url   = flag.String("metrics.url", "http://127.0.0.1:7072", "the address of bridge")
 	timeout       = flag.Int("timeout", 5, "the timeout of http")
+	refresh       = flag.Duration("refresh", 5, "the refresh interval of cache")
 )
 
 func mainHandle(rw *web.Context) {
@@ -41,26 +41,25 @@ func Runforever() {
 	svr.Config.Address = *listenAddress
 	svr.Get("/", mainHandle)
 
-	client := ds.NewClient(*mdbUrl)
-	drvMgr := commons.NewDriverManager()
-
 	redis_channel, err := NewRedis(*redisAddress)
 	if nil != err {
-		fmt.Println(err)
+		fmt.Println("connect to redis failed,", err)
 		return
 	}
 
-	res, err := client.FindByWithIncludes("trigger", nil, "action")
+	cache := ds.NewCacheWithIncludes(*refresh, ds.NewClient(*dsUrl), "trigger", "action")
+	results, err := cache.LoadAll()
 	if nil != err {
-		fmt.Println("load triggers failed, %v", err)
+		fmt.Println("load triggers from db failed,", err)
 		return
 	}
-	ctx := map[string]interface{}{"drvMgr": drvMgr,
-		"redis_channel": redis_channel}
+
+	ctx := map[string]interface{}{"metrics.url": metrics_url,
+		"cache": cache, "redis_channel": redis_channel}
 
 	jobs := make([]Job, 0, 100)
-	for _, attributes := range res {
-		job, e := NewJob(attributes, ctx)
+	for _, attributes := range results {
+		job, e := newJob(attributes, ctx)
 		if nil != e {
 			fmt.Printf("create '%v' failed, %v\n", attributes["name"], e)
 			continue

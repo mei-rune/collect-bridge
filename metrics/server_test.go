@@ -4,8 +4,6 @@ import (
 	"commons"
 	"commons/types"
 	"ds"
-	"net"
-	"net/http"
 	"strings"
 	"testing"
 )
@@ -49,47 +47,8 @@ func nativeGet(t *testing.T, ip, target string, params map[string]string) common
 	return self.Invoke("GET", url, nil, 200)
 }
 
-func srvTest(t *testing.T, file string, cb func(client *ds.Client, definitions *types.TableDefinitions)) {
-	ds.SrvTest(t, file, func(client *ds.Client, definitions *types.TableDefinitions) {
-		is_test = true
-		Main()
-
-		listener, e := net.Listen("tcp", *address)
-		if nil != e {
-			t.Error("start tcp listen failed,", e)
-			return
-		}
-		ch := make(chan string)
-
-		go func() {
-			defer func() {
-				ch <- "exit"
-			}()
-			ch <- "ok"
-			http.Serve(listener, nil)
-		}()
-
-		s := <-ch
-		if "ok" != s {
-			t.Error("start http listen failed")
-			return
-		}
-
-		cb(client, definitions)
-
-		if nil != srv_instance {
-			srv_instance = nil
-		}
-		if nil != listener {
-			listener.Close()
-		}
-		<-ch
-
-	})
-}
-
 func TestGetBasic(t *testing.T) {
-	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -113,7 +72,7 @@ func TestGetBasic(t *testing.T) {
 }
 
 func TestGetTableBasic(t *testing.T) {
-	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -136,7 +95,7 @@ func TestGetTableBasic(t *testing.T) {
 }
 
 func TestNativeGetFailed(t *testing.T) {
-	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -155,7 +114,7 @@ func TestNativeGetFailed(t *testing.T) {
 }
 
 func TestNativeGetFailedWithErrorPort(t *testing.T) {
-	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -174,7 +133,7 @@ func TestNativeGetFailedWithErrorPort(t *testing.T) {
 	})
 }
 func TestNativeGetTableFailed(t *testing.T) {
-	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -193,7 +152,7 @@ func TestNativeGetTableFailed(t *testing.T) {
 }
 
 func TestNativeGetBasic(t *testing.T) {
-	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -212,7 +171,7 @@ func TestNativeGetBasic(t *testing.T) {
 }
 
 func TestNativeGetTableBasic(t *testing.T) {
-	srvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)

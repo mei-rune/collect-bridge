@@ -25,7 +25,7 @@ type context struct {
 
 	alias map[string]string
 	local map[string]commons.Map
-	proxy *metric_proxy
+	pry   *proxy
 }
 
 func (self *context) Set(key string, value interface{}) {
@@ -89,7 +89,7 @@ func (self *context) GetWithDefault(key string, defaultValue interface{}) interf
 	case '@':
 		return self.mo.GetWithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetWithDefault(key[1:], self, defaultValue)
+		return self.pry.GetWithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -116,7 +116,7 @@ func (self *context) GetBoolWithDefault(key string, defaultValue bool) bool {
 	case '@':
 		return self.mo.GetBoolWithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetBoolWithDefault(key[1:], self, defaultValue)
+		return self.pry.GetBoolWithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -143,7 +143,7 @@ func (self *context) GetIntWithDefault(key string, defaultValue int) int {
 	case '@':
 		return self.mo.GetIntWithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetIntWithDefault(key[1:], self, defaultValue)
+		return self.pry.GetIntWithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -170,7 +170,7 @@ func (self *context) GetInt32WithDefault(key string, defaultValue int32) int32 {
 	case '@':
 		return self.mo.GetInt32WithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetInt32WithDefault(key[1:], self, defaultValue)
+		return self.pry.GetInt32WithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -197,7 +197,7 @@ func (self *context) GetInt64WithDefault(key string, defaultValue int64) int64 {
 	case '@':
 		return self.mo.GetInt64WithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetInt64WithDefault(key[1:], self, defaultValue)
+		return self.pry.GetInt64WithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -224,7 +224,7 @@ func (self *context) GetUintWithDefault(key string, defaultValue uint) uint {
 	case '@':
 		return self.mo.GetUintWithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetUintWithDefault(key[1:], self, defaultValue)
+		return self.pry.GetUintWithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -251,7 +251,7 @@ func (self *context) GetUint32WithDefault(key string, defaultValue uint32) uint3
 	case '@':
 		return self.mo.GetUint32WithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetUint32WithDefault(key[1:], self, defaultValue)
+		return self.pry.GetUint32WithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -278,7 +278,7 @@ func (self *context) GetUint64WithDefault(key string, defaultValue uint64) uint6
 	case '@':
 		return self.mo.GetUint64WithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetUint64WithDefault(key[1:], self, defaultValue)
+		return self.pry.GetUint64WithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -301,7 +301,7 @@ func (self *context) GetStringWithDefault(key, defaultValue string) string {
 	case '@':
 		return self.mo.GetStringWithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetStringWithDefault(key[1:], self, defaultValue)
+		return self.pry.GetStringWithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -324,7 +324,7 @@ func (self *context) GetArrayWithDefault(key string, defaultValue []interface{})
 	case '@':
 		return self.mo.GetArrayWithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetArrayWithDefault(key[1:], self, defaultValue)
+		return self.pry.GetArrayWithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -347,7 +347,7 @@ func (self *context) GetObjectWithDefault(key string, defaultValue map[string]in
 	case '@':
 		return self.mo.GetObjectWithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetObjectWithDefault(key[1:], self, defaultValue)
+		return self.pry.GetObjectWithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -370,7 +370,7 @@ func (self *context) GetObjectsWithDefault(key string, defaultValue []map[string
 	case '@':
 		return self.mo.GetObjectsWithDefault(key[1:], defaultValue)
 	case '!':
-		return self.proxy.GetObjectsWithDefault(key[1:], self, defaultValue)
+		return self.pry.GetObjectsWithDefault(key[1:], self, defaultValue)
 	}
 
 	t, field := split(key)
@@ -393,7 +393,7 @@ func (self *context) Get(key string) (interface{}, error) {
 	case '@':
 		return self.mo.Get(key[1:])
 	case '!':
-		return self.proxy.Get(key[1:], self)
+		return self.pry.Get(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -415,7 +415,7 @@ func (self *context) GetBool(key string) (bool, error) {
 	case '@':
 		return self.mo.GetBool(key[1:])
 	case '!':
-		return self.proxy.GetBool(key[1:], self)
+		return self.pry.GetBool(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -439,7 +439,7 @@ func (self *context) GetInt(key string) (int, error) {
 	case '@':
 		return self.mo.GetInt(key[1:])
 	case '!':
-		return self.proxy.GetInt(key[1:], self)
+		return self.pry.GetInt(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -463,7 +463,7 @@ func (self *context) GetInt32(key string) (int32, error) {
 	case '@':
 		return self.mo.GetInt32(key[1:])
 	case '!':
-		return self.proxy.GetInt32(key[1:], self)
+		return self.pry.GetInt32(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -487,7 +487,7 @@ func (self *context) GetInt64(key string) (int64, error) {
 	case '@':
 		return self.mo.GetInt64(key[1:])
 	case '!':
-		return self.proxy.GetInt64(key[1:], self)
+		return self.pry.GetInt64(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -511,7 +511,7 @@ func (self *context) GetUint(key string) (uint, error) {
 	case '@':
 		return self.mo.GetUint(key[1:])
 	case '!':
-		return self.proxy.GetUint(key[1:], self)
+		return self.pry.GetUint(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -535,7 +535,7 @@ func (self *context) GetUint32(key string) (uint32, error) {
 	case '@':
 		return self.mo.GetUint32(key[1:])
 	case '!':
-		return self.proxy.GetUint32(key[1:], self)
+		return self.pry.GetUint32(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -559,7 +559,7 @@ func (self *context) GetUint64(key string) (uint64, error) {
 	case '@':
 		return self.mo.GetUint64(key[1:])
 	case '!':
-		return self.proxy.GetUint64(key[1:], self)
+		return self.pry.GetUint64(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -582,7 +582,7 @@ func (self *context) GetString(key string) (string, error) {
 	case '@':
 		return self.mo.GetString(key[1:])
 	case '!':
-		return self.proxy.GetString(key[1:], self)
+		return self.pry.GetString(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -605,7 +605,7 @@ func (self *context) GetObject(key string) (map[string]interface{}, error) {
 	case '@':
 		return self.mo.GetObject(key[1:])
 	case '!':
-		return self.proxy.GetObject(key[1:], self)
+		return self.pry.GetObject(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -628,7 +628,7 @@ func (self *context) GetArray(key string) ([]interface{}, error) {
 	case '@':
 		return self.mo.GetArray(key[1:])
 	case '!':
-		return self.proxy.GetArray(key[1:], self)
+		return self.pry.GetArray(key[1:], self)
 	}
 
 	t, field := split(key)
@@ -651,7 +651,7 @@ func (self *context) GetObjects(key string) ([]map[string]interface{}, error) {
 	case '@':
 		return self.mo.GetObjects(key[1:])
 	case '!':
-		return self.proxy.GetObjects(key[1:], self)
+		return self.pry.GetObjects(key[1:], self)
 	}
 
 	t, field := split(key)

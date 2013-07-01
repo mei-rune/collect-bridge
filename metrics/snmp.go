@@ -27,6 +27,10 @@ type snmpBase struct {
 	drv commons.Driver
 }
 
+func (self *snmpBase) CopyFrom(from *snmpBase) {
+	self.drv = from.drv
+}
+
 func (self *snmpBase) Init(params map[string]interface{}) error {
 	v := params["snmp"]
 	if nil != v {

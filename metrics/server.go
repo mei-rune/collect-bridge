@@ -88,7 +88,7 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 		mo:           commons.InterfaceMap(mo),
 		local:        make(map[string]commons.Map),
 		alias:        alias_names,
-		proxy:        &metric_proxy{dispatcher: self.dispatcher}}
+		pry:          &proxy{dispatcher: self.dispatcher}}
 
 	self.returnResult(resp, invoker(self.dispatcher, metric_name, params))
 }
@@ -118,7 +118,7 @@ func (self *server) native_invoke(req *restful.Request, resp *restful.Response, 
 		mo:           commons.InterfaceMap(empty_mo),
 		local:        make(map[string]commons.Map),
 		alias:        alias_names,
-		proxy:        &metric_proxy{dispatcher: self.dispatcher}}
+		pry:          &proxy{dispatcher: self.dispatcher}}
 
 	self.returnResult(resp, invoker(self.dispatcher, metric_name, params))
 }

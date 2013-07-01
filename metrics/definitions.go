@@ -52,6 +52,10 @@ type Route struct {
 	invoke     Method
 }
 
+func (self *Route) Invoke(params commons.Map) commons.Result {
+	return self.invoke.Call(params)
+}
+
 func newRouteSpec(name, descr string, match Matchers, call func(rs *RouteSpec, params map[string]interface{}) (Method, error)) *RouteSpec {
 	return &RouteSpec{Method: "get",
 		Name:        name,

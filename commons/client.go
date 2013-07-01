@@ -68,8 +68,11 @@ func (self *HttpClient) Invoke(action, url string, msg []byte, exceptedCode int)
 		if nil == resp_body || 0 == len(resp_body) {
 			return httpError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
 		}
+
 		return httpError(resp.StatusCode, string(resp_body))
+		//return httpError(resp.StatusCode, fmt.Sprintf("[%v]%v", resp.StatusCode, string(resp_body)))
 	}
+
 	var result SimpleResult
 	decoder := json.NewDecoder(resp.Body)
 	decoder.UseNumber()

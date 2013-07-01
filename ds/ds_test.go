@@ -264,7 +264,7 @@ func deleteById(t *testing.T, client *Client, target, id string) {
 func deleteBy(t *testing.T, client *Client, target string, params map[string]string) {
 	_, e := client.DeleteBy(target, params)
 	if nil != e {
-		t.Errorf("delete %s failed, %v", target, e)
+		t.Errorf("delete %s failed, %v", target, e.Error())
 		t.FailNow()
 	}
 	if nil != client.Warnings {

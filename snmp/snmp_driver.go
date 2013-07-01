@@ -186,7 +186,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) common
 	}
 
 	if 0 == resp.GetVariableBindings().Len() {
-		return internalErrorResult("result is empty", nil)
+		return internalErrorResult("snmp result is empty", nil)
 	}
 	results := make(map[string]interface{})
 	for _, vb := range resp.GetVariableBindings().All() {
@@ -261,7 +261,7 @@ func (self *SnmpDriver) getNext(params map[string]string, client Client, next_oi
 	}
 
 	if 0 == resp.GetVariableBindings().Len() {
-		return NilVariableBinding, internalError("result is empty", nil)
+		return NilVariableBinding, internalError("snmp result is empty", nil)
 	}
 
 	return resp.GetVariableBindings().Get(0), nil
@@ -312,7 +312,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 		next_oid = vb.Oid
 	}
 	if 0 == len(results) {
-		return internalErrorResult("result is empty", nil)
+		return internalErrorResult("snmp result is empty", nil)
 	}
 
 	return commons.Return(results)
@@ -415,7 +415,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 		next_oids = next_oids[0:offset]
 	}
 	if 0 == len(results) {
-		return internalErrorResult("result is empty", nil)
+		return internalErrorResult("snmp result is empty", nil)
 	}
 	return commons.Return(results)
 }

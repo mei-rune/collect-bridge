@@ -9,6 +9,7 @@ import (
 	"github.com/runner-mei/go-restful"
 	"log"
 	//"path/filepath"
+	//"encoding/json"
 	"runtime"
 	"sync/atomic"
 )
@@ -421,7 +422,7 @@ func (self *server) DeleteById(req *restful.Request, resp *restful.Response) {
 			}
 			return commons.ReturnWithInternalError(e.Error())
 		} else {
-			return commons.Return(true).SetEffected(1)
+			return commons.Return(nil).SetEffected(1)
 		}
 	})
 }
@@ -443,9 +444,10 @@ func (self *server) DeleteByParams(req *restful.Request, resp *restful.Response)
 		}
 		affected, e := db.delete(defintion, params)
 		if nil != e {
+			fmt.Println("dddd", e.Error())
 			return commons.ReturnWithInternalError(e.Error())
 		} else {
-			return commons.Return(true).SetEffected(affected)
+			return commons.Return(nil).SetEffected(affected)
 		}
 	})
 }

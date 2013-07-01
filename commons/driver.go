@@ -223,16 +223,18 @@ type SimpleResult struct {
 	Verr          *ApplicationError      `json:"error,omitempty"`
 	Vwarnings     interface{}            `json:"warnings,omitempty"`
 	Vvalue        interface{}            `json:"value,omitempty"`
-	Veffected     int64                  `json:"effected,omitempty"`
+	Veffected     *int64                 `json:"effected,omitempty"`
 	VlastInsertId interface{}            `json:"lastInsertId,omitempty"`
 	Voptions      map[string]interface{} `json:"options,omitempty"`
 	Vcreated_at   time.Time              `json:"created_at,omitempty"`
+	Vtype         string                 `json:"type,omitempty"`
 
-	value AnyValue
+	value    AnyValue
+	effected int64
 }
 
 func Return(value interface{}) *SimpleResult {
-	return &SimpleResult{Vvalue: value, Vcreated_at: time.Now(), Veffected: -1, VlastInsertId: -1}
+	return &SimpleResult{Vvalue: value, Vcreated_at: time.Now(), effected: -1, VlastInsertId: nil}
 }
 
 func ReturnError(code int, msg string) *SimpleResult {
@@ -282,7 +284,8 @@ func (self *SimpleResult) SetWarnings(value interface{}) *SimpleResult {
 }
 
 func (self *SimpleResult) SetEffected(effected int64) *SimpleResult {
-	self.Veffected = effected
+	self.effected = effected
+	self.Veffected = &self.effected
 	return self
 }
 
@@ -330,10 +333,16 @@ func (self *SimpleResult) InterfaceValue() interface{} {
 }
 
 func (self *SimpleResult) Effected() int64 {
-	return self.Veffected
+	if nil != self.Veffected {
+		return *self.Veffected
+	}
+	return -1
 }
 
 func (self *SimpleResult) LastInsertId() interface{} {
+	if nil == self.VlastInsertId {
+		return -1
+	}
 	return self.VlastInsertId
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	_ "github.com/lib/pq"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -425,7 +426,7 @@ func TestSrvDeleteById(t *testing.T) {
 			t.Errorf("delete failed, becase refind sucessed")
 			return
 		}
-		if sql.ErrNoRows.Error() != err.Error() {
+		if !strings.Contains(err.Error(), sql.ErrNoRows.Error()) {
 			t.Error("actual is " + err.Error())
 			t.Error("excepted is " + sql.ErrNoRows.Error())
 		}
@@ -462,7 +463,7 @@ func TestSrvDeleteByParams(t *testing.T) {
 			t.Errorf(err.Error())
 			return
 		}
-		if sql.ErrNoRows.Error() != err.Error() {
+		if !strings.Contains(err.Error(), sql.ErrNoRows.Error()) {
 			t.Error(err)
 		}
 	})

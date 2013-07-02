@@ -41,7 +41,7 @@ func Runforever() {
 	svr.Config.Address = *listenAddress
 	svr.Get("/", mainHandle)
 
-	redis_channel, err := NewRedis(*redisAddress)
+	redis_channel, err := newRedis(*redisAddress)
 	if nil != err {
 		fmt.Println("connect to redis failed,", err)
 		return

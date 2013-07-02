@@ -37,5 +37,8 @@ func TestA(t *testing.T) {
 		id := ds.CreateItForTest(t, client, "network_device", mo)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
+
+
+		
 	})
 }

@@ -12,7 +12,7 @@ func getTimeout(params map[string]string, timeout time.Duration) time.Duration {
 		return timeout
 	}
 
-	ret, err := commons.ParseDuration(v)
+	ret, err := time.ParseDuration(v)
 	if nil != err {
 		panic(err)
 	}

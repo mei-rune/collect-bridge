@@ -18,8 +18,7 @@ func checkResult(t *testing.T, c redis.Conn, cmd, key, excepted string) {
 	}
 }
 func TestRedis(t *testing.T) {
-
-	redis_channel, err := NewRedis(redis_address)
+	redis_channel, err := newRedis(redis_address)
 	if nil != err {
 		t.Error(err)
 		return

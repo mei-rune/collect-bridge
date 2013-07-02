@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
+	//"time"
 )
 
 var (
@@ -184,39 +184,41 @@ func SearchFile(pattern string) string {
 	return ""
 }
 
-const time_format = "time format error with valuw is '%s', excepted format is 'xxx[unit]', xxx is a number, unit must is in (ms, s, m)."
+//const time_format = "time format error with valuw is '%s', excepted format is 'xxx[unit]', xxx is a number, unit must is in (ms, s, m)."
 
-func ParseDuration(s string) (time.Duration, error) {
-	idx := strings.IndexFunc(s, func(r rune) bool {
-		switch r {
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			return false
-		}
-		return true
-	})
+// func ParseDuration(s string) (time.Duration, error) {
+// 	return time.ParseDuration(s)
 
-	if idx == 0 {
-		return 0, fmt.Errorf(time_format, s)
-	}
+// 	// idx := strings.IndexFunc(s, func(r rune) bool {
+// 	// 	switch r {
+// 	// 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+// 	// 		return false
+// 	// 	}
+// 	// 	return true
+// 	// })
 
-	unit := time.Second
-	if -1 != idx {
-		switch s[idx:] {
-		case "ms", "MS":
-			unit = time.Millisecond
-		case "s", "S":
-			unit = time.Second
-		case "m", "M":
-			unit = time.Minute
-		default:
-			return 0, fmt.Errorf(time_format, s)
-		}
-		s = s[:idx]
-	}
+// 	// if idx == 0 {
+// 	// 	return 0, fmt.Errorf(time_format, s)
+// 	// }
 
-	i, err := strconv.ParseInt(s, 10, 0)
-	if nil != err {
-		return 0, fmt.Errorf(time_format, s, err.Error())
-	}
-	return time.Duration(i) * unit, nil
-}
+// 	// unit := time.Second
+// 	// if -1 != idx {
+// 	// 	switch s[idx:] {
+// 	// 	case "ms", "MS":
+// 	// 		unit = time.Millisecond
+// 	// 	case "s", "S":
+// 	// 		unit = time.Second
+// 	// 	case "m", "M":
+// 	// 		unit = time.Minute
+// 	// 	default:
+// 	// 		return 0, fmt.Errorf(time_format, s)
+// 	// 	}
+// 	// 	s = s[:idx]
+// 	// }
+
+// 	// i, err := strconv.ParseInt(s, 10, 0)
+// 	// if nil != err {
+// 	// 	return 0, fmt.Errorf(time_format, s, err.Error())
+// 	// }
+// 	// return time.Duration(i) * unit, nil
+// }

@@ -12,7 +12,7 @@ import (
 type Redis struct {
 	Address   string
 	ch        chan []string
-	is_runing bool
+	isRunning bool
 }
 
 func (self *Redis) run() {
@@ -29,7 +29,7 @@ func (self *Redis) run() {
 func (self *Redis) recvCommands() [][]string {
 	commands := make([][]string, 0, 30)
 	interval := 10 * time.Millisecond
-	for self.is_runing {
+	for self.isRunning {
 		select {
 		case c := <-self.ch:
 			interval = 10 * time.Millisecond
@@ -66,7 +66,7 @@ func (self *Redis) runOnce() {
 		commons.Log.ERROR.Printf("[redis] connect to '%s' failed, %v", self.Address, err)
 		return
 	}
-	for self.is_runing {
+	for self.isRunning {
 		commands := self.recvCommands()
 		for _, cmd := range commands {
 			switch len(cmd) {
@@ -89,8 +89,8 @@ func (self *Redis) runOnce() {
 	}
 }
 
-func NewRedis(address string) (chan []string, error) {
-	redis := &Redis{Address: address, ch: make(chan []string, 3000), is_runing: true}
+func newRedis(address string) (chan []string, error) {
+	redis := &Redis{Address: address, ch: make(chan []string, 3000), isRunning: true}
 	go redis.run()
 	return redis.ch, nil
 }

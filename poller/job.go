@@ -21,7 +21,7 @@ func newJob(attributes, ctx map[string]interface{}) (Job, error) {
 }
 
 type metricJob struct {
-	*Trigger
+	*trigger
 	metric string
 	params map[string]string
 	client commons.HttpClient
@@ -33,7 +33,7 @@ func (self *metricJob) Run(t time.Time) {
 		self.WARN.Printf("read metric '%s' failed, %v", self.metric, res.ErrorMessage())
 		return
 	}
-	self.CallActions(t, res.ToJson())
+	self.callActions(t, res)
 }
 
 func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
@@ -61,7 +61,7 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		params: map[string]string{"managed_type": parentType, "managed_id": parentId, "metric": metric},
 		client: commons.HttpClient{Url: commons.NewUrlBuilder(url).Concat(parentType, parentId, metric).ToUrl()}}
 
-	job.Trigger, e = NewTrigger(attributes, func(t time.Time) { job.Run(t) }, ctx)
+	job.trigger, e = newTrigger(attributes, func(t time.Time) { job.Run(t) }, ctx)
 	return job, e
 }
 

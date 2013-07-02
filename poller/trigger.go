@@ -13,48 +13,48 @@ import (
 
 type TriggerFunc func(t time.Time)
 
-type Trigger struct {
+type trigger struct {
 	commons.Logger
-	Name      string
-	Actions   []ExecuteAction
-	Callback  TriggerFunc
-	IsRunning int32
+	name      string
+	actions   []ExecuteAction
+	callback  TriggerFunc
+	isRunning int32
 
-	Commands    map[string]func(trigger *Trigger) string
-	Expression  string
-	Attachment  string
-	Description string
+	commands    map[string]func(t *trigger) string
+	expression  string
+	attachment  string
+	description string
 
-	start func(t *Trigger) error
-	stop  func(t *Trigger)
+	start func(t *trigger) error
+	stop  func(t *trigger)
 }
 
-func (self *Trigger) Start() error {
-	if 1 == atomic.LoadInt32(&self.IsRunning) {
+func (self *trigger) Start() error {
+	if 1 == atomic.LoadInt32(&self.isRunning) {
 		return nil
 	}
 
 	return self.start(self)
 }
 
-func (self *Trigger) Stop() {
-	if 0 == atomic.LoadInt32(&self.IsRunning) {
+func (self *trigger) Stop() {
+	if 0 == atomic.LoadInt32(&self.isRunning) {
 		return
 	}
 
 	self.stop(self)
 }
 
-func (self *Trigger) CallActions(t time.Time, res interface{}) {
+func (self *trigger) callActions(t time.Time, res interface{}) {
 	if nil == res {
-		self.WARN.Print("result of '" + self.Name + "' is nil")
+		self.WARN.Print("result of '" + self.name + "' is nil")
 		return
 	}
-	if nil == self.Actions || 0 == len(self.Actions) {
-		self.WARN.Print("actions of '" + self.Name + "' is empty")
+	if nil == self.actions || 0 == len(self.actions) {
+		self.WARN.Print("actions of '" + self.name + "' is empty")
 		return
 	}
-	for _, action := range self.Actions {
+	for _, action := range self.actions {
 		action.Run(t, res)
 	}
 }
@@ -67,7 +67,7 @@ var (
 	CommandIsRequired     = commons.IsRequired("command")
 )
 
-func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map[string]interface{}) (*Trigger, error) {
+func newTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map[string]interface{}) (*trigger, error) {
 	name := commons.GetStringWithDefault(attributes, "name", "")
 	if "" == name {
 		return nil, NameIsRequired
@@ -96,85 +96,102 @@ func NewTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 	}
 
 	if strings.HasPrefix(expression, every) {
-		interval, err := commons.ParseDuration(expression[len(every):])
+		interval, err := time.ParseDuration(expression[len(every):])
 		if nil != err {
 			return nil, errors.New(ExpressionSyntexError.Error() + ", " + err.Error())
 		}
 
-		intervalTrigger := &IntervalTrigger{control_ch: make(chan string, 1),
+		it := &intervalTrigger{control_ch: make(chan string, 1),
 			control_resp_ch: make(chan string),
 			interval:        interval}
 
-		trigger := &Trigger{Name: name,
-			Expression:  expression,
-			Attachment:  commons.GetStringWithDefault(attributes, "attachment", ""),
-			Description: commons.GetStringWithDefault(attributes, "description", ""),
-			Callback:    callback,
-			Actions:     actions,
-			start: func(t *Trigger) error {
-				go intervalTrigger.run()
+		t := &trigger{name: name,
+			expression:  expression,
+			attachment:  commons.GetStringWithDefault(attributes, "attachment", ""),
+			description: commons.GetStringWithDefault(attributes, "description", ""),
+			callback:    callback,
+			actions:     actions,
+			start: func(t *trigger) error {
+				go it.run()
 				return nil
 			},
-			stop: func(t *Trigger) {
-				intervalTrigger.control_ch <- "exit"
-				<-intervalTrigger.control_resp_ch
+			stop: func(t *trigger) {
+				it.control_ch <- "exit"
+				<-it.control_resp_ch
 			}}
-		intervalTrigger.Trigger = trigger
-		trigger.InitLoggerWith(ctx, "log.")
-		return trigger, nil
+		it.trigger = t
+		t.InitLoggerWith(ctx, "log.")
+		return t, nil
 	}
 	return nil, ExpressionSyntexError
 }
 
-type IntervalTrigger struct {
-	*Trigger
+type intervalTrigger struct {
+	*trigger
 	interval        time.Duration
 	control_ch      chan string
 	control_resp_ch chan string
 }
 
-func (self *IntervalTrigger) run() {
-	if !atomic.CompareAndSwapInt32(&self.IsRunning, 0, 1) {
+func (self *intervalTrigger) run() {
+	if !atomic.CompareAndSwapInt32(&self.isRunning, 0, 1) {
 		return
 	}
 
 	defer func() {
-		atomic.StoreInt32(&self.IsRunning, 0)
-		self.control_resp_ch <- "ok"
+		atomic.StoreInt32(&self.isRunning, 0)
+
+		if e := recover(); nil != e {
+			var buffer bytes.Buffer
+			buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+			for i := 1; ; i += 1 {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+			}
+			self.ERROR.Print(buffer.String())
+		}
+
 	}()
+
+	ticker := time.NewTicker(self.interval)
+	defer ticker.Stop()
 
 	is_running := true
 	for is_running {
 		select {
 		case cmd := <-self.control_ch:
 			if "exit" == cmd {
-				is_running = true
+				is_running = false
+				self.control_resp_ch <- "ok"
 			} else {
 				self.executeCommand(cmd)
 			}
-		case <-time.After(self.interval):
-			self.timeout()
+		case t := <-ticker.C:
+			self.timeout(t)
 		}
 	}
 }
 
-func (self *IntervalTrigger) executeCommand(nm string) {
+func (self *intervalTrigger) executeCommand(nm string) {
 	res := "[error]no such command"
 	defer func() {
 		if e := recover(); nil != e {
-			self.control_resp_ch <- "[error]" + fmt.Sprint(e)
+			self.control_resp_ch <- "[panic]" + fmt.Sprint(e)
 		} else {
 			self.control_resp_ch <- res
 		}
 	}()
 
-	f := self.Commands[nm]
+	f := self.commands[nm]
 	if nil != f {
-		res = f(self.Trigger)
+		res = f(self.trigger)
 	}
 }
 
-func (self *IntervalTrigger) timeout() {
+func (self *intervalTrigger) timeout(t time.Time) {
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -190,6 +207,6 @@ func (self *IntervalTrigger) timeout() {
 		}
 	}()
 
-	self.DEBUG.Printf("timeout %s - %s", self.Name, self.interval)
-	self.Callback(time.Now())
+	self.DEBUG.Printf("timeout %s - %s", self.name, self.interval)
+	self.callback(t)
 }

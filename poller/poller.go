@@ -29,6 +29,9 @@ func mainHandle(rw *web.Context) {
 	rw.WriteString("Hello, World!")
 }
 
+func forward(c chan<- []string) chan<- []string {
+	return c
+}
 func Runforever() {
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {
@@ -55,7 +58,7 @@ func Runforever() {
 	}
 
 	ctx := map[string]interface{}{"metrics.url": metrics_url,
-		"cache": cache, "redis_channel": redis_channel}
+		"cache": cache, "redis_channel": forward(redis_channel)}
 
 	jobs := make([]Job, 0, 100)
 	for _, attributes := range results {

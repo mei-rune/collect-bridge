@@ -49,8 +49,13 @@ func (self *trigger) Start() error {
 }
 
 func (self *trigger) Stop() {
-	if !atomic.CompareAndSwapInt32(&self.isRunning, TG_STARTING, TG_STOPPING) &&
-		!atomic.CompareAndSwapInt32(&self.isRunning, TG_RUNNING, TG_STOPPING) {
+	if atomic.CompareAndSwapInt32(&self.isRunning, TG_STARTING, TG_STOPPING) {
+		self.DEBUG.Print("it is starting")
+		return
+	}
+
+	if !atomic.CompareAndSwapInt32(&self.isRunning, TG_RUNNING, TG_STOPPING) {
+		self.DEBUG.Print("it is not running")
 		return
 	}
 
@@ -100,7 +105,7 @@ func newTrigger(attributes map[string]interface{}, callback triggerFunc, ctx map
 	}
 	actions := make([]ExecuteAction, 0, 10)
 	for _, spec := range action_specs {
-		action, e := NewAction(spec, ctx)
+		action, e := newAction(spec, ctx)
 		if nil != e {
 			return nil, e
 		}
@@ -113,14 +118,14 @@ func newTrigger(attributes map[string]interface{}, callback triggerFunc, ctx map
 			return nil, errors.New(ExpressionSyntexError.Error() + ", " + err.Error())
 		}
 
-		it := &intervalTrigger{control_ch: make(chan string),
-			control_resp_ch: make(chan string),
-			interval:        interval}
+		it := &intervalTrigger{c: make(chan *request),
+			interval: interval}
 
 		t := &trigger{name: name,
 			expression:  expression,
 			attachment:  commons.GetStringWithDefault(attributes, "attachment", ""),
 			description: commons.GetStringWithDefault(attributes, "description", ""),
+			isRunning:   TG_INIT,
 			callback:    callback,
 			actions:     actions,
 			start:       it.start,
@@ -134,9 +139,8 @@ func newTrigger(attributes map[string]interface{}, callback triggerFunc, ctx map
 
 type intervalTrigger struct {
 	*trigger
-	interval        time.Duration
-	control_ch      chan string
-	control_resp_ch chan string
+	interval time.Duration
+	c        chan *request
 }
 
 func (self *intervalTrigger) start(t *trigger) error {
@@ -145,16 +149,57 @@ func (self *intervalTrigger) start(t *trigger) error {
 }
 
 func (self *intervalTrigger) stop(t *trigger) {
+	self.send("exit")
+	// e := self.send("exit")
+	// if nil != e {
+	// 	self.DEBUG.Printf("stop failed, %v", e)
+	// } else {
+	// 	self.DEBUG.Print("recved 'exited' signal")
+	// }
+}
+
+func (self *intervalTrigger) command(cmd string) error {
+	if TG_RUNNING != atomic.LoadInt32(&self.isRunning) {
+		return NotStart
+	}
+	return self.send(cmd)
+}
+
+var (
+	NotSend  = errors.New("send to trigger failed.")
+	NotStart = errors.New("it is not running.")
+)
+
+type request struct {
+	cmd    string
+	c      chan *request
+	result string
+}
+
+func (self *intervalTrigger) send(cmd string) error {
+	req := &request{
+		cmd: cmd,
+		c:   make(chan *request, 1)}
+	defer close(req.c)
 	select {
-	case self.control_ch <- "exit":
+	case self.c <- req:
 		select {
-		case <-self.control_resp_ch:
+		case res := <-req.c:
+			if "ok" == res.result {
+				return nil
+			}
+			return errors.New(res.result)
+		case <-time.After(5 * time.Second):
+			return commons.TimeoutErr
 		}
+	default: // it is required, becase run() may exited {status != running}
+		return NotSend
 	}
 }
 
 func (self *intervalTrigger) run() {
 	if !atomic.CompareAndSwapInt32(&self.isRunning, TG_STARTING, TG_RUNNING) {
+		self.DEBUG.Print("it is stopping while starting.")
 		return
 	}
 
@@ -172,8 +217,9 @@ func (self *intervalTrigger) run() {
 				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
 			}
 			self.ERROR.Print(buffer.String())
+		} else {
+			self.DEBUG.Print("exited")
 		}
-
 	}()
 
 	ticker := time.NewTicker(self.interval)
@@ -182,42 +228,52 @@ func (self *intervalTrigger) run() {
 	is_running := true
 	for is_running {
 		select {
-		case cmd := <-self.control_ch:
-			if "exit" == cmd {
+		case req := <-self.c:
+			if "exit" == req.cmd {
 				is_running = false
-				select {
-				case self.control_resp_ch <- "ok":
-				}
+				req.result = "ok"
+				func() {
+					defer func() {
+						if e := recover(); nil != e {
+							self.WARN.Printf("[panic] %v", e)
+						}
+					}()
+					req.c <- req
+				}()
+
 			} else {
-				self.executeCommand(cmd)
+				self.executeCommand(req)
 			}
 		case t := <-ticker.C:
-			if TG_RUNNING != atomic.LoadInt32(&self.isRunning) {
+			status := atomic.LoadInt32(&self.isRunning)
+			if TG_RUNNING != status {
+				self.DEBUG.Printf("status is exited, status = %v", status)
 				is_running = false
-				select {
-				case self.control_resp_ch <- "ok":
-				}
 				break
 			}
 			self.timeout(t)
 		}
 	}
+
+	self.DEBUG.Print("stopping")
 }
 
-func (self *intervalTrigger) executeCommand(nm string) {
-	res := "[error]no such command"
+func (self *intervalTrigger) executeCommand(req *request) {
 	defer func() {
 		if e := recover(); nil != e {
-			self.control_resp_ch <- "[panic]" + fmt.Sprint(e)
-		} else {
-			self.control_resp_ch <- res
+			req.result = "[panic]" + fmt.Sprint(e)
+			req.c <- req
 		}
 	}()
 
-	f := self.commands[nm]
+	f := self.commands[req.cmd]
 	if nil != f {
-		res = f(self.trigger)
+		req.result = f(self.trigger)
+	} else {
+		req.result = "[error]no such command"
 	}
+
+	req.c <- req
 }
 
 func (self *intervalTrigger) timeout(t time.Time) {

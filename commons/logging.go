@@ -14,6 +14,8 @@ type LogCallback func(bytes []byte)
 
 type Writer interface {
 	IsEnabled() bool
+	Switch()
+
 	Output(calldepth int, s string)
 	Printf(format string, v ...interface{})
 	Print(v ...interface{})

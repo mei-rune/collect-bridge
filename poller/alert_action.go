@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type AlertAction struct {
+type alertAction struct {
 	name        string
 	maxRepeated int
 
@@ -22,7 +22,7 @@ type AlertAction struct {
 	last_error error
 }
 
-func (self *AlertAction) Run(t time.Time, value interface{}) {
+func (self *alertAction) Run(t time.Time, value interface{}) {
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -34,7 +34,9 @@ func (self *AlertAction) Run(t time.Time, value interface{}) {
 				}
 				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
 			}
-			commons.Log.ERROR.Print(buffer.String())
+			msg := buffer.String()
+			commons.Log.ERROR.Print(msg)
+			self.last_error = errors.New(msg)
 		}
 	}()
 
@@ -87,7 +89,7 @@ var (
 	NotificationChannelTypeError = errors.New("'notification_channel' is not a chan map[string]interface{}")
 )
 
-func NewAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, error) {
+func newAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, error) {
 	name, e := commons.GetString(attributes, "name")
 	if nil != e {
 		return nil, NameIsRequired
@@ -107,7 +109,7 @@ func NewAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, erro
 		return nil, e
 	}
 
-	return &AlertAction{name: name,
+	return &alertAction{name: name,
 		//description: commons.GetString(attributes, "description", ""),
 		maxRepeated: commons.GetIntWithDefault(attributes, "max_repeated", 0),
 		result:      map[string]interface{}{"name": name},

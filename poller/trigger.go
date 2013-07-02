@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	TG_INIT     = 0
-	TG_STARTING = 1
-	TG_RUNNING  = 2
-	TG_STOPPING = 3
+	SRV_INIT     = 0
+	SRV_STARTING = 1
+	SRV_RUNNING  = 2
+	SRV_STOPPING = 3
 )
 
 type triggerFunc func(t time.Time)
@@ -37,24 +37,24 @@ type trigger struct {
 }
 
 func (self *trigger) Start() error {
-	if !atomic.CompareAndSwapInt32(&self.isRunning, TG_INIT, TG_STARTING) {
+	if !atomic.CompareAndSwapInt32(&self.isRunning, SRV_INIT, SRV_STARTING) {
 		return nil
 	}
 
 	e := self.start(self)
 	if nil != e {
-		atomic.StoreInt32(&self.isRunning, TG_INIT)
+		atomic.StoreInt32(&self.isRunning, SRV_INIT)
 	}
 	return e
 }
 
 func (self *trigger) Stop() {
-	if atomic.CompareAndSwapInt32(&self.isRunning, TG_STARTING, TG_STOPPING) {
+	if atomic.CompareAndSwapInt32(&self.isRunning, SRV_STARTING, SRV_STOPPING) {
 		self.DEBUG.Print("it is starting")
 		return
 	}
 
-	if !atomic.CompareAndSwapInt32(&self.isRunning, TG_RUNNING, TG_STOPPING) {
+	if !atomic.CompareAndSwapInt32(&self.isRunning, SRV_RUNNING, SRV_STOPPING) {
 		self.DEBUG.Print("it is not running")
 		return
 	}
@@ -125,7 +125,7 @@ func newTrigger(attributes map[string]interface{}, callback triggerFunc, ctx map
 			expression:  expression,
 			attachment:  commons.GetStringWithDefault(attributes, "attachment", ""),
 			description: commons.GetStringWithDefault(attributes, "description", ""),
-			isRunning:   TG_INIT,
+			isRunning:   SRV_INIT,
 			callback:    callback,
 			actions:     actions,
 			start:       it.start,
@@ -159,7 +159,7 @@ func (self *intervalTrigger) stop(t *trigger) {
 }
 
 func (self *intervalTrigger) command(cmd string) error {
-	if TG_RUNNING != atomic.LoadInt32(&self.isRunning) {
+	if SRV_RUNNING != atomic.LoadInt32(&self.isRunning) {
 		return NotStart
 	}
 	return self.send(cmd)
@@ -198,13 +198,13 @@ func (self *intervalTrigger) send(cmd string) error {
 }
 
 func (self *intervalTrigger) run() {
-	if !atomic.CompareAndSwapInt32(&self.isRunning, TG_STARTING, TG_RUNNING) {
+	if !atomic.CompareAndSwapInt32(&self.isRunning, SRV_STARTING, SRV_RUNNING) {
 		self.DEBUG.Print("it is stopping while starting.")
 		return
 	}
 
 	defer func() {
-		atomic.StoreInt32(&self.isRunning, TG_INIT)
+		atomic.StoreInt32(&self.isRunning, SRV_INIT)
 
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -246,7 +246,7 @@ func (self *intervalTrigger) run() {
 			}
 		case t := <-ticker.C:
 			status := atomic.LoadInt32(&self.isRunning)
-			if TG_RUNNING != status {
+			if SRV_RUNNING != status {
 				self.DEBUG.Printf("status is exited, status = %v", status)
 				is_running = false
 				break

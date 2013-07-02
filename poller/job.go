@@ -22,17 +22,21 @@ func newJob(attributes, ctx map[string]interface{}) (Job, error) {
 
 type metricJob struct {
 	*trigger
-	metric string
-	params map[string]string
-	client commons.HttpClient
+	metric     string
+	params     map[string]string
+	client     commons.HttpClient
+	last_error error
 }
 
 func (self *metricJob) Run(t time.Time) {
 	res := self.client.Invoke("GET", self.client.Url, nil, 200)
 	if res.HasError() {
+		self.last_error = res.Error()
 		self.WARN.Printf("read metric '%s' failed, %v", self.metric, res.ErrorMessage())
 		return
 	}
+
+	self.last_error = nil
 	self.callActions(t, res)
 }
 

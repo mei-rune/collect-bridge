@@ -55,7 +55,11 @@ func TestRedisAction(t *testing.T) {
 		"arg0":    "sdfs",
 		"arg1":    "$$",
 		"arg2":    "arg2",
-		"arg3":    "$name"}, map[string]interface{}{"redis_channel": forward(ch)})
+		"arg3":    "$op",
+		"arg4":    "arg3",
+		"arg5":    "$name"},
+		map[string]interface{}{"op": "option1"},
+		map[string]interface{}{"redis_channel": forward(ch)})
 
 	if nil != e {
 		t.Error(e)
@@ -76,7 +80,7 @@ func TestRedisAction(t *testing.T) {
 		return
 	}
 
-	excepted := []string{"SET", "sdfs", result.ToJson(), "arg2", "this is a name"}
+	excepted := []string{"SET", "sdfs", result.ToJson(), "arg2", "option1", "arg3", "this is a name"}
 	if !reflect.DeepEqual(res, excepted) {
 		t.Error("excepted is %v", excepted)
 		t.Error("actual is %v", res)

@@ -19,6 +19,7 @@ type valueGetter interface {
 type redisAction struct {
 	name        string
 	description string
+	options     commons.Map
 	channel     chan<- []string
 	command     string
 	arguments   []string
@@ -52,33 +53,41 @@ func (self *redisAction) Run(t time.Time, value interface{}) {
 	commands := make([]string, 0, 1+len(self.arguments))
 	commands = append(commands, self.command)
 	for _, s := range self.arguments {
-		if '$' == s[0] {
-			if "$$" == s {
-				if js, ok := value.(jsonString); ok {
-					commands = append(commands, js.ToJson())
-				} else {
-					commands = append(commands, fmt.Sprint(value))
-				}
-			} else {
-				if nil == values {
-					var e error
-					values, e = toMap(value)
-					if nil != e {
-						self.last_error = e
-						return
-					}
-				}
-
-				v, e := values.GetString(s[1:])
-				if nil != e {
-					self.last_error = errors.New("'" + s[1:] + "' is required, " + e.Error())
-					return
-				}
-				commands = append(commands, v)
-			}
-		} else {
+		if '$' != s[0] {
 			commands = append(commands, s)
+			continue
 		}
+
+		if "$$" == s {
+			if js, ok := value.(jsonString); ok {
+				commands = append(commands, js.ToJson())
+			} else {
+				commands = append(commands, fmt.Sprint(value))
+			}
+			continue
+		}
+
+		if nil != self.options {
+			v, e := self.options.GetString(s[1:])
+			if nil == e {
+				commands = append(commands, v)
+				continue
+			}
+		}
+
+		if nil == values {
+			values, self.last_error = toMap(value)
+			if nil != self.last_error {
+				return
+			}
+		}
+
+		v, e := values.GetString(s[1:])
+		if nil != e {
+			self.last_error = errors.New("'" + s[1:] + "' is required, " + e.Error())
+			return
+		}
+		commands = append(commands, v)
 	}
 
 	self.channel <- commands
@@ -95,7 +104,7 @@ func isRedisCommand(cmd string) bool {
 	return redis_commands[cmd]
 }
 
-func newRedisAction(attributes, ctx map[string]interface{}) (ExecuteAction, error) {
+func newRedisAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {
 	name, e := commons.GetString(attributes, "name")
 	if nil != e {
 		return nil, NameIsRequired
@@ -120,6 +129,7 @@ func newRedisAction(attributes, ctx map[string]interface{}) (ExecuteAction, erro
 
 	return &redisAction{name: name,
 		description: commons.GetStringWithDefault(attributes, "description", ""),
+		options:     commons.InterfaceMap(options),
 		channel:     channel,
 		command:     command,
 		arguments: newRedisArguments(commons.GetStringWithDefault(attributes, "arg0", ""),

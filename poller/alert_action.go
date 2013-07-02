@@ -13,6 +13,7 @@ type alertAction struct {
 	name        string
 	maxRepeated int
 
+	options map[string]interface{}
 	result  map[string]interface{}
 	channel chan map[string]interface{}
 
@@ -89,7 +90,7 @@ var (
 	NotificationChannelTypeError = errors.New("'notification_channel' is not a chan map[string]interface{}")
 )
 
-func newAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, error) {
+func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {
 	name, e := commons.GetString(attributes, "name")
 	if nil != e {
 		return nil, NameIsRequired
@@ -111,6 +112,7 @@ func newAlertAction(attributes, ctx map[string]interface{}) (ExecuteAction, erro
 
 	return &alertAction{name: name,
 		//description: commons.GetString(attributes, "description", ""),
+		options:     options,
 		maxRepeated: commons.GetIntWithDefault(attributes, "max_repeated", 0),
 		result:      map[string]interface{}{"name": name},
 		channel:     channel,

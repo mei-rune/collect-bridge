@@ -68,7 +68,10 @@ func TestJobWithSamplingFailed(t *testing.T) {
 			"name":    "this is a test redis action",
 			"command": "SET",
 			"arg0":    "a",
-			"arg1":    "b"}}},
+			"arg1":    "b",
+			"arg2":    "$managed_type",
+			"arg3":    "$managed_id",
+			"arg4":    "$metric"}}},
 		map[string]interface{}{"redis_channel": forward(ch), "metrics.url": "http://" + l.Addr().String()})
 
 	if nil != e {
@@ -154,7 +157,10 @@ func TestJobFull(t *testing.T) {
 			"arg0":    "sdfs",
 			"arg1":    "$$",
 			"arg2":    "arg2",
-			"arg3":    "$name"}}},
+			"arg3":    "$name",
+			"arg4":    "$managed_type",
+			"arg5":    "$managed_id",
+			"arg6":    "$metric"}}},
 		map[string]interface{}{"redis_channel": forward(ch), "metrics.url": "http://" + l.Addr().String()})
 
 	if nil != e {
@@ -188,7 +194,7 @@ func TestJobFull(t *testing.T) {
 		return
 	}
 
-	excepted := []string{"SET", "sdfs", result.ToJson(), "arg2", "this is a name"}
+	excepted := []string{"SET", "sdfs", result.ToJson(), "arg2", "this is a name", "managed_object", "12", "cpu"}
 	if !reflect.DeepEqual(res, excepted) {
 		t.Error("excepted is %v", excepted)
 		t.Error("actual is %v", res)

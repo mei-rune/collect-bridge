@@ -84,7 +84,7 @@ var (
 	CommandIsRequired     = commons.IsRequired("command")
 )
 
-func newTrigger(attributes map[string]interface{}, callback triggerFunc, ctx map[string]interface{}) (*trigger, error) {
+func newTrigger(attributes, options, ctx map[string]interface{}, callback triggerFunc) (*trigger, error) {
 	name := commons.GetStringWithDefault(attributes, "name", "")
 	if "" == name {
 		return nil, NameIsRequired
@@ -105,7 +105,7 @@ func newTrigger(attributes map[string]interface{}, callback triggerFunc, ctx map
 	}
 	actions := make([]ExecuteAction, 0, 10)
 	for _, spec := range action_specs {
-		action, e := newAction(spec, ctx)
+		action, e := newAction(spec, options, ctx)
 		if nil != e {
 			return nil, e
 		}

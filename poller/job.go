@@ -65,7 +65,10 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		params: map[string]string{"managed_type": parentType, "managed_id": parentId, "metric": metric},
 		client: commons.HttpClient{Url: commons.NewUrlBuilder(url).Concat(parentType, parentId, metric).ToUrl()}}
 
-	job.trigger, e = newTrigger(attributes, func(t time.Time) { job.Run(t) }, ctx)
+	job.trigger, e = newTrigger(attributes,
+		map[string]interface{}{"managed_type": parentType, "managed_id": parentId, "metric": metric},
+		ctx,
+		func(t time.Time) { job.Run(t) })
 	return job, e
 }
 

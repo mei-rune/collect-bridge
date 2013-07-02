@@ -11,13 +11,20 @@ import (
 	"time"
 )
 
-type TriggerFunc func(t time.Time)
+const (
+	TG_INIT     = 0
+	TG_STARTING = 1
+	TG_RUNNING  = 2
+	TG_STOPPING = 3
+)
+
+type triggerFunc func(t time.Time)
 
 type trigger struct {
 	commons.Logger
 	name      string
 	actions   []ExecuteAction
-	callback  TriggerFunc
+	callback  triggerFunc
 	isRunning int32
 
 	commands    map[string]func(t *trigger) string
@@ -30,15 +37,20 @@ type trigger struct {
 }
 
 func (self *trigger) Start() error {
-	if 1 == atomic.LoadInt32(&self.isRunning) {
+	if !atomic.CompareAndSwapInt32(&self.isRunning, TG_INIT, TG_STARTING) {
 		return nil
 	}
 
-	return self.start(self)
+	e := self.start(self)
+	if nil != e {
+		atomic.StoreInt32(&self.isRunning, TG_INIT)
+	}
+	return e
 }
 
 func (self *trigger) Stop() {
-	if 0 == atomic.LoadInt32(&self.isRunning) {
+	if !atomic.CompareAndSwapInt32(&self.isRunning, TG_STARTING, TG_STOPPING) &&
+		!atomic.CompareAndSwapInt32(&self.isRunning, TG_RUNNING, TG_STOPPING) {
 		return
 	}
 
@@ -67,7 +79,7 @@ var (
 	CommandIsRequired     = commons.IsRequired("command")
 )
 
-func newTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map[string]interface{}) (*trigger, error) {
+func newTrigger(attributes map[string]interface{}, callback triggerFunc, ctx map[string]interface{}) (*trigger, error) {
 	name := commons.GetStringWithDefault(attributes, "name", "")
 	if "" == name {
 		return nil, NameIsRequired
@@ -101,7 +113,7 @@ func newTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 			return nil, errors.New(ExpressionSyntexError.Error() + ", " + err.Error())
 		}
 
-		it := &intervalTrigger{control_ch: make(chan string, 1),
+		it := &intervalTrigger{control_ch: make(chan string),
 			control_resp_ch: make(chan string),
 			interval:        interval}
 
@@ -111,14 +123,8 @@ func newTrigger(attributes map[string]interface{}, callback TriggerFunc, ctx map
 			description: commons.GetStringWithDefault(attributes, "description", ""),
 			callback:    callback,
 			actions:     actions,
-			start: func(t *trigger) error {
-				go it.run()
-				return nil
-			},
-			stop: func(t *trigger) {
-				it.control_ch <- "exit"
-				<-it.control_resp_ch
-			}}
+			start:       it.start,
+			stop:        it.stop}
 		it.trigger = t
 		t.InitLoggerWith(ctx, "log.")
 		return t, nil
@@ -133,13 +139,27 @@ type intervalTrigger struct {
 	control_resp_ch chan string
 }
 
+func (self *intervalTrigger) start(t *trigger) error {
+	go self.run()
+	return nil
+}
+
+func (self *intervalTrigger) stop(t *trigger) {
+	select {
+	case self.control_ch <- "exit":
+		select {
+		case <-self.control_resp_ch:
+		}
+	}
+}
+
 func (self *intervalTrigger) run() {
-	if !atomic.CompareAndSwapInt32(&self.isRunning, 0, 1) {
+	if !atomic.CompareAndSwapInt32(&self.isRunning, TG_STARTING, TG_RUNNING) {
 		return
 	}
 
 	defer func() {
-		atomic.StoreInt32(&self.isRunning, 0)
+		atomic.StoreInt32(&self.isRunning, TG_INIT)
 
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -165,11 +185,20 @@ func (self *intervalTrigger) run() {
 		case cmd := <-self.control_ch:
 			if "exit" == cmd {
 				is_running = false
-				self.control_resp_ch <- "ok"
+				select {
+				case self.control_resp_ch <- "ok":
+				}
 			} else {
 				self.executeCommand(cmd)
 			}
 		case t := <-ticker.C:
+			if TG_RUNNING != atomic.LoadInt32(&self.isRunning) {
+				is_running = false
+				select {
+				case self.control_resp_ch <- "ok":
+				}
+				break
+			}
 			self.timeout(t)
 		}
 	}

@@ -82,6 +82,7 @@ func getResultFromRedis(c redis.Conn, key string) (string, error) {
 
 func TestIntegratedTestPoller(t *testing.T) {
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+		t.Log("Please run redis at " + redis_address + " before run unit test.")
 		id := ds.CreateItForTest(t, client, "network_device", mo)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)

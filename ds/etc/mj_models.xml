@@ -376,6 +376,16 @@
         <maxLength>2000</maxLength>
       </restriction>
     </property>
+    <property name="parent_type">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="parent_id">
+      <restriction base="objectId">
+      </restriction>
+    </property>
+
 
     <property name="created_at">
       <restriction base="datetime">

@@ -350,6 +350,17 @@
         <maxLength>2000</maxLength>
       </restriction>
     </property>
+
+    <property name="created_at">
+      <restriction base="datetime">
+        <readonly />
+      </restriction>
+    </property>
+    <property name="updated_at">
+      <restriction base="datetime">
+      </restriction>
+    </property>
+
     <has_many polymorphic="true">Action</has_many>
   </class>
 
@@ -363,6 +374,16 @@
     <property name="description">
       <restriction base="string">
         <maxLength>2000</maxLength>
+      </restriction>
+    </property>
+
+    <property name="created_at">
+      <restriction base="datetime">
+        <readonly />
+      </restriction>
+    </property>
+    <property name="updated_at">
+      <restriction base="datetime">
       </restriction>
     </property>
   </class>

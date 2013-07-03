@@ -368,6 +368,12 @@ func SearchOneBy(instance interface{}, query map[string]interface{}) map[string]
 
 type InterfaceMap map[string]interface{}
 
+func (self InterfaceMap) CopyTo(copy map[string]interface{}) {
+	for k, v := range self {
+		copy[k] = v
+	}
+}
+
 func (self InterfaceMap) Set(key string, value interface{}) {
 	self[key] = value
 }
@@ -485,6 +491,12 @@ func (self InterfaceMap) GetObjects(key string) ([]map[string]interface{}, error
 }
 
 type StringMap map[string]string
+
+func (self StringMap) CopyTo(copy map[string]interface{}) {
+	for k, v := range self {
+		copy[k] = v
+	}
+}
 
 func (self StringMap) Set(key string, value interface{}) {
 	if s, ok := value.(string); ok {
@@ -748,6 +760,11 @@ func Proxy(values, proxy Map) Map {
 		return values
 	}
 	return &ProxyMap{values: values, proxy: proxy}
+}
+
+func (self ProxyMap) CopyTo(copy map[string]interface{}) {
+	self.values.CopyTo(copy)
+	self.proxy.CopyTo(copy)
 }
 
 func (self ProxyMap) Set(key string, value interface{}) {

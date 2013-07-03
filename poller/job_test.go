@@ -3,6 +3,7 @@ package poller
 import (
 	//"sync/atomic"
 	"commons"
+	"encoding/json"
 	"net"
 	"net/http"
 	"reflect"
@@ -193,9 +194,20 @@ func TestJobFull(t *testing.T) {
 		return
 	}
 
-	excepted := []string{"SET", "sdfs", result.ToJson(), "arg2", "this is a name", "managed_object", "12", "cpu"}
+	m := result.ToMap()
+	m["managed_id"] = "12"
+	m["managed_type"] = "managed_object"
+	m["metric"] = "cpu"
+
+	js, e := json.Marshal(m)
+	if nil != e {
+		t.Error(e)
+		return
+	}
+
+	excepted := []string{"SET", "sdfs", string(js), "arg2", "this is a name", "managed_object", "12", "cpu"}
 	if !reflect.DeepEqual(res, excepted) {
-		t.Error("excepted is %v", excepted)
-		t.Error("actual is %v", res)
+		t.Error("excepted is ", excepted)
+		t.Error("actual is ", res)
 	}
 }

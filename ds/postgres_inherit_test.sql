@@ -170,7 +170,9 @@ CREATE TABLE tpt_triggers (
   name          varchar(250),
   expression    varchar(250),
   attachment    varchar(2000),
-  description   varchar(2000)
+  description   varchar(2000),
+  created_at    timestamp,
+  updated_at    timestamp
 );
 
 CREATE TABLE tpt_metric_triggers (
@@ -188,7 +190,10 @@ CREATE TABLE tpt_actions (
   description   varchar(2000),
 
   parent_type varchar(250),
-  parent_id integer
+  parent_id integer, 
+  
+  created_at    timestamp,
+  updated_at    timestamp
 );
 
 CREATE TABLE tpt_redis_commands (

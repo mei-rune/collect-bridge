@@ -2,6 +2,7 @@ package poller
 
 import (
 	"commons"
+	"encoding/json"
 	"github.com/garyburd/redigo/redis"
 	"reflect"
 	"testing"
@@ -81,9 +82,19 @@ func TestRedisAction(t *testing.T) {
 		return
 	}
 
-	excepted := []string{"SET", "sdfs", result.ToJson(), "arg2", "option1", "arg3", "this is a name"}
+	m := result.ToMap()
+	m["op"] = "option1"
+	// m["managed_type"] = "managed_object"
+	// m["metric"] = "cpu"
+	js, e := json.Marshal(m)
+	if nil != e {
+		t.Error(e)
+		return
+	}
+
+	excepted := []string{"SET", "sdfs", string(js), "arg2", "option1", "arg3", "this is a name"}
 	if !reflect.DeepEqual(res, excepted) {
-		t.Error("excepted is %v", excepted)
-		t.Error("actual is %v", res)
+		t.Error("excepted is ", excepted)
+		t.Error("actual is ", res)
 	}
 }

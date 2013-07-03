@@ -28,6 +28,12 @@ type context struct {
 	pry   *proxy
 }
 
+func (self *context) CopyTo(copy map[string]interface{}) {
+	for k, v := range self.params {
+		copy[k] = v
+	}
+}
+
 func (self *context) Set(key string, value interface{}) {
 	if s, ok := value.(string); ok {
 		self.params[key] = s

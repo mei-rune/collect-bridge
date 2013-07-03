@@ -80,6 +80,10 @@ func (self *Redis) runOnce() {
 				_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3])
 			case 5:
 				_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4])
+			case 6:
+				_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5])
+			default:
+				_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6])
 			}
 			if nil != err {
 				commons.Log.ERROR.Printf("[redis] do command '%s' failed, %v", cmd[0], err)

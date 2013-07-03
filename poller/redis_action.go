@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"time"
 
+	"encoding/json"
 	"errors"
 )
 
-type jsonString interface {
+type toJsoner interface {
 	ToJson() string
+}
+
+type toMapper interface {
+	ToMap() map[string]interface{}
 }
 
 type valueGetter interface {
@@ -59,7 +64,21 @@ func (self *redisAction) Run(t time.Time, value interface{}) {
 		}
 
 		if "$$" == s {
-			if js, ok := value.(jsonString); ok {
+			if result, ok := value.(toMapper); ok {
+				m := result.ToMap()
+				if nil == m {
+					m = map[string]interface{}{}
+				}
+				if nil != self.options {
+					self.options.CopyTo(m)
+				}
+				js, e := json.Marshal(m)
+				if nil != e {
+					self.last_error = e
+					return
+				}
+				commands = append(commands, string(js))
+			} else if js, ok := value.(toJsoner); ok {
 				commands = append(commands, js.ToJson())
 			} else {
 				commands = append(commands, fmt.Sprint(value))
@@ -98,10 +117,11 @@ var redis_commands = map[string]bool{"APPEND": true,
 	"INCR": true, "DECR": true, "INCRBY": true, "SETBIT": true,
 	"LPUSH": true, "RPUSH": true,
 	"SADD": true, "SET": true, "GET": true, "MSET": true,
-	"HSET": true, "HMSET": true}
+	"HSET": true, "HMSET": true, "PUBLISH": true}
 
 func isRedisCommand(cmd string) bool {
-	return redis_commands[cmd]
+	return true
+	//return redis_commands[cmd]
 }
 
 func newRedisAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {

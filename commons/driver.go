@@ -108,6 +108,7 @@ type Result interface {
 	RawOptions() map[string]interface{}
 	CreatedAt() time.Time
 	ToJson() string
+	ToMap() map[string]interface{}
 }
 
 type Any interface {
@@ -137,6 +138,8 @@ type Any interface {
 }
 
 type Map interface {
+	CopyTo(copy map[string]interface{})
+
 	Set(key string, value interface{})
 
 	Contains(key string) bool
@@ -374,6 +377,35 @@ func (self *SimpleResult) ToJson() string {
 		panic(e.Error())
 	}
 	return string(bs)
+}
+
+func (self *SimpleResult) ToMap() map[string]interface{} {
+	res := map[string]interface{}{}
+
+	res["created_at"] = self.Vcreated_at
+	if 0 != len(self.Vtype) {
+		res["type"] = self.Vtype
+	}
+
+	if nil != self.Verr {
+		res["error"] = map[string]interface{}{"code": self.Verr.Vcode, "message": self.Verr.Vmessage}
+	}
+	if nil != self.Vwarnings {
+		res["warnings"] = self.Vwarnings
+	}
+	if nil != self.Vvalue {
+		res["value"] = self.Vvalue
+	}
+	if nil != self.Veffected && -1 != *self.Veffected {
+		res["effected"] = *self.Veffected
+	}
+	if nil != self.VlastInsertId {
+		res["lastInsertId"] = self.VlastInsertId
+	}
+	if nil != self.Voptions {
+		res["options"] = self.Voptions
+	}
+	return res
 }
 
 type AnyValue struct {

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const redis_address = "127.0.0.1:6379"
+var redis_address = *redisAddress //"127.0.0.1:6379"
 
 func checkResult(t *testing.T, c redis.Conn, cmd, key, excepted string) {
 	reply, err := c.Do(cmd, key)
@@ -19,6 +19,7 @@ func checkResult(t *testing.T, c redis.Conn, cmd, key, excepted string) {
 		t.Errorf("check %s failed, actual is %v, excepted is %v", key, reply, excepted)
 	}
 }
+
 func TestRedis(t *testing.T) {
 	redis_channel, err := newRedis(redis_address)
 	if nil != err {

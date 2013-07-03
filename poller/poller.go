@@ -13,14 +13,15 @@ import (
 )
 
 var (
-	redisAddress  = flag.String("redis", "127.0.0.1:7073", "the address of redis")
+	redisAddress  = flag.String("redis", "127.0.0.1:6379", "the address of redis")
 	listenAddress = flag.String("listen", ":7076", "the address of http")
-	dsUrl         = flag.String("ds", "http://127.0.0.1:7071/ds", "the address of ds")
+	dsUrl         = flag.String("ds", "http://127.0.0.1:7071", "the address of ds")
 	metrics_url   = flag.String("metrics.url", "http://127.0.0.1:7072", "the address of bridge")
 	timeout       = flag.Int("timeout", 5, "the timeout of http")
 	refresh       = flag.Duration("refresh", 5, "the refresh interval of cache")
 
-	is_test = false
+	is_test         = false
+	jobs_test []Job = nil
 )
 
 func mainHandle(req *restful.Request, resp *restful.Response) {
@@ -61,7 +62,7 @@ func Runforever() {
 		return
 	}
 
-	ctx := map[string]interface{}{"metrics.url": metrics_url,
+	ctx := map[string]interface{}{"metrics.url": *metrics_url,
 		"cache": cache, "redis_channel": forward(redis_channel)}
 
 	jobs := make([]Job, 0, 100)
@@ -87,6 +88,7 @@ func Runforever() {
 	ws := new(restful.WebService)
 	if is_test {
 		ws.Path("job")
+		jobs_test = jobs
 	}
 	ws.Route(ws.GET("/").To(mainHandle))
 	ws.Consumes(restful.MIME_XML, restful.MIME_JSON).

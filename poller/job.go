@@ -9,6 +9,9 @@ import (
 
 type Job interface {
 	commons.Startable
+	Id() string
+	Name() string
+	Stats() string
 }
 
 func newJob(attributes, ctx map[string]interface{}) (Job, error) {
@@ -26,6 +29,10 @@ type metricJob struct {
 	params     map[string]string
 	client     commons.HttpClient
 	last_error error
+}
+
+func (self *metricJob) Stats() string {
+	return ""
 }
 
 func (self *metricJob) Run(t time.Time) {
@@ -61,9 +68,16 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		return nil, errors.New("'metrics.url' is required.")
 	}
 
+	client_url := ""
+	if is_test {
+		client_url = commons.NewUrlBuilder(url).Concat("metrics", parentType, parentId, metric).ToUrl()
+	} else {
+		client_url = commons.NewUrlBuilder(url).Concat(parentType, parentId, metric).ToUrl()
+	}
+
 	job := &metricJob{metric: metric,
 		params: map[string]string{"managed_type": parentType, "managed_id": parentId, "metric": metric},
-		client: commons.HttpClient{Url: commons.NewUrlBuilder(url).Concat(parentType, parentId, metric).ToUrl()}}
+		client: commons.HttpClient{Url: client_url}}
 
 	job.trigger, e = newTrigger(attributes,
 		map[string]interface{}{"managed_type": parentType, "managed_id": parentId, "metric": metric},

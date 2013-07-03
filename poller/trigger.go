@@ -22,6 +22,7 @@ type triggerFunc func(t time.Time)
 
 type trigger struct {
 	commons.Logger
+	id        string
 	name      string
 	actions   []ExecuteAction
 	callback  triggerFunc
@@ -34,6 +35,14 @@ type trigger struct {
 
 	start func(t *trigger) error
 	stop  func(t *trigger)
+}
+
+func (self *trigger) Id() string {
+	return self.id
+}
+
+func (self *trigger) Name() string {
+	return self.name
 }
 
 func (self *trigger) Start() error {

@@ -170,15 +170,13 @@ CREATE TABLE tpt_triggers (
   name          varchar(250),
   expression    varchar(250),
   attachment    varchar(2000),
-  description   varchar(2000),
-
-  parent_type   varchar(250),
-  parent_id     integer
+  description   varchar(2000)
 );
 
 CREATE TABLE tpt_metric_triggers (
   -- id integer NOT NULL DEFAULT nextval('tpt_triggers_seq')  PRIMARY KEY,
   metric varchar(250),
+
   managed_object_id integer,
   CONSTRAINT tpt_metric_triggers_pkey PRIMARY KEY (id)
 ) INHERITS (tpt_triggers);

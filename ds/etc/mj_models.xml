@@ -17,7 +17,7 @@
     </property>
 
     <has_many foreignKey="managed_object_id" >Attributes</has_many>
-    <has_many polymorphic="true" >Trigger</has_many>
+    <has_many foreignKey="managed_object_id" >MetricTrigger</has_many>
   </class>
 
   <class name="NetworkDevice" base="ManagedObject">

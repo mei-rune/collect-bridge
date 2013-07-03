@@ -33,7 +33,7 @@ func createMockMetricRule2(t *testing.T, client *Client, factor string) string {
 	return createJson(t, client, "metric_trigger", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s"}`, factor, factor, factor))
 }
 func createMockMetricRule(t *testing.T, client *Client, id, factor string) string {
-	return createJson(t, client, "metric_trigger", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s", "parent_type":"network_device", "parent_id":"%s"}`, factor, factor, factor, id))
+	return createJson(t, client, "metric_trigger", fmt.Sprintf(`{"name":"%s", "expression":"d%s", "metric":"2%s", "managed_object_id":"%s"}`, factor, factor, factor, id))
 }
 
 func createMockInterface(t *testing.T, client *Client, id, factor string) string {
@@ -407,16 +407,16 @@ func checkMetricRuleCount(t *testing.T, client *Client, id1, id2, id3, id4 strin
 	if c := count(t, client, tName, map[string]string{}); all != c {
 		t.Errorf("%d != len(all.rules), actual is %d", all, c)
 	}
-	if c := count(t, client, tName, map[string]string{"parent_type": "network_device", "parent_id": id1}); d1 != c {
+	if c := count(t, client, tName, map[string]string{"managed_object_id": id1}); d1 != c {
 		t.Errorf("%d != len(d1.rules), actual is %d", d1, c)
 	}
-	if c := count(t, client, tName, map[string]string{"parent_type": "network_device", "parent_id": id2}); d2 != c {
+	if c := count(t, client, tName, map[string]string{"managed_object_id": id2}); d2 != c {
 		t.Errorf("%d != len(d2.rules), actual is %d", d2, c)
 	}
-	if c := count(t, client, tName, map[string]string{"parent_type": "network_device", "parent_id": id3}); d3 != c {
+	if c := count(t, client, tName, map[string]string{"managed_object_id": id3}); d3 != c {
 		t.Errorf("%d != len(d3.rules), actual is %d", d3, c)
 	}
-	if c := count(t, client, tName, map[string]string{"parent_type": "network_device", "parent_id": id4}); d4 != c {
+	if c := count(t, client, tName, map[string]string{"managed_object_id": id4}); d4 != c {
 		t.Errorf("%d != len(d4.rules), actual is %d", d4, c)
 	}
 }

@@ -65,7 +65,7 @@ var (
 		"$access_param":        []map[string]interface{}{snmp_params, wbem_params},
 		"$network_address":     []interface{}{ip1, ip2, ip3},
 		"$network_device_port": map[string]interface{}{"1": if1, "9": if2},
-		"$trigger":             []interface{}{rule1, rule2},
+		"$metric_trigger":      []interface{}{rule1, rule2},
 		"address":              "192.168.1.9",
 		"description":          "Hardware: Intel64 Family 6 Model 58 Stepping 9 AT/AT COMPATIBLE - Software:Windows Version 6.1 (Build 7601 Multiprocessor Free)",
 		"location":             "",
@@ -160,8 +160,8 @@ func TestIntCreateDevice(t *testing.T) {
 		checkInterface(t, findOne(t, client, "network_device_port", map[string]string{"device_id": id, "if_index": "1"}), if1)
 		checkInterface(t, findOne(t, client, "network_device_port", map[string]string{"device_id": id, "if_index": "9"}), if2)
 
-		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule1"}), rule1)
-		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule2"}), rule2)
+		checkHistoryRule(t, findOne(t, client, "metric_trigger", map[string]string{"managed_object_id": id, "name": "rule1"}), rule1)
+		checkHistoryRule(t, findOne(t, client, "metric_trigger", map[string]string{"managed_object_id": id, "name": "rule2"}), rule2)
 
 		checkSnmpParams(t, findOne(t, client, "snmp_param", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
@@ -189,16 +189,16 @@ func TestIntCreateDeviceByParent(t *testing.T) {
 		createByParent(t, client, "network_device", id, "network_device_port", if1)
 		createByParent(t, client, "network_device", id, "network_device_port", if2)
 
-		createByParent(t, client, "network_device", id, "trigger", rule1)
-		createByParent(t, client, "network_device", id, "trigger", rule2)
+		createByParent(t, client, "network_device", id, "metric_trigger", rule1)
+		createByParent(t, client, "network_device", id, "metric_trigger", rule2)
 
 		checkDevice(t, findById(t, client, "network_device", id), js)
 		t.Log("find device ok")
 		checkInterface(t, findOne(t, client, "network_device_port", map[string]string{"device_id": id, "if_index": "1"}), if1)
 		checkInterface(t, findOne(t, client, "network_device_port", map[string]string{"device_id": id, "if_index": "9"}), if2)
 
-		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule1"}), rule1)
-		checkHistoryRule(t, findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule2"}), rule2)
+		checkHistoryRule(t, findOne(t, client, "metric_trigger", map[string]string{"managed_object_id": id, "name": "rule1"}), rule1)
+		checkHistoryRule(t, findOne(t, client, "metric_trigger", map[string]string{"managed_object_id": id, "name": "rule2"}), rule2)
 
 		checkSnmpParams(t, findOne(t, client, "snmp_param", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
@@ -212,7 +212,7 @@ func TestIntQueryByIncludes(t *testing.T) {
 		deleteBy(t, client, "action", map[string]string{})
 
 		id := create(t, client, "network_device", js)
-		drv := findByIdWithIncludes(t, client, "network_device", id, "network_device_port,trigger,snmp_param")
+		drv := findByIdWithIncludes(t, client, "network_device", id, "network_device_port,metric_trigger,snmp_param")
 
 		checkDevice(t, drv, js)
 		bs, e := json.MarshalIndent(drv, "", "  ")
@@ -230,8 +230,8 @@ func TestIntQueryByIncludes(t *testing.T) {
 			t.Error("wbem_params in result")
 		}
 
-		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule1"}), rule1)
-		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule2"}), rule2)
+		checkHistoryRule(t, findOneFrom(t, drv, "metric_trigger", map[string]string{"managed_object_id": id, "name": "rule1"}), rule1)
+		checkHistoryRule(t, findOneFrom(t, drv, "metric_trigger", map[string]string{"managed_object_id": id, "name": "rule2"}), rule2)
 		checkSnmpParams(t, findOneFrom(t, drv, "snmp_param", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
 }
@@ -262,8 +262,8 @@ func TestIntQueryByIncludesAll(t *testing.T) {
 			t.Error("wbem_params in result")
 		}
 
-		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule1"}), rule1)
-		checkHistoryRule(t, findOneFrom(t, drv, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule2"}), rule2)
+		checkHistoryRule(t, findOneFrom(t, drv, "metric_trigger", map[string]string{"managed_object_id": id, "name": "rule1"}), rule1)
+		checkHistoryRule(t, findOneFrom(t, drv, "metric_trigger", map[string]string{"managed_object_id": id, "name": "rule2"}), rule2)
 		checkSnmpParams(t, findOneFrom(t, drv, "attributes", map[string]string{"managed_object_id": id, "port": "161"}), snmp_params)
 	})
 }
@@ -331,10 +331,10 @@ func TestIntQueryByChild(t *testing.T) {
 		checkDevice(t, findByChild(t, client, "network_device", "network_device_port", fmt.Sprint(ifc1["id"])), js)
 		checkDevice(t, findByChild(t, client, "network_device", "network_device_port", fmt.Sprint(ifc2["id"])), js)
 
-		tr1 := findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule1"})
-		tr2 := findOne(t, client, "trigger", map[string]string{"parent_type": "network_device", "parent_id": id, "name": "rule2"})
+		tr1 := findOne(t, client, "metric_trigger", map[string]string{"managed_object_id": id, "name": "rule1"})
+		tr2 := findOne(t, client, "metric_trigger", map[string]string{"managed_object_id": id, "name": "rule2"})
 
-		checkDevice(t, findByChild(t, client, "network_device", "trigger", fmt.Sprint(tr1["id"])), js)
-		checkDevice(t, findByChild(t, client, "network_device", "trigger", fmt.Sprint(tr2["id"])), js)
+		checkDevice(t, findByChild(t, client, "network_device", "metric_trigger", fmt.Sprint(tr1["id"])), js)
+		checkDevice(t, findByChild(t, client, "network_device", "metric_trigger", fmt.Sprint(tr2["id"])), js)
 	})
 }

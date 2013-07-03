@@ -32,12 +32,10 @@ var (
 		"type":     "wbem_param"}
 
 	metric_trigger2 = map[string]interface{}{
-		"name":        "this is a test trigger",
-		"type":        "metric_trigger",
-		"metric":      "sys",
-		"parent_type": "managed_object",
-		"parent_id":   "12",
-		"expression":  "@every 1ms"}
+		"name":       "this is a test trigger",
+		"type":       "metric_trigger",
+		"metric":     "sys",
+		"expression": "@every 1ms"}
 
 	redis_commands2 = map[string]interface{}{
 		"type":    "redis_command",

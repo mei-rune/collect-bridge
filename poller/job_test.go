@@ -57,12 +57,11 @@ func TestJobWithSamplingFailed(t *testing.T) {
 
 	ch := make(chan []string, 1)
 	tg, e := newJob(map[string]interface{}{
-		"name":        "this is a test trigger",
-		"type":        "metric_trigger",
-		"metric":      "cpu",
-		"parent_type": "managed_object",
-		"parent_id":   "12",
-		"expression":  "@every 1ms",
+		"name":              "this is a test trigger",
+		"type":              "metric_trigger",
+		"metric":            "cpu",
+		"managed_object_id": "12",
+		"expression":        "@every 1ms",
 		"$action": []interface{}{map[string]interface{}{
 			"type":    "redis_command",
 			"name":    "this is a test redis action",
@@ -144,12 +143,12 @@ func TestJobFull(t *testing.T) {
 
 	ch := make(chan []string, 1)
 	tg, e := newJob(map[string]interface{}{
-		"name":        "this is a test trigger",
-		"type":        "metric_trigger",
-		"metric":      "cpu",
-		"parent_type": "managed_object",
-		"parent_id":   "12",
-		"expression":  "@every 1ms",
+		"name":              "this is a test trigger",
+		"type":              "metric_trigger",
+		"metric":            "cpu",
+		"parent_type":       "managed_object",
+		"managed_object_id": "12",
+		"expression":        "@every 1ms",
 		"$action": []interface{}{map[string]interface{}{
 			"type":    "redis_command",
 			"name":    "this is a test redis action",

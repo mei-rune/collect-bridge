@@ -52,13 +52,9 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 	if nil != e {
 		return nil, errors.New("'metric' is required, " + e.Error())
 	}
-	parentType, e := commons.GetString(attributes, "parent_type")
+	parentId, e := commons.GetString(attributes, "managed_object_id")
 	if nil != e {
-		return nil, errors.New("'parent_type' is required, " + e.Error())
-	}
-	parentId, e := commons.GetString(attributes, "parent_id")
-	if nil != e {
-		return nil, errors.New("'parent_id' is required, " + e.Error())
+		return nil, errors.New("'managed_object_id' is required, " + e.Error())
 	}
 	url, e := commons.GetString(ctx, "metrics.url")
 	if nil != e {
@@ -70,17 +66,17 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 
 	client_url := ""
 	if is_test {
-		client_url = commons.NewUrlBuilder(url).Concat("metrics", parentType, parentId, metric).ToUrl()
+		client_url = commons.NewUrlBuilder(url).Concat("metrics", "managed_object", parentId, metric).ToUrl()
 	} else {
-		client_url = commons.NewUrlBuilder(url).Concat(parentType, parentId, metric).ToUrl()
+		client_url = commons.NewUrlBuilder(url).Concat("managed_object", parentId, metric).ToUrl()
 	}
 
 	job := &metricJob{metric: metric,
-		params: map[string]string{"managed_type": parentType, "managed_id": parentId, "metric": metric},
+		params: map[string]string{"managed_type": "managed_object", "managed_id": parentId, "metric": metric},
 		client: commons.HttpClient{Url: client_url}}
 
 	job.trigger, e = newTrigger(attributes,
-		map[string]interface{}{"managed_type": parentType, "managed_id": parentId, "metric": metric},
+		map[string]interface{}{"managed_type": "managed_object", "managed_id": parentId, "metric": metric},
 		ctx,
 		func(t time.Time) { job.Run(t) })
 	return job, e

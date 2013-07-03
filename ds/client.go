@@ -201,6 +201,48 @@ func GetTime(v interface{}, t *time.Time) error {
 	return ErrNotTimeString
 }
 
+func Diff(new_snapshots, old_snapshots map[string]*RecordVersion) (newed, updated, deleted []string) {
+	//newed = make([]string, 0, len(old_snapshots))
+	//updated = make([]string, 0, len(old_snapshots))
+	//deleted = make([]string, 0, len(old_snapshots))
+	for id, version := range new_snapshots {
+		old_version, ok := old_snapshots[id]
+		if !ok {
+			//fmt.Println("not found, skip", id)
+
+			newed = append(newed, id)
+			continue
+		}
+
+		delete(old_snapshots, id)
+		if nil == old_version {
+			//fmt.Println("old version is nil, reload", id)
+			//delete(c.objects, id)
+			newed = append(newed, id)
+			continue
+		}
+		if nil == version {
+			//fmt.Println("version is nil, skip", id)
+			continue
+		}
+
+		if version.UpdatedAt.After(old_version.UpdatedAt) {
+			//fmt.Println("after, reload", id)
+			updated = append(updated, id)
+		} // else {
+		//	fmt.Println("not after, skip", id, version.UpdatedAt, old_version.UpdatedAt)
+		//}
+	}
+
+	for id, _ := range old_snapshots {
+		deleted = append(deleted, id)
+		//delete(c.objects, id)
+		// fmt.Println("delete", id)
+	}
+
+	return
+}
+
 func (self *Client) Snapshot(target string, params map[string]string) (map[string]*RecordVersion,
 	commons.RuntimeError) {
 	url := self.CreateUrl().

@@ -58,7 +58,7 @@ func (self *trigger) Start() error {
 }
 
 func (self *trigger) Stop() {
-	if atomic.CompareAndSwapInt32(&self.isRunning, SRV_STARTING, SRV_STOPPING) {
+	if atomic.CompareAndSwapInt32(&self.isRunning, SRV_STARTING, SRV_INIT) {
 		self.DEBUG.Print("it is starting")
 		return
 	}

@@ -1,7 +1,6 @@
 package poller
 
 import (
-	"fmt"
 	"log"
 	"sync/atomic"
 	"testing"
@@ -25,7 +24,6 @@ func TestTrigger(t *testing.T) {
 
 	tg.Logger.InitLoggerWithCallback(func(bs []byte) {
 		t.Log(string(bs))
-		fmt.Println(string(bs))
 	}, "test trigger", log.LstdFlags)
 
 	if !tg.Logger.DEBUG.IsEnabled() {

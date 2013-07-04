@@ -19,7 +19,7 @@ var (
 	dsUrl         = flag.String("ds", "http://127.0.0.1:7071", "the address of ds")
 	metrics_url   = flag.String("metrics.url", "http://127.0.0.1:7072", "the address of bridge")
 	timeout       = flag.Duration("timeout", 1*time.Minute, "the timeout of http")
-	refresh       = flag.Duration("refresh", 10*time.Second, "the refresh interval of cache")
+	//refresh       = flag.Duration("refresh", 5, "the refresh interval of cache")
 
 	is_test         = false
 	jobs_test []Job = nil

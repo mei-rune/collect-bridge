@@ -63,6 +63,13 @@ func (self *HttpClient) Invoke(action, url string, msg []byte, exceptedCode int)
 		return networkError(e.Error())
 	}
 
+	// Install closing the request body (if any)
+	defer func() {
+		if nil != resp.Body {
+			resp.Body.Close()
+		}
+	}()
+
 	if resp.StatusCode != exceptedCode {
 		resp_body := readAllBytes(resp.Body)
 		if nil == resp_body || 0 == len(resp_body) {

@@ -2,7 +2,7 @@ package poller
 
 import (
 	"ds"
-	_ "expvar"
+	"expvar"
 	"flag"
 	"fmt"
 	"github.com/runner-mei/go-restful"
@@ -19,10 +19,10 @@ var (
 	dsUrl         = flag.String("ds", "http://127.0.0.1:7071", "the address of ds")
 	metrics_url   = flag.String("metrics.url", "http://127.0.0.1:7072", "the address of bridge")
 	timeout       = flag.Duration("timeout", 1*time.Minute, "the timeout of http")
-	//refresh       = flag.Duration("refresh", 5, "the refresh interval of cache")
+	refresh       = flag.Duration("refresh", 5, "the refresh interval of cache")
 
-	is_test         = false
-	jobs_test []Job = nil
+	is_test             = false
+	server_test *server = nil
 )
 
 func mainHandle(req *restful.Request, resp *restful.Response) {
@@ -66,7 +66,7 @@ func Runforever() {
 	ctx := map[string]interface{}{"metrics.url": *metrics_url,
 		"redis_channel": forward(redis_channel)}
 
-	jobs := make([]Job, 0, 100)
+	srv := newServer(*refresh)
 	for _, attributes := range results {
 		name := attributes["name"]
 		id := attributes["id"]
@@ -83,13 +83,18 @@ func Runforever() {
 		}
 
 		fmt.Printf("load '%v:%v' is ok\n", id, name)
-		jobs = append(jobs, job)
+		//jobs = append(jobs, job)
+		srv.register(job)
 	}
+
+	srv.Start()
+	defer srv.Stop()
+	expvar.Publish("triggers", srv)
 
 	ws := new(restful.WebService)
 	if is_test {
 		ws.Path("job")
-		jobs_test = jobs
+		server_test = srv
 	}
 	ws.Route(ws.GET("/").To(mainHandle))
 	ws.Consumes(restful.MIME_XML, restful.MIME_JSON).

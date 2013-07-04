@@ -104,34 +104,15 @@ func (c *Cache) compare(snapshots map[string]*RecordVersion) {
 		old_snapshots[id] = version
 	}
 
-	for id, version := range snapshots {
-		old_version, ok := old_snapshots[id]
-		if !ok {
-			//fmt.Println("not found, skip", id)
-			continue
-		}
-		delete(old_snapshots, id)
-		if nil == version {
-			//fmt.Println("version is nil, skip", id)
-			continue
-		}
-		if nil == old_version {
-			//fmt.Println("old version is nil, reload", id)
-			delete(c.objects, id)
+	_, updated, deleted := Diff(snapshots, old_snapshots)
+	for _, n := range [][]string{updated, deleted} {
+		if nil == n {
 			continue
 		}
 
-		if version.UpdatedAt.After(old_version.UpdatedAt) {
-			//fmt.Println("after, reload", id)
+		for _, id := range n {
 			delete(c.objects, id)
-		} // else {
-		//	fmt.Println("not after, skip", id, version.UpdatedAt, old_version.UpdatedAt)
-		//}
-	}
-
-	for id, _ := range old_snapshots {
-		delete(c.objects, id)
-		// fmt.Println("delete", id)
+		}
 	}
 }
 

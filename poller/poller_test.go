@@ -101,7 +101,7 @@ func TestIntegratedTestPoller(t *testing.T) {
 		is_test = true
 		Runforever()
 
-		if nil == jobs_test || 0 == len(jobs_test) {
+		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
 			t.Error("load trigger failed.")
 			return
 		}

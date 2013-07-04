@@ -2,6 +2,7 @@ package commons
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"runtime"
@@ -21,14 +22,37 @@ type SimpleServer struct {
 	C             chan func()
 	IdledInterval time.Duration
 	OnIdle        func()
+	Timeout       time.Duration
 }
 
 func (s *SimpleServer) Start() {
 	if !atomic.CompareAndSwapInt32(&s.status, SRV_INIT, SRV_STARTING) {
+		fmt.Println("start failed")
 		return
 	}
 
+	if nil == s.C {
+		s.C = make(chan func())
+	}
+
+	if 0 == s.Timeout {
+		s.Timeout = 20 * time.Second
+	}
+
 	go s.serve()
+}
+
+var (
+	notSend = errors.New("send error")
+)
+
+func (s *SimpleServer) Call(cb func()) error {
+	if !s.IsRunning() {
+		return DieError
+	}
+
+	s.C <- cb
+	return nil
 }
 
 func (s *SimpleServer) IsRunning() bool {
@@ -105,6 +129,16 @@ func (s *SimpleServer) serve() {
 			}
 		}
 	}
+
+	next := true
+	for next {
+		select {
+		case f := <-s.C:
+			s.executeCommand(f)
+		default:
+			next = false
+		}
+	}
 }
 
 func (s *SimpleServer) fireIdle() {
@@ -128,4 +162,99 @@ func (s *SimpleServer) executeCommand(cb func()) {
 	}()
 
 	cb()
+}
+
+func (s *SimpleServer) ReturnError(cb func() error) error {
+	c := make(chan error)
+	defer close(c)
+
+	s.Call(func() {
+		defer func() {
+			if e := recover(); nil != e {
+				var buffer bytes.Buffer
+				buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+				for i := 1; ; i += 1 {
+					_, file, line, ok := runtime.Caller(i)
+					if !ok {
+						break
+					}
+					buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+				}
+				c <- errors.New(buffer.String())
+			}
+		}()
+
+		c <- cb()
+	})
+
+	select {
+	case res := <-c:
+		return res
+	case <-time.After(s.Timeout):
+		return TimeoutErr
+	}
+}
+
+func (s *SimpleServer) ReturnString(cb func() string) string {
+	c := make(chan string)
+	defer close(c)
+
+	s.Call(func() {
+		defer func() {
+			if e := recover(); nil != e {
+				var buffer bytes.Buffer
+				buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+				for i := 1; ; i += 1 {
+					_, file, line, ok := runtime.Caller(i)
+					if !ok {
+						break
+					}
+					buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+				}
+				c <- buffer.String()
+			}
+		}()
+
+		c <- cb()
+	})
+
+	select {
+	case res := <-c:
+		return res
+	case <-time.After(s.Timeout):
+		return "[panic]time out"
+	}
+}
+
+func (s *SimpleServer) NotReturn(cb func()) {
+	c := make(chan string)
+	defer close(c)
+
+	s.Call(func() {
+		defer func() {
+			if e := recover(); nil != e {
+				var buffer bytes.Buffer
+				buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+				for i := 1; ; i += 1 {
+					_, file, line, ok := runtime.Caller(i)
+					if !ok {
+						break
+					}
+					buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+				}
+				c <- buffer.String()
+			}
+		}()
+		cb()
+		c <- "ok"
+	})
+
+	select {
+	case res := <-c:
+		if "ok" != res {
+			panic(res)
+		}
+	case <-time.After(s.Timeout):
+		panic("time out")
+	}
 }

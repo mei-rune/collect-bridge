@@ -56,15 +56,15 @@ func Runforever() {
 		return
 	}
 
-	cache := ds.NewCacheWithIncludes(*refresh, ds.NewClient(*dsUrl), "trigger", "action")
-	results, err := cache.LoadAll()
+	ds_client := ds.NewClient(*dsUrl)
+	results, err := ds_client.FindByWithIncludes("trigger", map[string]string{}, "action")
 	if nil != err {
 		fmt.Println("load triggers from db failed,", err)
 		return
 	}
 
 	ctx := map[string]interface{}{"metrics.url": *metrics_url,
-		"cache": cache, "redis_channel": forward(redis_channel)}
+		"redis_channel": forward(redis_channel)}
 
 	jobs := make([]Job, 0, 100)
 	for _, attributes := range results {

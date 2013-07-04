@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"commons"
 	"strings"
 	"testing"
 )
@@ -75,7 +74,7 @@ var all_matchers_for_tests = []struct {
 	{[]matcher_defs_for_test{{"equal", []string{"a1", "aa"}},
 		{"in", []string{"a2", "aa", "bb", "cc"}},
 		{"start_with", []string{"a3", "aaa"}}},
-		map[string]string{"a1": "a", "a2": "bc", "a3": "aaccc"}, false, "'a1' is not match - equal(a1,aa)!", false},
+		map[string]string{"a1": "a", "a2": "bc", "a3": "aaccc"}, false, "", false},
 	// test failed with debug
 	{[]matcher_defs_for_test{{"equal", []string{"a1", "aa"}},
 		{"in", []string{"a2", "aa", "bb", "cc"}},
@@ -109,9 +108,16 @@ func TestMatchs(t *testing.T) {
 			}
 			matchers = append(matchers, matcher)
 		}
-		ok, e := matchers.Match(commons.StringMap(data.params), data.debuging)
+
+		params := &context{params: data.params,
+			managed_type: "unknow_type",
+			managed_id:   "unknow_id",
+			mo:           empty_mo,
+			alias:        map[string]string{}}
+
+		ok, e := matchers.Match(params, data.debuging)
 		if ok != data.matchResult {
-			t.Errorf("match %d failed, excepted is %v, actual is %v", i, data.matchResult, ok)
+			t.Errorf("match '%d' failed, excepted is %v, actual is %v", i, data.matchResult, ok)
 		}
 		if nil == e {
 			if "" != data.matchError {

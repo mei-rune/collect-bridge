@@ -121,7 +121,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) common
 	}
 
 	oid, ok := params["snmp.oid"]
-	if !ok {
+	if !ok || 0 == len(oid) {
 		return commons.ReturnWithIsRequired("snmp.oid")
 	}
 
@@ -133,10 +133,9 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) common
 	if SNMP_PDU_TABLE == action {
 		columns, contains := params["snmp.columns"]
 
-		if contains && "" != columns {
+		if contains && 0 != len(columns) {
 			return self.tableGetByColumns(params, client, oid, columns)
 		}
-
 		return self.tableGet(params, client, oid)
 	}
 
@@ -269,6 +268,7 @@ func (self *SnmpDriver) getNext(params map[string]string, client Client, next_oi
 
 func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 	oid string) commons.Result {
+
 	start_oid, err := ParseOidFromString(oid)
 	if nil != err {
 		return internalErrorResult("param 'oid' is error", err)
@@ -282,6 +282,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 	timeout := getTimeout(params, self.timeout)
 	next_oid := start_oid
 	results := make(map[string]interface{})
+
 	for {
 		vb, err := self.getNext(params, client, next_oid, version, timeout)
 		if nil != err {
@@ -345,7 +346,6 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 	}
 
 	results := make(map[string]interface{})
-
 	for {
 		var req PDU
 		req, err = client.CreatePDU(SNMP_PDU_GETNEXT, version)

@@ -222,7 +222,7 @@ func (self Matchers) Match(params commons.Map, debugging bool) (bool, error) {
 	if debugging {
 		error := make([]string, 0)
 		for _, m := range self {
-			value := params.GetStringWithDefault(m.Attribute, "")
+			value := params.GetStringWithDefault("$"+m.Attribute, "")
 			if 0 == len(value) {
 				error = append(error, commons.IsRequired(m.Attribute).Error())
 			} else if !m.f(m, params, value) {
@@ -234,13 +234,13 @@ func (self Matchers) Match(params commons.Map, debugging bool) (bool, error) {
 		}
 	} else {
 		for _, m := range self {
-			value := params.GetStringWithDefault(m.Attribute, "")
+			value := params.GetStringWithDefault("$"+m.Attribute, "")
 			if 0 == len(value) {
 				return false, commons.IsRequired(m.Attribute)
 			}
 
 			if !m.f(m, params, value) {
-				return false, errors.New("'" + m.Attribute + "' is not match - " + m.Description + "!")
+				return false, nil //errors.New("'" + m.Attribute + "' is not match - " + m.Description + "!")
 			}
 		}
 	}
@@ -248,6 +248,7 @@ func (self Matchers) Match(params commons.Map, debugging bool) (bool, error) {
 }
 
 type FilterBuilder struct {
+	matchers Matchers
 }
 
 func Match() *FilterBuilder {
@@ -255,9 +256,14 @@ func Match() *FilterBuilder {
 }
 
 func (self *FilterBuilder) Oid(oid string) *FilterBuilder {
+	m, e := NewMatcher("start_with", []string{"sys.oid", oid})
+	if nil != e {
+		panic(e.Error())
+	}
+	self.matchers = append(self.matchers, m)
 	return self
 }
 
 func (self *FilterBuilder) Build() Matchers {
-	return nil
+	return self.matchers
 }

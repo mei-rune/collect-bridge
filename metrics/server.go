@@ -4,7 +4,6 @@ import (
 	"commons"
 	"ds"
 	"errors"
-	"fmt"
 	"github.com/runner-mei/go-restful"
 	"time"
 
@@ -82,7 +81,6 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 
 	mo, e := self.mo_cache.Get(managed_id)
 	if nil != e {
-		fmt.Println(e)
 		self.returnResult(resp, commons.ReturnWithNotFound(managed_type, managed_id))
 		return
 	}
@@ -90,8 +88,8 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 	params := &context{params: query_params,
 		managed_type: managed_type,
 		managed_id:   managed_id,
-		mo:           commons.InterfaceMap(mo),
-		local:        make(map[string]commons.Map),
+		mo:           mo,
+		local:        make(map[string]map[string]interface{}),
 		alias:        alias_names,
 		pry:          &proxy{dispatcher: self.dispatcher}}
 
@@ -120,8 +118,8 @@ func (self *server) native_invoke(req *restful.Request, resp *restful.Response, 
 	params := &context{params: query_params,
 		managed_type: "unknow_type",
 		managed_id:   "unknow_id",
-		mo:           commons.InterfaceMap(empty_mo),
-		local:        make(map[string]commons.Map),
+		mo:           empty_mo,
+		local:        make(map[string]map[string]interface{}),
 		alias:        alias_names,
 		pry:          &proxy{dispatcher: self.dispatcher}}
 

@@ -392,8 +392,8 @@ func (self *systemInfo) Call(params commons.Map) commons.Result {
 			new_row["location"] = GetString(params, old_row, "6")
 			new_row["services"] = services
 
-			params.Set("sys.oid", oid)
-			params.Set("sys.services", strconv.Itoa(int(services)))
+			params.Set("&sys.oid", oid)
+			params.Set("&sys.services", strconv.Itoa(int(services)))
 			new_row["type"] = params.GetUintWithDefault("!sys.type", 0)
 			return new_row, nil
 		})
@@ -500,7 +500,7 @@ func ErrorIsRestric(msg string, restric bool, log *commons.Logger) error {
 
 func (self *systemType) Call(params commons.Map) commons.Result {
 	if nil != self.device2id {
-		oid := params.GetStringWithDefault("!sys.oid", "")
+		oid := params.GetStringWithDefault("&sys.oid", "")
 		if 0 != len(oid) {
 			if dt, ok := self.device2id[oid]; ok {
 				return commons.Return(dt)
@@ -529,7 +529,7 @@ func (self *systemType) Call(params commons.Map) commons.Result {
 		return commons.Return(t >> 1)
 	}
 SERVICES:
-	services, e := params.GetUint32("sys.services")
+	services, e := params.GetUint32("&sys.services")
 	if nil != e {
 		return commons.ReturnWithInternalError(e.Error())
 	}

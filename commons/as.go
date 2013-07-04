@@ -178,6 +178,19 @@ func AsInt8(value interface{}) (int8, error) {
 // Uint type AsSerts to `float64` then converts to `int`
 func AsUint64(value interface{}) (uint64, error) {
 	switch v := value.(type) {
+	case string:
+		i64, err := strconv.ParseUint(v, 10, 64)
+		if nil == err {
+			return i64, nil
+		}
+		return i64, typeError(err.Error())
+
+	case json.Number:
+		i64, err := strconv.ParseUint(v.String(), 10, 64)
+		if nil == err {
+			return i64, nil
+		}
+		return i64, typeError(err.Error())
 	case uint:
 		return uint64(v), nil
 	case uint8:
@@ -216,19 +229,6 @@ func AsUint64(value interface{}) (uint64, error) {
 		if v > 0 && 18446744073709551615 >= v {
 			return uint64(v), nil
 		}
-	case string:
-		i64, err := strconv.ParseUint(v, 10, 64)
-		if nil == err {
-			return i64, nil
-		}
-		return i64, typeError(err.Error())
-
-	case json.Number:
-		i64, err := strconv.ParseUint(v.String(), 10, 64)
-		if nil == err {
-			return i64, nil
-		}
-		return i64, typeError(err.Error())
 	}
 	return 0, IsNotUint64
 }
@@ -269,6 +269,18 @@ func AsUint8(value interface{}) (uint8, error) {
 // Uint type AsSerts to `float64` then converts to `int`
 func AsFloat64(value interface{}) (float64, error) {
 	switch v := value.(type) {
+	case string:
+		f64, err := strconv.ParseFloat(v, 64)
+		if nil == err {
+			return f64, nil
+		}
+		return f64, typeError(err.Error())
+	case json.Number:
+		return v.Float64()
+	case float32:
+		return float64(v), nil
+	case float64:
+		return float64(v), nil
 	case uint:
 		return float64(v), nil
 	case uint8:
@@ -289,19 +301,6 @@ func AsFloat64(value interface{}) (float64, error) {
 		return float64(v), nil
 	case int64:
 		return float64(v), nil
-	case float32:
-		return float64(v), nil
-	case float64:
-		return float64(v), nil
-	case string:
-		f64, err := strconv.ParseFloat(v, 64)
-		if nil == err {
-			return f64, nil
-		}
-		return f64, typeError(err.Error())
-
-	case json.Number:
-		return v.Float64()
 	}
 	return 0, IsNotFloat64
 }
@@ -319,6 +318,8 @@ func AsString(value interface{}) (string, error) {
 	switch v := value.(type) {
 	case string:
 		return v, nil
+	case json.Number:
+		return v.String(), nil
 	case uint:
 		return strconv.FormatUint(uint64(v), 10), nil
 	case uint8:
@@ -349,8 +350,6 @@ func AsString(value interface{}) (string, error) {
 		} else {
 			return "false", nil
 		}
-	case json.Number:
-		return v.String(), nil
 	}
 	return "", IsNotString
 }

@@ -116,7 +116,9 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 	for _, spec := range action_specs {
 		action, e := newAction(spec, options, ctx)
 		if nil != e {
-			return nil, e
+			action_id := commons.GetStringWithDefault(spec, "id", "unknow_id")
+			action_name := commons.GetStringWithDefault(spec, "name", "unknow_name")
+			return nil, errors.New("create action '" + action_id + ":" + action_name + "' failed, " + e.Error())
 		}
 		actions = append(actions, action)
 	}

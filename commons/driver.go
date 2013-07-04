@@ -504,7 +504,7 @@ func ReturnWithIsRequired(name string) Result {
 }
 
 func ReturnWithNotFound(t, id string) Result {
-	return ReturnError(NotFoundCode, t+" that id is '"+id+"' is not found.")
+	return ReturnError(NotFoundCode, t+" with id was '"+id+"' is not found.")
 }
 
 func ReturnWithRecordNotFound(t, id string) Result {

@@ -51,6 +51,10 @@ func NewCache(refresh time.Duration, client *Client, target string) *Cache {
 }
 
 func NewCacheWithIncludes(refresh time.Duration, client *Client, target, includes string) *Cache {
+	if refresh < 10*time.Second {
+		refresh = 10 * time.Second
+	}
+
 	cache := &Cache{
 		objects:  make(map[string]map[string]interface{}),
 		ch:       make(chan *cache_request, 5),

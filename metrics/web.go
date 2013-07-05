@@ -61,6 +61,7 @@ func Main() {
 		return
 	}
 
+	restful.DefaultResponseMimeType = restful.MIME_JSON
 	ws := new(restful.WebService)
 	if is_test {
 		ws.Path("metrics")
@@ -68,7 +69,7 @@ func Main() {
 	ws.Route(ws.GET("/").To(mainHandle))
 
 	ws.Consumes(restful.MIME_XML, restful.MIME_JSON).
-		Produces(restful.MIME_JSON, restful.MIME_XML) // you can specify this per route as well
+		Produces(restful.MIME_JSON) // you can specify this per route as well
 
 	ws.Route(ws.GET("/{type}/{id}/{metric_name}").To(srv.Get).
 		Doc("get a metric").

@@ -82,11 +82,12 @@ func Main() {
 		}
 	}()
 
+	restful.DefaultResponseMimeType = restful.MIME_JSON
 	ws := new(restful.WebService)
 	ws.Route(ws.GET("/").To(mainHandle))
 
 	ws.Consumes(restful.MIME_XML, restful.MIME_JSON).
-		Produces(restful.MIME_JSON, restful.MIME_XML) // you can specify this per route as well
+		Produces(restful.MIME_JSON) // you can specify this per route as well
 
 	ws.Route(ws.GET("/{parent_type}/{parent_id}/children/{type}/{foreign_key}").To(srv.Children).
 		Doc("get a object instance by parent id").

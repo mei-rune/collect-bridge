@@ -28,8 +28,6 @@ type redisAction struct {
 	channel     chan<- []string
 	command     string
 	arguments   []string
-
-	last_error error
 }
 
 func toMap(value interface{}) (commons.Map, error) {
@@ -52,8 +50,9 @@ func toMap(value interface{}) (commons.Map, error) {
 	}
 }
 
-func (self *redisAction) Run(t time.Time, value interface{}) {
+func (self *redisAction) Run(t time.Time, value interface{}) error {
 	var values commons.Map = nil
+	var err error
 
 	commands := make([]string, 0, 1+len(self.arguments))
 	commands = append(commands, self.command)
@@ -74,8 +73,7 @@ func (self *redisAction) Run(t time.Time, value interface{}) {
 				}
 				js, e := json.Marshal(m)
 				if nil != e {
-					self.last_error = e
-					return
+					return e
 				}
 				commands = append(commands, string(js))
 			} else if js, ok := value.(toJsoner); ok {
@@ -95,22 +93,21 @@ func (self *redisAction) Run(t time.Time, value interface{}) {
 		}
 
 		if nil == values {
-			values, self.last_error = toMap(value)
-			if nil != self.last_error {
-				return
+			values, err = toMap(value)
+			if nil != err {
+				return err
 			}
 		}
 
 		v, e := values.GetString(s[1:])
 		if nil != e {
-			self.last_error = errors.New("'" + s[1:] + "' is required, " + e.Error())
-			return
+			return e
 		}
 		commands = append(commands, v)
 	}
 
 	self.channel <- commands
-	self.last_error = nil
+	return nil
 }
 
 var redis_commands = map[string]bool{"APPEND": true,

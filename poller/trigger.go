@@ -11,22 +11,15 @@ import (
 	"time"
 )
 
-const (
-	SRV_INIT     = 0
-	SRV_STARTING = 1
-	SRV_RUNNING  = 2
-	SRV_STOPPING = 3
-)
-
-type triggerFunc func(t time.Time)
+type triggerFunc func(t time.Time) error
 
 type trigger struct {
 	commons.Logger
 	id         string
 	name       string
-	actions    []ExecuteAction
+	actions    []actionWrapper
 	callback   triggerFunc
-	isRunning  int32
+	status     int32
 	updated_at time.Time
 
 	commands    map[string]func(t *trigger) string
@@ -34,8 +27,9 @@ type trigger struct {
 	attachment  string
 	description string
 
-	start func(t *trigger) error
-	stop  func(t *trigger)
+	last_error error
+	start      func(t *trigger) error
+	stop       func(t *trigger)
 }
 
 func (self *trigger) Id() string {
@@ -45,29 +39,55 @@ func (self *trigger) Id() string {
 func (self *trigger) Name() string {
 	return self.name
 }
+
 func (self *trigger) Version() time.Time {
 	return self.updated_at
 }
 
+func (self *trigger) Stats() map[string]interface{} {
+	res := map[string]interface{}{
+		"id":         self.Id(),
+		"name":       self.Name(),
+		"updated_at": self.updated_at,
+		"status":     commons.ToStatusString(int(atomic.LoadInt32(&self.status)))}
+
+	if nil != self.last_error {
+		res["error"] = self.last_error.Error()
+	}
+
+	if nil != self.actions && 0 != len(self.actions) {
+		actions := make([]interface{}, 0, len(self.actions))
+		for _, action := range self.actions {
+			if nil != action.last_error {
+				actions = append(actions, map[string]string{"id": action.id, "name": action.name, "error": action.last_error.Error()})
+			} else {
+				actions = append(actions, map[string]string{"id": action.id, "name": action.name})
+			}
+		}
+	}
+
+	return res
+}
+
 func (self *trigger) Start() error {
-	if !atomic.CompareAndSwapInt32(&self.isRunning, SRV_INIT, SRV_STARTING) {
+	if !atomic.CompareAndSwapInt32(&self.status, commons.SRV_INIT, commons.SRV_STARTING) {
 		return nil
 	}
 
 	e := self.start(self)
 	if nil != e {
-		atomic.StoreInt32(&self.isRunning, SRV_INIT)
+		atomic.StoreInt32(&self.status, commons.SRV_INIT)
 	}
 	return e
 }
 
 func (self *trigger) Stop() {
-	if atomic.CompareAndSwapInt32(&self.isRunning, SRV_STARTING, SRV_INIT) {
+	if atomic.CompareAndSwapInt32(&self.status, commons.SRV_STARTING, commons.SRV_INIT) {
 		self.DEBUG.Print("it is starting")
 		return
 	}
 
-	if !atomic.CompareAndSwapInt32(&self.isRunning, SRV_RUNNING, SRV_STOPPING) {
+	if !atomic.CompareAndSwapInt32(&self.status, commons.SRV_RUNNING, commons.SRV_STOPPING) {
 		self.DEBUG.Print("it is not running")
 		return
 	}
@@ -116,15 +136,17 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 	if nil != e {
 		return nil, commons.IsRequired("$action")
 	}
-	actions := make([]ExecuteAction, 0, 10)
+	actions := make([]actionWrapper, 0, 10)
 	for _, spec := range action_specs {
+
+		action_id := commons.GetStringWithDefault(spec, "id", "unknow_id")
+		action_name := commons.GetStringWithDefault(spec, "name", "unknow_name")
+
 		action, e := newAction(spec, options, ctx)
 		if nil != e {
-			action_id := commons.GetStringWithDefault(spec, "id", "unknow_id")
-			action_name := commons.GetStringWithDefault(spec, "name", "unknow_name")
 			return nil, errors.New("create action '" + action_id + ":" + action_name + "' failed, " + e.Error())
 		}
-		actions = append(actions, action)
+		actions = append(actions, actionWrapper{id: action_id, name: action_name, action: action})
 	}
 
 	if strings.HasPrefix(expression, every) {
@@ -141,7 +163,7 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 			attachment:  commons.GetStringWithDefault(attributes, "attachment", ""),
 			description: commons.GetStringWithDefault(attributes, "description", ""),
 			updated_at:  commons.GetTimeWithDefault(attributes, "updated_at", time.Time{}),
-			isRunning:   SRV_INIT,
+			status:      commons.SRV_INIT,
 			callback:    callback,
 			actions:     actions,
 			start:       it.start,
@@ -166,16 +188,10 @@ func (self *intervalTrigger) start(t *trigger) error {
 
 func (self *intervalTrigger) stop(t *trigger) {
 	self.send("exit")
-	// e := self.send("exit")
-	// if nil != e {
-	// 	self.DEBUG.Printf("stop failed, %v", e)
-	// } else {
-	// 	self.DEBUG.Print("recved 'exited' signal")
-	// }
 }
 
 func (self *intervalTrigger) command(cmd string) error {
-	if SRV_RUNNING != atomic.LoadInt32(&self.isRunning) {
+	if commons.SRV_RUNNING != atomic.LoadInt32(&self.status) {
 		return NotStart
 	}
 	return self.send(cmd)
@@ -214,13 +230,13 @@ func (self *intervalTrigger) send(cmd string) error {
 }
 
 func (self *intervalTrigger) run() {
-	if !atomic.CompareAndSwapInt32(&self.isRunning, SRV_STARTING, SRV_RUNNING) {
+	if !atomic.CompareAndSwapInt32(&self.status, commons.SRV_STARTING, commons.SRV_RUNNING) {
 		self.DEBUG.Print("it is stopping while starting.")
 		return
 	}
 
 	defer func() {
-		atomic.StoreInt32(&self.isRunning, SRV_INIT)
+		atomic.StoreInt32(&self.status, commons.SRV_INIT)
 
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -261,8 +277,8 @@ func (self *intervalTrigger) run() {
 				self.executeCommand(req)
 			}
 		case t := <-ticker.C:
-			status := atomic.LoadInt32(&self.isRunning)
-			if SRV_RUNNING != status {
+			status := atomic.LoadInt32(&self.status)
+			if commons.SRV_RUNNING != status {
 				self.DEBUG.Printf("status is exited, status = %v", status)
 				is_running = false
 				break
@@ -304,10 +320,11 @@ func (self *intervalTrigger) timeout(t time.Time) {
 				}
 				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
 			}
-			self.ERROR.Print(buffer.String())
+			self.last_error = errors.New(buffer.String())
+			self.ERROR.Print(self.last_error.Error())
 		}
 	}()
 
 	self.DEBUG.Printf("timeout %s - %s", self.name, self.interval)
-	self.callback(t)
+	self.last_error = self.callback(t)
 }

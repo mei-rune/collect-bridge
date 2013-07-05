@@ -11,7 +11,7 @@ type Job interface {
 	commons.Startable
 	Id() string
 	Name() string
-	Stats() string
+	Stats() map[string]interface{}
 	Version() time.Time
 }
 
@@ -26,26 +26,29 @@ func newJob(attributes, ctx map[string]interface{}) (Job, error) {
 
 type metricJob struct {
 	*trigger
-	metric     string
-	params     map[string]string
-	client     commons.HttpClient
-	last_error error
+	metric string
+	params map[string]string
+	client commons.HttpClient
 }
 
-func (self *metricJob) Stats() string {
-	return ""
+func (self *metricJob) Stats() map[string]interface{} {
+	res := self.trigger.Stats()
+	if nil != self.params {
+		for k, v := range self.params {
+			res[k] = v
+		}
+	}
+	return res
 }
 
-func (self *metricJob) Run(t time.Time) {
+func (self *metricJob) run(t time.Time) error {
 	res := self.client.Invoke("GET", self.client.Url, nil, 200)
 	if res.HasError() {
-		self.last_error = res.Error()
-		self.WARN.Printf("read metric '%s' failed, %v", self.metric, res.ErrorMessage())
-		return
+		return errors.New("read metric failed, " + res.ErrorMessage())
 	}
 
-	self.last_error = nil
 	self.callActions(t, res)
+	return nil
 }
 
 func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
@@ -79,7 +82,7 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 	job.trigger, e = newTrigger(attributes,
 		map[string]interface{}{"managed_type": "managed_object", "managed_id": parentId, "metric": metric},
 		ctx,
-		func(t time.Time) { job.Run(t) })
+		job.run)
 	return job, e
 }
 

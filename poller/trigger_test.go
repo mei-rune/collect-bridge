@@ -12,9 +12,10 @@ func TestTrigger(t *testing.T) {
 	tg, e := newTrigger(map[string]interface{}{
 		"name":       "this is a test trigger",
 		"expression": "@every 1ms",
-		"$action":    []interface{}{}}, nil, map[string]interface{}{}, func(tm time.Time) {
+		"$action":    []interface{}{}}, nil, map[string]interface{}{}, func(tm time.Time) error {
 		atomic.AddInt32(&i, 1)
 		t.Log("timeout ", i)
+		return nil
 	})
 
 	if nil != e {

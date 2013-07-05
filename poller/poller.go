@@ -84,11 +84,23 @@ func Runforever() {
 	ws.Consumes(restful.MIME_XML, restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML) // you can specify this per route as well
 
-	// ws.Route(ws.PUT("/{id}").To().
-	// 	Doc("put a metric").
-	// 	Param(ws.PathParameter("type", "type of the instance").DataType("string")).
-	// 	Param(ws.PathParameter("id", "identifier of the instance").DataType("string")).
-	// 	Param(ws.PathParameter("metric_name", "name of the metric").DataType("string"))) // on the response
+	ws.Route(ws.PUT("/sync").To(srv.Sync).
+		Doc("sync all trigger with db")) // on the response
+
+	ws.Route(ws.PUT("/all").To(srv.StatsAll).
+		Doc("get info of the all triggers")) // on the response
+
+	ws.Route(ws.PUT("/by_id/{id}").To(srv.StatsById).
+		Doc("get info of the trigger").
+		Param(ws.PathParameter("id", "identifier of the trigger").DataType("string"))) // on the response
+
+	ws.Route(ws.PUT("/by_name/{name}").To(srv.StatsByName).
+		Doc("get info of the trigger").
+		Param(ws.PathParameter("name", "name of the trigger").DataType("string"))) // on the response
+
+	ws.Route(ws.PUT("/by_address/{address}").To(srv.StatsByName).
+		Doc("get info of the trigger").
+		Param(ws.PathParameter("address", "address of the trigger").DataType("string"))) // on the response
 
 	restful.Add(ws)
 

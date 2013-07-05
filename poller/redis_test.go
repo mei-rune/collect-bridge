@@ -69,9 +69,9 @@ func TestRedisAction(t *testing.T) {
 	}
 
 	result := commons.Return(map[string]interface{}{"name": "this is a name", "a": "b"})
-	action.Run(time.Now(), result)
-	if nil != action.(*redisAction).last_error {
-		t.Error(action.(*redisAction).last_error)
+	e = action.Run(time.Now(), result)
+	if nil != e {
+		t.Error(e)
 		return
 	}
 	var res []string = nil

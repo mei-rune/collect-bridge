@@ -21,6 +21,21 @@ const (
 	SRV_STOPPING = 3
 )
 
+func ToStatusString(status int) string {
+	switch status {
+	case SRV_INIT:
+		return "init"
+	case SRV_STARTING:
+		return "starting"
+	case SRV_RUNNING:
+		return "running"
+	case SRV_STOPPING:
+		return "stopping"
+	default:
+		return fmt.Sprintf("unsupport status - %v", status)
+	}
+}
+
 type SimpleServer struct {
 	status    int32
 	C         chan func()

@@ -1,11 +1,8 @@
 package poller
 
 import (
-	"bytes"
 	"commons"
 	"errors"
-	"fmt"
-	"runtime"
 	"time"
 )
 
@@ -20,41 +17,12 @@ type alertAction struct {
 	checker    Checker
 	lastStatus int
 	repeated   int
-	last_error error
 }
 
-func (self *alertAction) Run(t time.Time, value interface{}) {
-	defer func() {
-		if e := recover(); nil != e {
-			var buffer bytes.Buffer
-			buffer.WriteString(fmt.Sprintf("[panic][alert][%s]%v", self.name, e))
-			for i := 1; ; i += 1 {
-				_, file, line, ok := runtime.Caller(i)
-				if !ok {
-					break
-				}
-				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
-			}
-			msg := buffer.String()
-			commons.Log.ERROR.Print(msg)
-			self.last_error = errors.New(msg)
-		}
-	}()
-
-	current, e := self.checker.Run(value, self.result)
-	if nil != e {
-		if nil == self.last_error {
-			commons.Log.ERROR.Print("[error]" + self.name + " - " + e.Error())
-		}
-		self.last_error = e
-		return
-	} else {
-
-		if nil != self.last_error {
-			commons.Log.ERROR.Print("[error]" + self.name + " is ok ")
-		}
-
-		self.last_error = nil
+func (self *alertAction) Run(t time.Time, value interface{}) error {
+	current, err := self.checker.Run(value, self.result)
+	if nil != err {
+		return err
 	}
 
 	if self.repeated == self.maxRepeated {
@@ -81,6 +49,7 @@ func (self *alertAction) Run(t time.Time, value interface{}) {
 		self.repeated = 0
 		self.lastStatus = current
 	}
+	return nil
 }
 
 var (

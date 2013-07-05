@@ -97,11 +97,11 @@ func TestJobWithSamplingFailed(t *testing.T) {
 		t.Error("not call")
 	}
 
-	if nil == tg.(*metricJob).last_error {
+	if nil == tg.(*metricJob).trigger.last_error {
 		t.Error("last_error is nil")
-	} else if !strings.Contains(tg.(*metricJob).last_error.Error(), error_message) {
+	} else if !strings.Contains(tg.(*metricJob).trigger.last_error.Error(), error_message) {
 		t.Error("excepted error is ", error_message)
-		t.Error("actual error is ", tg.(*metricJob).last_error.Error())
+		t.Error("actual error is ", tg.(*metricJob).trigger.last_error.Error())
 	}
 }
 

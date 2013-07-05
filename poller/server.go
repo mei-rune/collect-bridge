@@ -1,12 +1,17 @@
 package poller
 
 import (
+	"bytes"
 	"commons"
 	"ds"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/runner-mei/go-restful"
 	"log"
+	"net/http"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -31,8 +36,11 @@ func (self *errorJob) Name() string {
 	return self.name
 }
 
-func (self *errorJob) Stats() string {
-	return self.e
+func (self *errorJob) Stats() map[string]interface{} {
+	return map[string]interface{}{
+		"id":    self.id,
+		"name":  self.name,
+		"error": self.e}
 }
 
 func (self *errorJob) Version() time.Time {
@@ -168,11 +176,11 @@ func (s *server) String() string {
 	return s.ReturnString(func() string {
 		messages := make([]interface{}, 0, len(s.jobs))
 		for _, job := range s.jobs {
-			messages = append(messages, json.RawMessage([]byte(job.Stats())))
+			messages = append(messages, job.Stats())
 		}
 		if nil != s.last_error {
 			messages = append(messages, map[string]string{
-				"name":       "server",
+				"name":       "self",
 				"last_error": s.last_error.Error()})
 		}
 
@@ -185,13 +193,128 @@ func (s *server) String() string {
 	})
 }
 
-func (s *server) Sync() string {
-	return s.ReturnString(func() string {
+func (s *server) wrap(req *restful.Request, resp *restful.Response, cb func()) {
+	s.NotReturn(func() {
+		defer func() {
+			if e := recover(); nil != e {
+				var buffer bytes.Buffer
+				buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+				for i := 1; ; i += 1 {
+					_, file, line, ok := runtime.Caller(i)
+					if !ok {
+						break
+					}
+					buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+				}
+				resp.WriteErrorString(http.StatusInternalServerError, buffer.String())
+			}
+		}()
+		cb()
+	})
+}
+
+func (s *server) Sync(req *restful.Request, resp *restful.Response) {
+	s.wrap(req, resp, func() {
 		s.onIdle()
 		if nil == s.last_error {
-			return ""
+			resp.Write([]byte("ok"))
 		} else {
-			return s.last_error.Error()
+			resp.WriteErrorString(http.StatusInternalServerError, s.last_error.Error())
 		}
+	})
+}
+
+func (s *server) StatsAll(req *restful.Request, resp *restful.Response) {
+	s.wrap(req, resp, func() {
+		messages := make([]interface{}, 0, len(s.jobs))
+		for _, job := range s.jobs {
+			messages = append(messages, job.Stats())
+		}
+
+		if nil != s.last_error {
+			messages = append(messages, map[string]string{
+				"id":    "0",
+				"name":  "self",
+				"error": s.last_error.Error()})
+		}
+
+		resp.WriteAsJson(messages)
+	})
+}
+
+func (s *server) StatsById(req *restful.Request, resp *restful.Response) {
+	s.wrap(req, resp, func() {
+		id := req.PathParameter("id")
+		if 0 == len(id) {
+			resp.WriteErrorString(http.StatusBadRequest, commons.IsRequired("id").Error())
+			return
+		}
+
+		job, ok := s.jobs[id]
+		if !ok {
+			resp.WriteErrorString(http.StatusNotFound, "not found")
+			return
+		}
+		resp.WriteAsJson(job.Stats())
+	})
+}
+
+func (s *server) StatsByName(req *restful.Request, resp *restful.Response) {
+	s.wrap(req, resp, func() {
+		name := req.PathParameter("name")
+		if 0 == len(name) {
+			resp.WriteErrorString(http.StatusBadRequest, commons.IsRequired("name").Error())
+			return
+		}
+
+		messages := make([]interface{}, 0, len(s.jobs))
+		for _, job := range s.jobs {
+			if strings.Contains(job.Name(), name) {
+				messages = append(messages, job.Stats())
+			}
+		}
+		resp.WriteAsJson(messages)
+	})
+}
+
+func (s *server) StatsByAddress(req *restful.Request, resp *restful.Response) {
+	s.wrap(req, resp, func() {
+		address := req.PathParameter("address")
+		if 0 == len(address) {
+			resp.WriteErrorString(http.StatusBadRequest, commons.IsRequired("address").Error())
+			return
+		}
+
+		results, e := s.client.FindByWithIncludes("managed_object", map[string]string{"address": address}, "trigger")
+		if nil != e {
+			resp.WriteErrorString(http.StatusInternalServerError, e.Error())
+			return
+		}
+
+		id_list := make([]string, 0, 10)
+
+		for _, result := range results {
+			triggers, e := commons.GetObjects(result, "$trigger")
+			if nil != e {
+				continue
+			}
+			for _, trigger := range triggers {
+				id_list = append(id_list, commons.GetStringWithDefault(trigger, "id", ""))
+			}
+		}
+
+		messages := make([]interface{}, 0, len(id_list))
+		for _, id := range id_list {
+			if 0 == len(id) {
+				continue
+			}
+
+			if job, ok := s.jobs[id]; ok {
+				messages = append(messages, job.Stats())
+			} else {
+				messages = append(messages, map[string]string{"id": id, "name": "unknow", "status": "not found in the jobs"})
+			}
+		}
+		resp.WriteAsJson(messages)
 	})
 }

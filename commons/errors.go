@@ -11,20 +11,20 @@ type RuntimeError interface {
 	Error() string
 }
 type ApplicationError struct {
-	Vcode    int    `json:"code,omitempty"`
-	Vmessage string `json:"message,omitempty"`
+	Ecode    int    `json:"code,omitempty"`
+	Emessage string `json:"message,omitempty"`
 }
 
 func (err *ApplicationError) Code() int {
-	return err.Vcode
+	return err.Ecode
 }
 
 func (err *ApplicationError) Error() string {
-	return err.Vmessage
+	return err.Emessage
 }
 
 func NewApplicationError(code int, msg string) *ApplicationError {
-	return &ApplicationError{Vcode: code, Vmessage: msg}
+	return &ApplicationError{Ecode: code, Emessage: msg}
 }
 
 type MutiErrors struct {

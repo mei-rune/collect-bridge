@@ -223,21 +223,21 @@ func (self *DefaultDrv) Delete(params map[string]string) Result {
 }
 
 type SimpleResult struct {
-	Verr          *ApplicationError      `json:"error,omitempty"`
-	Vwarnings     interface{}            `json:"warnings,omitempty"`
-	Vvalue        interface{}            `json:"value,omitempty"`
-	Veffected     *int64                 `json:"effected,omitempty"`
-	VlastInsertId interface{}            `json:"lastInsertId,omitempty"`
-	Voptions      map[string]interface{} `json:"options,omitempty"`
-	Vcreated_at   time.Time              `json:"created_at,omitempty"`
-	Vtype         string                 `json:"type,omitempty"`
+	Eerror          *ApplicationError      `json:"error,omitempty"`
+	Ewarnings       interface{}            `json:"warnings,omitempty"`
+	Evalue          interface{}            `json:"value,omitempty"`
+	Eeffected       *int64                 `json:"effected,omitempty"`
+	ElastInsertId   interface{}            `json:"lastInsertId,omitempty"`
+	Eoptions        map[string]interface{} `json:"options,omitempty"`
+	Ecreated_at     time.Time              `json:"created_at,omitempty"`
+	Erepresentation string                 `json:"representation,omitempty"`
 
 	value    AnyValue
 	effected int64
 }
 
 func Return(value interface{}) *SimpleResult {
-	return &SimpleResult{Vvalue: value, Vcreated_at: time.Now(), effected: -1, VlastInsertId: nil}
+	return &SimpleResult{Evalue: value, Ecreated_at: time.Now(), effected: -1, ElastInsertId: nil}
 }
 
 func ReturnError(code int, msg string) *SimpleResult {
@@ -245,25 +245,25 @@ func ReturnError(code int, msg string) *SimpleResult {
 }
 
 func (self *SimpleResult) SetValue(value interface{}) *SimpleResult {
-	self.Vvalue = value
+	self.Evalue = value
 	return self
 }
 
 func (self *SimpleResult) Return(value interface{}) Result {
-	self.Vvalue = value
+	self.Evalue = value
 	return self
 }
 
 func (self *SimpleResult) SetOptions(options map[string]interface{}) *SimpleResult {
-	self.Voptions = options
+	self.Eoptions = options
 	return self
 }
 
 func (self *SimpleResult) SetOption(key string, value interface{}) *SimpleResult {
-	if nil == self.Voptions {
-		self.Voptions = make(map[string]interface{})
+	if nil == self.Eoptions {
+		self.Eoptions = make(map[string]interface{})
 	}
-	self.Voptions[key] = value
+	self.Eoptions[key] = value
 	return self
 }
 
@@ -272,103 +272,103 @@ func (self *SimpleResult) SetError(code int, msg string) *SimpleResult {
 		return self
 	}
 
-	if nil == self.Verr {
-		self.Verr = &ApplicationError{Vcode: code, Vmessage: msg}
+	if nil == self.Eerror {
+		self.Eerror = &ApplicationError{Ecode: code, Emessage: msg}
 	} else {
-		self.Verr.Vcode = code
-		self.Verr.Vmessage = msg
+		self.Eerror.Ecode = code
+		self.Eerror.Emessage = msg
 	}
 	return self
 }
 
 func (self *SimpleResult) SetWarnings(value interface{}) *SimpleResult {
-	self.Vwarnings = value
+	self.Ewarnings = value
 	return self
 }
 
 func (self *SimpleResult) SetEffected(effected int64) *SimpleResult {
 	self.effected = effected
-	self.Veffected = &self.effected
+	self.Eeffected = &self.effected
 	return self
 }
 
 func (self *SimpleResult) SetLastInsertId(id interface{}) *SimpleResult {
-	self.VlastInsertId = id
+	self.ElastInsertId = id
 	return self
 }
 
 func (self *SimpleResult) ErrorCode() int {
-	if nil != self.Verr {
-		return self.Verr.Vcode
+	if nil != self.Eerror {
+		return self.Eerror.Ecode
 	}
 	return -1
 }
 
 func (self *SimpleResult) ErrorMessage() string {
-	if nil != self.Verr {
-		return self.Verr.Vmessage
+	if nil != self.Eerror {
+		return self.Eerror.Emessage
 	}
 	return ""
 }
 
 func (self *SimpleResult) HasError() bool {
-	return nil != self.Verr && (0 != self.Verr.Vcode || 0 != len(self.Verr.Vmessage))
+	return nil != self.Eerror && (0 != self.Eerror.Ecode || 0 != len(self.Eerror.Emessage))
 }
 
 func (self *SimpleResult) Error() RuntimeError {
-	if nil == self.Verr {
+	if nil == self.Eerror {
 		return nil
 	}
-	return self.Verr
+	return self.Eerror
 }
 
 func (self *SimpleResult) Warnings() interface{} {
-	return self.Vwarnings
+	return self.Ewarnings
 }
 
 func (self *SimpleResult) Value() Any {
-	self.value.Value = self.Vvalue
+	self.value.Value = self.Evalue
 	return &self.value
 }
 
 func (self *SimpleResult) InterfaceValue() interface{} {
-	return self.Vvalue
+	return self.Evalue
 }
 
 func (self *SimpleResult) Effected() int64 {
-	if nil != self.Veffected {
-		return *self.Veffected
+	if nil != self.Eeffected {
+		return *self.Eeffected
 	}
 	return -1
 }
 
 func (self *SimpleResult) LastInsertId() interface{} {
-	if nil == self.VlastInsertId {
+	if nil == self.ElastInsertId {
 		return -1
 	}
-	return self.VlastInsertId
+	return self.ElastInsertId
 }
 
 func (self *SimpleResult) HasOptions() bool {
-	return nil != self.Voptions && 0 != len(self.Voptions)
+	return nil != self.Eoptions && 0 != len(self.Eoptions)
 }
 
 func (self *SimpleResult) Options() Map {
-	if nil == self.Voptions {
-		self.Voptions = make(map[string]interface{})
+	if nil == self.Eoptions {
+		self.Eoptions = make(map[string]interface{})
 	}
-	return InterfaceMap(self.Voptions)
+	return InterfaceMap(self.Eoptions)
 }
 
 func (self *SimpleResult) RawOptions() map[string]interface{} {
-	if nil == self.Voptions {
-		self.Voptions = make(map[string]interface{})
+	if nil == self.Eoptions {
+		self.Eoptions = make(map[string]interface{})
 	}
-	return self.Voptions
+	return self.Eoptions
 }
 
 func (self *SimpleResult) CreatedAt() time.Time {
-	return self.Vcreated_at
+	return self.Ecreated_at
 }
 
 func (self *SimpleResult) ToJson() string {
@@ -382,28 +382,28 @@ func (self *SimpleResult) ToJson() string {
 func (self *SimpleResult) ToMap() map[string]interface{} {
 	res := map[string]interface{}{}
 
-	res["created_at"] = self.Vcreated_at
-	if 0 != len(self.Vtype) {
-		res["type"] = self.Vtype
+	res["created_at"] = self.Ecreated_at
+	if 0 != len(self.Erepresentation) {
+		res["representation"] = self.Erepresentation
 	}
 
-	if nil != self.Verr {
-		res["error"] = map[string]interface{}{"code": self.Verr.Vcode, "message": self.Verr.Vmessage}
+	if nil != self.Eerror {
+		res["error"] = map[string]interface{}{"code": self.Eerror.Ecode, "message": self.Eerror.Emessage}
 	}
-	if nil != self.Vwarnings {
-		res["warnings"] = self.Vwarnings
+	if nil != self.Ewarnings {
+		res["warnings"] = self.Ewarnings
 	}
-	if nil != self.Vvalue {
-		res["value"] = self.Vvalue
+	if nil != self.Evalue {
+		res["value"] = self.Evalue
 	}
-	if nil != self.Veffected && -1 != *self.Veffected {
-		res["effected"] = *self.Veffected
+	if nil != self.Eeffected && -1 != *self.Eeffected {
+		res["effected"] = *self.Eeffected
 	}
-	if nil != self.VlastInsertId {
-		res["lastInsertId"] = self.VlastInsertId
+	if nil != self.ElastInsertId {
+		res["lastInsertId"] = self.ElastInsertId
 	}
-	if nil != self.Voptions {
-		res["options"] = self.Voptions
+	if nil != self.Eoptions {
+		res["options"] = self.Eoptions
 	}
 	return res
 }

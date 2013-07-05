@@ -77,37 +77,37 @@ func Runforever() {
 
 	ws := new(restful.WebService)
 	if is_test {
-		ws.Path("job")
+		ws.Path("jobs")
 		server_test = srv
 	}
 	ws.Route(ws.GET("/").To(mainHandle))
 	ws.Consumes(restful.MIME_XML, restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML) // you can specify this per route as well
 
-	ws.Route(ws.PUT("/sync").To(srv.Sync).
+	ws.Route(ws.GET("/sync").To(srv.Sync).
 		Doc("sync all trigger with db")) // on the response
 
-	ws.Route(ws.PUT("/all").To(srv.StatsAll).
+	ws.Route(ws.GET("/all").To(srv.StatsAll).
 		Doc("get info of the all triggers")) // on the response
 
-	ws.Route(ws.PUT("/by_id/{id}").To(srv.StatsById).
+	ws.Route(ws.GET("/by_id/{id}").To(srv.StatsById).
 		Doc("get info of the trigger").
 		Param(ws.PathParameter("id", "identifier of the trigger").DataType("string"))) // on the response
 
-	ws.Route(ws.PUT("/by_name/{name}").To(srv.StatsByName).
+	ws.Route(ws.GET("/by_name/{name}").To(srv.StatsByName).
 		Doc("get info of the trigger").
 		Param(ws.PathParameter("name", "name of the trigger").DataType("string"))) // on the response
 
-	ws.Route(ws.PUT("/by_address/{address}").To(srv.StatsByName).
+	ws.Route(ws.GET("/by_address/{address}").To(srv.StatsByAddress).
 		Doc("get info of the trigger").
 		Param(ws.PathParameter("address", "address of the trigger").DataType("string"))) // on the response
 
 	restful.Add(ws)
 
 	if is_test {
-		log.Println("[ds-test] serving at '" + *listenAddress + "'")
+		log.Println("[poller-test] serving at '" + *listenAddress + "'")
 	} else {
-		log.Println("[ds] serving at '" + *listenAddress + "'")
+		log.Println("[poller] serving at '" + *listenAddress + "'")
 		http.ListenAndServe(*listenAddress, nil)
 	}
 }

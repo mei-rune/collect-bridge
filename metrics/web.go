@@ -119,9 +119,9 @@ func Main() {
 	if is_test {
 		wsrv_instance = ws
 		srv_instance = srv
-		log.Println("[ds-test] serving at '" + *address + "'")
+		log.Println("[metrics-test] serving at '" + *address + "'")
 	} else {
-		log.Println("[ds] serving at '" + *address + "'")
+		log.Println("[metrics] serving at '" + *address + "'")
 		http.ListenAndServe(*address, nil)
 	}
 }

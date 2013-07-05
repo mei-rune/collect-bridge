@@ -57,38 +57,22 @@ func Runforever() {
 	}
 
 	ds_client := ds.NewClient(*dsUrl)
-	results, err := ds_client.FindByWithIncludes("trigger", map[string]string{}, "action")
-	if nil != err {
-		fmt.Println("load triggers from db failed,", err)
-		return
-	}
 
 	ctx := map[string]interface{}{"metrics.url": *metrics_url,
 		"redis_channel": forward(redis_channel)}
 
-	srv := newServer(*refresh)
-	for _, attributes := range results {
-		name := attributes["name"]
-		id := attributes["id"]
-
-		job, e := newJob(attributes, ctx)
-		if nil != e {
-			fmt.Printf("create '%v:%v' failed, %v\n", id, name, e)
-			continue
-		}
-		e = job.Start()
-		if nil != e {
-			fmt.Printf("start '%v:%v' failed, %v\n", id, name, e)
-			continue
-		}
-
-		fmt.Printf("load '%v:%v' is ok\n", id, name)
-		//jobs = append(jobs, job)
-		srv.register(job)
+	srv := newServer(*refresh, ds_client, ctx)
+	err = srv.Start()
+	if nil != err {
+		fmt.Println(err)
+		return
 	}
+	defer func() {
+		if !is_test {
+			srv.Stop()
+		}
+	}()
 
-	srv.Start()
-	defer srv.Stop()
 	expvar.Publish("triggers", srv)
 
 	ws := new(restful.WebService)

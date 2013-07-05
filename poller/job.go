@@ -12,6 +12,7 @@ type Job interface {
 	Id() string
 	Name() string
 	Stats() string
+	Version() time.Time
 }
 
 func newJob(attributes, ctx map[string]interface{}) (Job, error) {

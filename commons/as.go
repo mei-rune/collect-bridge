@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // Map type AsSerts to `map`
@@ -352,4 +353,26 @@ func AsString(value interface{}) (string, error) {
 		}
 	}
 	return "", IsNotString
+}
+
+func AsTime(v interface{}) (time.Time, error) {
+	if t, ok := v.(time.Time); ok {
+		return t, nil
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return time.Time{}, ErrNotString
+	}
+
+	m, e := time.Parse(time.RFC3339, s)
+	if nil == e {
+		return m, nil
+	}
+
+	m, e = time.Parse(time.RFC3339Nano, s)
+	if nil == e {
+		return m, nil
+	}
+	return time.Time{}, ErrNotTimeString
 }

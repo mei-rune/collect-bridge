@@ -144,18 +144,19 @@ var (
 	IsRequiredCode                   = BadRequestCode
 	TableIsNotExists                 = BadRequestCode + 80
 
-	ContinueError      = errors.New("continue")
-	NotImplemented     = errors.New("not implemented")
-	TimeoutErr         = errors.New(timeout_message)
-	DieError           = errors.New("die.")
-	NotExists          = errors.New("not found.")
-	IdNotExists        = errors.New("'id' is required.")
-	BodyNotExists      = errors.New("'body' is required.")
-	BodyIsEmpty        = errors.New("'body' is empty.")
-	ServiceUnavailable = errors.New("service temporary unavailable, try again later")
-	ValueIsNil         = errors.New("value is nil.")
-	NotIntValue        = errors.New("it is not a int.")
-	InterruptError     = errors.New("interrupt error")
+	AlreadyStartedError = errors.New("already started.")
+	ContinueError       = errors.New("continue")
+	NotImplemented      = errors.New("not implemented")
+	TimeoutErr          = errors.New(timeout_message)
+	DieError            = errors.New("die.")
+	NotExists           = errors.New("not found.")
+	IdNotExists         = errors.New("'id' is required.")
+	BodyNotExists       = errors.New("'body' is required.")
+	BodyIsEmpty         = errors.New("'body' is empty.")
+	ServiceUnavailable  = errors.New("service temporary unavailable, try again later")
+	ValueIsNil          = errors.New("value is nil.")
+	NotIntValue         = errors.New("it is not a int.")
+	InterruptError      = errors.New("interrupt error")
 
 	IsNotMapOrArray = typeError("it is not a map[string]interface{} or a []interface{}.")
 	IsNotMap        = typeError("it is not a map[string]interface{}.")
@@ -180,6 +181,9 @@ var (
 	IsNotFloat32    = typeError("it is not a float32.")
 	IsNotFloat64    = typeError("it is not a float64.")
 	IsNotString     = typeError("it is not a string.")
+
+	ErrNotString     = errors.New("it is not a string")
+	ErrNotTimeString = errors.New("it is not a time string")
 
 	ParameterIsNil   = errors.New("parameter is nil.")
 	ParameterIsEmpty = errors.New("parameter is empty.")

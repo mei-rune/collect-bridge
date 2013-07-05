@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+var (
+	notSend = errors.New("send error")
+)
+
 const (
 	SRV_INIT     = 0
 	SRV_STARTING = 1
@@ -18,17 +22,19 @@ const (
 )
 
 type SimpleServer struct {
-	status        int32
-	C             chan func()
-	IdledInterval time.Duration
-	OnIdle        func()
-	Timeout       time.Duration
+	status    int32
+	C         chan func()
+	Interval  time.Duration
+	OnTimeout func()
+	Timeout   time.Duration
+
+	OnStart func() error
+	OnStop  func()
 }
 
-func (s *SimpleServer) Start() {
+func (s *SimpleServer) Start() error {
 	if !atomic.CompareAndSwapInt32(&s.status, SRV_INIT, SRV_STARTING) {
-		fmt.Println("start failed")
-		return
+		return AlreadyStartedError
 	}
 
 	if nil == s.C {
@@ -39,12 +45,17 @@ func (s *SimpleServer) Start() {
 		s.Timeout = 20 * time.Second
 	}
 
-	go s.serve()
-}
+	if nil != s.OnStart {
+		e := s.OnStart()
+		if nil != e {
+			atomic.StoreInt32(&s.status, SRV_INIT)
+			return e
+		}
+	}
 
-var (
-	notSend = errors.New("send error")
-)
+	go s.serve()
+	return nil
+}
 
 func (s *SimpleServer) Call(cb func()) error {
 	if !s.IsRunning() {
@@ -61,11 +72,16 @@ func (s *SimpleServer) IsRunning() bool {
 
 func (s *SimpleServer) Stop() {
 	if atomic.CompareAndSwapInt32(&s.status, SRV_STARTING, SRV_INIT) {
-		return
+		goto end
 	}
 
 	atomic.CompareAndSwapInt32(&s.status, SRV_RUNNING, SRV_STOPPING)
 	s.sendExit()
+
+end:
+	if nil != s.OnStop {
+		s.OnStop()
+	}
 }
 
 func (s *SimpleServer) sendExit() {
@@ -114,18 +130,21 @@ func (s *SimpleServer) serve() {
 		}
 	}()
 
-	if 0 == s.IdledInterval {
+	if 0 == s.Interval {
 		for SRV_RUNNING == atomic.LoadInt32(&s.status) {
 			f := <-s.C
 			s.executeCommand(f)
 		}
 	} else {
+		ticker := time.NewTicker(s.Interval)
+		defer ticker.Stop()
+
 		for SRV_RUNNING == atomic.LoadInt32(&s.status) {
 			select {
 			case f := <-s.C:
 				s.executeCommand(f)
-			case <-time.After(s.IdledInterval):
-				s.fireIdle()
+			case <-ticker.C:
+				s.fireTick()
 			}
 		}
 	}
@@ -141,8 +160,10 @@ func (s *SimpleServer) serve() {
 	}
 }
 
-func (s *SimpleServer) fireIdle() {
-	s.OnIdle()
+func (s *SimpleServer) fireTick() {
+	if nil != s.OnTimeout {
+		s.OnTimeout()
+	}
 }
 
 func (s *SimpleServer) executeCommand(cb func()) {

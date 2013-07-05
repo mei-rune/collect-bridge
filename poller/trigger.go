@@ -22,11 +22,12 @@ type triggerFunc func(t time.Time)
 
 type trigger struct {
 	commons.Logger
-	id        string
-	name      string
-	actions   []ExecuteAction
-	callback  triggerFunc
-	isRunning int32
+	id         string
+	name       string
+	actions    []ExecuteAction
+	callback   triggerFunc
+	isRunning  int32
+	updated_at time.Time
 
 	commands    map[string]func(t *trigger) string
 	expression  string
@@ -43,6 +44,9 @@ func (self *trigger) Id() string {
 
 func (self *trigger) Name() string {
 	return self.name
+}
+func (self *trigger) Version() time.Time {
+	return self.updated_at
 }
 
 func (self *trigger) Start() error {
@@ -136,6 +140,7 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 			expression:  expression,
 			attachment:  commons.GetStringWithDefault(attributes, "attachment", ""),
 			description: commons.GetStringWithDefault(attributes, "description", ""),
+			updated_at:  commons.GetTimeWithDefault(attributes, "updated_at", time.Time{}),
 			isRunning:   SRV_INIT,
 			callback:    callback,
 			actions:     actions,

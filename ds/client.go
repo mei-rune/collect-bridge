@@ -3,7 +3,6 @@ package ds
 import (
 	"commons"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 )
@@ -160,45 +159,23 @@ type RecordVersion struct {
 	UpdatedAt time.Time
 }
 
-var ErrNotString = errors.New("it is not a string")
-var ErrNotTimeString = errors.New("it is not a time string")
-
 func GetRecordVersionFrom(values map[string]interface{}) (*RecordVersion, error) {
 	t1 := values["created_at"]
 	t2 := values["updated_at"]
 	if nil == t1 && nil == t2 {
 		return nil, nil
 	}
+	var e error
 	version := &RecordVersion{}
-	e := GetTime(t1, &version.CreatedAt)
+	version.CreatedAt, e = commons.AsTime(t1)
 	if nil != e {
 		return nil, fmt.Errorf("get 'created_at' failed, %v", e)
 	}
-	e = GetTime(t2, &version.UpdatedAt)
+	version.UpdatedAt, e = commons.AsTime(t2)
 	if nil != e {
 		return nil, fmt.Errorf("get 'updated_at' failed, %v", e)
 	}
 	return version, nil
-}
-
-func GetTime(v interface{}, t *time.Time) error {
-	s, ok := v.(string)
-	if !ok {
-		return ErrNotString
-	}
-
-	m, e := time.Parse(time.RFC3339, s)
-	if nil == e {
-		*t = m
-		return nil
-	}
-
-	m, e = time.Parse(time.RFC3339Nano, s)
-	if nil == e {
-		*t = m
-		return nil
-	}
-	return ErrNotTimeString
 }
 
 func Diff(new_snapshots, old_snapshots map[string]*RecordVersion) (newed, updated, deleted []string) {

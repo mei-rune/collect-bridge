@@ -3,6 +3,7 @@ package commons
 import (
 	"fmt"
 	"strconv"
+	"time"
 )
 
 func GetBoolWithDefault(attributes map[string]interface{}, key string, defaultValue bool) bool {
@@ -162,6 +163,7 @@ func GetStringWithDefault(attributes map[string]interface{}, key string, default
 	}
 	return res
 }
+
 func GetString(attributes map[string]interface{}, key string) (string, error) {
 	v, ok := attributes[key]
 	if !ok {
@@ -171,6 +173,24 @@ func GetString(attributes map[string]interface{}, key string) (string, error) {
 		return "", ParameterIsNil
 	}
 	return AsString(v)
+}
+func GetTimeWithDefault(attributes map[string]interface{}, key string, defaultValue time.Time) time.Time {
+	res, e := GetTime(attributes, key)
+	if nil != e {
+		return defaultValue
+	}
+	return res
+}
+
+func GetTime(attributes map[string]interface{}, key string) (time.Time, error) {
+	v, ok := attributes[key]
+	if !ok {
+		return time.Time{}, NotExists
+	}
+	if nil == v {
+		return time.Time{}, ParameterIsNil
+	}
+	return AsTime(v)
 }
 
 func GetArray(attributes map[string]interface{}, key string) ([]interface{}, error) {

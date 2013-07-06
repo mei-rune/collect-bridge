@@ -147,7 +147,7 @@ func checkRedisAction(t *testing.T, actual, excepted map[string]interface{}) {
 }
 
 func TestIntCreateDevice(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
@@ -167,7 +167,7 @@ func TestIntCreateDevice(t *testing.T) {
 	})
 }
 func TestIntCreateDeviceByParent(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
@@ -205,7 +205,7 @@ func TestIntCreateDeviceByParent(t *testing.T) {
 }
 
 func TestIntQueryByIncludes(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
@@ -237,7 +237,7 @@ func TestIntQueryByIncludes(t *testing.T) {
 }
 
 func TestIntQueryByIncludesAll(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
@@ -269,7 +269,7 @@ func TestIntQueryByIncludesAll(t *testing.T) {
 }
 
 func TestIntQueryByParent(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
@@ -317,7 +317,7 @@ func TestIntQueryByParent(t *testing.T) {
 }
 
 func TestIntQueryByChild(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})

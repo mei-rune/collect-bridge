@@ -492,7 +492,7 @@ func initData(t *testing.T, client *Client) []string {
 }
 
 func TestDeviceDeleteCascadeAll(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 
 		deleteBy(t, client, "network_device", map[string]string{})
 		deleteBy(t, client, "network_device_port", map[string]string{})
@@ -534,7 +534,7 @@ func TestDeviceDeleteCascadeAll(t *testing.T) {
 }
 
 func TestDeviceDeleteCascadeByAll(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		idlist := initData(t, client)
 		checkInterfaceCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 16, 4, 4, 4, 4)
 		checkMetricRuleCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 17, 4, 4, 4, 4)
@@ -545,7 +545,7 @@ func TestDeviceDeleteCascadeByAll(t *testing.T) {
 }
 
 func TestDeviceDeleteCascadeByAllAndManagedObject(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		idlist := initData(t, client)
 		checkInterfaceCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 16, 4, 4, 4, 4)
 		checkMetricRuleCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 17, 4, 4, 4, 4)
@@ -556,7 +556,7 @@ func TestDeviceDeleteCascadeByAllAndManagedObject(t *testing.T) {
 }
 
 func TestDeviceDeleteCascadeByQuery(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		idlist := initData(t, client)
 		checkInterfaceCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 16, 4, 4, 4, 4)
 		checkMetricRuleCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 17, 4, 4, 4, 4)
@@ -567,7 +567,7 @@ func TestDeviceDeleteCascadeByQuery(t *testing.T) {
 }
 
 // func TestDeviceDeleteCascadeByQueryAndManagedObject(t *testing.T) {
-// 	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+// 	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 // 		idlist := initData(t, client)
 // 		checkInterfaceCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 16, 4, 4, 4, 4)
 // 		checkMetricRuleCount(t, client, idlist[0], idlist[1], idlist[2], idlist[3], 17, 4, 4, 4, 4)
@@ -578,7 +578,7 @@ func TestDeviceDeleteCascadeByQuery(t *testing.T) {
 // }
 
 func TestDeviceDeleteCascadeById(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 
 		idlist := initData(t, client)
 		t.Log("init data")
@@ -608,7 +608,7 @@ func TestDeviceDeleteCascadeById(t *testing.T) {
 }
 
 func TestDeviceDeleteCascadeByIdAndManagedObject(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 
 		idlist := initData(t, client)
 		t.Log("init data")
@@ -638,7 +638,7 @@ func TestDeviceDeleteCascadeByIdAndManagedObject(t *testing.T) {
 }
 
 func TestDeviceCURD(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 		deleteBy(t, client, "network_device_port", map[string]string{})
 		deleteBy(t, client, "trigger", map[string]string{})
@@ -712,7 +712,7 @@ func TestDeviceCURD(t *testing.T) {
 }
 
 func TestDeviceDeleteById(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -738,7 +738,7 @@ func TestDeviceDeleteById(t *testing.T) {
 }
 
 func TestDeviceFindBy(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")

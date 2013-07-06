@@ -13,7 +13,7 @@ var (
 )
 
 // func TestContextBasic(t *testing.T) {
-// 	ds.SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+// 	ds.SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 // 		_, e := client.DeleteBy("access_param", emptyParams)
 // 		if nil != e {
 // 			t.Error(e)

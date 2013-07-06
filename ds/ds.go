@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	models_file = flag.String("ds.models", "etc/mj_models.xml", "the name of models file")
+	models_file = flag.String("ds.models", "etc/tpt_models.xml", "the name of models file")
 	dbUrl       = flag.String("ds.dburl", "host=127.0.0.1 dbname=tpt_extreme user=tpt password=extreme sslmode=disable", "the db url")
 	drv         = flag.String("ds.db", "postgres", "the db driver")
 	goroutines  = flag.Int("ds.connections", 10, "the db connection number")

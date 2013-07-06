@@ -7,7 +7,7 @@ import (
 )
 
 func TestIPAddressNative(t *testing.T) {
-	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -26,7 +26,7 @@ func TestIPAddressNative(t *testing.T) {
 }
 
 func TestIPAddress(t *testing.T) {
-	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -49,7 +49,7 @@ func TestIPAddress(t *testing.T) {
 }
 
 func TestRouteNative(t *testing.T) {
-	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -68,7 +68,7 @@ func TestRouteNative(t *testing.T) {
 }
 
 func TestRoute(t *testing.T) {
-	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -91,7 +91,7 @@ func TestRoute(t *testing.T) {
 }
 
 func TestArpNative(t *testing.T) {
-	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -110,7 +110,7 @@ func TestArpNative(t *testing.T) {
 }
 
 func TestArp(t *testing.T) {
-	SrvTest(t, "../ds/etc/mj_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)

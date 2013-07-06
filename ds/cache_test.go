@@ -11,7 +11,7 @@ import (
 )
 
 func TestCacheBasic(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -102,7 +102,7 @@ func TestCacheBasic(t *testing.T) {
 }
 
 func TestCacheBySuper(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -133,7 +133,7 @@ func TestCacheBySuper(t *testing.T) {
 }
 
 func TestCacheAlreadyDelete(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -188,7 +188,7 @@ func TestCacheAlreadyDelete(t *testing.T) {
 }
 
 func TestCacheAdd(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -217,7 +217,7 @@ func TestCacheAdd(t *testing.T) {
 }
 
 func TestCacheRefresh(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -280,7 +280,7 @@ func TestCacheRefresh(t *testing.T) {
 }
 
 func TestCacheClose(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		e := func() (e error) {
 			defer func() {
 				if o := recover(); nil != o {
@@ -301,7 +301,7 @@ func TestCacheClose(t *testing.T) {
 }
 
 func TestCachesBasic(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -343,7 +343,7 @@ func TestCachesBasic(t *testing.T) {
 }
 
 func TestCachesBasicAlias(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -389,7 +389,7 @@ func createSnmpParamsForCache(t *testing.T, client *Client, id, factor string) s
 }
 
 func TestCacheGetChildren(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
 
 		id1 := createMockDevice(t, client, "1")
@@ -444,7 +444,7 @@ func TestCacheGetChildren(t *testing.T) {
 }
 
 func TestCachesFailed(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 
 		messages := make([]string, 0, 3)
 		excepted := []string{"GET,/devdddice/@count"}
@@ -483,7 +483,7 @@ func TestCachesFailed(t *testing.T) {
 }
 
 func TestCachesNetworkFailed(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 
 		caches := NewCaches(100*time.Minute, NewClient("http://127.0.0.1:803"), "", nil)
 		defer caches.Close()
@@ -510,7 +510,7 @@ func TestCachesNetworkFailed(t *testing.T) {
 }
 
 func TestCachesClose(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		e := func() (e error) {
 			defer func() {
 				if o := recover(); nil != o {
@@ -532,7 +532,7 @@ func TestCachesClose(t *testing.T) {
 }
 
 func TestCacheCloseInCaches(t *testing.T) {
-	SrvTest(t, "etc/mj_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		e := func() (e error) {
 			defer func() {
 				if o := recover(); nil != o {

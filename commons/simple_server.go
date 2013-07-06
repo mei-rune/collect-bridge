@@ -85,6 +85,10 @@ func (s *SimpleServer) IsRunning() bool {
 	return SRV_RUNNING == atomic.LoadInt32(&s.status)
 }
 
+func (s *SimpleServer) StatusString() string {
+	return ToStatusString(int(atomic.LoadInt32(&s.status)))
+}
+
 func (s *SimpleServer) Stop() {
 	if atomic.CompareAndSwapInt32(&s.status, SRV_STARTING, SRV_INIT) {
 		goto end

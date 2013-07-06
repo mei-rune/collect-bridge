@@ -40,7 +40,9 @@ func TestJobWithSamplingFailed(t *testing.T) {
 
 	c := make(chan string)
 	go func() {
-		http.Serve(l, handler)
+		if nil != l {
+			http.Serve(l, handler)
+		}
 		c <- "ok"
 	}()
 
@@ -58,6 +60,7 @@ func TestJobWithSamplingFailed(t *testing.T) {
 
 	ch := make(chan []string, 1)
 	tg, e := newJob(map[string]interface{}{
+		"id":                "this is a test trigger id",
 		"name":              "this is a test trigger",
 		"type":              "metric_trigger",
 		"metric":            "cpu",
@@ -126,7 +129,9 @@ func TestJobFull(t *testing.T) {
 
 	c := make(chan string)
 	go func() {
-		http.Serve(l, handler)
+		if nil != l {
+			http.Serve(l, handler)
+		}
 		c <- "ok"
 	}()
 
@@ -144,6 +149,7 @@ func TestJobFull(t *testing.T) {
 
 	ch := make(chan []string, 1)
 	tg, e := newJob(map[string]interface{}{
+		"id":                "test_id",
 		"name":              "this is a test trigger",
 		"type":              "metric_trigger",
 		"metric":            "cpu",

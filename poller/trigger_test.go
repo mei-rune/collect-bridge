@@ -10,6 +10,7 @@ import (
 func TestTrigger(t *testing.T) {
 	i := int32(0)
 	tg, e := newTrigger(map[string]interface{}{
+		"id":         "test_id",
 		"name":       "this is a test trigger",
 		"expression": "@every 1ms",
 		"$action":    []interface{}{}}, nil, map[string]interface{}{}, func(tm time.Time) error {

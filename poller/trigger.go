@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -27,6 +28,7 @@ type trigger struct {
 	attachment  string
 	description string
 
+	l          sync.Mutex
 	last_error error
 	start      func(t *trigger) error
 	stop       func(t *trigger)
@@ -50,6 +52,9 @@ func (self *trigger) Stats() map[string]interface{} {
 		"name":       self.Name(),
 		"updated_at": self.updated_at,
 		"status":     commons.ToStatusString(int(atomic.LoadInt32(&self.status)))}
+
+	self.l.Lock()
+	defer self.l.Unlock()
 
 	if nil != self.last_error {
 		res["error"] = self.last_error.Error()
@@ -106,6 +111,12 @@ func (self *trigger) callActions(t time.Time, res interface{}) {
 	}
 	for _, action := range self.actions {
 		action.Run(t, res)
+	}
+
+	self.l.Lock()
+	defer self.l.Unlock()
+	for _, action := range self.actions {
+		action.last_error = action.temporary
 	}
 }
 
@@ -320,11 +331,18 @@ func (self *intervalTrigger) timeout(t time.Time) {
 				}
 				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
 			}
-			self.last_error = errors.New(buffer.String())
-			self.ERROR.Print(self.last_error.Error())
+			msg := buffer.String()
+			self.set_last_error(errors.New(msg))
+			self.ERROR.Print(msg)
 		}
 	}()
 
 	self.DEBUG.Printf("timeout %s - %s", self.name, self.interval)
-	self.last_error = self.callback(t)
+	self.set_last_error(self.callback(t))
+}
+
+func (self *intervalTrigger) set_last_error(e error) {
+	self.l.Lock()
+	defer self.l.Unlock()
+	self.last_error = e
 }

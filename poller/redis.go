@@ -2,47 +2,78 @@ package poller
 
 import (
 	"bytes"
-	"commons"
+	"errors"
+	"expvar"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
+	"log"
 	"runtime"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
+var redis_error = expvar.NewString("redis")
+
 type Redis struct {
-	Address   string
-	ch        chan []string
-	isRunning bool
+	Address string
+	c       chan []string
+	status  int32
+	wait    sync.WaitGroup
+}
+
+func (self *Redis) isRunning() bool {
+	return 1 == atomic.LoadInt32(&self.status)
 }
 
 func (self *Redis) run() {
 	defer func() {
-		commons.Log.INFO.Print("redis client is exit.")
-		close(self.ch)
+		log.Println("redis client is exit.")
+		close(self.c)
+		self.wait.Done()
 	}()
 
-	for {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	go func() {
+		defer func() {
+			if o := recover(); nil != o {
+				log.Println("[panic]", o)
+			}
+			self.wait.Done()
+		}()
+
+		for self.isRunning() {
+			<-ticker.C
+			self.c <- nil
+		}
+	}()
+
+	self.wait.Add(1)
+
+	for self.isRunning() {
 		self.runOnce()
 	}
 }
 
-func (self *Redis) recvCommands() [][]string {
-	commands := make([][]string, 0, 30)
-	interval := 10 * time.Millisecond
-	for self.isRunning {
-		select {
-		case c := <-self.ch:
-			interval = 10 * time.Millisecond
-			commands = append(commands, c)
-		case <-time.After(interval):
+func (self *Redis) recvCommands(max_size int) [][]string {
+	commands := make([][]string, 0, max_size)
+
+	for self.isRunning() {
+		cmd := <-self.c
+		if nil == cmd || 0 == len(cmd) {
 			if 0 != len(commands) {
 				return commands
-			} else {
-				interval = 1 * time.Second
 			}
 		}
+
+		commands = append(commands, cmd)
+		if max_size < len(commands) {
+			return commands
+		}
 	}
-	return nil
+	return commands
 }
 
 func (self *Redis) runOnce() {
@@ -57,17 +88,24 @@ func (self *Redis) runOnce() {
 				}
 				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
 			}
-			commons.Log.ERROR.Print(buffer.String())
+			msg := buffer.String()
+			redis_error.Set(msg)
+			log.Println(msg)
 		}
 	}()
 
 	c, err := redis.DialTimeout("tcp", self.Address, 0, 1*time.Second, 1*time.Second)
 	if err != nil {
-		commons.Log.ERROR.Printf("[redis] connect to '%s' failed, %v", self.Address, err)
+		msg := fmt.Sprintf("[redis] connect to '%s' failed, %v", self.Address, err)
+		redis_error.Set(msg)
+		log.Println(msg)
 		return
 	}
-	for self.isRunning {
-		commands := self.recvCommands()
+
+	redis_error.Set("")
+
+	for self.isRunning() {
+		commands := self.recvCommands(10)
 		for _, cmd := range commands {
 			switch len(cmd) {
 			case 1:
@@ -83,18 +121,27 @@ func (self *Redis) runOnce() {
 			case 6:
 				_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5])
 			default:
-				_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6])
+				err = errors.New("argument length is error.")
 			}
+
 			if nil != err {
-				commons.Log.ERROR.Printf("[redis] do command '%s' failed, %v", cmd[0], err)
+				msg := fmt.Sprintf("[redis] do command '%s' failed, %v", cmd[0], err)
+				redis_error.Set(msg)
+				log.Println(msg)
 				return
 			}
 		}
 	}
 }
 
+func (self *Redis) Close() {
+	atomic.StoreInt32(&self.status, 0)
+	self.wait.Wait()
+}
+
 func newRedis(address string) (chan []string, error) {
-	redis := &Redis{Address: address, ch: make(chan []string, 3000), isRunning: true}
+	redis := &Redis{Address: address, c: make(chan []string, 3000), status: 1}
 	go redis.run()
-	return redis.ch, nil
+	redis.wait.Add(1)
+	return redis.c, nil
 }

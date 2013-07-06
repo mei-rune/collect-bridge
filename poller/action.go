@@ -23,8 +23,10 @@ func newAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, 
 }
 
 type actionWrapper struct {
-	id, name   string
-	action     ExecuteAction
+	id, name string
+	action   ExecuteAction
+
+	temporary  error
 	last_error error
 }
 
@@ -40,9 +42,9 @@ func (self *actionWrapper) Run(t time.Time, value interface{}) {
 				}
 				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
 			}
-			self.last_error = errors.New(buffer.String())
+			self.temporary = errors.New(buffer.String())
 		}
 	}()
 
-	self.last_error = self.action.Run(t, value)
+	self.temporary = self.action.Run(t, value)
 }

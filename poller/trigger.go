@@ -124,11 +124,16 @@ const every = "@every "
 
 var (
 	ExpressionSyntexError = errors.New("'expression' is error syntex")
+	IdIsRequired          = commons.IsRequired("id")
 	NameIsRequired        = commons.IsRequired("name")
 	CommandIsRequired     = commons.IsRequired("command")
 )
 
 func newTrigger(attributes, options, ctx map[string]interface{}, callback triggerFunc) (*trigger, error) {
+	id := commons.GetStringWithDefault(attributes, "id", "")
+	if "" == id {
+		return nil, IdIsRequired
+	}
 	name := commons.GetStringWithDefault(attributes, "name", "")
 	if "" == name {
 		return nil, NameIsRequired
@@ -169,7 +174,8 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 		it := &intervalTrigger{c: make(chan *request),
 			interval: interval}
 
-		t := &trigger{name: name,
+		t := &trigger{id: id,
+			name:        name,
 			expression:  expression,
 			attachment:  commons.GetStringWithDefault(attributes, "attachment", ""),
 			description: commons.GetStringWithDefault(attributes, "description", ""),

@@ -225,11 +225,12 @@ func (self *Client) Snapshot(target string, params map[string]string) (map[strin
 	url := self.CreateUrl().
 		Concat(target, "@snapshot").
 		WithQueries(params, "@").ToUrl()
-	res := self.Invoke("GET", url, nil, 200)
-	if res.HasError() {
-		return nil, res.Error()
+	raw_results := self.Invoke("GET", url, nil, 200)
+	if raw_results.HasError() {
+		return nil, raw_results.Error()
 	}
-	results, err := res.Value().AsObjects()
+
+	results, err := raw_results.Value().AsObjects()
 	if nil != err {
 		return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
 	}

@@ -66,6 +66,7 @@ func (self *Redis) recvCommands(max_size int) [][]string {
 			if 0 != len(commands) {
 				return commands
 			}
+			continue
 		}
 
 		commands = append(commands, cmd)

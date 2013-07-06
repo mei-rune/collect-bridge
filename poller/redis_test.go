@@ -48,6 +48,34 @@ func TestRedis(t *testing.T) {
 	checkResult(t, c, "GET", "a5", "1227")
 }
 
+func TestRedisEmpty(t *testing.T) {
+	redis_channel, err := newRedis(redis_address)
+	if nil != err {
+		t.Error(err)
+		return
+	}
+	redis_channel <- []string{}
+	redis_channel <- []string{"SET", "a1", "1223"}
+	redis_channel <- []string{"SET", "a2", "1224"}
+	redis_channel <- []string{"SET", "a3", "1225"}
+	redis_channel <- []string{"SET", "a4", "1226"}
+	redis_channel <- []string{"SET", "a5", "1227"}
+
+	time.Sleep(2 * time.Second)
+
+	c, err := redis.DialTimeout("tcp", redis_address, 0, 1*time.Second, 1*time.Second)
+	if err != nil {
+		t.Errorf("[redis] connect to '%s' failed, %v", redis_address, err)
+		return
+	}
+
+	checkResult(t, c, "GET", "a1", "1223")
+	checkResult(t, c, "GET", "a2", "1224")
+	checkResult(t, c, "GET", "a3", "1225")
+	checkResult(t, c, "GET", "a4", "1226")
+	checkResult(t, c, "GET", "a5", "1227")
+}
+
 func TestRedisAction(t *testing.T) {
 	ch := make(chan []string, 1)
 

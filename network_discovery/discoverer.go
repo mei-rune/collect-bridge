@@ -3,6 +3,7 @@ package discovery
 import (
 	"commons"
 	"commons/netutils"
+	"errors"
 	"fmt"
 	"net"
 	"snmp"
@@ -29,7 +30,7 @@ type Discoverer struct {
 	ch          chan string
 	drv_ch      chan Device
 	control_ch  chan map[string]interface{}
-	result_ch   chan commons.RuntimeError
+	result_ch   chan error
 	isCompleted bool
 
 	params *DiscoveryParams
@@ -47,10 +48,10 @@ type Discoverer struct {
 	is_running    int32
 }
 
-func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Discoverer, commons.RuntimeError) {
+func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Discoverer, error) {
 
 	if nil == params {
-		return nil, commons.InternalError("params is nil.")
+		return nil, errors.New("params is nil.")
 	}
 	if 0 >= params.Timeout {
 		params.Timeout = 10
@@ -73,7 +74,7 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 
 	// icmp_pinger, err := netutils.NewPingers(nil, 10000)
 	// if nil != err {
-	//	return nil, commons.InternalError("icmp failed, " + err.Error())
+	//	return nil, errors.New("icmp failed, " + err.Error())
 	// }
 
 	snmp_pinger := snmp.NewPingers(10000)
@@ -87,25 +88,25 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 	for _, community := range params.Communities {
 		err := snmp_pinger.Listen("udp4", "0.0.0.0:0", snmp.SNMP_V2C, community)
 		if nil != err {
-			return nil, commons.InternalError("snmp failed, " + err.Error())
+			return nil, errors.New("snmp failed, " + err.Error())
 		}
 	}
 
 	snmp_drv, ok := drvMgr.Connect("snmp")
 	if !ok {
-		return nil, commons.InternalError("snmp failed, driver is not found.")
+		return nil, errors.New("snmp failed, driver is not found.")
 	}
 
 	metrics_drv, ok := drvMgr.Connect("metrics")
 	if !ok {
-		return nil, commons.InternalError("metrics failed, driver is not found.")
+		return nil, errors.New("metrics failed, driver is not found.")
 	}
 
 	discoverer := &Discoverer{params: params,
 		ch:         make(chan string, 1000),
 		drv_ch:     make(chan Device),
 		control_ch: make(chan map[string]interface{}, 100),
-		result_ch:  make(chan commons.RuntimeError, 1),
+		result_ch:  make(chan error, 1),
 		//icmp_pinger: icmp_pinger,
 		snmp_pinger: snmp_pinger,
 		snmp_drv:    snmp_drv,
@@ -437,7 +438,7 @@ func (self *Discoverer) IsCompleted() bool {
 	return self.isCompleted
 }
 
-func (self *Discoverer) Control(params map[string]interface{}) commons.RuntimeError {
+func (self *Discoverer) Control(params map[string]interface{}) error {
 	self.control_ch <- params
 	return <-self.result_ch
 }

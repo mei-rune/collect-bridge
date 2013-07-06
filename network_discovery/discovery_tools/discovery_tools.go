@@ -2,19 +2,14 @@ package main
 
 import (
 	"commons"
-	"commons/as"
-	"discovery"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"lua_binding"
-	"metrics"
-	"os"
+	discovery "network_discovery"
 	"snmp"
 	"strings"
 	"time"
-	"web"
 )
 
 var (
@@ -28,17 +23,6 @@ var (
 	cookies   = flag.String("cookies", "", "the static directory of http")
 )
 
-func mainHandle(rw *web.Context) {
-	errFile := "_log_/error.html"
-	_, err := os.Stat(errFile)
-	if err == nil || os.IsExist(err) {
-		content, _ := ioutil.ReadFile(errFile)
-		rw.WriteString(string(content))
-		return
-	}
-	rw.WriteString("Hello, World!")
-}
-
 func main() {
 
 	flag.Parse()
@@ -47,13 +31,6 @@ func main() {
 		flag.Usage()
 		return
 	}
-
-	svr := web.NewServer()
-	svr.Config.Name = "meijing-bridge v1.0"
-	svr.Config.Address = *address
-	svr.Config.StaticDirectory = *directory
-	svr.Config.CookieSecret = *cookies
-	svr.Get("/", mainHandle)
 
 	params := map[string]interface{}{}
 

@@ -518,3 +518,7 @@ func ReturnWithRecordAlreadyExists(id string) Result {
 func ReturnWithNotImplemented() Result {
 	return ReturnError(InternalErrorCode, "not implemented")
 }
+
+func ReturnWithServiceUnavailable(msg string) Result {
+	return ReturnError(ServiceUnavailableCode, msg)
+}

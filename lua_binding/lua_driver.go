@@ -202,6 +202,10 @@ func writeActionArguments(drv *LuaDriver, ctx *Continuous) (int, error) {
 	return 2, nil
 }
 
+func internalError(msg string) commons.Result {
+	return commons.ReturnError(commons.InternalErrorCode, msg)
+}
+
 // func (svc *Svc) Set(onStart, onStop, onTimeout func()) {
 //	svc.onStart = onStart
 //	svc.onStop = onStop
@@ -221,7 +225,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Result = commons.ReturnError(commons.InternalErrorCode, fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Result = internalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
@@ -233,7 +237,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Result = commons.ReturnError(commons.InternalErrorCode, fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Result = internalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
@@ -245,7 +249,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Result = commons.ReturnError(commons.InternalErrorCode, fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Result = internalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
@@ -257,7 +261,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 		Callback: func(lua *LuaDriver, ctx *Continuous) {
 			drv, ok := lua.drvMgr.Connect(ctx.StringValue)
 			if !ok {
-				ctx.Result = commons.ReturnError(commons.InternalErrorCode, fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
+				ctx.Result = internalError(fmt.Sprintf("driver '%s' is not exists.", ctx.StringValue))
 				return
 			}
 
@@ -735,9 +739,9 @@ func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]str
 	ret, err := driver.invoke(action, params)
 	if nil == ret {
 		if nil == err {
-			return commons.ReturnError(commons.InternalErrorCode, "error is nil")
+			return internalError("error is nil")
 		}
-		return commons.ReturnError(commons.InternalErrorCode, err.Error())
+		return internalError(err.Error())
 	}
 
 	res, ok := ret.(map[string]interface{})

@@ -5,8 +5,8 @@ import (
 	"ds"
 	"errors"
 	"github.com/garyburd/redigo/redis"
-	"metrics"
 	"os"
+	"sampling"
 	"strings"
 	"testing"
 	"time"
@@ -46,7 +46,7 @@ var (
 )
 
 func srvTest(t *testing.T, cb func(client *ds.Client, definitions *types.TableDefinitions)) {
-	metrics.SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	sampling.SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		cb(client, definitions)
 	})
 }

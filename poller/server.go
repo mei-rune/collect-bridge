@@ -53,6 +53,7 @@ type server struct {
 	jobs       map[string]Job
 	client     *ds.Client
 	ctx        map[string]interface{}
+	firedAt    time.Time
 	last_error error
 }
 
@@ -115,6 +116,7 @@ func (s *server) stopJob(id string) {
 	}
 	job.Stop()
 	delete(s.jobs, id)
+	log.Println("stop trigger with id was '" + id + "'")
 }
 
 func (s *server) onStart() error {
@@ -135,11 +137,14 @@ func (s *server) onStop() {
 		job.Stop()
 	}
 	s.jobs = make(map[string]Job)
+
+	log.Println("server is stopped.")
 }
 
 func (s *server) onIdle() {
+	s.firedAt = time.Now()
 	new_snapshots, e := s.client.Snapshot("trigger", map[string]string{})
-	if nil == e {
+	if nil != e {
 		s.last_error = e
 		return
 	}
@@ -181,7 +186,14 @@ func (s *server) String() string {
 		if nil != s.last_error {
 			messages = append(messages, map[string]string{
 				"name":       "self",
+				"firedAt":    s.firedAt.Format(time.RFC3339Nano),
+				"status":     s.StatusString(),
 				"last_error": s.last_error.Error()})
+		} else {
+			messages = append(messages, map[string]string{
+				"name":    "self",
+				"firedAt": s.firedAt.Format(time.RFC3339Nano),
+				"status":  s.StatusString()})
 		}
 
 		s, e := json.MarshalIndent(messages, "", "  ")

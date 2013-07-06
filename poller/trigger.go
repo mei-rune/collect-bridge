@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -32,6 +33,7 @@ type trigger struct {
 	last_error error
 	start      func(t *trigger) error
 	stop       func(t *trigger)
+	stats      func(m map[string]interface{})
 }
 
 func (self *trigger) Id() string {
@@ -51,7 +53,12 @@ func (self *trigger) Stats() map[string]interface{} {
 		"id":         self.Id(),
 		"name":       self.Name(),
 		"updated_at": self.updated_at,
+		"expression": self.expression,
 		"status":     commons.ToStatusString(int(atomic.LoadInt32(&self.status)))}
+
+	if nil != self.stats {
+		self.stats(res)
+	}
 
 	self.l.Lock()
 	defer self.l.Unlock()
@@ -183,6 +190,7 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 			status:      commons.SRV_INIT,
 			callback:    callback,
 			actions:     actions,
+			stats:       it.onStats,
 			start:       it.start,
 			stop:        it.stop}
 		it.trigger = t
@@ -196,6 +204,10 @@ type intervalTrigger struct {
 	*trigger
 	interval time.Duration
 	c        chan *request
+
+	max_used_duration int64
+	begin_fired_at    int64
+	end_fired_at      int64
 }
 
 func (self *intervalTrigger) start(t *trigger) error {
@@ -325,7 +337,15 @@ func (self *intervalTrigger) executeCommand(req *request) {
 	req.c <- req
 }
 
+func (self *intervalTrigger) onStats(m map[string]interface{}) {
+	m["max_used_duration"] = strconv.FormatInt(atomic.LoadInt64(&self.max_used_duration), 10) + "s"
+	m["begin_fired_at"] = time.Unix(atomic.LoadInt64(&self.begin_fired_at), 0).Format(time.RFC3339Nano)
+	m["end_fired_at"] = time.Unix(atomic.LoadInt64(&self.end_fired_at), 0).Format(time.RFC3339Nano)
+}
+
 func (self *intervalTrigger) timeout(t time.Time) {
+	startedAt := t.Unix()
+
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -341,7 +361,15 @@ func (self *intervalTrigger) timeout(t time.Time) {
 			self.set_last_error(errors.New(msg))
 			self.ERROR.Print(msg)
 		}
+
+		now := time.Now().Unix()
+		atomic.StoreInt64(&self.end_fired_at, now)
+		if self.max_used_duration < now-startedAt {
+			atomic.StoreInt64(&self.max_used_duration, now-startedAt)
+		}
 	}()
+
+	atomic.StoreInt64(&self.begin_fired_at, startedAt)
 
 	self.DEBUG.Printf("timeout %s - %s", self.name, self.interval)
 	self.set_last_error(self.callback(t))

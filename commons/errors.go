@@ -23,7 +23,7 @@ func (err *ApplicationError) Error() string {
 	return err.Emessage
 }
 
-func NewApplicationError(code int, msg string) *ApplicationError {
+func NewApplicationError(code int, msg string) RuntimeError {
 	return &ApplicationError{Ecode: code, Emessage: msg}
 }
 

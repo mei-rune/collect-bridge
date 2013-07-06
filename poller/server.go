@@ -297,7 +297,7 @@ func (s *server) StatsByAddress(req *restful.Request, resp *restful.Response) {
 			return
 		}
 
-		results, e := s.client.FindByWithIncludes("managed_object", map[string]string{"address": address}, "trigger")
+		results, e := s.client.FindByWithIncludes("network_device", map[string]string{"address": address}, "metric_trigger")
 		if nil != e {
 			resp.WriteErrorString(http.StatusInternalServerError, e.Error())
 			return
@@ -306,7 +306,7 @@ func (s *server) StatsByAddress(req *restful.Request, resp *restful.Response) {
 		id_list := make([]string, 0, 10)
 
 		for _, result := range results {
-			triggers, e := commons.GetObjects(result, "$trigger")
+			triggers, e := commons.GetObjects(result, "$metric_trigger")
 			if nil != e {
 				continue
 			}

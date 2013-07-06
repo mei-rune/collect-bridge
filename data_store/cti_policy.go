@@ -1,4 +1,4 @@
-package ds
+package data_store
 
 import (
 	"bytes"

@@ -1,4 +1,4 @@
-package ds
+package data_store
 
 import (
 	"commons"
@@ -26,14 +26,14 @@ var (
 	dbUrl       = flag.String("ds.dburl", "host=127.0.0.1 dbname=tpt_extreme user=tpt password=extreme sslmode=disable", "the db url")
 	drv         = flag.String("ds.db", "postgres", "the db driver")
 	goroutines  = flag.Int("ds.connections", 10, "the db connection number")
-	address     = flag.String("ds.http", ":7071", "the address of http")
+	address     = flag.String("ds.listen", ":7071", "the address of http")
 
 	//test_db    = flag.String("test.db", "sqlite3", "the db driver name for test")
 	//test_dbUrl = flag.String("test.dburl", "test.sqlite3.db", "the db url")
 
 	test_db                          = flag.String("test.db", "postgres", "the db driver name for test")
 	test_dbUrl                       = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
-	test_address                     = flag.String("test.http", ":7071", "the address of http")
+	test_address                     = flag.String("test.listen", ":7071", "the address of http")
 	is_test      int32               = 0
 	srv_instance *server             = nil
 	ws_instance  *restful.WebService = nil
@@ -175,6 +175,7 @@ func Main() {
 	restful.Add(ws)
 
 	if 1 == atomic.LoadInt32(&is_test) {
+		log.Println("[ds-test] serving at '" + *address + "'")
 		ws_instance = ws
 		//http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
 		//http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
@@ -494,9 +495,9 @@ CREATE TABLE tpt_zip_files (id  INTEGER PRIMARY KEY AUTOINCREMENT, body text, do
 		}
 
 		if !commons.FileExists(sql_file) {
-			file := "../ds/" + drv + "_test.sql"
+			file := "../data_store/" + drv + "_test.sql"
 			if "postgres" == drv && *IsPostgresqlInherit {
-				file = "../ds/" + drv + "_inherit_test.sql"
+				file = "../data_store/" + drv + "_inherit_test.sql"
 			}
 
 			if commons.FileExists(file) {

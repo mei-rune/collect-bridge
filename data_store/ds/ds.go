@@ -1,9 +1,9 @@
 package main
 
 import (
-	"ds"
+	"data_store"
 )
 
 func main() {
-	ds.Main()
+	data_store.Main()
 }

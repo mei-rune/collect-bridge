@@ -1,7 +1,7 @@
 package poller
 
 import (
-	"ds"
+	ds "data_store"
 	"expvar"
 	"flag"
 	"fmt"
@@ -17,7 +17,7 @@ var (
 	redisAddress  = flag.String("redis", "127.0.0.1:6379", "the address of redis")
 	listenAddress = flag.String("listen", ":7076", "the address of http")
 	dsUrl         = flag.String("ds", "http://127.0.0.1:7071", "the address of ds")
-	metrics_url   = flag.String("metrics.url", "http://127.0.0.1:7072", "the address of bridge")
+	metrics_url   = flag.String("sampling", "http://127.0.0.1:7072", "the address of bridge")
 	timeout       = flag.Duration("timeout", 1*time.Minute, "the timeout of http")
 	refresh       = flag.Duration("refresh", 5, "the refresh interval of cache")
 

@@ -2,7 +2,7 @@ package sampling
 
 import (
 	"commons"
-	"ds"
+	ds "data_store"
 	"errors"
 	"github.com/runner-mei/go-restful"
 	"time"

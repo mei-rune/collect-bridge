@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	address      = flag.String("metrics.http", ":7072", "the address of http")
+	address      = flag.String("sampling.listen", ":7072", "the address of http")
 	ds_url       = flag.String("ds.url", "http://127.0.0.1:7071", "the address of http")
 	refresh      = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
 	snmp_timeout = flag.Duration("snmp.timeout", 60*time.Second, "the timeout duration of snmp")
@@ -120,9 +120,9 @@ func Main() {
 	if is_test {
 		wsrv_instance = ws
 		srv_instance = srv
-		log.Println("[metrics-test] serving at '" + *address + "'")
+		log.Println("[sampling-test] serving at '" + *address + "'")
 	} else {
-		log.Println("[metrics] serving at '" + *address + "'")
+		log.Println("[sampling] serving at '" + *address + "'")
 		http.ListenAndServe(*address, nil)
 	}
 }

@@ -1,4 +1,4 @@
-package ds
+package data_store
 
 // type dialect interface {
 // 	Select(query *QueryImpl) string

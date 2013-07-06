@@ -2,7 +2,7 @@ package poller
 
 import (
 	"commons/types"
-	"ds"
+	ds "data_store"
 	"errors"
 	"github.com/garyburd/redigo/redis"
 	"os"
@@ -46,7 +46,7 @@ var (
 )
 
 func srvTest(t *testing.T, cb func(client *ds.Client, definitions *types.TableDefinitions)) {
-	sampling.SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	sampling.SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		cb(client, definitions)
 	})
 }

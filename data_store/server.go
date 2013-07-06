@@ -1,4 +1,4 @@
-package ds
+package data_store
 
 import (
 	"bytes"
@@ -26,10 +26,10 @@ type server struct {
 
 func newServer(drv, dbUrl, file string, goroutines int) (*server, error) {
 	// if !commons.FileExists(file) {
-	// 	s, _ := filepath.Abs(filepath.Join("..", "ds", file))
+	// 	s, _ := filepath.Abs(filepath.Join("..", ds "data_store", file))
 	// 	fmt.Println("test", s)
-	// 	if commons.FileExists(filepath.Join("..", "ds", file)) {
-	// 		file = filepath.Join("..", "ds", file)
+	// 	if commons.FileExists(filepath.Join("..", ds "data_store", file)) {
+	// 		file = filepath.Join("..", ds "data_store", file)
 	// 	}
 	// }
 	definitions, e := types.LoadTableDefinitions(file)

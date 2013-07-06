@@ -2,12 +2,12 @@ package sampling
 
 import (
 	"commons/types"
-	"ds"
+	ds "data_store"
 	"testing"
 )
 
 func TestHostCpuNative(t *testing.T) {
-	SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -26,7 +26,7 @@ func TestHostCpuNative(t *testing.T) {
 }
 
 func TestHostCpu(t *testing.T) {
-	SrvTest(t, "../ds/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)

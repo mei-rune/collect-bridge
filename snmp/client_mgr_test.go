@@ -20,7 +20,7 @@ func TestClientMgrTimeout(t *testing.T) {
 	err := mgr.Start()
 	if nil != err {
 		t.Error("start failed")
-		t.FailNow()
+		return
 	}
 
 	i1, _ := mgr.GetClient("1")
@@ -33,7 +33,7 @@ func TestClientMgrTimeout(t *testing.T) {
 
 	if c1 != c1_copy {
 		t.Error("c1 != c1_copy")
-		t.FailNow()
+		return
 	}
 
 	for i := 0; i < 19 && 0 != len(mgr.clients); i++ {
@@ -42,16 +42,16 @@ func TestClientMgrTimeout(t *testing.T) {
 
 	if 0 != len(mgr.clients) {
 		t.Error("client is not timeout")
-		t.FailNow()
+		return
 	}
 
 	if true != c1.start || true != c1.stop || true != c1.test {
 		t.Errorf("func invoke failed, start = %v, stop = %v, test=%v", c1.start, c1.stop, c1.test)
-		t.FailNow()
+		return
 	}
 
 	if true != c2.start || true != c2.stop || true != c2.test {
 		t.Errorf("func invoke failed, start = %v, stop = %v, test=%v", c2.start, c2.stop, c2.test)
-		t.FailNow()
+		return
 	}
 }

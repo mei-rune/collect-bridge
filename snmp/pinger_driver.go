@@ -4,6 +4,7 @@ import (
 	"commons"
 	"commons/netutils"
 	"encoding/json"
+	"github.com/runner-mei/snmpclient"
 	"net"
 	"strings"
 	"time"
@@ -11,11 +12,11 @@ import (
 
 type PingerDriver struct {
 	drvMgr  *commons.DriverManager
-	pingers map[string]*Pinger
+	pingers map[string]*snmpclient.Pinger
 }
 
 func NewPingerDriver(drvMgr *commons.DriverManager) *PingerDriver {
-	return &PingerDriver{drvMgr: drvMgr, pingers: make(map[string]*Pinger)}
+	return &PingerDriver{drvMgr: drvMgr, pingers: make(map[string]*snmpclient.Pinger)}
 }
 
 // func (self *PingerDriver) Start(*Pinger) (err error) {
@@ -99,10 +100,10 @@ func (self *PingerDriver) Put(params map[string]string) commons.Result {
 		communities = "public"
 	}
 
-	versions := []SnmpVersion{SNMP_V2C, SNMP_V3}
+	versions := []snmpclient.SnmpVersion{snmpclient.SNMP_V2C, snmpclient.SNMP_V3}
 	version, e := getVersion(params)
-	if SNMP_Verr != version {
-		versions = []SnmpVersion{version}
+	if snmpclient.SNMP_Verr != version {
+		versions = []snmpclient.SnmpVersion{version}
 	}
 
 	for _, ip_raw := range ipList {
@@ -164,7 +165,7 @@ func (self *PingerDriver) Create(params map[string]string) commons.Result {
 		return commons.ReturnWithRecordAlreadyExists(id)
 	}
 
-	pinger, err := NewPinger(network, address, 256)
+	pinger, err := snmpclient.NewPinger(network, address, 256)
 	if nil != err {
 		return commons.ReturnWithInternalError(err.Error())
 	}

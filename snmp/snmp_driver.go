@@ -4,6 +4,7 @@ import (
 	"commons"
 	"errors"
 	"fmt"
+	"github.com/runner-mei/snmpclient"
 	"strconv"
 	"strings"
 	"time"
@@ -34,44 +35,20 @@ func getTimeout(params map[string]string, timeout time.Duration) time.Duration {
 	return ret
 }
 
-func getVersion(params map[string]string) (SnmpVersion, error) {
+func getVersion(params map[string]string) (snmpclient.SnmpVersion, error) {
 	v, ok := params["snmp.version"]
 	if !ok {
-		return SNMP_V2C, nil
+		return snmpclient.SNMP_V2C, nil
 	}
-	return parseVersion(v)
+	return snmpclient.ParseSnmpVersion(v)
 }
 
-func parseVersion(v string) (SnmpVersion, error) {
-	switch v {
-	case "v1", "V1", "1":
-		return SNMP_V1, nil
-	case "v2", "V2", "v2c", "V2C", "2", "2c", "2C":
-		return SNMP_V2C, nil
-	case "v3", "V3", "3":
-		return SNMP_V3, nil
-	}
-	return SNMP_Verr, errors.New("Unsupported version - " + v)
-}
-
-func getAction(params map[string]string) (SnmpType, error) {
+func getAction(params map[string]string) (snmpclient.SnmpType, error) {
 	v, ok := params["snmp.action"]
 	if !ok {
-		return SNMP_PDU_GET, nil
+		return snmpclient.SNMP_PDU_GET, nil
 	}
-	switch v {
-	case "table", "Table", "TABLE":
-		return SNMP_PDU_TABLE, nil
-	case "get", "Get", "GET":
-		return SNMP_PDU_GET, nil
-	case "next", "Next", "NEXT", "getnext", "Getnext", "GETNEXT":
-		return SNMP_PDU_GETNEXT, nil
-	case "bulk", "Bulk", "BULK", "getbuld", "Getbuld", "GETBULD":
-		return SNMP_PDU_GETBULK, nil
-	case "set", "Set", "SET", "put", "Put", "PUT":
-		return SNMP_PDU_SET, nil
-	}
-	return SNMP_PDU_GET, fmt.Errorf("error pdu type: %s", v)
+	return snmpclient.ParseSnmpAction(v)
 }
 
 func internalError(msg string, err error) error {
@@ -114,7 +91,7 @@ func getHost(params map[string]string) (string, error) {
 	return host, nil
 }
 
-func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) commons.Result {
+func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]string) commons.Result {
 	host, e := getHost(params)
 	if nil != e {
 		return commons.ReturnWithBadRequest(e.Error())
@@ -130,7 +107,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) common
 		return internalErrorResult("create client failed", err)
 	}
 
-	if SNMP_PDU_TABLE == action {
+	if snmpclient.SNMP_PDU_TABLE == action {
 		columns, contains := params["snmp.columns"]
 
 		if contains && 0 != len(columns) {
@@ -140,7 +117,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) common
 	}
 
 	version, e := getVersion(params)
-	if SNMP_Verr == version {
+	if snmpclient.SNMP_Verr == version {
 		return commons.ReturnWithBadRequest(e.Error())
 	}
 
@@ -155,9 +132,9 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) common
 	}
 
 	switch action {
-	case SNMP_PDU_GET, SNMP_PDU_GETNEXT:
+	case snmpclient.SNMP_PDU_GET, snmpclient.SNMP_PDU_GETNEXT:
 		err = req.GetVariableBindings().Append(oid, "")
-	case SNMP_PDU_GETBULK:
+	case snmpclient.SNMP_PDU_GETBULK:
 		vbs := req.GetVariableBindings()
 		for _, oi := range strings.Split(oid, "|") {
 			err = vbs.Append(oi, "")
@@ -165,7 +142,7 @@ func (self *SnmpDriver) invoke(action SnmpType, params map[string]string) common
 				break
 			}
 		}
-	case SNMP_PDU_SET:
+	case snmpclient.SNMP_PDU_SET:
 		txt, ok := params["body"]
 		if !ok {
 			err = commons.BodyNotExists
@@ -208,7 +185,7 @@ func (self *SnmpDriver) Get(params map[string]string) commons.Result {
 }
 
 func (self *SnmpDriver) Put(params map[string]string) commons.Result {
-	return self.invoke(SNMP_PDU_SET, params)
+	return self.invoke(snmpclient.SNMP_PDU_SET, params)
 }
 
 func (self *SnmpDriver) Create(params map[string]string) commons.Result {
@@ -232,14 +209,14 @@ func (self *SnmpDriver) Delete(params map[string]string) commons.Result {
 }
 
 var (
-	NilVariableBinding = VariableBinding{Oid: *NewOid([]uint32{}), Value: NewSnmpNil()}
+	NilVariableBinding = snmpclient.VariableBinding{Oid: *snmpclient.NewOid([]uint32{}), Value: snmpclient.NewSnmpNil()}
 )
 
-func (self *SnmpDriver) getNext(params map[string]string, client Client, next_oid SnmpOid,
-	version SnmpVersion, timeout time.Duration) (VariableBinding, error) {
+func (self *SnmpDriver) getNext(params map[string]string, client snmpclient.Client, next_oid snmpclient.SnmpOid,
+	version snmpclient.SnmpVersion, timeout time.Duration) (snmpclient.VariableBinding, error) {
 	var err error
 
-	req, err := client.CreatePDU(SNMP_PDU_GETNEXT, version)
+	req, err := client.CreatePDU(snmpclient.SNMP_PDU_GETNEXT, version)
 	if nil != err {
 		return NilVariableBinding, internalError("create pdu failed", err)
 	}
@@ -249,7 +226,7 @@ func (self *SnmpDriver) getNext(params map[string]string, client Client, next_oi
 		return NilVariableBinding, internalError("init pdu failed", err)
 	}
 
-	err = req.GetVariableBindings().AppendWith(next_oid, NewSnmpNil())
+	err = req.GetVariableBindings().AppendWith(next_oid, snmpclient.NewSnmpNil())
 	if nil != err {
 		return NilVariableBinding, internalError("append vb failed", err)
 	}
@@ -266,16 +243,16 @@ func (self *SnmpDriver) getNext(params map[string]string, client Client, next_oi
 	return resp.GetVariableBindings().Get(0), nil
 }
 
-func (self *SnmpDriver) tableGet(params map[string]string, client Client,
+func (self *SnmpDriver) tableGet(params map[string]string, client snmpclient.Client,
 	oid string) commons.Result {
 
-	start_oid, err := ParseOidFromString(oid)
+	start_oid, err := snmpclient.ParseOidFromString(oid)
 	if nil != err {
 		return internalErrorResult("param 'oid' is error", err)
 	}
 	oid_s := start_oid.GetString()
 	version, e := getVersion(params)
-	if SNMP_Verr == version {
+	if snmpclient.SNMP_Verr == version {
 		return commons.ReturnWithBadRequest(e.Error())
 	}
 
@@ -301,7 +278,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 		}
 
 		idx := strconv.FormatUint(uint64(sub[0]), 10)
-		keys := NewOid(sub[1:]).GetString()
+		keys := snmpclient.NewOid(sub[1:]).GetString()
 
 		row, _ := results[keys].(map[string]interface{})
 		if nil == row {
@@ -319,10 +296,10 @@ func (self *SnmpDriver) tableGet(params map[string]string, client Client,
 	return commons.Return(results)
 }
 
-func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Client,
+func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpclient.Client,
 	oid, columns_str string) commons.Result {
 
-	start_oid, err := ParseOidFromString(oid)
+	start_oid, err := snmpclient.ParseOidFromString(oid)
 	if nil != err {
 		return internalErrorResult("param 'oid' is error", err)
 	}
@@ -332,12 +309,12 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 	}
 
 	version, e := getVersion(params)
-	if SNMP_Verr == version {
+	if snmpclient.SNMP_Verr == version {
 		return commons.ReturnWithBadRequest(e.Error())
 	}
 
 	timeout := getTimeout(params, self.timeout)
-	next_oids := make([]SnmpOid, 0, len(columns))
+	next_oids := make([]snmpclient.SnmpOid, 0, len(columns))
 	next_oids_s := make([]string, 0, len(columns))
 	for _, i := range columns {
 		o := start_oid.Concat(i)
@@ -347,8 +324,8 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 
 	results := make(map[string]interface{})
 	for {
-		var req PDU
-		req, err = client.CreatePDU(SNMP_PDU_GETNEXT, version)
+		var req snmpclient.PDU
+		req, err = client.CreatePDU(snmpclient.SNMP_PDU_GETNEXT, version)
 		if nil != err {
 			return internalErrorResult("create pdu failed", err)
 		}
@@ -359,7 +336,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 		}
 
 		for _, next_oid := range next_oids {
-			err = req.GetVariableBindings().AppendWith(next_oid, NewSnmpNil())
+			err = req.GetVariableBindings().AppendWith(next_oid, snmpclient.NewSnmpNil())
 			if nil != err {
 				return internalErrorResult("append vb failed", err)
 			}
@@ -389,7 +366,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client Clien
 						start_oid.GetString(), vb.Oid.GetString(), vb.Value.String()))
 			}
 
-			keys := NewOid(sub).GetString()
+			keys := snmpclient.NewOid(sub).GetString()
 
 			row, _ := results[keys].(map[string]interface{})
 			if nil == row {

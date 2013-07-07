@@ -6,6 +6,7 @@ import (
 	"errors"
 	"expvar"
 	"fmt"
+	"github.com/runner-mei/snmpclient"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -18,12 +19,12 @@ var (
 
 type ClientManager struct {
 	commons.Svc
-	clients map[string]Client
+	clients map[string]snmpclient.Client
 }
 
 func (svc *ClientManager) Init() {
 	svc.Name = "client_manager" + strconv.Itoa(int(atomic.AddInt32(&id_seq, 1)))
-	svc.clients = make(map[string]Client)
+	svc.clients = make(map[string]snmpclient.Client)
 	svc.Set(func() {
 		expvar.Publish(svc.Name+"_clients", expvar.Func(func() interface{} {
 			return fmt.Sprint(len(svc.clients))
@@ -48,7 +49,7 @@ func (svc *ClientManager) Init() {
 
 func (svc *ClientManager) Test() error {
 
-	clients := make(map[string]Client)
+	clients := make(map[string]snmpclient.Client)
 	for host, cl := range svc.clients {
 		clients[host] = cl
 	}
@@ -86,11 +87,11 @@ func (svc *ClientManager) heartbeat() {
 	}
 }
 
-func (mgr *ClientManager) GetClient(host string) (client Client, err error) {
-	values := mgr.SafelyCall(5*time.Minute, func() (Client, error) { return mgr.createClient(host) })
+func (mgr *ClientManager) GetClient(host string) (client snmpclient.Client, err error) {
+	values := mgr.SafelyCall(5*time.Minute, func() (snmpclient.Client, error) { return mgr.createClient(host) })
 	if 2 <= len(values) {
 		if nil != values[0] {
-			client = values[0].(Client)
+			client = values[0].(snmpclient.Client)
 		}
 		if nil != values[1] {
 			err = values[1].(error)
@@ -120,11 +121,11 @@ func (mgr *ClientManager) deleteAllClients() {
 		}
 	}
 
-	mgr.clients = make(map[string]Client)
+	mgr.clients = make(map[string]snmpclient.Client)
 }
 
 func (mgr *ClientManager) deleteClient(addr string) {
-	host := NormalizeAddress(addr)
+	host := snmpclient.NormalizeAddress(addr)
 	if cl, ok := mgr.clients[host]; ok {
 		if start, ok := cl.(commons.Startable); ok {
 			start.Stop()
@@ -134,8 +135,8 @@ func (mgr *ClientManager) deleteClient(addr string) {
 	}
 }
 
-func (mgr *ClientManager) createClient(addr string) (client Client, err error) {
-	host := NormalizeAddress(addr)
+func (mgr *ClientManager) createClient(addr string) (client snmpclient.Client, err error) {
+	host := snmpclient.NormalizeAddress(addr)
 	cl, ok := mgr.clients[host]
 	if ok {
 		client = cl
@@ -144,7 +145,7 @@ func (mgr *ClientManager) createClient(addr string) (client Client, err error) {
 		if is_unit_test_for_client_mgr {
 			client, err = &TestClient{}, nil
 		} else {
-			client, err = NewSnmpClient(host)
+			client, err = snmpclient.NewSnmpClient(host)
 		}
 		if nil != err {
 			return
@@ -183,9 +184,9 @@ func (self *TestClient) Test() error {
 	return errors.New("time out")
 }
 
-func (self *TestClient) CreatePDU(op SnmpType, version SnmpVersion) (PDU, SnmpCodeError) {
+func (self *TestClient) CreatePDU(op snmpclient.SnmpType, version snmpclient.SnmpVersion) (snmpclient.PDU, snmpclient.SnmpError) {
 	return nil, nil
 }
-func (self *TestClient) SendAndRecv(req PDU, timeout time.Duration) (PDU, SnmpCodeError) {
+func (self *TestClient) SendAndRecv(req snmpclient.PDU, timeout time.Duration) (snmpclient.PDU, snmpclient.SnmpError) {
 	return nil, nil
 }

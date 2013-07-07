@@ -37,3 +37,8 @@ format_code.bat
 tools/gyp
 
 mdb.old
+bridge.old
+bug.old
+daemon.old
+interop.old
+tools.old

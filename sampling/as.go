@@ -6,7 +6,7 @@ import (
 	"commons"
 	"errors"
 	"fmt"
-	"snmp"
+	"github.com/runner-mei/snmpclient"
 	"strings"
 )
 
@@ -68,8 +68,8 @@ func TryGetInt32(params commons.Map, values map[string]interface{}, idx string, 
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
-	case snmp.SnmpValue:
-		i, e := snmp.AsInt32(v)
+	case snmpclient.SnmpValue:
+		i, e := snmpclient.AsInt32(v)
 		if nil == e {
 			return i, nil
 		}
@@ -78,9 +78,9 @@ func TryGetInt32(params commons.Map, values map[string]interface{}, idx string, 
 		}
 		value = v.String()
 	case string:
-		sv, e := snmp.NewSnmpValue(v)
+		sv, e := snmpclient.NewSnmpValue(v)
 		if nil == e {
-			i, e := snmp.AsInt32(sv)
+			i, e := snmpclient.AsInt32(sv)
 			if nil == e {
 				return i, nil
 			}
@@ -111,8 +111,8 @@ func TryGetUint32(params commons.Map, values map[string]interface{}, idx string,
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
-	case snmp.SnmpValue:
-		i, e := snmp.AsUint32(v)
+	case snmpclient.SnmpValue:
+		i, e := snmpclient.AsUint32(v)
 		if nil == e {
 			return i, nil
 		}
@@ -121,9 +121,9 @@ func TryGetUint32(params commons.Map, values map[string]interface{}, idx string,
 		}
 		value = v.String()
 	case string:
-		sv, e := snmp.NewSnmpValue(v)
+		sv, e := snmpclient.NewSnmpValue(v)
 		if nil == e {
-			i, e := snmp.AsUint32(sv)
+			i, e := snmpclient.AsUint32(sv)
 			if nil == e {
 				return i, nil
 			}
@@ -154,8 +154,8 @@ func TryGetInt64(params commons.Map, values map[string]interface{}, idx string, 
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
-	case snmp.SnmpValue:
-		i, e := snmp.AsInt64(v)
+	case snmpclient.SnmpValue:
+		i, e := snmpclient.AsInt64(v)
 		if nil == e {
 			return i, nil
 		}
@@ -164,9 +164,9 @@ func TryGetInt64(params commons.Map, values map[string]interface{}, idx string, 
 		}
 		value = v.String()
 	case string:
-		sv, e := snmp.NewSnmpValue(v)
+		sv, e := snmpclient.NewSnmpValue(v)
 		if nil == e {
-			i, e := snmp.AsInt64(sv)
+			i, e := snmpclient.AsInt64(sv)
 			if nil == e {
 				return i, nil
 			}
@@ -197,8 +197,8 @@ func TryGetUint64(params commons.Map, values map[string]interface{}, idx string,
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
-	case snmp.SnmpValue:
-		i, e := snmp.AsUint64(v)
+	case snmpclient.SnmpValue:
+		i, e := snmpclient.AsUint64(v)
 		if nil == e {
 			return i, nil
 		}
@@ -207,9 +207,9 @@ func TryGetUint64(params commons.Map, values map[string]interface{}, idx string,
 		}
 		value = v.String()
 	case string:
-		sv, e := snmp.NewSnmpValue(v)
+		sv, e := snmpclient.NewSnmpValue(v)
 		if nil == e {
-			i, e := snmp.AsUint64(sv)
+			i, e := snmpclient.AsUint64(sv)
 			if nil == e {
 				return i, nil
 			}
@@ -240,8 +240,8 @@ func TryGetOid(params commons.Map, values map[string]interface{}, idx string) (s
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
-	case snmp.SnmpValue:
-		if snmp.SNMP_SYNTAX_OID == v.GetSyntax() {
+	case snmpclient.SnmpValue:
+		if snmpclient.SNMP_SYNTAX_OID == v.GetSyntax() {
 			return v.GetString(), nil
 		}
 		value = v.String()
@@ -267,15 +267,15 @@ func TryGetString(params commons.Map, values map[string]interface{}, idx string)
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
-	case snmp.SnmpValue:
-		if snmp.SNMP_SYNTAX_OCTETSTRING != v.GetSyntax() {
+	case snmpclient.SnmpValue:
+		if snmpclient.SNMP_SYNTAX_OCTETSTRING != v.GetSyntax() {
 			return "", errors.New("value is not string - '" + v.String() + "'.")
 		}
 		return bytesToString(params, v.GetBytes()), nil
 	case string:
-		sv, e := snmp.NewSnmpValue(v)
+		sv, e := snmpclient.NewSnmpValue(v)
 		if nil == e {
-			if snmp.SNMP_SYNTAX_OCTETSTRING != sv.GetSyntax() {
+			if snmpclient.SNMP_SYNTAX_OCTETSTRING != sv.GetSyntax() {
 				return "", errors.New("value is not string - '" + v + "'.")
 			}
 			return bytesToString(params, sv.GetBytes()), nil
@@ -317,8 +317,8 @@ func TryGetHardwareAddress(params commons.Map, values map[string]interface{}, id
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
-	case snmp.SnmpValue:
-		if snmp.SNMP_SYNTAX_OCTETSTRING == v.GetSyntax() {
+	case snmpclient.SnmpValue:
+		if snmpclient.SNMP_SYNTAX_OCTETSTRING == v.GetSyntax() {
 			return parseMAC(v.GetString())
 		}
 		value = v.String()
@@ -345,8 +345,8 @@ func TryGetIPAddress(params commons.Map, values map[string]interface{}, idx stri
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
 	}
 	switch v := value.(type) {
-	case snmp.SnmpValue:
-		if snmp.SNMP_SYNTAX_IPADDRESS == v.GetSyntax() {
+	case snmpclient.SnmpValue:
+		if snmpclient.SNMP_SYNTAX_IPADDRESS == v.GetSyntax() {
 			return v.GetString(), nil
 		}
 		value = v.String()

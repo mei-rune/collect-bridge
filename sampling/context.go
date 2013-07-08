@@ -323,6 +323,19 @@ func (self *context) GetUint64WithDefault(key string, defaultValue uint64) uint6
 	return res
 }
 
+func (self *context) GetFloatWithDefault(key string, defaultValue float64) float64 {
+	v, e := self.Get(key)
+	if nil != e {
+		return defaultValue
+	}
+
+	res, e := commons.AsFloat64(v)
+	if nil != e {
+		return defaultValue
+	}
+	return res
+}
+
 func (self *context) GetStringWithDefault(key, defaultValue string) string {
 	v, e := self.Get(key)
 	if nil != e {
@@ -436,6 +449,15 @@ func (self *context) GetUint64(key string) (uint64, error) {
 	}
 
 	return commons.AsUint64(v)
+}
+
+func (self *context) GetFloat(key string) (float64, error) {
+	v, e := self.Get(key)
+	if nil != e {
+		return 0, e
+	}
+
+	return commons.AsFloat64(v)
 }
 
 func (self *context) GetString(key string) (string, error) {

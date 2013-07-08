@@ -443,6 +443,10 @@ func (self InterfaceMap) GetUint64WithDefault(key string, defaultValue uint64) u
 	return GetUint64WithDefault(self, key, defaultValue)
 }
 
+func (self InterfaceMap) GetFloatWithDefault(key string, defaultValue float64) float64 {
+	return GetFloatWithDefault(self, key, defaultValue)
+}
+
 func (self InterfaceMap) GetStringWithDefault(key, defaultValue string) string {
 	return GetStringWithDefault(self, key, defaultValue)
 }
@@ -492,6 +496,10 @@ func (self InterfaceMap) GetUint32(key string) (uint32, error) {
 
 func (self InterfaceMap) GetUint64(key string) (uint64, error) {
 	return GetUint64(self, key)
+}
+
+func (self InterfaceMap) GetFloat(key string) (float64, error) {
+	return GetFloat(self, key)
 }
 
 func (self InterfaceMap) GetString(key string) (string, error) {
@@ -599,11 +607,11 @@ func (self StringMap) GetUintWithDefault(key string, defaultValue uint) uint {
 	if !ok {
 		return defaultValue
 	}
-	i, e := strconv.ParseUint(s, 10, 0)
+	u, e := strconv.ParseUint(s, 10, 0)
 	if nil != e {
 		return defaultValue
 	}
-	return uint(i)
+	return uint(u)
 }
 
 func (self StringMap) GetUint32WithDefault(key string, defaultValue uint32) uint32 {
@@ -611,11 +619,11 @@ func (self StringMap) GetUint32WithDefault(key string, defaultValue uint32) uint
 	if !ok {
 		return defaultValue
 	}
-	i, e := strconv.ParseUint(s, 10, 32)
+	u, e := strconv.ParseUint(s, 10, 32)
 	if nil != e {
 		return defaultValue
 	}
-	return uint32(i)
+	return uint32(u)
 }
 
 func (self StringMap) GetUint64WithDefault(key string, defaultValue uint64) uint64 {
@@ -623,11 +631,23 @@ func (self StringMap) GetUint64WithDefault(key string, defaultValue uint64) uint
 	if !ok {
 		return defaultValue
 	}
-	i, e := strconv.ParseUint(s, 10, 64)
+	u, e := strconv.ParseUint(s, 10, 64)
 	if nil != e {
 		return defaultValue
 	}
-	return uint64(i)
+	return u
+}
+
+func (self StringMap) GetFloatWithDefault(key string, defaultValue float64) float64 {
+	s, ok := self[key]
+	if !ok {
+		return defaultValue
+	}
+	f, e := strconv.ParseFloat(s, 64)
+	if nil != e {
+		return defaultValue
+	}
+	return f
 }
 
 func (self StringMap) GetStringWithDefault(key, defaultValue string) string {
@@ -744,7 +764,19 @@ func (self StringMap) GetUint64(key string) (uint64, error) {
 		return 0, typeError(e.Error())
 	}
 	return u64, nil
+}
 
+func (self StringMap) GetFloat(key string) (float64, error) {
+	s, ok := self[key]
+	if !ok {
+		return 0, NotExists
+	}
+
+	f64, e := strconv.ParseFloat(s, 64)
+	if nil != e {
+		return 0, typeError(e.Error())
+	}
+	return f64, nil
 }
 
 func (self StringMap) GetString(key string) (string, error) {
@@ -855,6 +887,13 @@ func (self ProxyMap) GetUint64WithDefault(key string, defaultValue uint64) uint6
 	return self.proxy.GetUint64WithDefault(key, defaultValue)
 }
 
+func (self ProxyMap) GetFloatWithDefault(key string, defaultValue float64) float64 {
+	if b, e := self.values.GetFloat(key); nil == e {
+		return b
+	}
+	return self.proxy.GetFloatWithDefault(key, defaultValue)
+}
+
 func (self ProxyMap) GetStringWithDefault(key, defaultValue string) string {
 	if b, e := self.values.GetString(key); nil == e {
 		return b
@@ -944,6 +983,14 @@ func (self ProxyMap) GetUint64(key string) (uint64, error) {
 		return i, e
 	}
 	return self.proxy.GetUint64(key)
+}
+
+func (self ProxyMap) GetFloat(key string) (float64, error) {
+	i, e := self.values.GetFloat(key)
+	if nil == e {
+		return i, e
+	}
+	return self.proxy.GetFloat(key)
 }
 
 func (self ProxyMap) GetString(key string) (string, error) {

@@ -160,6 +160,8 @@ type Map interface {
 
 	GetUint64WithDefault(key string, defaultValue uint64) uint64
 
+	GetFloatWithDefault(key string, defaultValue float64) float64
+
 	GetStringWithDefault(key, defaultValue string) string
 
 	GetArrayWithDefault(key string, defaultValue []interface{}) []interface{}
@@ -177,6 +179,8 @@ type Map interface {
 	GetInt32(key string) (int32, error)
 
 	GetInt64(key string) (int64, error)
+
+	GetFloat(key string) (float64, error)
 
 	GetUint(key string) (uint, error)
 

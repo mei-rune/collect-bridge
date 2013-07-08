@@ -205,7 +205,7 @@ CREATE TABLE tpt_redis_commands (
   arg3  varchar(200),
   arg4  varchar(200),
   
-  CONSTRAINT redis_commands_pkey PRIMARY KEY (id)
+  CONSTRAINT tpt_redis_commands_pkey PRIMARY KEY (id)
 ) INHERITS (tpt_actions);
 
 
@@ -215,7 +215,11 @@ CREATE TABLE tpt_alerts (
   expression_style varchar(50),
   expression_code  varchar(2000),
   
-  CONSTRAINT alerts_pkey PRIMARY KEY (id)
+  CONSTRAINT tpt_alerts_pkey PRIMARY KEY (id)
+) INHERITS (tpt_actions);
+
+CREATE TABLE tpt_histories (
+  CONSTRAINT tpt_histories_pkey PRIMARY KEY (id)
 ) INHERITS (tpt_actions);
 
 

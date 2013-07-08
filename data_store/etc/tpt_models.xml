@@ -491,6 +491,10 @@
     <has_many>AlertCookie</has_many>
   </class>
 
+
+  <class name="History" base="Action">
+  </class>
+
   <class name="MetricTrigger" base="Trigger">
     <property name="metric">
       <restriction base="string">

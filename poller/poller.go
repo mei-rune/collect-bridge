@@ -43,6 +43,10 @@ func mainHandle(req *restful.Request, resp *restful.Response) {
 func forward(c chan<- []string) chan<- []string {
 	return c
 }
+
+func forward2(c chan<- map[string]interface{}) chan<- map[string]interface{} {
+	return c
+}
 func Runforever() {
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {

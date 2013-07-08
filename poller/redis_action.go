@@ -41,6 +41,8 @@ func toMap(value interface{}) (commons.Map, error) {
 			return nil, e
 		}
 		return commons.InterfaceMap(m), nil
+	} else if m, ok := value.(toMapper); ok {
+		return commons.InterfaceMap(m.ToMap()), nil
 	} else if m, ok := value.(map[string]interface{}); ok {
 		return commons.InterfaceMap(m), nil
 	} else if m, ok := value.(map[string]string); ok {

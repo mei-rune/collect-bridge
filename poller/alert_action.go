@@ -2,21 +2,24 @@ package poller
 
 import (
 	"commons"
+	"encoding/json"
 	"errors"
 	"time"
 )
 
+const MAX_REPEATED = 9999990
+
 type alertAction struct {
-	name        string
-	maxRepeated int
+	name         string
+	max_repeated int
 
 	options map[string]interface{}
 	result  map[string]interface{}
-	channel chan map[string]interface{}
+	channel chan<- map[string]interface{}
 
-	checker    Checker
-	lastStatus int
-	repeated   int
+	checker     Checker
+	last_status int
+	repeated    int
 }
 
 func (self *alertAction) Run(t time.Time, value interface{}) error {
@@ -25,30 +28,41 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 		return err
 	}
 
-	if self.repeated == self.maxRepeated {
+	if current == self.last_status {
+		self.repeated++
+
+		if self.repeated >= 9999996 || self.repeated < 0 { // inhebit overflow
+			self.repeated = self.max_repeated + 10
+		}
+	} else {
+		self.repeated = 1
+		self.last_status = current
+	}
+
+	if self.repeated == self.max_repeated {
+
 		evt := map[string]interface{}{}
 		for k, v := range self.result {
 			evt[k] = v
+		}
+		if nil != self.options {
+			for k, v := range self.options {
+				evt[k] = v
+			}
 		}
 
 		if _, found := evt["triggered_at"]; !found {
 			evt["triggered_at"] = t
 		}
 
+		if _, found := evt["current_value"]; !found {
+			evt["current_value"] = value
+		}
+
 		evt["status"] = current
 		self.channel <- evt
 	}
 
-	if current == self.lastStatus {
-		self.repeated++
-
-		if self.repeated > 2147483646 || self.repeated < 0 { // inhebit overflow
-			self.repeated = self.maxRepeated + 10
-		}
-	} else {
-		self.repeated = 0
-		self.lastStatus = current
-	}
 	return nil
 }
 
@@ -69,7 +83,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 	if nil == c {
 		return nil, NotificationChannelIsNil
 	}
-	channel, ok := c.(chan map[string]interface{})
+	channel, ok := c.(chan<- map[string]interface{})
 	if !ok {
 		return nil, NotificationChannelTypeError
 	}
@@ -79,13 +93,22 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		return nil, e
 	}
 
+	max_repeated := commons.GetIntWithDefault(attributes, "max_repeated", 1)
+	if max_repeated <= 0 {
+		max_repeated = 1
+	}
+
+	if max_repeated >= MAX_REPEATED {
+		max_repeated = MAX_REPEATED - 20
+	}
+
 	return &alertAction{name: name,
 		//description: commons.GetString(attributes, "description", ""),
-		options:     options,
-		maxRepeated: commons.GetIntWithDefault(attributes, "max_repeated", 0),
-		result:      map[string]interface{}{"name": name},
-		channel:     channel,
-		checker:     checker}, nil
+		options:      options,
+		max_repeated: max_repeated,
+		result:       map[string]interface{}{"name": name},
+		channel:      channel,
+		checker:      checker}, nil
 }
 
 func makeChecker(attributes, ctx map[string]interface{}) (Checker, error) {
@@ -96,7 +119,17 @@ func makeChecker(attributes, ctx map[string]interface{}) (Checker, error) {
 
 	code, e := commons.GetString(attributes, "expression_code")
 	if nil != e {
-		return nil, ExpressionCodeIsRequired
+		codeObject, e := commons.GetObject(attributes, "expression_code")
+		if nil != e {
+			return nil, ExpressionCodeIsRequired
+		}
+
+		codeBytes, e := json.Marshal(codeObject)
+		if nil != e {
+			return nil, ExpressionCodeIsRequired
+		}
+
+		code = string(codeBytes)
 	}
 
 	switch style {

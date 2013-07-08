@@ -1,7 +1,6 @@
 package poller
 
 import (
-	"commons"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,14 +50,14 @@ func makeJsonChecker(code string) (Checker, error) {
 	}
 
 	if strings.ContainsRune(exp.Value, '.') {
-		if floatf, ok := float_ops[exp.Value]; ok {
+		if floatf, ok := float_ops[exp.Operator]; ok {
 			f64, e := strconv.ParseFloat(exp.Value, 64)
 			if nil != e {
 				return nil, errors.New("'value' is not a float, " + e.Error())
 			}
 			return floatf(exp.Attribute, f64), nil
 		}
-	} else if intf, ok := int_ops[exp.Value]; ok {
+	} else if intf, ok := int_ops[exp.Operator]; ok {
 		i64, e := strconv.ParseInt(exp.Value, 10, 64)
 		if nil != e {
 			return nil, errors.New("'value' is not a int64, " + e.Error())
@@ -66,7 +65,7 @@ func makeJsonChecker(code string) (Checker, error) {
 		return intf(exp.Attribute, i64), nil
 	}
 
-	if stringf, ok := string_ops[exp.Value]; ok {
+	if stringf, ok := string_ops[exp.Operator]; ok {
 		return stringf(exp.Attribute, exp.Value), nil
 	}
 
@@ -100,11 +99,11 @@ var (
 )
 
 func get_int64(value interface{}, name string) (int64, error) {
-	m, ok := value.(map[string]interface{})
-	if !ok {
-		return 0, fmt.Errorf("value is not a map[string]interface{}, actual is %T", value)
+	m, e := toMap(value)
+	if nil != e {
+		return 0, fmt.Errorf("value is not a map, actual is %T", value)
 	}
-	return commons.GetInt64(m, name)
+	return m.GetInt64(name)
 }
 
 func int_gt(attribute string, operand int64) jsonFunc {
@@ -163,11 +162,11 @@ func int_equals(attribute string, operand int64) jsonFunc {
 }
 
 func get_float(value interface{}, name string) (float64, error) {
-	m, ok := value.(map[string]interface{})
-	if !ok {
-		return 0, fmt.Errorf("value is not a map[string]interface{}, actual is %T", value)
+	m, e := toMap(value)
+	if nil != e {
+		return 0, fmt.Errorf("value is not a map, actual is %T", value)
 	}
-	return commons.GetFloat(m, name)
+	return m.GetFloat(name)
 }
 
 func float_gt(attribute string, operand float64) jsonFunc {
@@ -226,11 +225,11 @@ func float_equals(attribute string, operand float64) jsonFunc {
 }
 
 func get_string(value interface{}, name string) (string, error) {
-	m, ok := value.(map[string]interface{})
-	if !ok {
-		return "", fmt.Errorf("value is not a map[string]interface{}, actual is %T", value)
+	m, e := toMap(value)
+	if nil != e {
+		return "", fmt.Errorf("value is not a map, actual is %T", value)
 	}
-	return commons.GetString(m, name)
+	return m.GetString(name)
 }
 
 func string_not_contains(attribute string, operand string) jsonFunc {

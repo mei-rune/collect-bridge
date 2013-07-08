@@ -1,4 +1,5 @@
 
+DROP TABLE IF EXISTS tpt_histories;
 DROP TABLE IF EXISTS tpt_alerts;
 DROP TABLE IF EXISTS tpt_redis_commands;
 DROP TABLE IF EXISTS tpt_actions;

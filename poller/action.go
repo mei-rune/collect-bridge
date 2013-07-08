@@ -18,6 +18,8 @@ func newAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, 
 		return newRedisAction(attributes, options, ctx)
 	case "alert":
 		return newAlertAction(attributes, options, ctx)
+	case "history":
+		return newHistoryAction(attributes, options, ctx)
 	}
 	return nil, fmt.Errorf("unsupported type, - %v", attributes["type"])
 }

@@ -493,6 +493,11 @@
 
 
   <class name="History" base="Action">
+    <property name="attribute">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
   </class>
 
   <class name="MetricTrigger" base="Trigger">

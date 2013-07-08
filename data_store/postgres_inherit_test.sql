@@ -220,6 +220,7 @@ CREATE TABLE tpt_alerts (
 ) INHERITS (tpt_actions);
 
 CREATE TABLE tpt_histories (
+  attribute  varchar(200),
   CONSTRAINT tpt_histories_pkey PRIMARY KEY (id)
 ) INHERITS (tpt_actions);
 

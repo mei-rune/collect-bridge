@@ -204,6 +204,7 @@ func TestJobFull(t *testing.T) {
 	m["managed_id"] = "12"
 	m["managed_type"] = "managed_object"
 	m["metric"] = "cpu"
+	m["trigger_id"] = "test_id"
 
 	js, e := json.Marshal(m)
 	if nil != e {

@@ -52,6 +52,14 @@ func (self *metricJob) run(t time.Time) error {
 }
 
 func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
+	id, e := commons.GetString(attributes, "id")
+	if nil != e {
+		return nil, errors.New("'id' is required, " + e.Error())
+	}
+	if 0 == len(id) {
+		return nil, errors.New("'id' is empty")
+	}
+
 	metric, e := commons.GetString(attributes, "metric")
 	if nil != e {
 		return nil, errors.New("'metric' is required, " + e.Error())
@@ -76,11 +84,11 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 	}
 
 	job := &metricJob{metric: metric,
-		params: map[string]string{"managed_type": "managed_object", "managed_id": parentId, "metric": metric},
+		params: map[string]string{"managed_type": "managed_object", "managed_id": parentId, "metric": metric, "trigger_id": id},
 		client: commons.HttpClient{Url: client_url}}
 
 	job.trigger, e = newTrigger(attributes,
-		map[string]interface{}{"managed_type": "managed_object", "managed_id": parentId, "metric": metric},
+		map[string]interface{}{"managed_type": "managed_object", "managed_id": parentId, "metric": metric, "trigger_id": id},
 		ctx,
 		job.run)
 	return job, e

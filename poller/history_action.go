@@ -14,7 +14,8 @@ type historyAction struct {
 	managed_id   interface{}
 	managed_type interface{}
 	trigger_id   interface{}
-	channel      chan<- map[string]interface{}
+	channel      chan<- *data_object
+	cached_data  *data_object
 	attribute    string
 }
 
@@ -30,7 +31,7 @@ func (self *historyAction) Run(t time.Time, value interface{}) error {
 		return e
 	}
 
-	self.channel <- map[string]interface{}{
+	self.cached_data.attributes = map[string]interface{}{
 		"action_id":    self.id,
 		"sampling_at":  created_at,
 		"metric":       self.metric,
@@ -38,6 +39,8 @@ func (self *historyAction) Run(t time.Time, value interface{}) error {
 		"managed_id":   self.managed_id,
 		"trigger_id":   self.trigger_id,
 		"value":        currentValue}
+
+	self.channel <- self.cached_data
 	return nil
 }
 
@@ -61,9 +64,9 @@ func newHistoryAction(attributes, options, ctx map[string]interface{}) (ExecuteA
 	if nil == c {
 		return nil, errors.New("'history_channel' is nil")
 	}
-	channel, ok := c.(chan<- map[string]interface{})
+	channel, ok := c.(chan<- *data_object)
 	if !ok {
-		return nil, errors.New("'history_channel' is not a chan []stirng")
+		return nil, errors.New("'history_channel' is not a chan<- *data_object")
 	}
 
 	managed_type := options["managed_type"]
@@ -75,6 +78,7 @@ func newHistoryAction(attributes, options, ctx map[string]interface{}) (ExecuteA
 		name:         name,
 		description:  commons.GetStringWithDefault(attributes, "description", ""),
 		channel:      channel,
+		cached_data:  &data_object{},
 		attribute:    attribute,
 		metric:       metric,
 		managed_id:   managed_id,

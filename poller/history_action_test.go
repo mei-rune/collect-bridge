@@ -8,7 +8,7 @@ import (
 )
 
 func TestHistorySimple(t *testing.T) {
-	c := make(chan map[string]interface{}, 10)
+	c := make(chan *data_object, 10)
 
 	action, e := newHistoryAction(map[string]interface{}{
 		"id":        "123",
@@ -46,7 +46,7 @@ func TestHistorySimple(t *testing.T) {
 
 	select {
 	case v := <-c:
-		if !reflect.DeepEqual(excepted, v) {
+		if !reflect.DeepEqual(excepted, v.attributes) {
 			t.Error("excepted is", excepted)
 			t.Error("actual is", v)
 		}

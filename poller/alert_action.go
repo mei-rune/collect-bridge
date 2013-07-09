@@ -9,17 +9,21 @@ import (
 
 const MAX_REPEATED = 9999990
 
+var reset_error = errors.New("please reset channel.")
+
 type alertAction struct {
 	name         string
 	max_repeated int
 
-	options map[string]interface{}
-	result  map[string]interface{}
-	channel chan<- map[string]interface{}
+	options     map[string]interface{}
+	result      map[string]interface{}
+	channel     chan<- *data_object
+	cached_data *data_object
 
-	checker     Checker
-	last_status int
-	repeated    int
+	checker      Checker
+	last_status  int
+	repeated     int
+	already_send bool
 }
 
 func (self *alertAction) Run(t time.Time, value interface{}) error {
@@ -37,40 +41,61 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	} else {
 		self.repeated = 1
 		self.last_status = current
+		self.already_send = false
 	}
 
-	if self.repeated == self.max_repeated {
+	if self.repeated < self.max_repeated {
+		return nil
+	}
 
-		evt := map[string]interface{}{}
-		for k, v := range self.result {
+	if self.already_send {
+		return nil
+	}
+
+	evt := map[string]interface{}{}
+	for k, v := range self.result {
+		evt[k] = v
+	}
+	if nil != self.options {
+		for k, v := range self.options {
 			evt[k] = v
 		}
-		if nil != self.options {
-			for k, v := range self.options {
-				evt[k] = v
-			}
-		}
-
-		if _, found := evt["triggered_at"]; !found {
-			evt["triggered_at"] = t
-		}
-
-		if _, found := evt["current_value"]; !found {
-			evt["current_value"] = value
-		}
-
-		evt["status"] = current
-		self.channel <- evt
 	}
 
-	return nil
+	if _, found := evt["triggered_at"]; !found {
+		evt["triggered_at"] = t
+	}
+
+	if _, found := evt["current_value"]; !found {
+		evt["current_value"] = value
+	}
+
+	evt["status"] = current
+
+	err = self.send(evt)
+	if nil == err {
+		self.already_send = true
+		return nil
+	}
+
+	self.repeated--
+	if err == reset_error {
+		self.cached_data = &data_object{c: make(chan error, 2)}
+	}
+	return err
+}
+
+func (self *alertAction) send(evt map[string]interface{}) error {
+	self.cached_data.attributes = evt
+	self.channel <- self.cached_data
+	return <-self.cached_data.c
 }
 
 var (
 	ExpressionStyleIsRequired    = commons.IsRequired("expression_style")
 	ExpressionCodeIsRequired     = commons.IsRequired("expression_code")
 	NotificationChannelIsNil     = errors.New("'notification_channel' is nil")
-	NotificationChannelTypeError = errors.New("'notification_channel' is not a chan map[string]interface{}")
+	NotificationChannelTypeError = errors.New("'notification_channel' is not a chan<- *data_object ")
 )
 
 func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {
@@ -83,7 +108,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 	if nil == c {
 		return nil, NotificationChannelIsNil
 	}
-	channel, ok := c.(chan<- map[string]interface{})
+	channel, ok := c.(chan<- *data_object)
 	if !ok {
 		return nil, NotificationChannelTypeError
 	}
@@ -104,10 +129,12 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 
 	return &alertAction{name: name,
 		//description: commons.GetString(attributes, "description", ""),
+		already_send: false,
 		options:      options,
 		max_repeated: max_repeated,
 		result:       map[string]interface{}{"name": name},
 		channel:      channel,
+		cached_data:  &data_object{c: make(chan error, 2)},
 		checker:      checker}, nil
 }
 

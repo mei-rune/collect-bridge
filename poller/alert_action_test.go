@@ -7,7 +7,16 @@ import (
 )
 
 func TestAlertSimple(t *testing.T) {
-	c := make(chan map[string]interface{}, 10)
+	c1 := make(chan *data_object, 10)
+	c := make(chan *data_object, 10)
+
+	defer close(c1)
+	go func() {
+		for v := range c1 {
+			c <- v
+			v.c <- nil
+		}
+	}()
 
 	action, e := newAlertAction(map[string]interface{}{
 		"name":             "this is a test alert",
@@ -18,7 +27,7 @@ func TestAlertSimple(t *testing.T) {
 			"operator":  ">",
 			"value":     "12"}},
 		map[string]interface{}{"managed_id": "1213"},
-		map[string]interface{}{"notification_channel": forward2(c)})
+		map[string]interface{}{"notification_channel": forward2(c1)})
 
 	if nil != e {
 		t.Error(e)
@@ -35,11 +44,11 @@ func TestAlertSimple(t *testing.T) {
 
 	select {
 	case v := <-c:
-		if 1 != v["status"] {
-			t.Error("status != 1, actual is %v", v["status"])
+		if 1 != v.attributes["status"] {
+			t.Error("status != 1, actual is %v", v.attributes["status"])
 		}
-		if "1213" != v["managed_id"] {
-			t.Error("managed_id != '1213', actual is '%v'", v["managed_id"])
+		if "1213" != v.attributes["managed_id"] {
+			t.Error("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
 		}
 	default:
 		t.Error("not recv and last_status is", alert.last_status)
@@ -53,11 +62,11 @@ func TestAlertSimple(t *testing.T) {
 
 	select {
 	case v := <-c:
-		if 0 != v["status"] {
-			t.Error("status != 0, actual is %v", v["status"])
+		if 0 != v.attributes["status"] {
+			t.Error("status != 0, actual is %v", v.attributes["status"])
 		}
-		if "1213" != v["managed_id"] {
-			t.Error("managed_id != '1213', actual is '%v'", v["managed_id"])
+		if "1213" != v.attributes["managed_id"] {
+			t.Error("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
 		}
 	default:
 		t.Error("not recv and last_status is", alert.last_status)
@@ -65,7 +74,16 @@ func TestAlertSimple(t *testing.T) {
 }
 
 func TestAlertMaxRepected(t *testing.T) {
-	c := make(chan map[string]interface{}, 10)
+	c1 := make(chan *data_object, 10)
+	c := make(chan *data_object, 10)
+
+	defer close(c1)
+	go func() {
+		for v := range c1 {
+			c <- v
+			v.c <- nil
+		}
+	}()
 
 	action, e := newAlertAction(map[string]interface{}{
 		"name":             "this is a test alert",
@@ -76,7 +94,7 @@ func TestAlertMaxRepected(t *testing.T) {
 			"operator":  ">",
 			"value":     "12"}},
 		map[string]interface{}{"managed_id": "1213"},
-		map[string]interface{}{"notification_channel": forward2(c)})
+		map[string]interface{}{"notification_channel": forward2(c1)})
 
 	if nil != e {
 		t.Error(e)
@@ -106,11 +124,11 @@ func TestAlertMaxRepected(t *testing.T) {
 
 	select {
 	case v := <-c:
-		if 1 != v["status"] {
-			t.Error("status != 1, actual is %v", v["status"])
+		if 1 != v.attributes["status"] {
+			t.Error("status != 1, actual is %v", v.attributes["status"])
 		}
-		if "1213" != v["managed_id"] {
-			t.Error("managed_id != '1213', actual is '%v'", v["managed_id"])
+		if "1213" != v.attributes["managed_id"] {
+			t.Error("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
 		}
 	default:
 		t.Error("not recv and last_status is", alert.last_status)
@@ -118,7 +136,16 @@ func TestAlertMaxRepected(t *testing.T) {
 }
 
 func TestAlertMaxRepected2(t *testing.T) {
-	c := make(chan map[string]interface{}, 10)
+	c1 := make(chan *data_object, 10)
+	c := make(chan *data_object, 10)
+
+	defer close(c1)
+	go func() {
+		for v := range c1 {
+			c <- v
+			v.c <- nil
+		}
+	}()
 
 	action, e := newAlertAction(map[string]interface{}{
 		"name":             "this is a test alert",
@@ -129,7 +156,7 @@ func TestAlertMaxRepected2(t *testing.T) {
 			"operator":  ">",
 			"value":     "12"}},
 		map[string]interface{}{"managed_id": "1213"},
-		map[string]interface{}{"notification_channel": forward2(c)})
+		map[string]interface{}{"notification_channel": forward2(c1)})
 
 	if nil != e {
 		t.Error(e)
@@ -187,11 +214,11 @@ func TestAlertMaxRepected2(t *testing.T) {
 
 	select {
 	case v := <-c:
-		if 1 != v["status"] {
-			t.Error("status != 1, actual is %v", v["status"])
+		if 1 != v.attributes["status"] {
+			t.Error("status != 1, actual is %v", v.attributes["status"])
 		}
-		if "1213" != v["managed_id"] {
-			t.Error("managed_id != '1213', actual is '%v'", v["managed_id"])
+		if "1213" != v.attributes["managed_id"] {
+			t.Error("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
 		}
 	default:
 		t.Error("not recv and last_status is", alert.last_status)
@@ -199,7 +226,16 @@ func TestAlertMaxRepected2(t *testing.T) {
 }
 
 func TestAlertRepectedOverflow(t *testing.T) {
-	c := make(chan map[string]interface{}, 10)
+	c1 := make(chan *data_object, 10)
+	c := make(chan *data_object, 10)
+
+	defer close(c1)
+	go func() {
+		for v := range c1 {
+			c <- v
+			v.c <- nil
+		}
+	}()
 
 	action, e := newAlertAction(map[string]interface{}{
 		"name":             "this is a test alert",
@@ -210,7 +246,7 @@ func TestAlertRepectedOverflow(t *testing.T) {
 			"operator":  ">",
 			"value":     "12"}},
 		map[string]interface{}{"managed_id": "1213"},
-		map[string]interface{}{"notification_channel": forward2(c)})
+		map[string]interface{}{"notification_channel": forward2(c1)})
 
 	if nil != e {
 		t.Error(e)
@@ -226,11 +262,11 @@ func TestAlertRepectedOverflow(t *testing.T) {
 
 	select {
 	case v := <-c:
-		if 1 != v["status"] {
-			t.Error("status != 1, actual is %v", v["status"])
+		if 1 != v.attributes["status"] {
+			t.Error("status != 1, actual is %v", v.attributes["status"])
 		}
-		if "1213" != v["managed_id"] {
-			t.Error("managed_id != '1213', actual is '%v'", v["managed_id"])
+		if "1213" != v.attributes["managed_id"] {
+			t.Error("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
 		}
 	default:
 		t.Error("not recv and last_status is", alert.last_status)
@@ -252,7 +288,16 @@ func TestAlertRepectedOverflow(t *testing.T) {
 }
 
 func TestAlertRepectedOverflow2(t *testing.T) {
-	c := make(chan map[string]interface{}, 10)
+	c1 := make(chan *data_object, 10)
+	c := make(chan *data_object, 10)
+
+	defer close(c1)
+	go func() {
+		for v := range c1 {
+			c <- v
+			v.c <- nil
+		}
+	}()
 
 	action, e := newAlertAction(map[string]interface{}{
 		"name":             "this is a test alert",
@@ -263,7 +308,7 @@ func TestAlertRepectedOverflow2(t *testing.T) {
 			"operator":  ">",
 			"value":     "12"}},
 		map[string]interface{}{"managed_id": "1213"},
-		map[string]interface{}{"notification_channel": forward2(c)})
+		map[string]interface{}{"notification_channel": forward2(c1)})
 
 	if nil != e {
 		t.Error(e)

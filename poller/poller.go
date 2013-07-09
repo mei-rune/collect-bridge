@@ -44,7 +44,7 @@ func forward(c chan<- []string) chan<- []string {
 	return c
 }
 
-func forward2(c chan<- map[string]interface{}) chan<- map[string]interface{} {
+func forward2(c chan<- *data_object) chan<- *data_object {
 	return c
 }
 func Runforever() {

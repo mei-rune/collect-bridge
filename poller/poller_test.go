@@ -45,7 +45,7 @@ var (
 	metric_trigger_for_cpu = map[string]interface{}{
 		"name":       "this is a test trigger",
 		"type":       "metric_trigger",
-		"metric":     "cpu",
+		"metric":     "sys",
 		"expression": "@every 1ms"}
 
 	redis_commands2 = map[string]interface{}{
@@ -215,7 +215,7 @@ func TestIntegratedAlert2(t *testing.T) {
 			"max_repeated":     0,
 			"expression_style": "json",
 			"expression_code": map[string]interface{}{
-				"attribute": "cpu",
+				"attribute": "services",
 				"operator":  ">=",
 				"value":     "0"}})
 
@@ -274,6 +274,74 @@ func TestIntegratedAlert2(t *testing.T) {
 				if 1 != status {
 					t.Error("it is not equals excepted value")
 					t.Error("value is", js)
+				}
+				return
+			}
+			time.Sleep(1 * time.Second)
+		}
+
+		t.Error("not wait")
+	})
+}
+
+func TestIntegratedHistory(t *testing.T) {
+	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+		id := ds.CreateItForTest(t, client, "network_device", mo)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
+		mt_id := ds.CreateItByParentForTest(t, client, "network_device", id, "metric_trigger", metric_trigger2)
+		ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "history", map[string]interface{}{
+			"id":        "123",
+			"name":      "this is a test alert",
+			"attribute": "name"})
+
+		hostName, e := os.Hostname()
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		count := 0
+		var js string
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			bs, _ := ioutil.ReadAll(r.Body)
+			js = string(bs)
+			count++
+		}))
+		defer ts.Close()
+
+		is_test = true
+		*foreignUrl = ts.URL
+		Runforever()
+
+		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+			t.Error("load trigger failed.")
+			return
+		}
+
+		tr_instance := server_test.jobs[mt_id].(*metricJob)
+
+		for i := 0; i < 100; i++ {
+			if nil != tr_instance.last_error {
+				t.Error(tr_instance.last_error)
+				return
+			}
+
+			tr_instance.l.Lock()
+			e := tr_instance.actions[0].last_error
+			tr_instance.l.Unlock()
+
+			if nil != e {
+				if !strings.Contains(e.Error(), "not founc") {
+					t.Error(e)
+				}
+				return
+			}
+
+			if 0 != len(js) {
+				if !strings.Contains(strings.ToLower(js), strings.ToLower(hostName)) {
+					t.Error("excepted contains", strings.ToLower(hostName))
+					t.Error("actual is ", js)
 				}
 				return
 			}

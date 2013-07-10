@@ -78,7 +78,6 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 		return nil
 	}
 
-	self.repeated--
 	if err == reset_error {
 		self.cached_data = &data_object{c: make(chan error, 2)}
 	}
@@ -94,8 +93,8 @@ func (self *alertAction) send(evt map[string]interface{}) error {
 var (
 	ExpressionStyleIsRequired    = commons.IsRequired("expression_style")
 	ExpressionCodeIsRequired     = commons.IsRequired("expression_code")
-	NotificationChannelIsNil     = errors.New("'notification_channel' is nil")
-	NotificationChannelTypeError = errors.New("'notification_channel' is not a chan<- *data_object ")
+	NotificationChannelIsNil     = errors.New("'alerts_channel' is nil")
+	NotificationChannelTypeError = errors.New("'alerts_channel' is not a chan<- *data_object ")
 )
 
 func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {
@@ -104,7 +103,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		return nil, NameIsRequired
 	}
 
-	c := ctx["notification_channel"]
+	c := ctx["alerts_channel"]
 	if nil == c {
 		return nil, NotificationChannelIsNil
 	}

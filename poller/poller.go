@@ -1,6 +1,7 @@
 package poller
 
 import (
+	"commons"
 	ds "data_store"
 	"expvar"
 	"flag"
@@ -20,6 +21,7 @@ var (
 	metrics_url   = flag.String("sampling", "http://127.0.0.1:7072", "the address of bridge")
 	timeout       = flag.Duration("timeout", 1*time.Minute, "the timeout of http")
 	refresh       = flag.Duration("refresh", 5, "the refresh interval of cache")
+	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:/7073", "the url of foreign db")
 
 	is_test             = false
 	server_test *server = nil
@@ -54,6 +56,18 @@ func Runforever() {
 		return
 	}
 
+	alert_foreign, err := newForeignDb("alerts", commons.NewUrlBuilder(*foreignUrl).Concat("alerts").ToUrl())
+	if nil != err {
+		fmt.Println("connect to foreign db failed,", err)
+		return
+	}
+
+	histories_foreign, err := newForeignDb("histories", commons.NewUrlBuilder(*foreignUrl).Concat("histories").ToUrl())
+	if nil != err {
+		fmt.Println("connect to foreign db failed,", err)
+		return
+	}
+
 	redis_channel, err := newRedis(*redisAddress)
 	if nil != err {
 		fmt.Println("connect to redis failed,", err)
@@ -63,7 +77,9 @@ func Runforever() {
 	ds_client := ds.NewClient(*dsUrl)
 
 	ctx := map[string]interface{}{"metrics.url": *metrics_url,
-		"redis_channel": forward(redis_channel)}
+		"redis_channel":     forward(redis_channel),
+		"alerts_channel":    forward2(alert_foreign.c),
+		"histories_channel": forward2(histories_foreign.c)}
 
 	srv := newServer(*refresh, ds_client, ctx)
 	err = srv.Start()

@@ -60,13 +60,13 @@ func newHistoryAction(attributes, options, ctx map[string]interface{}) (ExecuteA
 		return nil, CommandIsRequired
 	}
 
-	c := ctx["history_channel"]
+	c := ctx["histories_channel"]
 	if nil == c {
-		return nil, errors.New("'history_channel' is nil")
+		return nil, errors.New("'histories_channel' is nil")
 	}
 	channel, ok := c.(chan<- *data_object)
 	if !ok {
-		return nil, errors.New("'history_channel' is not a chan<- *data_object")
+		return nil, errors.New("'histories_channel' is not a chan<- *data_object")
 	}
 
 	managed_type := options["managed_type"]

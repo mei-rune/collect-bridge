@@ -19,7 +19,7 @@ func TestHistorySimple(t *testing.T) {
 			"managed_type": "managed_object",
 			"managed_id":   "1213",
 			"trigger_id":   "43"},
-		map[string]interface{}{"history_channel": forward2(c)})
+		map[string]interface{}{"histories_channel": forward2(c)})
 
 	if nil != e {
 		t.Error(e)

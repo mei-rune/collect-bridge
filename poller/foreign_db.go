@@ -237,12 +237,24 @@ func (self *foreignDb) save(objects *bytes.Buffer) (e error) {
 }
 
 func newForeignDb(name, url string) (*foreignDb, error) {
+	var varString *expvar.String = nil
+
+	varE := expvar.Get("foreign_db." + name)
+	if nil != varE {
+		varString, _ = varE.(*expvar.String)
+		if nil == varString {
+			varString = expvar.NewString("foreign_db." + name + "." + time.Now().String())
+		}
+	} else {
+		varString = expvar.NewString("foreign_db." + name)
+	}
+
 	db := &foreignDb{name: name,
 		action:     "PUT",
 		url:        url,
 		c:          make(chan *data_object, 3000),
 		status:     1,
-		last_error: expvar.NewString("foreign_db." + name)}
+		last_error: varString}
 	go db.run()
 	db.wait.Add(1)
 	return db, nil

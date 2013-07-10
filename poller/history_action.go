@@ -3,6 +3,7 @@ package poller
 import (
 	"commons"
 	"errors"
+	"sync/atomic"
 	"time"
 )
 
@@ -17,10 +18,23 @@ type historyAction struct {
 	channel      chan<- *data_object
 	cached_data  *data_object
 	attribute    string
+
+	begin_send_at, end_send_at int64
+}
+
+func (self *historyAction) Stats() map[string]interface{} {
+	return map[string]interface{}{"id": self.id, "name": self.name,
+		"begin_send_at": atomic.LoadInt64(&self.begin_send_at),
+		"end_send_at":   atomic.LoadInt64(&self.end_send_at)}
+}
+
+func (self *historyAction) RunBefore() {
+}
+
+func (self *historyAction) RunAfter() {
 }
 
 func (self *historyAction) Run(t time.Time, value interface{}) error {
-
 	created_at := t
 	if current, ok := value.(commons.Result); ok {
 		created_at = current.CreatedAt()
@@ -40,7 +54,9 @@ func (self *historyAction) Run(t time.Time, value interface{}) error {
 		"trigger_id":   self.trigger_id,
 		"value":        currentValue}
 
+	atomic.StoreInt64(&self.begin_send_at, time.Now().Unix())
 	self.channel <- self.cached_data
+	atomic.StoreInt64(&self.end_send_at, time.Now().Unix())
 	return nil
 }
 

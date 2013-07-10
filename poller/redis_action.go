@@ -3,6 +3,7 @@ package poller
 import (
 	"commons"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"encoding/json"
@@ -22,12 +23,27 @@ type valueGetter interface {
 }
 
 type redisAction struct {
+	id          string
 	name        string
 	description string
 	options     commons.Map
 	channel     chan<- []string
 	command     string
 	arguments   []string
+
+	begin_send_at, end_send_at int64
+}
+
+func (self *redisAction) Stats() map[string]interface{} {
+	return map[string]interface{}{"id": self.id, "name": self.name,
+		"begin_send_at": atomic.LoadInt64(&self.begin_send_at),
+		"end_send_at":   atomic.LoadInt64(&self.end_send_at)}
+}
+
+func (self *redisAction) RunBefore() {
+}
+
+func (self *redisAction) RunAfter() {
 }
 
 func toMap(value interface{}) (commons.Map, error) {
@@ -108,7 +124,9 @@ func (self *redisAction) Run(t time.Time, value interface{}) error {
 		commands = append(commands, v)
 	}
 
+	atomic.StoreInt64(&self.begin_send_at, time.Now().Unix())
 	self.channel <- commands
+	atomic.StoreInt64(&self.end_send_at, time.Now().Unix())
 	return nil
 }
 
@@ -124,6 +142,11 @@ func isRedisCommand(cmd string) bool {
 }
 
 func newRedisAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {
+	id, e := commons.GetString(attributes, "id")
+	if nil != e || 0 == len(id) {
+		return nil, IdIsRequired
+	}
+
 	name, e := commons.GetString(attributes, "name")
 	if nil != e {
 		return nil, NameIsRequired
@@ -146,7 +169,7 @@ func newRedisAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		return nil, errors.New("'redis_channel' is not a chan []stirng")
 	}
 
-	return &redisAction{name: name,
+	return &redisAction{id: id, name: name,
 		description: commons.GetStringWithDefault(attributes, "description", ""),
 		options:     commons.InterfaceMap(options),
 		channel:     channel,

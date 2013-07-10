@@ -359,6 +359,11 @@ func (self *stringType) ToInternal(value interface{}) (interface{}, error) {
 	case *sql.NullString:
 		return v.Value()
 	}
+
+	s, e := json.Marshal(value)
+	if nil == e {
+		return s, nil
+	}
 	return "", errors.New("ToInternal to SqlString failed")
 }
 

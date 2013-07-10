@@ -23,9 +23,26 @@ var (
 	refresh       = flag.Duration("refresh", 5, "the refresh interval of cache")
 	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:/7073", "the url of foreign db")
 
-	is_test             = false
-	server_test *server = nil
+	trigger_exporter         = &Exporter{}
+	is_test                  = false
+	server_test      *server = nil
 )
+
+func init() {
+	expvar.Publish("trigger", trigger_exporter)
+}
+
+// Var is an abstract type for all exported variables.
+type Exporter struct {
+	expvar.Var
+}
+
+func (self *Exporter) String() string {
+	if nil == self.Var {
+		return ""
+	}
+	return self.Var.String()
+}
 
 func mainHandle(req *restful.Request, resp *restful.Response) {
 	errFile := "_log_/error.html"
@@ -90,10 +107,11 @@ func Runforever() {
 	defer func() {
 		if !is_test {
 			srv.Stop()
+			trigger_exporter.Var = nil
 		}
 	}()
 
-	expvar.Publish("triggers", srv)
+	trigger_exporter.Var = srv
 
 	restful.DefaultResponseMimeType = restful.MIME_JSON
 	ws := new(restful.WebService)

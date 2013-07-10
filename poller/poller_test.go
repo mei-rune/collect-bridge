@@ -1,10 +1,15 @@
 package poller
 
 import (
+	"bytes"
 	"commons/types"
 	ds "data_store"
+	"encoding/json"
 	"errors"
 	"github.com/garyburd/redigo/redis"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"sampling"
 	"strings"
@@ -35,6 +40,12 @@ var (
 		"name":       "this is a test trigger",
 		"type":       "metric_trigger",
 		"metric":     "sys",
+		"expression": "@every 1ms"}
+
+	metric_trigger_for_cpu = map[string]interface{}{
+		"name":       "this is a test trigger",
+		"type":       "metric_trigger",
+		"metric":     "cpu",
 		"expression": "@every 1ms"}
 
 	redis_commands2 = map[string]interface{}{
@@ -78,7 +89,7 @@ func getResultFromRedis(c redis.Conn, key string) (string, error) {
 	return s, e
 }
 
-func TestIntegratedTestPoller(t *testing.T) {
+func TestIntegratedPoller(t *testing.T) {
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
 		t.Log("Please run redis at " + redis_address + " before run unit test.")
 		id := ds.CreateItForTest(t, client, "network_device", mo)
@@ -132,5 +143,143 @@ func TestIntegratedTestPoller(t *testing.T) {
 
 		t.Error("not wait")
 
+	})
+}
+
+func TestIntegratedAlert(t *testing.T) {
+	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+		id := ds.CreateItForTest(t, client, "network_device", mo)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
+		mt_id := ds.CreateItByParentForTest(t, client, "network_device", id, "metric_trigger", metric_trigger_for_cpu)
+		ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
+			"id":               "123",
+			"name":             "this is a test alert",
+			"max_repeated":     0,
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "a",
+				"operator":  ">=",
+				"value":     "0"}})
+
+		count := 0
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			count++
+		}))
+		defer ts.Close()
+
+		is_test = true
+		*foreignUrl = ts.URL
+		Runforever()
+
+		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+			t.Error("load trigger failed.")
+			return
+		}
+
+		tr_instance := server_test.jobs[mt_id].(*metricJob)
+
+		for i := 0; i < 100; i++ {
+			if nil != tr_instance.last_error {
+				t.Error(tr_instance.last_error)
+				return
+			}
+
+			tr_instance.l.Lock()
+			e := tr_instance.actions[0].last_error
+			tr_instance.l.Unlock()
+
+			if nil != e {
+				if !strings.Contains(e.Error(), "not found") {
+					t.Error(e)
+				}
+				return
+			}
+
+			time.Sleep(1 * time.Second)
+		}
+
+		t.Error("not wait")
+	})
+}
+
+func TestIntegratedAlert2(t *testing.T) {
+	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+		id := ds.CreateItForTest(t, client, "network_device", mo)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
+		mt_id := ds.CreateItByParentForTest(t, client, "network_device", id, "metric_trigger", metric_trigger_for_cpu)
+		ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
+			"id":               "123",
+			"name":             "this is a test alert",
+			"max_repeated":     0,
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "cpu",
+				"operator":  ">=",
+				"value":     "0"}})
+
+		count := 0
+		var js string
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			bs, _ := ioutil.ReadAll(r.Body)
+			js = string(bs)
+			count++
+		}))
+		defer ts.Close()
+
+		is_test = true
+		*foreignUrl = ts.URL
+		Runforever()
+
+		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+			t.Error("load trigger failed.")
+			return
+		}
+
+		tr_instance := server_test.jobs[mt_id].(*metricJob)
+
+		for i := 0; i < 100; i++ {
+			if nil != tr_instance.last_error {
+				t.Error(tr_instance.last_error)
+				return
+			}
+
+			tr_instance.l.Lock()
+			e := tr_instance.actions[0].last_error
+			tr_instance.l.Unlock()
+
+			if nil != e {
+				if !strings.Contains(e.Error(), "not founc") {
+					t.Error(e)
+				}
+				return
+			}
+
+			if 0 != len(js) {
+				var data []map[string]interface{}
+
+				decoder := json.NewDecoder(bytes.NewBufferString(js))
+				decoder.UseNumber()
+				e := decoder.Decode(&data)
+				if nil != e {
+					t.Error(e)
+					return
+				}
+				if 1 != len(data) {
+					t.Error("it is not equals excepted value")
+					t.Error("value is", js)
+				}
+				status, _ := data[0]["status"].(json.Number).Int64()
+				if 1 != status {
+					t.Error("it is not equals excepted value")
+					t.Error("value is", js)
+				}
+				return
+			}
+			time.Sleep(1 * time.Second)
+		}
+
+		t.Error("not wait")
 	})
 }

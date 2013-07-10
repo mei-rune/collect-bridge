@@ -9,7 +9,11 @@ import (
 )
 
 type ExecuteAction interface {
+	RunBefore()
 	Run(t time.Time, value interface{}) error
+	RunAfter()
+
+	Stats() map[string]interface{}
 }
 
 func newAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {
@@ -30,6 +34,23 @@ type actionWrapper struct {
 
 	temporary  error
 	last_error error
+}
+
+func (self *actionWrapper) Stats() map[string]interface{} {
+	stats := self.action.Stats()
+	if nil != self.last_error {
+		stats["error"] = self.last_error
+	}
+	return stats
+}
+
+func (self *actionWrapper) RunBefore() {
+	self.action.RunBefore()
+}
+
+func (self *actionWrapper) RunAfter() {
+	self.last_error = self.temporary
+	self.action.RunAfter()
 }
 
 func (self *actionWrapper) Run(t time.Time, value interface{}) {

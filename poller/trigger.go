@@ -19,7 +19,7 @@ type trigger struct {
 	commons.Logger
 	id         string
 	name       string
-	actions    []actionWrapper
+	actions    []*actionWrapper
 	callback   triggerFunc
 	status     int32
 	updated_at time.Time
@@ -70,12 +70,9 @@ func (self *trigger) Stats() map[string]interface{} {
 	if nil != self.actions && 0 != len(self.actions) {
 		actions := make([]interface{}, 0, len(self.actions))
 		for _, action := range self.actions {
-			if nil != action.last_error {
-				actions = append(actions, map[string]string{"id": action.id, "name": action.name, "error": action.last_error.Error()})
-			} else {
-				actions = append(actions, map[string]string{"id": action.id, "name": action.name})
-			}
+			actions = append(actions, action.Stats())
 		}
+		res["actions"] = actions
 	}
 
 	return res
@@ -116,14 +113,28 @@ func (self *trigger) callActions(t time.Time, res interface{}) {
 		self.WARN.Print("actions of '" + self.name + "' is empty")
 		return
 	}
+
+	self.callBefore()
+
 	for _, action := range self.actions {
 		action.Run(t, res)
 	}
 
+	self.callAfter()
+}
+
+func (self *trigger) callBefore() {
 	self.l.Lock()
 	defer self.l.Unlock()
 	for _, action := range self.actions {
-		action.last_error = action.temporary
+		action.RunBefore()
+	}
+}
+func (self *trigger) callAfter() {
+	self.l.Lock()
+	defer self.l.Unlock()
+	for _, action := range self.actions {
+		action.RunAfter()
 	}
 }
 
@@ -159,7 +170,7 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 	if nil != e {
 		return nil, commons.IsRequired("$action")
 	}
-	actions := make([]actionWrapper, 0, 10)
+	actions := make([]*actionWrapper, 0, 10)
 	for _, spec := range action_specs {
 
 		action_id := commons.GetStringWithDefault(spec, "id", "unknow_id")
@@ -169,7 +180,11 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 		if nil != e {
 			return nil, errors.New("create action '" + action_id + ":" + action_name + "' failed, " + e.Error())
 		}
-		actions = append(actions, actionWrapper{id: action_id, name: action_name, action: action})
+		actions = append(actions, &actionWrapper{id: action_id, name: action_name, action: action})
+	}
+
+	if 0 == len(actions) {
+		return nil, errors.New("actions is empty.")
 	}
 
 	if strings.HasPrefix(expression, every) {

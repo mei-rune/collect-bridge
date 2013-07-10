@@ -4,6 +4,7 @@ import (
 	"commons"
 	"encoding/json"
 	"errors"
+	"sync/atomic"
 	"time"
 )
 
@@ -12,11 +13,12 @@ const MAX_REPEATED = 9999990
 var reset_error = errors.New("please reset channel.")
 
 type alertAction struct {
+	id           string
 	name         string
 	max_repeated int
 
 	options     map[string]interface{}
-	result      map[string]interface{}
+	contex      map[string]interface{}
 	channel     chan<- *data_object
 	cached_data *data_object
 
@@ -24,10 +26,35 @@ type alertAction struct {
 	last_status  int
 	repeated     int
 	already_send bool
+
+	begin_send_at, wait_response_at, end_send_at int64
+
+	stats_last_status  int
+	stats_repeated     int
+	stats_already_send bool
+}
+
+func (self *alertAction) Stats() map[string]interface{} {
+	return map[string]interface{}{"id": self.id, "name": self.name,
+		"last_status":      self.stats_last_status,
+		"repeated":         self.stats_repeated,
+		"already_send":     self.stats_already_send,
+		"begin_send_at":    atomic.LoadInt64(&self.begin_send_at),
+		"wait_response_at": atomic.LoadInt64(&self.wait_response_at),
+		"end_send_at":      atomic.LoadInt64(&self.end_send_at)}
+}
+
+func (self *alertAction) RunBefore() {
+}
+
+func (self *alertAction) RunAfter() {
+	self.stats_last_status = self.last_status
+	self.stats_repeated = self.repeated
+	self.stats_already_send = self.already_send
 }
 
 func (self *alertAction) Run(t time.Time, value interface{}) error {
-	current, err := self.checker.Run(value, self.result)
+	current, err := self.checker.Run(value, self.contex)
 	if nil != err {
 		return err
 	}
@@ -53,15 +80,9 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	}
 
 	evt := map[string]interface{}{}
-	for k, v := range self.result {
+	for k, v := range self.contex {
 		evt[k] = v
 	}
-	if nil != self.options {
-		for k, v := range self.options {
-			evt[k] = v
-		}
-	}
-
 	if _, found := evt["triggered_at"]; !found {
 		evt["triggered_at"] = t
 	}
@@ -86,8 +107,12 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 
 func (self *alertAction) send(evt map[string]interface{}) error {
 	self.cached_data.attributes = evt
+	atomic.StoreInt64(&self.begin_send_at, time.Now().Unix())
 	self.channel <- self.cached_data
-	return <-self.cached_data.c
+	atomic.StoreInt64(&self.wait_response_at, time.Now().Unix())
+	e := <-self.cached_data.c
+	atomic.StoreInt64(&self.end_send_at, time.Now().Unix())
+	return e
 }
 
 var (
@@ -98,6 +123,11 @@ var (
 )
 
 func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {
+	id, e := commons.GetString(attributes, "id")
+	if nil != e || 0 == len(id) {
+		return nil, IdIsRequired
+	}
+
 	name, e := commons.GetString(attributes, "name")
 	if nil != e {
 		return nil, NameIsRequired
@@ -126,12 +156,20 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		max_repeated = MAX_REPEATED - 20
 	}
 
-	return &alertAction{name: name,
+	contex := map[string]interface{}{"id": id, "name": name}
+	if nil != options {
+		for k, v := range options {
+			contex[k] = v
+		}
+	}
+
+	return &alertAction{id: id,
+		name: name,
 		//description: commons.GetString(attributes, "description", ""),
 		already_send: false,
 		options:      options,
 		max_repeated: max_repeated,
-		result:       map[string]interface{}{"name": name},
+		contex:       contex,
 		channel:      channel,
 		cached_data:  &data_object{c: make(chan error, 2)},
 		checker:      checker}, nil

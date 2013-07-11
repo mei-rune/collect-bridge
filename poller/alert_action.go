@@ -156,7 +156,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		max_repeated = MAX_REPEATED - 20
 	}
 
-	contex := map[string]interface{}{"id": id, "name": name}
+	contex := map[string]interface{}{"action_id": id, "name": name}
 	if nil != options {
 		for k, v := range options {
 			contex[k] = v

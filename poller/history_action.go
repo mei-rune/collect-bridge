@@ -47,7 +47,7 @@ func (self *historyAction) Run(t time.Time, value interface{}) error {
 
 	self.cached_data.attributes = map[string]interface{}{
 		"action_id":    self.id,
-		"sampling_at":  created_at,
+		"sampled_at":   created_at,
 		"metric":       self.metric,
 		"managed_type": self.managed_type,
 		"managed_id":   self.managed_id,

@@ -79,7 +79,7 @@ func (self *server) serve(i int, ctx *context) {
 		self.wait.Done()
 	}()
 
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for is_running {

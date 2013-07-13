@@ -183,7 +183,7 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 		actions = append(actions, &actionWrapper{id: action_id, name: action_name, action: action})
 	}
 
-	if 0 == len(actions) {
+	if 0 == len(actions) && !is_test {
 		return nil, errors.New("actions is empty.")
 	}
 

@@ -67,6 +67,7 @@ func TestJobWithSamplingFailed(t *testing.T) {
 		"managed_object_id": "12",
 		"expression":        "@every 1ms",
 		"$action": []interface{}{map[string]interface{}{
+			"id":      "this is a test action id",
 			"type":    "redis_command",
 			"name":    "this is a test redis action",
 			"command": "SET",
@@ -157,6 +158,7 @@ func TestJobFull(t *testing.T) {
 		"managed_object_id": "12",
 		"expression":        "@every 1ms",
 		"$action": []interface{}{map[string]interface{}{
+			"id":      "this is a test action id",
 			"type":    "redis_command",
 			"name":    "this is a test redis action",
 			"command": "SET",

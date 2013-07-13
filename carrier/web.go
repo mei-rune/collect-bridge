@@ -1,4 +1,4 @@
-package main
+package carrier
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
+	_ "github.com/lib/pq"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -25,10 +26,9 @@ var (
 	goroutines    = flag.Int("carrier.connections", 10, "the db connection number")
 
 	server_instance *server = nil
-	is_test                 = false
 )
 
-type data_object struct {
+type request_object struct {
 	c        chan error
 	request  *http.Request
 	response http.ResponseWriter
@@ -36,7 +36,7 @@ type data_object struct {
 }
 
 type server struct {
-	c          chan *data_object
+	c          chan *request_object
 	wait       sync.WaitGroup
 	last_error *expvar.String
 }
@@ -96,7 +96,7 @@ func (self *server) serve(i int, ctx *context) {
 	}
 }
 
-func (self *server) call(ctx *context, obj *data_object) {
+func (self *server) call(ctx *context, obj *request_object) {
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -119,7 +119,7 @@ func (self *server) call(ctx *context, obj *data_object) {
 	close(obj.c)
 }
 
-func (self *server) run(ctx *context, obj *data_object) {
+func (self *server) run(ctx *context, obj *request_object) {
 	defer func() {
 		if e := recover(); nil != e {
 			obj.response.WriteHeader(http.StatusInternalServerError)
@@ -137,18 +137,18 @@ func (self *server) run(ctx *context, obj *data_object) {
 	obj.cb(self, ctx, obj.response, obj.request)
 }
 
-type alertEntity struct {
+type AlertEntity struct {
 	RuleId       int64     `json:"action_id"`
-	Status       string    `json:"status"`
+	Status       int64     `json:"status"`
 	CurrentValue string    `json:"current_value"`
 	TriggeredAt  time.Time `json:"triggered_at"`
 	ManagedType  string    `json:"managed_type"`
 	ManagedId    int64     `json:"managed_id"`
 }
 
-type historyEntity struct {
+type HistoryEntity struct {
 	RuleId       int64     `json:"action_id"`
-	CurrentValue string    `json:"current_value"`
+	CurrentValue float64   `json:"current_value"`
 	SampledAt    time.Time `json:"sampled_at"`
 	ManagedType  string    `json:"managed_type"`
 	ManagedId    int64     `json:"managed_id"`
@@ -157,7 +157,7 @@ type historyEntity struct {
 var months = []string{"_00", "_01", "_02", "_03", "_04", "_05", "_06", "_07", "_08", "_09", "_10", "_11", "_12", "_13"}
 
 func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request *http.Request) {
-	var entities []alertEntity
+	var entities []AlertEntity
 	decoder := json.NewDecoder(request.Body)
 	decoder.UseNumber()
 	e := decoder.Decode(&entities)
@@ -204,7 +204,7 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 			return
 		}
 
-		_, e = tx.Exec("INSERT INTO tpt_alert_history_"+strconv.Itoa(entity.TriggeredAt.Year())+months[entity.TriggeredAt.Month()]+
+		_, e = tx.Exec("INSERT INTO tpt_alert_histories_"+strconv.Itoa(entity.TriggeredAt.Year())+months[entity.TriggeredAt.Month()]+
 			"(rule_id, managed_type, managed_id, status, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6)",
 			entity.RuleId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
 		if nil != e {
@@ -224,8 +224,8 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 	isCommited = true
 }
 
-func (self *server) onHistory(ctx *context, response http.ResponseWriter, request *http.Request) {
-	var entities []historyEntity
+func (self *server) onHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
+	var entities []HistoryEntity
 	decoder := json.NewDecoder(request.Body)
 	decoder.UseNumber()
 	e := decoder.Decode(&entities)
@@ -249,8 +249,8 @@ func (self *server) onHistory(ctx *context, response http.ResponseWriter, reques
 	}()
 
 	for _, entity := range entities {
-		_, e = tx.Exec("INSERT INTO tpt_alert_history_"+strconv.Itoa(entity.SampledAt.Year())+months[entity.SampledAt.Month()]+
-			"(rule_id, managed_type, managed_id, current_value, sampled_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		_, e = tx.Exec("INSERT INTO tpt_histories_"+strconv.Itoa(entity.SampledAt.Year())+months[entity.SampledAt.Month()]+
+			"(rule_id, managed_type, managed_id, current_value, sampled_at) VALUES ($1, $2, $3, $4, $5)",
 			entity.RuleId, entity.ManagedType, entity.ManagedId, entity.CurrentValue, entity.SampledAt)
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)
@@ -283,10 +283,10 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 
 	var cb func(s *server, ctx *context, response http.ResponseWriter, request *http.Request) = nil
 	switch request.URL.Path {
-	case "alerts":
+	case "/alerts", "/alerts/":
 		cb = (*server).onAlerts
-	case "history":
-		cb = (*server).onHistory
+	case "/histories", "/histories/":
+		cb = (*server).onHistories
 	default:
 		http.Error(response, "404 page not found, path must is 'alerts' or 'history', actual path is '"+
 			request.URL.Path+"'", http.StatusNotFound)
@@ -294,7 +294,7 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 	}
 
 	c := make(chan error, 1)
-	self.c <- &data_object{c: c, response: response, request: request, cb: cb}
+	self.c <- &request_object{c: c, response: response, request: request, cb: cb}
 	e := <-c
 	if nil != e {
 		response.WriteHeader(http.StatusInternalServerError)
@@ -303,10 +303,16 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 }
 
 func main() {
+	e := Main(false)
+	if nil != e {
+		fmt.Println(e)
+	}
+}
+
+func Main(is_test bool) error {
 
 	if 0 >= *goroutines {
-		fmt.Println("goroutines must is greate 0")
-		return
+		return errors.New("goroutines must is greate 0")
 	}
 	if "sqlite3" == *drv {
 		*goroutines = 1
@@ -323,7 +329,7 @@ func main() {
 		varString = expvar.NewString("carrier")
 	}
 
-	srv := &server{c: make(chan *data_object, 3000),
+	srv := &server{c: make(chan *request_object, 3000),
 		last_error: varString}
 
 	contexts := make([]*context, 0, *goroutines)
@@ -333,8 +339,7 @@ func main() {
 			for _, conn := range contexts {
 				conn.db.Close()
 			}
-			fmt.Println("connect to db failed,", e)
-			return
+			return errors.New("connect to db failed," + e.Error())
 		}
 
 		contexts = append(contexts, &context{drv: *drv, url: *dbUrl, db: db})
@@ -354,4 +359,5 @@ func main() {
 		defer srv.Close()
 		http.ListenAndServe(*listenAddress, srv)
 	}
+	return nil
 }

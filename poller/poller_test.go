@@ -2,8 +2,10 @@ package poller
 
 import (
 	"bytes"
+	"carrier"
 	"commons/types"
 	ds "data_store"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"github.com/garyburd/redigo/redis"
@@ -12,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"sampling"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -349,5 +352,157 @@ func TestIntegratedHistory(t *testing.T) {
 		}
 
 		t.Error("not wait")
+	})
+}
+
+func TestIntegratedAlertWithCarrier(t *testing.T) {
+	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+		mo_id := ds.CreateItForTest(t, client, "network_device", mo)
+		ds.CreateItByParentForTest(t, client, "network_device", mo_id, "wbem_param", wbem_params)
+		ds.CreateItByParentForTest(t, client, "network_device", mo_id, "snmp_param", snmp_params)
+		mt_id := ds.CreateItByParentForTest(t, client, "network_device", mo_id, "metric_trigger", metric_trigger_for_cpu)
+		rule_id := ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
+			"name":             "this is a test alert",
+			"max_repeated":     0,
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "services",
+				"operator":  ">=",
+				"value":     "0"}})
+
+		carrier.SrvTest(t, func(db *sql.DB, url string) {
+			is_test = true
+			*foreignUrl = url
+			Runforever()
+
+			if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+				t.Error("load trigger failed.")
+				return
+			}
+
+			tr_instance := server_test.jobs[mt_id].(*metricJob)
+
+			for i := 0; i < 100; i++ {
+				if nil != tr_instance.last_error {
+					t.Error(tr_instance.last_error)
+					return
+				}
+
+				tr_instance.l.Lock()
+				e := tr_instance.actions[0].last_error
+				tr_instance.l.Unlock()
+
+				if nil != e {
+					if !strings.Contains(e.Error(), "not founc") {
+						t.Error(e)
+					}
+					return
+				}
+
+				entities, e := carrier.SelectAlertCookies(db)
+				if nil != e {
+					t.Error(e)
+					return
+				}
+
+				if nil != entities && 0 != len(entities) {
+					entity := entities[0]
+					rule_id_int, _ := strconv.ParseInt(rule_id, 10, 64)
+					mo_id_int, _ := strconv.ParseInt(mo_id, 10, 64)
+
+					if entity.RuleId != rule_id_int {
+						t.Error(" entity.RuleId != rule_id, excepted is ", rule_id_int, ", actual is ", entity.RuleId)
+					}
+					if entity.Status != 1 {
+						t.Error(" entity.Status != 1, excepted is ", 1, ", actual is ", entity.Status)
+					}
+					if entity.ManagedType != "managed_object" {
+						t.Error(" entity.ManagedType != mo_type, excepted is managed_object, actual is ", entity.ManagedType)
+					}
+					if entity.ManagedId != mo_id_int {
+						t.Error(" entity.ManagedId != mo_id, excepted is ", mo_id_int, ", actual is ", entity.ManagedId)
+					}
+					return
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+
+			t.Error("not wait")
+		})
+	})
+}
+
+func TestIntegratedHistoryWithCarrier(t *testing.T) {
+	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+		mo_id := ds.CreateItForTest(t, client, "network_device", mo)
+		ds.CreateItByParentForTest(t, client, "network_device", mo_id, "wbem_param", wbem_params)
+		ds.CreateItByParentForTest(t, client, "network_device", mo_id, "snmp_param", snmp_params)
+		mt_id := ds.CreateItByParentForTest(t, client, "network_device", mo_id, "metric_trigger", metric_trigger2)
+		rule_id := ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "history", map[string]interface{}{
+			"name":      "this is a test history",
+			"attribute": "services"})
+
+		carrier.SrvTest(t, func(db *sql.DB, url string) {
+			is_test = true
+			*foreignUrl = url
+			Runforever()
+
+			if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+				t.Error("load trigger failed.")
+				return
+			}
+
+			tr_instance := server_test.jobs[mt_id].(*metricJob)
+
+			for i := 0; i < 100; i++ {
+				if nil != tr_instance.last_error {
+					t.Error(tr_instance.last_error)
+					return
+				}
+
+				tr_instance.l.Lock()
+				e := tr_instance.actions[0].last_error
+				tr_instance.l.Unlock()
+
+				if nil != e {
+					if !strings.Contains(e.Error(), "not founc") {
+						t.Error(e)
+					}
+					return
+				}
+
+				entities, e := carrier.SelectHistories(db)
+				if nil != e {
+					t.Error(e)
+					return
+				}
+
+				if nil != entities && 0 != len(entities) {
+					entity := entities[0]
+					rule_id_int, _ := strconv.ParseInt(rule_id, 10, 64)
+					mo_id_int, _ := strconv.ParseInt(mo_id, 10, 64)
+
+					if entity.RuleId != rule_id_int {
+						t.Error(" entity.RuleId != rule_id, excepted is ", rule_id_int, ", actual is ", entity.RuleId)
+					}
+
+					// if entity.CurrentValue != value {
+					// 	t.Error(" entity.CurrentValue != value, excepted is ", value, ", actual is ", entity.CurrentValue)
+					// }
+
+					if entity.ManagedType != "managed_object" {
+						t.Error(" entity.ManagedType != mo_type, excepted is managed_object, actual is ", entity.ManagedType)
+					}
+					if entity.ManagedId != mo_id_int {
+						t.Error(" entity.ManagedId != mo_id, excepted is ", mo_id_int, ", actual is ", entity.ManagedId)
+					}
+					return
+				}
+				time.Sleep(1 * time.Second)
+			}
+
+			t.Error("not wait")
+		})
 	})
 }

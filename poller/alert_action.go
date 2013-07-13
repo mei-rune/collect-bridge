@@ -13,7 +13,7 @@ const MAX_REPEATED = 9999990
 var reset_error = errors.New("please reset channel.")
 
 type alertAction struct {
-	id           string
+	id           int64
 	name         string
 	max_repeated int
 
@@ -88,7 +88,10 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	}
 
 	if _, found := evt["current_value"]; !found {
-		evt["current_value"] = value
+		bs, _ := json.Marshal(value)
+		if nil != bs {
+			evt["current_value"] = string(bs)
+		}
 	}
 
 	evt["status"] = current
@@ -123,8 +126,8 @@ var (
 )
 
 func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {
-	id, e := commons.GetString(attributes, "id")
-	if nil != e || 0 == len(id) {
+	id, e := commons.GetInt64(attributes, "id")
+	if nil != e || 0 == id {
 		return nil, IdIsRequired
 	}
 

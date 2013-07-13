@@ -37,7 +37,7 @@ func TestHistorySimple(t *testing.T) {
 
 	excepted := map[string]interface{}{
 		"action_id":    "123",
-		"sampling_at":  result.CreatedAt(),
+		"sampled_at":   result.CreatedAt(),
 		"metric":       "cpu",
 		"managed_type": "managed_object",
 		"managed_id":   "1213",
@@ -48,7 +48,7 @@ func TestHistorySimple(t *testing.T) {
 	case v := <-c:
 		if !reflect.DeepEqual(excepted, v.attributes) {
 			t.Error("excepted is", excepted)
-			t.Error("actual is", v)
+			t.Error("actual is", v.attributes)
 		}
 	default:
 		t.Error("not recv")

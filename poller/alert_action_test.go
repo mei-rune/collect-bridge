@@ -39,7 +39,7 @@ func TestAlertSimple(t *testing.T) {
 
 	for _, test := range all_tests {
 		action, e := newAlertAction(map[string]interface{}{
-			"id":               "test_id",
+			"id":               "123",
 			"name":             "this is a test alert",
 			"max_repeated":     test.max_repeated,
 			"expression_style": "json",
@@ -145,7 +145,7 @@ func TestAlertSimple2(t *testing.T) {
 
 	for _, test := range all_tests {
 		action, e := newAlertAction(map[string]interface{}{
-			"id":               "test_id",
+			"id":               "123",
 			"name":             "this is a test alert",
 			"max_repeated":     test.max_repeated,
 			"expression_style": "json",
@@ -274,7 +274,7 @@ func TestAlertWithSendFailed(t *testing.T) {
 	for _, test := range all_tests {
 
 		action, e := newAlertAction(map[string]interface{}{
-			"id":               "test_id",
+			"id":               "123",
 			"name":             "this is a test alert",
 			"max_repeated":     test.max_repeated,
 			"expression_style": "json",
@@ -378,7 +378,7 @@ func TestAlertRepectedOverflow(t *testing.T) {
 	}()
 
 	action, e := newAlertAction(map[string]interface{}{
-		"id":               "test_id",
+		"id":               "1243",
 		"name":             "this is a test alert",
 		"max_repeated":     1,
 		"expression_style": "json",
@@ -441,7 +441,7 @@ func TestAlertRepectedOverflow2(t *testing.T) {
 	}()
 
 	action, e := newAlertAction(map[string]interface{}{
-		"id":               "test_id",
+		"id":               "123",
 		"name":             "this is a test alert",
 		"max_repeated":     MAX_REPEATED,
 		"expression_style": "json",

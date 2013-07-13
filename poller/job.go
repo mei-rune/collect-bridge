@@ -4,6 +4,7 @@ import (
 	"commons"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -68,6 +69,11 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 	if nil != e {
 		return nil, errors.New("'managed_object_id' is required, " + e.Error())
 	}
+	parentId_int64, e := strconv.ParseInt(parentId, 10, 64)
+	if nil != e {
+		return nil, errors.New("'managed_object_id' is not a int64, " + e.Error())
+	}
+
 	url, e := commons.GetString(ctx, "metrics.url")
 	if nil != e {
 		return nil, errors.New("'metrics.url' is required, " + e.Error())
@@ -88,7 +94,7 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		client: commons.HttpClient{Url: client_url}}
 
 	job.trigger, e = newTrigger(attributes,
-		map[string]interface{}{"managed_type": "managed_object", "managed_id": parentId, "metric": metric, "trigger_id": id},
+		map[string]interface{}{"managed_type": "managed_object", "managed_id": parentId_int64, "metric": metric, "trigger_id": id},
 		ctx,
 		job.run)
 	return job, e

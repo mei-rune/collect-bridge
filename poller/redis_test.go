@@ -80,6 +80,7 @@ func TestRedisAction(t *testing.T) {
 	ch := make(chan []string, 1)
 
 	action, e := newRedisAction(map[string]interface{}{
+		"id":      12,
 		"name":    "this is a test redis action",
 		"command": "SET",
 		"arg0":    "sdfs",

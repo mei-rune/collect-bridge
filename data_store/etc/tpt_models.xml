@@ -468,8 +468,16 @@
   </class>
 
   <class name="Alert" base="Action">
-    <property name="max_repeated">
+    <property name="delay_times">
       <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="level">
+      <restriction base="integer">
+      </restriction>
+    </property>
+    <property name="enabled">
+      <restriction base="boolean">
       </restriction>
     </property>
     <property name="expression_style">
@@ -496,6 +504,10 @@
     <property name="attribute">
       <restriction base="string">
         <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="enabled">
+      <restriction base="boolean">
       </restriction>
     </property>
   </class>

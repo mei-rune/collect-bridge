@@ -212,7 +212,10 @@ CREATE TABLE tpt_redis_commands (
 
 CREATE TABLE tpt_alerts (
   -- id integer NOT NULL DEFAULT nextval('actions_seq')  PRIMARY KEY,
-  max_repeated  integer,
+  delay_times      integer,
+  enabled          boolean,
+  level            integer,
+
   expression_style varchar(50),
   expression_code  varchar(2000),
   
@@ -220,6 +223,7 @@ CREATE TABLE tpt_alerts (
 ) INHERITS (tpt_actions);
 
 CREATE TABLE tpt_histories (
+  enabled    boolean,
   attribute  varchar(200),
   CONSTRAINT tpt_histories_pkey PRIMARY KEY (id)
 ) INHERITS (tpt_actions);

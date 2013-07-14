@@ -47,6 +47,38 @@ func nativeGet(t *testing.T, ip, target string, params map[string]string) common
 	return self.Invoke("GET", url, nil, 200)
 }
 
+func TestGetWithNotFound(t *testing.T) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+
+		res := urlGet(t, "network_device", "123", "sys.oid")
+		if !res.HasError() {
+			t.Error("error is nil")
+			return
+		}
+
+		if !strings.Contains(res.ErrorMessage(), "network_device with id was '123' is not found.") {
+			t.Error("excepted contains '", "network_device with id was '123' is not found.", "'")
+			t.Error("actual is", res.ErrorMessage())
+		}
+	})
+}
+
+func TestGetWithInvalidId(t *testing.T) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+
+		res := urlGet(t, "network_device", "a123", "sys.oid")
+		if !res.HasError() {
+			t.Error("error is nil")
+			return
+		}
+
+		if !strings.Contains(res.ErrorMessage(), "'id' is not a 'objectId', actual value is 'a123'") {
+			t.Error("excepted contains '", "'id' is not a 'objectId', actual value is 'a123'", "'")
+			t.Error("actual is", res.ErrorMessage())
+		}
+	})
+}
+
 func TestGetBasic(t *testing.T) {
 	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)

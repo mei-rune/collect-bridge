@@ -275,9 +275,12 @@ func (c *Cache) doCommand(req *cache_request) {
 		if res, ok := c.objects[req.id]; ok {
 			req.result = res
 		} else {
-			req.result, req.e = c.client.FindByIdWithIncludes(c.target, req.id, c.includes)
-			if nil == req.e {
+			var err commons.RuntimeError
+			req.result, err = c.client.FindByIdWithIncludes(c.target, req.id, c.includes)
+			if nil == err {
 				c.set(req.id, req.result)
+			} else if 404 != err.Code() {
+				req.e = err
 			}
 		}
 		req.ch <- req

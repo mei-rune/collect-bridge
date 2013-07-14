@@ -81,6 +81,11 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 
 	mo, e := self.mo_cache.Get(managed_id)
 	if nil != e {
+		self.returnResult(resp, commons.ReturnWithInternalError(e.Error()))
+		return
+	}
+
+	if nil == mo {
 		self.returnResult(resp, commons.ReturnWithNotFound(managed_type, managed_id))
 		return
 	}

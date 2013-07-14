@@ -215,6 +215,26 @@ func TestCacheAdd(t *testing.T) {
 		validMockDevice(t, client, "4", d4)
 	})
 }
+func TestCacheWithNotFound(t *testing.T) {
+	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
+		deleteBy(t, client, "network_device", map[string]string{})
+
+		cache := NewCache(100*time.Minute, client, "network_device")
+		defer cache.Close()
+		d1, e := cache.Get("34546")
+		if nil == d1 && nil == e {
+			return
+		}
+
+		if nil != d1 {
+			t.Error("it is not nil")
+		}
+		if nil != e {
+			t.Error("e is not nil,", e)
+		}
+
+	})
+}
 
 func TestCacheRefresh(t *testing.T) {
 	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {

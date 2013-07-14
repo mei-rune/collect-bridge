@@ -195,7 +195,7 @@ CREATE TABLE alerts (
   parent_type        varchar(250),
   parent_id          integer,
 
-  max_repeated       integer,
+  delay_times       integer,
   expression_style   varchar(50),
   expression_code    varchar(2000)
 );

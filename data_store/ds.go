@@ -452,7 +452,7 @@ CREATE TABLE tpt_alerts (
   parent_type        varchar(250),
   parent_id          integer,
 
-  max_repeated       integer,
+  delay_times       integer,
   expression_style   varchar(50),
   expression_code    varchar(2000)
 );
@@ -530,7 +530,7 @@ CREATE TABLE tpt_zip_files (id  INTEGER PRIMARY KEY AUTOINCREMENT, body text, do
   parent_type        varchar(250),
   parent_id          integer,
 
-  max_repeated       integer,
+  delay_times       integer,
   expression_style   varchar(50),
   expression_code    varchar(2000)
 );`)

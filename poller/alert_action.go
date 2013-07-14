@@ -13,8 +13,8 @@ const MAX_REPEATED = 9999990
 var reset_error = errors.New("please reset channel.")
 
 type alertAction struct {
-	id           int64
-	name         string
+	id          int64
+	name        string
 	delay_times int
 
 	options     map[string]interface{}
@@ -35,7 +35,10 @@ type alertAction struct {
 }
 
 func (self *alertAction) Stats() map[string]interface{} {
-	return map[string]interface{}{"id": self.id, "name": self.name,
+	return map[string]interface{}{
+		"type":             "alert",
+		"id":               self.id,
+		"name":             self.name,
 		"last_status":      self.stats_last_status,
 		"repeated":         self.stats_repeated,
 		"already_send":     self.stats_already_send,

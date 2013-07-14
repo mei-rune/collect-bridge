@@ -16,7 +16,7 @@ import (
 )
 
 type errorJob struct {
-	id, name, e string
+	clazz, id, name, e string
 
 	updated_at time.Time
 }
@@ -38,6 +38,7 @@ func (self *errorJob) Name() string {
 
 func (self *errorJob) Stats() map[string]interface{} {
 	return map[string]interface{}{
+		"type":  self.clazz,
 		"id":    self.id,
 		"name":  self.name,
 		"error": self.e}
@@ -70,6 +71,7 @@ func newServer(refresh time.Duration, client *ds.Client, ctx map[string]interfac
 }
 
 func (s *server) startJob(attributes map[string]interface{}) {
+	clazz := commons.GetStringWithDefault(attributes, "type", "unknow_type")
 	name := commons.GetStringWithDefault(attributes, "name", "unknow_name")
 	id := commons.GetStringWithDefault(attributes, "id", "unknow_id")
 
@@ -77,7 +79,7 @@ func (s *server) startJob(attributes map[string]interface{}) {
 	if nil != e {
 		updated_at, _ := commons.GetTime(attributes, "updated_at")
 		msg := fmt.Sprintf("create '%v:%v' failed, %v\n", id, name, e)
-		job = &errorJob{id: id, name: name, e: msg, updated_at: updated_at}
+		job = &errorJob{clazz: clazz, id: id, name: name, e: msg, updated_at: updated_at}
 		log.Print(msg)
 		goto end
 	}
@@ -86,7 +88,7 @@ func (s *server) startJob(attributes map[string]interface{}) {
 	if nil != e {
 		updated_at, _ := commons.GetTime(attributes, "updated_at")
 		msg := fmt.Sprintf("start '%v:%v' failed, %v\n", id, name, e)
-		job = &errorJob{id: id, name: name, e: msg, updated_at: updated_at}
+		job = &errorJob{clazz: clazz, id: id, name: name, e: msg, updated_at: updated_at}
 		log.Print(msg)
 		goto end
 	}

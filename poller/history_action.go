@@ -26,7 +26,10 @@ type historyAction struct {
 }
 
 func (self *historyAction) Stats() map[string]interface{} {
-	return map[string]interface{}{"id": self.id, "name": self.name,
+	return map[string]interface{}{
+		"type":             "history",
+		"id":               self.id,
+		"name":             self.name,
 		"begin_send_at":    atomic.LoadInt64(&self.begin_send_at),
 		"wait_response_at": atomic.LoadInt64(&self.wait_response_at),
 		"end_send_at":      atomic.LoadInt64(&self.end_send_at)}

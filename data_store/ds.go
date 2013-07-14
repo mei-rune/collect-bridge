@@ -10,8 +10,8 @@ import (
 	"github.com/runner-mei/go-restful"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
+	"net/http/httptest"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -227,42 +227,18 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 
 	Main()
 	defer restful.ClearRegisteredWebServices()
-	var listener net.Listener = nil
 
-	listener, e := net.Listen("tcp", *address)
-	if nil != e {
-		t.Errorf("listen at '%s' failed, %s", *address, e.Error())
-		return
-	}
-
-	ch := make(chan string)
-	go func() {
-		defer func() {
-			ch <- "exit"
-		}()
-		ch <- "ok"
-		http.Serve(listener, nil)
-	}()
-
-	s := <-ch
-	if "ok" != s {
-		t.Errorf("listen at '%s' failed", *address)
-		return
-	}
+	hsrv := httptest.NewServer(http.HandlerFunc(restful.DefaultDispatch))
+	defer hsrv.Close()
 
 	time.Sleep(10 * time.Microsecond)
-	cb(NewClient("http://127.0.0.1"+*test_address), definitions)
+	cb(NewClient(hsrv.URL), definitions)
 
 	if nil != srv_instance {
 		srv_instance.Close()
 		srv_instance = nil
 	}
-	if nil != listener {
-		listener.Close()
-	}
 	restful.ClearRegisteredWebServices()
-
-	<-ch
 }
 
 func SrvTest(t *testing.T, file string, cb func(client *Client, definitions *types.TableDefinitions)) {
@@ -545,7 +521,7 @@ CREATE TABLE tpt_zip_files (id  INTEGER PRIMARY KEY AUTOINCREMENT, body text, do
 }
 
 func createJson(t *testing.T, client *Client, target, msg string) string {
-	_, id, e := client.CreateJson("http://127.0.0.1:7071/"+target, []byte(msg))
+	_, id, e := client.CreateJson(client.Url+"/"+target, []byte(msg))
 	if nil != e {
 		t.Errorf("create %s failed, %v", target, e)
 		t.FailNow()

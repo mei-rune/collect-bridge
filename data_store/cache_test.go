@@ -13,7 +13,6 @@ import (
 func TestCacheBasic(t *testing.T) {
 	SrvTest(t, "etc/tpt_models.xml", func(client *Client, definitions *types.TableDefinitions) {
 		deleteBy(t, client, "network_device", map[string]string{})
-
 		id1 := createMockDevice(t, client, "1")
 		id2 := createMockDevice(t, client, "2")
 		id3 := createMockDevice(t, client, "3")

@@ -203,7 +203,7 @@ func TestJobFull(t *testing.T) {
 	}
 
 	m := result.ToMap()
-	m["managed_id"] = "12"
+	m["managed_id"] = 12
 	m["managed_type"] = "managed_object"
 	m["metric"] = "cpu"
 	m["trigger_id"] = "test_id"

@@ -31,16 +31,16 @@ func createMockSnmpParams(t *testing.T, client *ds.Client, id, body map[string]i
 	return ds.CreateItForTest(t, client, "snmp_param", body)
 }
 
-func urlGet(t *testing.T, managed_type, managed_id, target string) commons.Result {
-	self := &commons.HttpClient{Url: "http://127.0.0.1" + *address}
+func urlGet(t *testing.T, sampling_url, managed_type, managed_id, target string) commons.Result {
+	self := &commons.HttpClient{Url: sampling_url}
 	url := self.CreateUrl().Concat("metrics", managed_type, managed_id, target).ToUrl()
 	t.Log(url)
 	//fmt.Println(url)
 	return self.Invoke("GET", url, nil, 200)
 }
 
-func nativeGet(t *testing.T, ip, target string, params map[string]string) commons.Result {
-	self := &commons.HttpClient{Url: "http://127.0.0.1" + *address}
+func nativeGet(t *testing.T, sampling_url, ip, target string, params map[string]string) commons.Result {
+	self := &commons.HttpClient{Url: sampling_url}
 	url := self.CreateUrl().Concat("metrics", ip, target).WithQueries(params, "").ToUrl()
 	t.Log(url)
 	//fmt.Println(url)
@@ -48,9 +48,9 @@ func nativeGet(t *testing.T, ip, target string, params map[string]string) common
 }
 
 func TestGetWithNotFound(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 
-		res := urlGet(t, "network_device", "123", "sys.oid")
+		res := urlGet(t, sampling_url, "network_device", "123", "sys.oid")
 		if !res.HasError() {
 			t.Error("error is nil")
 			return
@@ -64,9 +64,9 @@ func TestGetWithNotFound(t *testing.T) {
 }
 
 func TestGetWithInvalidId(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 
-		res := urlGet(t, "network_device", "a123", "sys.oid")
+		res := urlGet(t, sampling_url, "network_device", "a123", "sys.oid")
 		if !res.HasError() {
 			t.Error("error is nil")
 			return
@@ -80,7 +80,7 @@ func TestGetWithInvalidId(t *testing.T) {
 }
 
 func TestGetBasic(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -91,7 +91,7 @@ func TestGetBasic(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 
-		res := urlGet(t, "network_device", id, "sys.oid")
+		res := urlGet(t, sampling_url, "network_device", id, "sys.oid")
 		if res.HasError() {
 			t.Error(res.Error())
 			return
@@ -104,7 +104,7 @@ func TestGetBasic(t *testing.T) {
 }
 
 func TestGetTableBasic(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -115,7 +115,7 @@ func TestGetTableBasic(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 
-		res := urlGet(t, "network_device", id, "sys")
+		res := urlGet(t, sampling_url, "network_device", id, "sys")
 		if res.HasError() {
 			t.Error(res.Error())
 			return
@@ -127,14 +127,14 @@ func TestGetTableBasic(t *testing.T) {
 }
 
 func TestNativeGetFailed(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
 
-		res := nativeGet(t, "127.0.0.1", "sys.oid", map[string]string{"snmp.version": "v2c"})
+		res := nativeGet(t, sampling_url, "127.0.0.1", "sys.oid", map[string]string{"snmp.version": "v2c"})
 		if !res.HasError() {
 			t.Error("errors is nil")
 			return
@@ -146,14 +146,14 @@ func TestNativeGetFailed(t *testing.T) {
 }
 
 func TestNativeGetFailedWithErrorPort(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
 
-		res := nativeGet(t, "127.0.0.1", "sys.oid", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public", "snmp.port": "3244"})
+		res := nativeGet(t, sampling_url, "127.0.0.1", "sys.oid", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public", "snmp.port": "3244"})
 		if !res.HasError() {
 			t.Error("errors is nil")
 			return
@@ -165,14 +165,14 @@ func TestNativeGetFailedWithErrorPort(t *testing.T) {
 	})
 }
 func TestNativeGetTableFailed(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
 
-		res := nativeGet(t, "127.0.0.1", "sys", map[string]string{"snmp.version": "v2c"})
+		res := nativeGet(t, sampling_url, "127.0.0.1", "sys", map[string]string{"snmp.version": "v2c"})
 		if !res.HasError() {
 			t.Error("errors is nil")
 			return
@@ -184,13 +184,13 @@ func TestNativeGetTableFailed(t *testing.T) {
 }
 
 func TestNativeGetBasic(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
-		res := nativeGet(t, "127.0.0.1", "sys.oid", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		res := nativeGet(t, sampling_url, "127.0.0.1", "sys.oid", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
 		if res.HasError() {
 			t.Error(res.Error())
 			return
@@ -203,14 +203,14 @@ func TestNativeGetBasic(t *testing.T) {
 }
 
 func TestNativeGetTableBasic(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
 
-		res := nativeGet(t, "127.0.0.1", "sys", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		res := nativeGet(t, sampling_url, "127.0.0.1", "sys", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
 		if res.HasError() {
 			t.Error(res.Error())
 			return

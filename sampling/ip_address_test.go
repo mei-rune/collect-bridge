@@ -7,13 +7,13 @@ import (
 )
 
 func TestIPAddressNative(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
-		res := nativeGet(t, "127.0.0.1", "ipAddress", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		res := nativeGet(t, sampling_url, "127.0.0.1", "ipAddress", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
 		if res.HasError() {
 			t.Error(res.Error())
 			return
@@ -26,7 +26,7 @@ func TestIPAddressNative(t *testing.T) {
 }
 
 func TestIPAddress(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -37,7 +37,7 @@ func TestIPAddress(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 
-		res := urlGet(t, "network_device", id, "ipAddress")
+		res := urlGet(t, sampling_url, "network_device", id, "ipAddress")
 		if res.HasError() {
 			t.Error(res.Error())
 			return
@@ -49,13 +49,13 @@ func TestIPAddress(t *testing.T) {
 }
 
 func TestRouteNative(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
-		res := nativeGet(t, "127.0.0.1", "route", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		res := nativeGet(t, sampling_url, "127.0.0.1", "route", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
 		if res.HasError() {
 			t.Error(res.Error())
 			return
@@ -68,7 +68,7 @@ func TestRouteNative(t *testing.T) {
 }
 
 func TestRoute(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -79,7 +79,7 @@ func TestRoute(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 
-		res := urlGet(t, "network_device", id, "route")
+		res := urlGet(t, sampling_url, "network_device", id, "route")
 		if res.HasError() {
 			t.Error(res.Error())
 			return
@@ -91,13 +91,13 @@ func TestRoute(t *testing.T) {
 }
 
 func TestArpNative(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
-		res := nativeGet(t, "127.0.0.1", "arp", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		res := nativeGet(t, sampling_url, "127.0.0.1", "arp", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
 		if res.HasError() {
 			t.Error(res.Error())
 			return
@@ -110,7 +110,7 @@ func TestArpNative(t *testing.T) {
 }
 
 func TestArp(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -121,7 +121,7 @@ func TestArp(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 
-		res := urlGet(t, "network_device", id, "arp")
+		res := urlGet(t, sampling_url, "network_device", id, "arp")
 		if res.HasError() {
 			t.Error(res.Error())
 			return

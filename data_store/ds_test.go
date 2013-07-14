@@ -193,7 +193,7 @@ func httpDelete(endpoint string) (*http.Response, error) {
 }
 
 func updateJson(t *testing.T, client *Client, target, id, msg string) {
-	_, e := client.UpdateJson("http://127.0.0.1:7071/"+target+"/"+id, []byte(msg))
+	_, e := client.UpdateJson(client.Url+"/"+target+"/"+id, []byte(msg))
 	if nil != e {
 		t.Errorf("update %s failed, %v", target, e)
 		t.FailNow()

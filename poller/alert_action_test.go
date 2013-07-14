@@ -39,6 +39,7 @@ func TestAlertSimple(t *testing.T) {
 
 	for _, test := range all_tests {
 		action, e := newAlertAction(map[string]interface{}{
+			"type":             "alert",
 			"id":               "123",
 			"name":             "this is a test alert",
 			"delay_times":      test.delay_times,

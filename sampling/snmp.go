@@ -20,7 +20,7 @@ const (
 
 var (
 	metricNotExistsError = commons.IsRequired("metric")
-	snmpNotExistsError   = commons.IsRequired("parameter of snmp")
+	snmpNotExistsError   = commons.IsRequired("snmp")
 )
 
 type snmpBase struct {

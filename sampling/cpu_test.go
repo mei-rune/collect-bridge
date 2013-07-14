@@ -7,13 +7,13 @@ import (
 )
 
 func TestHostCpuNative(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
 			return
 		}
-		res := nativeGet(t, "127.0.0.1", "cpu", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		res := nativeGet(t, sampling_url, "127.0.0.1", "cpu", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
 		if res.HasError() {
 			t.Error(res.Error())
 			return
@@ -26,7 +26,7 @@ func TestHostCpuNative(t *testing.T) {
 }
 
 func TestHostCpu(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
 			t.Error(e)
@@ -37,7 +37,7 @@ func TestHostCpu(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 
-		res := urlGet(t, "network_device", id, "cpu")
+		res := urlGet(t, sampling_url, "network_device", id, "cpu")
 		if res.HasError() {
 			t.Error(res.Error())
 			return

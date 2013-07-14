@@ -60,7 +60,9 @@ var (
 )
 
 func srvTest(t *testing.T, cb func(client *ds.Client, definitions *types.TableDefinitions)) {
-	sampling.SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, definitions *types.TableDefinitions) {
+	sampling.SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, url string, definitions *types.TableDefinitions) {
+		*dsUrl = client.Url
+		*sampling_url = url
 		cb(client, definitions)
 	})
 }
@@ -298,11 +300,11 @@ func TestIntegratedHistory(t *testing.T) {
 			"name":      "this is a test alert",
 			"attribute": "services"})
 
-		hostName, e := os.Hostname()
-		if nil != e {
-			t.Error(e)
-			return
-		}
+		// hostName, e := os.Hostname()
+		// if nil != e {
+		// 	t.Error(e)
+		// 	return
+		// }
 
 		count := 0
 		var js string
@@ -342,8 +344,8 @@ func TestIntegratedHistory(t *testing.T) {
 			}
 
 			if 0 != len(js) {
-				if !strings.Contains(strings.ToLower(js), strings.ToLower(hostName)) {
-					t.Error("excepted contains", strings.ToLower(hostName))
+				if !strings.Contains(strings.ToLower(js), `"value":76`) {
+					t.Error("excepted contains", `"value":76"`)
 					t.Error("actual is ", js)
 				}
 				return

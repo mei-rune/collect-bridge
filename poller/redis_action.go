@@ -35,7 +35,10 @@ type redisAction struct {
 }
 
 func (self *redisAction) Stats() map[string]interface{} {
-	return map[string]interface{}{"id": self.id, "name": self.name,
+	return map[string]interface{}{
+		"type":          "redis_command",
+		"id":            self.id,
+		"name":          self.name,
 		"begin_send_at": atomic.LoadInt64(&self.begin_send_at),
 		"end_send_at":   atomic.LoadInt64(&self.end_send_at)}
 }

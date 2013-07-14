@@ -5,10 +5,10 @@ import (
 	ds "data_store"
 	"errors"
 	"github.com/runner-mei/go-restful"
+	"net/http/httptest"
 	"time"
 
 	"commons/types"
-	"net"
 	"net/http"
 	"testing"
 )
@@ -171,41 +171,20 @@ func (self *server) NativeDelete(req *restful.Request, resp *restful.Response) {
 	self.native_invoke(req, resp, (*dispatcher).Delete)
 }
 
-func SrvTest(t *testing.T, file string, cb func(client *ds.Client, definitions *types.TableDefinitions)) {
+func SrvTest(t *testing.T, file string, cb func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions)) {
 	ds.SrvTest(t, file, func(client *ds.Client, definitions *types.TableDefinitions) {
 		is_test = true
+		*ds_url = client.Url
 		Main()
 
-		listener, e := net.Listen("tcp", *address)
-		if nil != e {
-			t.Error("start tcp listen failed,", e)
-			return
-		}
-		ch := make(chan string)
+		hsrv := httptest.NewServer(http.HandlerFunc(restful.DefaultDispatch))
+		defer hsrv.Close()
 
-		go func() {
-			defer func() {
-				ch <- "exit"
-			}()
-			ch <- "ok"
-			http.Serve(listener, nil)
-		}()
-
-		s := <-ch
-		if "ok" != s {
-			t.Error("start http listen failed")
-			return
-		}
-
-		cb(client, definitions)
+		cb(client, hsrv.URL, definitions)
 
 		if nil != srv_instance {
 			srv_instance = nil
 		}
-		if nil != listener {
-			listener.Close()
-		}
-		<-ch
 
 	})
 }

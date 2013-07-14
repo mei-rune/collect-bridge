@@ -39,7 +39,7 @@ type actionWrapper struct {
 func (self *actionWrapper) Stats() map[string]interface{} {
 	stats := self.action.Stats()
 	if nil != self.last_error {
-		stats["error"] = self.last_error
+		stats["error"] = self.last_error.Error()
 	}
 	return stats
 }

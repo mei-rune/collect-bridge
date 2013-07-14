@@ -58,10 +58,10 @@ func TestSysOidFailed(t *testing.T) {
 	}
 	res := sys.Call(commons.StringMap(map[string]string{}))
 	if !res.HasError() {
-		t.Error("excepted error is ''parameter of snmp' is required.', actual is nil")
+		t.Error("excepted error is ''snmp' is required.', actual is nil")
 		return
 	}
-	if res.ErrorMessage() != "'parameter of snmp' is required." {
+	if res.ErrorMessage() != "'snmp' is required." {
 		t.Error(res.Error())
 		return
 	}

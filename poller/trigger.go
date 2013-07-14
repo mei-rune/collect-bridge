@@ -175,16 +175,29 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 
 		action_id := commons.GetStringWithDefault(spec, "id", "unknow_id")
 		action_name := commons.GetStringWithDefault(spec, "name", "unknow_name")
+		enabled := commons.GetBoolWithDefault(spec, "enabled", true)
 
 		action, e := newAction(spec, options, ctx)
 		if nil != e {
 			return nil, errors.New("create action '" + action_id + ":" + action_name + "' failed, " + e.Error())
 		}
-		actions = append(actions, &actionWrapper{id: action_id, name: action_name, action: action})
+		actions = append(actions, &actionWrapper{id: action_id, name: action_name, enabled: enabled, action: action})
 	}
 
-	if 0 == len(actions) && !is_test {
+	if 0 == len(actions) {
 		return nil, errors.New("actions is empty.")
+	}
+
+	enabled := false
+	for _, action := range actions {
+		if action.enabled {
+			enabled = true
+			break
+		}
+	}
+
+	if !enabled {
+		return nil, errors.New("all actions is disable.")
 	}
 
 	if strings.HasPrefix(expression, every) {

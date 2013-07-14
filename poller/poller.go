@@ -16,12 +16,12 @@ import (
 
 var (
 	redisAddress  = flag.String("redis", "127.0.0.1:6379", "the address of redis")
-	listenAddress = flag.String("listen", ":7076", "the address of http")
+	listenAddress = flag.String("listen", ":7073", "the address of http")
 	dsUrl         = flag.String("ds", "http://127.0.0.1:7071", "the address of ds")
-	metrics_url   = flag.String("sampling", "http://127.0.0.1:7072", "the address of bridge")
+	sampling_url  = flag.String("sampling", "http://127.0.0.1:7072", "the address of bridge")
 	timeout       = flag.Duration("timeout", 1*time.Minute, "the timeout of http")
 	refresh       = flag.Duration("refresh", 5, "the refresh interval of cache")
-	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:/7073", "the url of foreign db")
+	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:7074", "the url of foreign db")
 
 	trigger_exporter         = &Exporter{}
 	is_test                  = false
@@ -93,7 +93,7 @@ func Runforever() {
 
 	ds_client := ds.NewClient(*dsUrl)
 
-	ctx := map[string]interface{}{"metrics.url": *metrics_url,
+	ctx := map[string]interface{}{"sampling.url": *sampling_url,
 		"redis_channel":     forward(redis_channel),
 		"alerts_channel":    forward2(alert_foreign.c),
 		"histories_channel": forward2(histories_foreign.c)}

@@ -22,26 +22,26 @@ func TestAlertSimple(t *testing.T) {
 	}()
 
 	all_tests := []struct {
-		max_repeated int
-	}{{max_repeated: 1},
-		{max_repeated: 2},
-		{max_repeated: 3},
-		{max_repeated: 4},
-		{max_repeated: 5},
-		{max_repeated: 6},
-		{max_repeated: 7},
-		{max_repeated: 8},
-		{max_repeated: 10},
-		{max_repeated: 20},
-		{max_repeated: 30},
-		{max_repeated: 40},
-		{max_repeated: 50}}
+		delay_times int
+	}{{delay_times: 1},
+		{delay_times: 2},
+		{delay_times: 3},
+		{delay_times: 4},
+		{delay_times: 5},
+		{delay_times: 6},
+		{delay_times: 7},
+		{delay_times: 8},
+		{delay_times: 10},
+		{delay_times: 20},
+		{delay_times: 30},
+		{delay_times: 40},
+		{delay_times: 50}}
 
 	for _, test := range all_tests {
 		action, e := newAlertAction(map[string]interface{}{
 			"id":               "123",
 			"name":             "this is a test alert",
-			"max_repeated":     test.max_repeated,
+			"delay_times":      test.delay_times,
 			"expression_style": "json",
 			"expression_code": map[string]interface{}{
 				"attribute": "a",
@@ -93,24 +93,24 @@ func TestAlertSimple(t *testing.T) {
 
 		//////////////////////////////////////////
 		// send alert
-		for i := 0; i < test.max_repeated-1; i++ {
+		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
 		}
 		sendAndRecv(1, map[string]interface{}{"a": "13"})
 
-		for i := 0; i < test.max_repeated; i++ {
+		for i := 0; i < test.delay_times; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
 		}
 
 		//////////////////////////////////////////
 		// send resume
-		for i := 0; i < test.max_repeated-1; i++ {
+		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "12"})
 		}
 
 		sendAndRecv(0, map[string]interface{}{"a": "12"})
 
-		for i := 0; i < test.max_repeated; i++ {
+		for i := 0; i < test.delay_times; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "12"})
 		}
 	}
@@ -129,25 +129,25 @@ func TestAlertSimple2(t *testing.T) {
 	}()
 
 	all_tests := []struct {
-		max_repeated int
-	}{{max_repeated: 2},
-		{max_repeated: 3},
-		{max_repeated: 4},
-		{max_repeated: 5},
-		{max_repeated: 6},
-		{max_repeated: 7},
-		{max_repeated: 8},
-		{max_repeated: 10},
-		{max_repeated: 20},
-		{max_repeated: 30},
-		{max_repeated: 40},
-		{max_repeated: 50}}
+		delay_times int
+	}{{delay_times: 2},
+		{delay_times: 3},
+		{delay_times: 4},
+		{delay_times: 5},
+		{delay_times: 6},
+		{delay_times: 7},
+		{delay_times: 8},
+		{delay_times: 10},
+		{delay_times: 20},
+		{delay_times: 30},
+		{delay_times: 40},
+		{delay_times: 50}}
 
 	for _, test := range all_tests {
 		action, e := newAlertAction(map[string]interface{}{
 			"id":               "123",
 			"name":             "this is a test alert",
-			"max_repeated":     test.max_repeated,
+			"delay_times":      test.delay_times,
 			"expression_style": "json",
 			"expression_code": map[string]interface{}{
 				"attribute": "a",
@@ -199,37 +199,37 @@ func TestAlertSimple2(t *testing.T) {
 
 		//////////////////////////////////////////
 		// send alert
-		for i := 0; i < test.max_repeated-1; i++ {
+		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
 		}
 
 		sendAndNotRecv(map[string]interface{}{"a": "12"})
 
-		for i := 0; i < test.max_repeated-1; i++ {
+		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
 		}
 
 		sendAndRecv(1, map[string]interface{}{"a": "13"})
 
-		for i := 0; i < test.max_repeated; i++ {
+		for i := 0; i < test.delay_times; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
 		}
 
 		//////////////////////////////////////////
 		// send resume
-		for i := 0; i < test.max_repeated-1; i++ {
+		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "12"})
 		}
 
 		sendAndNotRecv(map[string]interface{}{"a": "13"})
 
-		for i := 0; i < test.max_repeated-1; i++ {
+		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "12"})
 		}
 
 		sendAndRecv(0, map[string]interface{}{"a": "12"})
 
-		for i := 0; i < test.max_repeated; i++ {
+		for i := 0; i < test.delay_times; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "12"})
 		}
 	}
@@ -256,27 +256,27 @@ func TestAlertWithSendFailed(t *testing.T) {
 	}()
 
 	all_tests := []struct {
-		max_repeated int
-	}{{max_repeated: 1},
-		{max_repeated: 2},
-		{max_repeated: 3},
-		{max_repeated: 4},
-		{max_repeated: 5},
-		{max_repeated: 6},
-		{max_repeated: 7},
-		{max_repeated: 8},
-		{max_repeated: 10},
-		{max_repeated: 20},
-		{max_repeated: 30},
-		{max_repeated: 40},
-		{max_repeated: 50}}
+		delay_times int
+	}{{delay_times: 1},
+		{delay_times: 2},
+		{delay_times: 3},
+		{delay_times: 4},
+		{delay_times: 5},
+		{delay_times: 6},
+		{delay_times: 7},
+		{delay_times: 8},
+		{delay_times: 10},
+		{delay_times: 20},
+		{delay_times: 30},
+		{delay_times: 40},
+		{delay_times: 50}}
 
 	for _, test := range all_tests {
 
 		action, e := newAlertAction(map[string]interface{}{
 			"id":               "123",
 			"name":             "this is a test alert",
-			"max_repeated":     test.max_repeated,
+			"delay_times":      test.delay_times,
 			"expression_style": "json",
 			"expression_code": map[string]interface{}{
 				"attribute": "a",
@@ -334,32 +334,32 @@ func TestAlertWithSendFailed(t *testing.T) {
 
 		//////////////////////////////////////////
 		// send alert
-		for i := 0; i < test.max_repeated-1; i++ {
+		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
 		}
 		atomic.StoreInt32(&returnFailed, 1)
-		for i := 0; i < test.max_repeated; i++ {
+		for i := 0; i < test.delay_times; i++ {
 			sendAndRecv(1, map[string]interface{}{"a": "13"})
 		}
 		atomic.StoreInt32(&returnFailed, 0)
 		sendAndRecv(1, map[string]interface{}{"a": "13"})
 
-		for i := 0; i < test.max_repeated; i++ {
+		for i := 0; i < test.delay_times; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
 		}
 		//////////////////////////////////////////
 		// send resume
-		for i := 0; i < test.max_repeated-1; i++ {
+		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "12"})
 		}
 		atomic.StoreInt32(&returnFailed, 1)
-		for i := 0; i < test.max_repeated; i++ {
+		for i := 0; i < test.delay_times; i++ {
 			sendAndRecv(0, map[string]interface{}{"a": "12"})
 		}
 		atomic.StoreInt32(&returnFailed, 0)
 		sendAndRecv(0, map[string]interface{}{"a": "12"})
 
-		for i := 0; i < test.max_repeated; i++ {
+		for i := 0; i < test.delay_times; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "12"})
 		}
 	}
@@ -380,7 +380,7 @@ func TestAlertRepectedOverflow(t *testing.T) {
 	action, e := newAlertAction(map[string]interface{}{
 		"id":               "1243",
 		"name":             "this is a test alert",
-		"max_repeated":     1,
+		"delay_times":      1,
 		"expression_style": "json",
 		"expression_code": map[string]interface{}{
 			"attribute": "a",
@@ -443,7 +443,7 @@ func TestAlertRepectedOverflow2(t *testing.T) {
 	action, e := newAlertAction(map[string]interface{}{
 		"id":               "123",
 		"name":             "this is a test alert",
-		"max_repeated":     MAX_REPEATED,
+		"delay_times":      MAX_REPEATED,
 		"expression_style": "json",
 		"expression_code": map[string]interface{}{
 			"attribute": "a",

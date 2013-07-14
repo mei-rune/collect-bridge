@@ -158,7 +158,7 @@ func TestIntegratedAlert(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
 			"id":               "123",
 			"name":             "this is a test alert",
-			"max_repeated":     0,
+			"delay_times":      0,
 			"expression_style": "json",
 			"expression_code": map[string]interface{}{
 				"attribute": "a",
@@ -215,7 +215,7 @@ func TestIntegratedAlert2(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
 			"id":               "123",
 			"name":             "this is a test alert",
-			"max_repeated":     0,
+			"delay_times":      0,
 			"expression_style": "json",
 			"expression_code": map[string]interface{}{
 				"attribute": "services",
@@ -296,7 +296,7 @@ func TestIntegratedHistory(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "history", map[string]interface{}{
 			"id":        "123",
 			"name":      "this is a test alert",
-			"attribute": "name"})
+			"attribute": "services"})
 
 		hostName, e := os.Hostname()
 		if nil != e {
@@ -363,7 +363,7 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 		mt_id := ds.CreateItByParentForTest(t, client, "network_device", mo_id, "metric_trigger", metric_trigger_for_cpu)
 		rule_id := ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
 			"name":             "this is a test alert",
-			"max_repeated":     0,
+			"delay_times":      0,
 			"expression_style": "json",
 			"expression_code": map[string]interface{}{
 				"attribute": "services",

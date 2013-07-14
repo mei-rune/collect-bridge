@@ -74,12 +74,12 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		return nil, errors.New("'managed_object_id' is not a int64, " + e.Error())
 	}
 
-	url, e := commons.GetString(ctx, "metrics.url")
+	url, e := commons.GetString(ctx, "sampling.url")
 	if nil != e {
-		return nil, errors.New("'metrics.url' is required, " + e.Error())
+		return nil, errors.New("'sampling.url' is required, " + e.Error())
 	}
 	if 0 == len(url) {
-		return nil, errors.New("'metrics.url' is required.")
+		return nil, errors.New("'sampling.url' is required.")
 	}
 
 	client_url := ""

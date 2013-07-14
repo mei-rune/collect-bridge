@@ -76,7 +76,7 @@ func TestJobWithSamplingFailed(t *testing.T) {
 			"arg2":    "$managed_type",
 			"arg3":    "$managed_id",
 			"arg4":    "$metric"}}},
-		map[string]interface{}{"redis_channel": forward(ch), "metrics.url": "http://" + l.Addr().String()})
+		map[string]interface{}{"redis_channel": forward(ch), "sampling.url": "http://" + l.Addr().String()})
 
 	if nil != e {
 		t.Error(e)
@@ -169,7 +169,7 @@ func TestJobFull(t *testing.T) {
 			"arg4":    "$managed_type",
 			"arg5":    "$managed_id",
 			"arg6":    "$metric"}}},
-		map[string]interface{}{"redis_channel": forward(ch), "metrics.url": "http://" + l.Addr().String()})
+		map[string]interface{}{"redis_channel": forward(ch), "sampling.url": "http://" + l.Addr().String()})
 
 	if nil != e {
 		t.Error(e)

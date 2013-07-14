@@ -20,8 +20,8 @@ import (
 )
 
 var (
-	listenAddress = flag.String("carrier.listen", ":7076", "the address of http")
-	dbUrl         = flag.String("carrier.dburl", "host=127.0.0.1 dbname=tpt_extreme user=tpt password=extreme sslmode=disable", "the db url")
+	listenAddress = flag.String("carrier.listen", ":7074", "the address of http")
+	dbUrl         = flag.String("carrier.dburl", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
 	drv           = flag.String("carrier.db", "postgres", "the db driver")
 	goroutines    = flag.Int("carrier.connections", 10, "the db connection number")
 
@@ -299,13 +299,6 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 	if nil != e {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(e.Error()))
-	}
-}
-
-func main() {
-	e := Main(false)
-	if nil != e {
-		fmt.Println(e)
 	}
 }
 

@@ -15,7 +15,7 @@ var reset_error = errors.New("please reset channel.")
 type alertAction struct {
 	id           int64
 	name         string
-	max_repeated int
+	delay_times int
 
 	options     map[string]interface{}
 	contex      map[string]interface{}
@@ -63,7 +63,7 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 		self.repeated++
 
 		if self.repeated >= 9999996 || self.repeated < 0 { // inhebit overflow
-			self.repeated = self.max_repeated + 10
+			self.repeated = self.delay_times + 10
 		}
 	} else {
 		self.repeated = 1
@@ -71,7 +71,7 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 		self.already_send = false
 	}
 
-	if self.repeated < self.max_repeated {
+	if self.repeated < self.delay_times {
 		return nil
 	}
 
@@ -150,13 +150,13 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		return nil, e
 	}
 
-	max_repeated := commons.GetIntWithDefault(attributes, "max_repeated", 1)
-	if max_repeated <= 0 {
-		max_repeated = 1
+	delay_times := commons.GetIntWithDefault(attributes, "delay_times", 1)
+	if delay_times <= 0 {
+		delay_times = 1
 	}
 
-	if max_repeated >= MAX_REPEATED {
-		max_repeated = MAX_REPEATED - 20
+	if delay_times >= MAX_REPEATED {
+		delay_times = MAX_REPEATED - 20
 	}
 
 	contex := map[string]interface{}{"action_id": id, "name": name}
@@ -171,7 +171,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		//description: commons.GetString(attributes, "description", ""),
 		already_send: false,
 		options:      options,
-		max_repeated: max_repeated,
+		delay_times:  delay_times,
 		contex:       contex,
 		channel:      channel,
 		cached_data:  &data_object{c: make(chan error, 2)},

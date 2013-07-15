@@ -412,8 +412,8 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 					rule_id_int, _ := strconv.ParseInt(rule_id, 10, 64)
 					mo_id_int, _ := strconv.ParseInt(mo_id, 10, 64)
 
-					if entity.RuleId != rule_id_int {
-						t.Error(" entity.RuleId != rule_id, excepted is ", rule_id_int, ", actual is ", entity.RuleId)
+					if entity.ActionId != rule_id_int {
+						t.Error(" entity.ActionId != rule_id, excepted is ", rule_id_int, ", actual is ", entity.ActionId)
 					}
 					if entity.Status != 1 {
 						t.Error(" entity.Status != 1, excepted is ", 1, ", actual is ", entity.Status)
@@ -485,8 +485,8 @@ func TestIntegratedHistoryWithCarrier(t *testing.T) {
 					rule_id_int, _ := strconv.ParseInt(rule_id, 10, 64)
 					mo_id_int, _ := strconv.ParseInt(mo_id, 10, 64)
 
-					if entity.RuleId != rule_id_int {
-						t.Error(" entity.RuleId != rule_id, excepted is ", rule_id_int, ", actual is ", entity.RuleId)
+					if entity.ActionId != rule_id_int {
+						t.Error(" entity.ActionId != rule_id, excepted is ", rule_id_int, ", actual is ", entity.ActionId)
 					}
 
 					// if entity.CurrentValue != value {

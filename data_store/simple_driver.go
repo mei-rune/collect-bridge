@@ -375,65 +375,9 @@ func (self *simple_driver) whereWithParams(table *types.TableDefinition, isSingl
 		return nil, nil
 	}
 
-	e := builder.build(params)
+	e := builder.buildSQL(params)
 	if nil != e {
 		return nil, e
-	}
-
-	if groupBy, ok := params["groupBy"]; ok {
-		if 0 != len(groupBy) {
-			return nil, errors.New("groupBy is empty.")
-		}
-
-		buffer.WriteString(" GROUP BY ")
-		buffer.WriteString(groupBy)
-	}
-
-	if having, ok := params["having"]; ok {
-		if 0 != len(having) {
-			return nil, errors.New("having is empty.")
-		}
-
-		buffer.WriteString(" HAVING ")
-		buffer.WriteString(having)
-	}
-
-	if order, ok := params["order"]; ok {
-		if 0 != len(order) {
-			return nil, errors.New("order is empty.")
-		}
-
-		buffer.WriteString(" ORDER BY ")
-		buffer.WriteString(order)
-	}
-
-	if limit, ok := params["limit"]; ok {
-		i, e := strconv.ParseInt(limit, 10, 64)
-		if nil != e {
-			return nil, fmt.Errorf("limit is not a number, actual value is '" + limit + "'")
-		}
-		if i <= 0 {
-			return nil, fmt.Errorf("limit must is geater zero, actual value is '" + limit + "'")
-		}
-
-		if offset, ok := params["offset"]; ok {
-			i, e = strconv.ParseInt(offset, 10, 64)
-			if nil != e {
-				return nil, fmt.Errorf("offset is not a number, actual value is '" + offset + "'")
-			}
-
-			if i < 0 {
-				return nil, fmt.Errorf("offset must is geater(or equals) zero, actual value is '" + offset + "'")
-			}
-
-			buffer.WriteString(" LIMIT ")
-			buffer.WriteString(offset)
-			buffer.WriteString(" , ")
-			buffer.WriteString(limit)
-		} else {
-			buffer.WriteString(" LIMIT ")
-			buffer.WriteString(limit)
-		}
 	}
 
 	return builder.params, nil

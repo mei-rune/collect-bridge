@@ -2,6 +2,8 @@ package carrier
 
 import (
 	"bytes"
+	"commons/types"
+	ds "data_store"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -27,6 +29,105 @@ var (
 
 	server_instance *server = nil
 )
+
+var (
+	id_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "id",
+		Type:       types.GetTypeDefinition("objectId"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	action_id_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "action_id",
+		Type:       types.GetTypeDefinition("integer"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	status_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "status",
+		Type:       types.GetTypeDefinition("integer"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	managed_type_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "managed_type",
+		Type:       types.GetTypeDefinition("string"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	managed_id_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "managed_id",
+		Type:       types.GetTypeDefinition("objectId"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	alert_current_value_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "current_value",
+		Type:       types.GetTypeDefinition("string"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	triggered_at_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "triggered_at",
+		Type:       types.GetTypeDefinition("datetime"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	history_current_value_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "current_value",
+		Type:       types.GetTypeDefinition("decimal"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	sampled_at_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "sampled_at",
+		Type:       types.GetTypeDefinition("datetime"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	tpt_alert_history = &types.TableDefinition{Name: "AlertHistory",
+		UnderscoreName: "alert_history",
+		CollectionName: "tpt_alert_histories",
+		Id:             id_column}
+
+	tpt_alert_cookies = &types.TableDefinition{Name: "AlertCookies",
+		UnderscoreName: "alert_cookies",
+		CollectionName: "tpt_alert_cookies",
+		Id:             id_column}
+
+	tpt_history = &types.TableDefinition{Name: "History",
+		UnderscoreName: "history",
+		CollectionName: "tpt_histories",
+		Id:             id_column}
+)
+
+func init() {
+
+	// type AlertEntity struct {
+	// 	Id           int64     `json:"id"`
+	// 	ActionId       int64     `json:"action_id"`
+	// 	Status       int64     `json:"status"`
+	// 	CurrentValue string    `json:"current_value"`
+	// 	TriggeredAt  time.Time `json:"triggered_at"`
+	// 	ManagedType  string    `json:"managed_type"`
+	// 	ManagedId    int64     `json:"managed_id"`
+	// }
+
+	// type HistoryEntity struct {
+	// 	Id           int64     `json:"id"`
+	// 	ActionId       int64     `json:"action_id"`
+	// 	CurrentValue float64   `json:"current_value"`
+	// 	SampledAt    time.Time `json:"sampled_at"`
+	// 	ManagedType  string    `json:"managed_type"`
+	// 	ManagedId    int64     `json:"managed_id"`
+	// }
+
+	attributes := map[string]*types.ColumnDefinition{id_column.Name: id_column,
+		action_id_column.Name:           action_id_column,           // 	ActionId       int64     `json:"action_id"`
+		status_column.Name:              status_column,              // 	Status       int64     `json:"status"`
+		alert_current_value_column.Name: alert_current_value_column, // 	CurrentValue string    `json:"current_value"`
+		triggered_at_column.Name:        triggered_at_column,        // 	TriggeredAt  time.Time `json:"triggered_at"`
+		managed_type_column.Name:        managed_type_column,        // 	ManagedType  string    `json:"managed_type"`
+		managed_id_column.Name:          managed_id_column}          // 	ManagedId    int64     `json:"managed_id"`
+
+	tpt_alert_history.OwnAttributes = attributes
+	tpt_alert_history.Attributes = attributes
+
+	tpt_alert_cookies.OwnAttributes = attributes
+	tpt_alert_cookies.Attributes = attributes
+
+	history_attributes := map[string]*types.ColumnDefinition{id_column.Name: id_column,
+		action_id_column.Name:             action_id_column,             // 	ActionId       int64     `json:"action_id"`
+		history_current_value_column.Name: history_current_value_column, // 	CurrentValue float64   `json:"current_value"`
+		sampled_at_column.Name:            sampled_at_column,            // 	SampledAt    time.Time `json:"sampled_at"`
+		managed_type_column.Name:          managed_type_column,          // 	ManagedType  string    `json:"managed_type"`
+		managed_id_column.Name:            managed_id_column}            // 	ManagedId    int64     `json:"managed_id"`
+
+	tpt_history.OwnAttributes = history_attributes
+	tpt_history.Attributes = history_attributes
+}
 
 type request_object struct {
 	c        chan error
@@ -138,7 +239,8 @@ func (self *server) run(ctx *context, obj *request_object) {
 }
 
 type AlertEntity struct {
-	RuleId       int64     `json:"action_id"`
+	Id           int64     `json:"id"`
+	ActionId     int64     `json:"action_id"`
 	Status       int64     `json:"status"`
 	CurrentValue string    `json:"current_value"`
 	TriggeredAt  time.Time `json:"triggered_at"`
@@ -147,7 +249,8 @@ type AlertEntity struct {
 }
 
 type HistoryEntity struct {
-	RuleId       int64     `json:"action_id"`
+	Id           int64     `json:"id"`
+	ActionId     int64     `json:"action_id"`
 	CurrentValue float64   `json:"current_value"`
 	SampledAt    time.Time `json:"sampled_at"`
 	ManagedType  string    `json:"managed_type"`
@@ -155,6 +258,201 @@ type HistoryEntity struct {
 }
 
 var months = []string{"_00", "_01", "_02", "_03", "_04", "_05", "_06", "_07", "_08", "_09", "_10", "_11", "_12", "_13"}
+
+//
+func (self *server) find(ctx *context, table *types.TableDefinition, projection string,
+	scan func(rows *sql.Rows) (interface{}, error), response http.ResponseWriter, request *http.Request) {
+	query_params := make(map[string]string)
+	for k, v := range request.URL.Query() {
+		query_params[k] = v[len(v)-1]
+	}
+	where, params, e := ds.BuildWhere(ctx.drv, table, 1, query_params)
+	if nil != e {
+		response.WriteHeader(http.StatusBadRequest)
+		response.Write([]byte(e.Error()))
+		return
+	}
+
+	var rows *sql.Rows = nil
+	if nil != params {
+		rows, e = ctx.db.Query("select "+projection+" from "+table.CollectionName+where, params...)
+	} else {
+		rows, e = ctx.db.Query("select " + projection + " from " + table.CollectionName + where)
+	}
+
+	if nil != e {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(e.Error()))
+		return
+	}
+
+	entities := make([]interface{}, 0, 100)
+	for rows.Next() {
+		if 10000 < len(entities) {
+			response.WriteHeader(http.StatusRequestEntityTooLarge)
+			response.Write([]byte("result is too large."))
+			return
+		}
+
+		v, e := scan(rows) //TriggeredAt  time.Time `json:"triggered_at"`
+		if nil != e {
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(e.Error()))
+			return
+		}
+
+		entities = append(entities, v)
+	}
+
+	response.WriteHeader(http.StatusOK)
+
+	bs, _ := time.Now().MarshalJSON()
+	response.Write([]byte(`{"created_at":`))
+	response.Write(bs)
+	response.Write([]byte(`, "value":`))
+	encoder := json.NewEncoder(response)
+	e = encoder.Encode(entities)
+	if nil != e {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(e.Error()))
+	} else {
+		response.Write([]byte(`}`))
+	}
+}
+
+func (self *server) remove(ctx *context, table *types.TableDefinition, response http.ResponseWriter, request *http.Request) {
+	query_params := make(map[string]string)
+	for k, v := range request.URL.Query() {
+		query_params[k] = v[len(v)-1]
+	}
+	where, params, e := ds.BuildWhere(ctx.drv, table, 1, query_params)
+	if nil != e {
+		response.WriteHeader(http.StatusBadRequest)
+		response.Write([]byte(e.Error()))
+		return
+	}
+
+	var res sql.Result
+	if nil != params {
+		res, e = ctx.db.Exec("DELETE FROM "+table.CollectionName+where, params...)
+	} else {
+		res, e = ctx.db.Exec("DELETE FROM " + table.CollectionName + where)
+	}
+
+	if nil != e {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(e.Error()))
+		return
+	}
+	effected, e := res.RowsAffected()
+	if nil != e {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(e.Error()))
+		return
+	}
+
+	bs, _ := time.Now().MarshalJSON()
+	response.Write([]byte(`{"created_at":`))
+	response.Write(bs)
+	response.Write([]byte(`, "effected":`))
+	response.Write([]byte(strconv.FormatInt(effected, 10)))
+	response.Write([]byte(`}`))
+}
+func (self *server) count(ctx *context, table *types.TableDefinition, response http.ResponseWriter, request *http.Request) {
+	query_params := make(map[string]string)
+	for k, v := range request.URL.Query() {
+		query_params[k] = v[len(v)-1]
+	}
+	where, params, e := ds.BuildWhere(ctx.drv, table, 1, query_params)
+	if nil != e {
+		response.WriteHeader(http.StatusBadRequest)
+		response.Write([]byte(e.Error()))
+		return
+	}
+
+	count := int64(0)
+	if nil != params {
+		e = ctx.db.QueryRow("select count(*) from "+table.CollectionName+where, params...).Scan(&count)
+	} else {
+		e = ctx.db.QueryRow("select count(*) from " + table.CollectionName + where).Scan(&count)
+	}
+	if nil != e {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(e.Error()))
+		return
+	}
+	bs, _ := time.Now().MarshalJSON()
+	response.Write([]byte(`{"created_at":`))
+	response.Write(bs)
+	response.Write([]byte(`, "value":`))
+	response.Write([]byte(strconv.FormatInt(count, 10)))
+	response.Write([]byte(`}`))
+}
+
+func (self *server) findAlertCookies(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.find(ctx, tpt_alert_cookies, " id, action_id, managed_type, managed_id, status, current_value, triggered_at ",
+		func(rows *sql.Rows) (interface{}, error) {
+			entity := &AlertEntity{}
+			return entity, rows.Scan(
+				&entity.Id,           //Id           int64     `json:"id"`
+				&entity.ActionId,     //ActionId     int64     `json:"action_id"`
+				&entity.ManagedType,  //ManagedType  string    `json:"managed_type"`
+				&entity.ManagedId,    //ManagedId    int64     `json:"managed_id"`
+				&entity.Status,       //Status       string    `json:"status"`
+				&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
+				&entity.TriggeredAt)  //TriggeredAt  time.Time `json:"triggered_at"`
+		}, response, request)
+}
+func (self *server) findAlertHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.find(ctx, tpt_alert_history, " id, action_id, managed_type, managed_id, status, current_value, triggered_at ",
+		func(rows *sql.Rows) (interface{}, error) {
+			entity := &AlertEntity{}
+			return entity, rows.Scan(
+				&entity.Id,           //Id           int64     `json:"id"`
+				&entity.ActionId,     //ActionId     int64     `json:"action_id"`
+				&entity.ManagedType,  //ManagedType  string    `json:"managed_type"`
+				&entity.ManagedId,    //ManagedId    int64     `json:"managed_id"`
+				&entity.Status,       //Status       string    `json:"status"`
+				&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
+				&entity.TriggeredAt)  //TriggeredAt  time.Time `json:"triggered_at"`
+		}, response, request)
+}
+
+func (self *server) countAlertCookies(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.count(ctx, tpt_alert_cookies, response, request)
+}
+func (self *server) countAlertHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.count(ctx, tpt_alert_history, response, request)
+}
+
+func (self *server) countHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.count(ctx, tpt_history, response, request)
+}
+
+func (self *server) removeAlertCookies(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.remove(ctx, tpt_alert_cookies, response, request)
+}
+func (self *server) removeAlertHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.remove(ctx, tpt_alert_history, response, request)
+}
+
+func (self *server) removeHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.remove(ctx, tpt_history, response, request)
+}
+
+func (self *server) findHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.find(ctx, tpt_history, " id, action_id, managed_type, managed_id, current_value, sampled_at ",
+		func(rows *sql.Rows) (interface{}, error) {
+			entity := &HistoryEntity{}
+			return entity, rows.Scan(
+				&entity.Id,           //Id           int64     `json:"id"`
+				&entity.ActionId,     //ActionId     int64     `json:"action_id"`
+				&entity.ManagedType,  //ManagedType  string    `json:"managed_type"`
+				&entity.ManagedId,    //ManagedId    int64     `json:"managed_id"`
+				&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
+				&entity.SampledAt)    //TriggeredAt  time.Time `json:"triggered_at"`
+		}, response, request)
+}
 
 func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request *http.Request) {
 	var entities []AlertEntity
@@ -182,31 +480,40 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 	}()
 
 	for _, entity := range entities {
-		var id int64
-		e := tx.QueryRow("SELECT id FROM tpt_alert_cookies WHERE rule_id = $1", entity.RuleId).Scan(&id)
-		if nil != e {
-			if sql.ErrNoRows != e {
+		if 0 == entity.Status {
+			_, e := tx.Exec("DELETE FROM tpt_alert_cookies WHERE action_id = $1", entity.ActionId)
+			if nil != e && sql.ErrNoRows != e {
 				response.WriteHeader(http.StatusInternalServerError)
 				response.Write([]byte(e.Error()))
 				return
 			}
-
-			_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(rule_id, managed_type, managed_id, status, current_value, triggered_at)
-    		VALUES ($1, $2, $3, $4, $5, $6)`, entity.RuleId, entity.ManagedType, entity.ManagedId,
-				entity.Status, entity.CurrentValue, entity.TriggeredAt)
 		} else {
-			_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = $1, current_value = $2, triggered_at = $3  WHERE id = $4`,
-				entity.Status, entity.CurrentValue, entity.TriggeredAt, id)
-		}
-		if nil != e {
-			response.WriteHeader(http.StatusInternalServerError)
-			response.Write([]byte(e.Error()))
-			return
+			var id int64
+			e := tx.QueryRow("SELECT id FROM tpt_alert_cookies WHERE action_id = $1", entity.ActionId).Scan(&id)
+			if nil != e {
+				if sql.ErrNoRows != e {
+					response.WriteHeader(http.StatusInternalServerError)
+					response.Write([]byte(e.Error()))
+					return
+				}
+
+				_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, current_value, triggered_at)
+    		VALUES ($1, $2, $3, $4, $5, $6)`, entity.ActionId, entity.ManagedType, entity.ManagedId,
+					entity.Status, entity.CurrentValue, entity.TriggeredAt)
+			} else {
+				_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = $1, current_value = $2, triggered_at = $3  WHERE id = $4`,
+					entity.Status, entity.CurrentValue, entity.TriggeredAt, id)
+			}
+			if nil != e {
+				response.WriteHeader(http.StatusInternalServerError)
+				response.Write([]byte(e.Error()))
+				return
+			}
 		}
 
 		_, e = tx.Exec("INSERT INTO tpt_alert_histories_"+strconv.Itoa(entity.TriggeredAt.Year())+months[entity.TriggeredAt.Month()]+
-			"(rule_id, managed_type, managed_id, status, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6)",
-			entity.RuleId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
+			"(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6)",
+			entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(e.Error()))
@@ -250,8 +557,8 @@ func (self *server) onHistories(ctx *context, response http.ResponseWriter, requ
 
 	for _, entity := range entities {
 		_, e = tx.Exec("INSERT INTO tpt_histories_"+strconv.Itoa(entity.SampledAt.Year())+months[entity.SampledAt.Month()]+
-			"(rule_id, managed_type, managed_id, current_value, sampled_at) VALUES ($1, $2, $3, $4, $5)",
-			entity.RuleId, entity.ManagedType, entity.ManagedId, entity.CurrentValue, entity.SampledAt)
+			"(action_id, managed_type, managed_id, current_value, sampled_at) VALUES ($1, $2, $3, $4, $5)",
+			entity.ActionId, entity.ManagedType, entity.ManagedId, entity.CurrentValue, entity.SampledAt)
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(e.Error()))
@@ -276,20 +583,53 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 		}
 	}()
 
-	if "PUT" != request.Method {
-		http.Error(response, "404 page not found, method must is 'PUT'", http.StatusNotFound)
-		return
-	}
-
 	var cb func(s *server, ctx *context, response http.ResponseWriter, request *http.Request) = nil
-	switch request.URL.Path {
-	case "/alerts", "/alerts/":
-		cb = (*server).onAlerts
-	case "/histories", "/histories/":
-		cb = (*server).onHistories
+	switch request.Method {
+	case "PUT":
+		switch request.URL.Path {
+		case "/alerts", "/alerts/":
+			cb = (*server).onAlerts
+		case "/histories", "/histories/":
+			cb = (*server).onHistories
+		default:
+			http.Error(response, "404 page not found, path must is 'alerts' or 'history', actual path is '"+
+				request.URL.Path+"'", http.StatusNotFound)
+			return
+		}
+	case "GET":
+		switch request.URL.Path {
+		case "/alert_cookies", "/alert_cookies/":
+			cb = (*server).findAlertCookies
+		case "/alerts", "/alerts/":
+			cb = (*server).findAlertHistories
+		case "/alert_cookies/count", "/alert_cookies/count/":
+			cb = (*server).countAlertCookies
+		case "/alerts/count", "/alerts/count/":
+			cb = (*server).countAlertHistories
+		case "/histories", "/histories/":
+			cb = (*server).findHistories
+		case "/histories/count", "/histories/count/":
+			cb = (*server).countHistories
+		default:
+			http.Error(response, "404 page not found, path must is 'alerts' or 'history', actual path is '"+
+				request.URL.Path+"'", http.StatusNotFound)
+			return
+		}
+	case "DELETE":
+		switch request.URL.Path {
+		case "/alert_cookies", "/alert_cookies/":
+			cb = (*server).removeAlertCookies
+		case "/alerts", "/alerts/":
+			cb = (*server).removeAlertHistories
+		case "/histories", "/histories/":
+			cb = (*server).removeHistories
+		default:
+			http.Error(response, "404 page not found, path must is 'alerts' or 'history', actual path is '"+
+				request.URL.Path+"'", http.StatusNotFound)
+			return
+		}
 	default:
-		http.Error(response, "404 page not found, path must is 'alerts' or 'history', actual path is '"+
-			request.URL.Path+"'", http.StatusNotFound)
+		http.Error(response, "404 page not found, method must is 'PUT'", http.StatusNotFound)
 		return
 	}
 

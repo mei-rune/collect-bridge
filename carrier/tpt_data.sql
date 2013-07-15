@@ -1,30 +1,30 @@
 CREATE TABLE IF NOT EXISTS tpt_alert_cookies (
   id                SERIAL  PRIMARY KEY,
-  rule_id           bigint,
-  managed_type      varchar(200),
-  managed_id        bigint,
-  status            int,
-  current_value     varchar(2000),
+  action_id         bigint  NOT NULL,
+  managed_type      varchar(200)  NOT NULL,
+  managed_id        bigint  NOT NULL,
+  status            int  NOT NULL,
+  current_value     varchar(2000)  NOT NULL,
   triggered_at      timestamp with time zone,
 
-  CONSTRAINT tpt_alert_cookies_unique_rule_id UNIQUE (rule_id)
+  CONSTRAINT tpt_alert_cookies_unique_action_id UNIQUE (action_id)
 );
-DROP INDEX IF EXISTS tpt_alert_cookies_rule_id_idx;
-CREATE INDEX tpt_alert_cookies_rule_id_idx ON tpt_alert_cookies USING btree (rule_id);
+DROP INDEX IF EXISTS tpt_alert_cookies_action_id_idx;
+CREATE INDEX tpt_alert_cookies_action_id_idx ON tpt_alert_cookies USING btree (action_id);
 
 CREATE TABLE IF NOT EXISTS tpt_alert_histories (
   id                SERIAL  PRIMARY KEY,
-  rule_id           bigint,
-  managed_type      varchar(200),
-  managed_id        bigint,
-  status            int,
-  current_value     varchar(2000),
-  triggered_at      timestamp with time zone
+  action_id         bigint  NOT NULL,
+  managed_type      varchar(200)  NOT NULL,
+  managed_id        bigint  NOT NULL,
+  status            int  NOT NULL,
+  current_value     varchar(2000) NOT NULL,
+  triggered_at      timestamp with time zone  NOT NULL
 );
 DROP INDEX IF EXISTS tpt_alert_histories_mo_id_idx;
 CREATE INDEX tpt_alert_histories_mo_id_idx ON tpt_alert_histories USING btree (managed_type COLLATE pg_catalog."default", managed_id);
-DROP INDEX IF EXISTS tpt_alert_histories_rule_id_idx;
-CREATE INDEX tpt_alert_histories_rule_id_idx ON tpt_alert_histories USING btree (rule_id);
+DROP INDEX IF EXISTS tpt_alert_histories_action_id_idx;
+CREATE INDEX tpt_alert_histories_action_id_idx ON tpt_alert_histories USING btree (action_id);
 
 CREATE OR REPLACE FUNCTION tpt_alert_histories_partition_creation( DATE, DATE )
 returns void AS $$
@@ -67,7 +67,7 @@ BEGIN
   FOR create_query, index_query IN SELECT
       'DROP INDEX IF EXISTS tpt_alert_histories_'
       || TO_CHAR( d, 'YYYY_MM' )
-      || '_rule_id_idx;',
+      || '_action_id_idx;',
       'DROP INDEX IF EXISTS tpt_alert_histories_'
       || TO_CHAR( d, 'YYYY_MM' )
       || '_mo_id_idx;',
@@ -139,7 +139,7 @@ $$
 language plpgsql;
 
 
-CREATE OR REPLACE FUNCTION tpt_alert_histories_partition_rule_id_idx_creation( DATE, DATE )
+CREATE OR REPLACE FUNCTION tpt_alert_histories_partition_action_id_idx_creation( DATE, DATE )
 returns void AS $$
 DECLARE
   create_query text;
@@ -148,12 +148,12 @@ BEGIN
   FOR create_query, index_query IN SELECT
       'DROP INDEX IF EXISTS tpt_alert_histories_'
       || TO_CHAR( d, 'YYYY_MM' )
-      || '_rule_id_idx;',
+      || '_action_id_idx;',
       'CREATE INDEX tpt_alert_histories_'
       || TO_CHAR( d, 'YYYY_MM' )
-      || '_rule_id_idx ON tpt_alert_histories_'
+      || '_action_id_idx ON tpt_alert_histories_'
       || TO_CHAR( d, 'YYYY_MM' )
-      || ' USING btree (rule_id);'
+      || ' USING btree (action_id);'
     FROM generate_series( $1, $2, '1 month' ) AS d
   LOOP
     EXECUTE create_query;
@@ -166,7 +166,7 @@ language plpgsql;
 SELECT tpt_alert_histories_partition_creation( '2010-01-01', '2028-01-01' );
 SELECT tpt_alert_histories_partition_triggered_at_idx_creation( '2010-01-01', '2028-01-01' );
 SELECT tpt_alert_histories_partition_mo_id_idx_creation( '2010-01-01', '2028-01-01' );
-SELECT tpt_alert_histories_partition_rule_id_idx_creation( '2010-01-01', '2028-01-01' );
+SELECT tpt_alert_histories_partition_action_id_idx_creation( '2010-01-01', '2028-01-01' );
 
 -- drop function tpt_alert_histories_partition_function();
 CREATE OR REPLACE FUNCTION  tpt_alert_histories_partition_function()
@@ -174,7 +174,7 @@ returns TRIGGER AS $$
 begin
   execute 'INSERT INTO tpt_alert_histories_'
     || to_char( NEW.triggered_at, 'YYYY_MM' )
-    || '(rule_id, managed_type, managed_id, status, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6)' USING NEW.rule_id, NEW.managed_type, NEW.managed_id, NEW.status, NEW.current_value, NEW.triggered_at ;
+    || '(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6)' USING NEW.action_id, NEW.managed_type, NEW.managed_id, NEW.status, NEW.current_value, NEW.triggered_at ;
   RETURN NULL;
 end;
 $$
@@ -191,16 +191,16 @@ CREATE TRIGGER tpt_alert_histories_partition_trigger
 -- histories
 CREATE TABLE IF NOT EXISTS tpt_histories (
   id                SERIAL  PRIMARY KEY,
-  rule_id           bigint,
-  managed_type      varchar(200),
-  managed_id        bigint,
-  current_value     NUMERIC(20, 4),
+  action_id         bigint  NOT NULL,
+  managed_type      varchar(200)  NOT NULL,
+  managed_id        bigint  NOT NULL,
+  current_value     NUMERIC(20, 4)  NOT NULL,
   sampled_at        timestamp with time zone
 );
 DROP INDEX IF EXISTS tpt_histories_mo_id_idx;
 CREATE INDEX tpt_histories_mo_id_idx ON tpt_histories USING btree (managed_type COLLATE pg_catalog."default", managed_id);
-DROP INDEX IF EXISTS tpt_histories_rule_id_idx;
-CREATE INDEX tpt_histories_rule_id_idx ON tpt_histories USING btree (rule_id);
+DROP INDEX IF EXISTS tpt_histories_action_id_idx;
+CREATE INDEX tpt_histories_action_id_idx ON tpt_histories USING btree (action_id);
 
 CREATE OR REPLACE FUNCTION tpt_histories_partition_creation( DATE, DATE )
 returns void AS $$
@@ -244,7 +244,7 @@ BEGIN
   FOR create_query, index_query IN SELECT
       'DROP INDEX IF EXISTS tpt_histories_'
       || TO_CHAR( d, 'YYYY_MM' )
-      || '_rule_id_idx;',
+      || '_action_id_idx;',
       'DROP INDEX IF EXISTS tpt_histories_'
       || TO_CHAR( d, 'YYYY_MM' )
       || '_mo_id_idx;',
@@ -311,7 +311,7 @@ END;
 $$
 language plpgsql;
 
-CREATE OR REPLACE FUNCTION tpt_histories_partition_rule_id_idx_creation( DATE, DATE )
+CREATE OR REPLACE FUNCTION tpt_histories_partition_action_id_idx_creation( DATE, DATE )
 returns void AS $$
 DECLARE
   create_query text;
@@ -320,12 +320,12 @@ BEGIN
   FOR create_query, index_query IN SELECT
       'DROP INDEX IF EXISTS tpt_histories_'
       || TO_CHAR( d, 'YYYY_MM' )
-      || '_rule_id_idx;',
+      || '_action_id_idx;',
       'CREATE INDEX tpt_histories_'
       || TO_CHAR( d, 'YYYY_MM' )
-      || '_rule_id_idx ON tpt_histories_'
+      || '_action_id_idx ON tpt_histories_'
       || TO_CHAR( d, 'YYYY_MM' )
-      || ' USING btree (rule_id);'
+      || ' USING btree (action_id);'
     FROM generate_series( $1, $2, '1 month' ) AS d
   LOOP
     EXECUTE create_query;
@@ -338,7 +338,7 @@ language plpgsql;
 SELECT tpt_histories_partition_creation( '2010-01-01', '2028-01-01' );
 SELECT tpt_histories_partition_sampled_at_idx_creation( '2010-01-01', '2028-01-01' );
 SELECT tpt_histories_partition_mo_id_idx_creation( '2010-01-01', '2028-01-01' );
-SELECT tpt_histories_partition_rule_id_idx_creation( '2010-01-01', '2028-01-01' );
+SELECT tpt_histories_partition_action_id_idx_creation( '2010-01-01', '2028-01-01' );
 
 -- drop function tpt_histories_partition_function();
 CREATE OR REPLACE FUNCTION  tpt_histories_partition_function()
@@ -346,7 +346,7 @@ returns TRIGGER AS $$
 begin
   execute 'INSERT INTO tpt_histories_'
     || to_char( NEW.sampled_at, 'YYYY_MM' )
-    || '(rule_id, managed_type, managed_id, current_value, sampled_at) VALUES ($1, $2, $3, $4, $5)' USING NEW.rule_id, NEW.managed_type, NEW.managed_id, NEW.current_value, NEW.sampled_at ;
+    || '(action_id, managed_type, managed_id, current_value, sampled_at) VALUES ($1, $2, $3, $4, $5)' USING NEW.action_id, NEW.managed_type, NEW.managed_id, NEW.current_value, NEW.sampled_at ;
   RETURN NULL;
 end;
 $$
@@ -364,16 +364,16 @@ CREATE TRIGGER tpt_histories_partition_trigger
 
 
 -- -- alert
--- DROP INDEX IF EXISTS tpt_alert_cookies_rule_id_idx;
+-- DROP INDEX IF EXISTS tpt_alert_cookies_action_id_idx;
 -- DROP TABLE IF EXISTS tpt_alert_cookies CASCADE;
 
 -- DROP INDEX IF EXISTS tpt_alert_histories_mo_id_idx;
--- DROP INDEX IF EXISTS tpt_alert_histories_rule_id_idx;
+-- DROP INDEX IF EXISTS tpt_alert_histories_action_id_idx;
 -- DROP TABLE IF EXISTS tpt_alert_histories CASCADE;
 
 -- -- histories
 -- DROP INDEX IF EXISTS tpt_histories_mo_id_idx;
--- DROP INDEX IF EXISTS tpt_histories_rule_id_idx;
+-- DROP INDEX IF EXISTS tpt_histories_action_id_idx;
 -- DROP TABLE IF EXISTS tpt_histories CASCADE;
 
 

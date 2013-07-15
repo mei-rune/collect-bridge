@@ -11,16 +11,16 @@ import (
 
 var deletion_sql = `
 -- alert
-DROP INDEX IF EXISTS tpt_alert_cookies_rule_id_idx;
+DROP INDEX IF EXISTS tpt_alert_cookies_action_id_idx;
 DROP TABLE IF EXISTS tpt_alert_cookies CASCADE;
 
 DROP INDEX IF EXISTS tpt_alert_histories_mo_id_idx;
-DROP INDEX IF EXISTS tpt_alert_histories_rule_id_idx;
+DROP INDEX IF EXISTS tpt_alert_histories_action_id_idx;
 DROP TABLE IF EXISTS tpt_alert_histories CASCADE;
 
 -- histories
 DROP INDEX IF EXISTS tpt_histories_mo_id_idx;
-DROP INDEX IF EXISTS tpt_histories_rule_id_idx;
+DROP INDEX IF EXISTS tpt_histories_action_id_idx;
 DROP TABLE IF EXISTS tpt_histories CASCADE;
 `
 
@@ -80,7 +80,7 @@ func SrvTest(t *testing.T, cb func(db *sql.DB, url string)) {
 
 func SelectAlertHistories(db *sql.DB) ([]*AlertEntity, error) {
 
-	rows, e := db.Query("select id, rule_id, managed_type, managed_id, status, current_value, triggered_at from tpt_alert_histories")
+	rows, e := db.Query("select id, action_id, managed_type, managed_id, status, current_value, triggered_at from tpt_alert_histories")
 	if nil != e {
 		return nil, e
 	}
@@ -90,7 +90,7 @@ func SelectAlertHistories(db *sql.DB) ([]*AlertEntity, error) {
 		var id int64
 		entity := &AlertEntity{}
 		e = rows.Scan(&id, //id
-			&entity.RuleId,      //RuleId       int64     `json:"action_id"`
+			&entity.ActionId,    //ActionId       int64     `json:"action_id"`
 			&entity.ManagedType, //ManagedType  string    `json:"managed_type"`
 			&entity.ManagedId,
 			&entity.Status,       //Status       string    `json:"status"`
@@ -106,7 +106,7 @@ func SelectAlertHistories(db *sql.DB) ([]*AlertEntity, error) {
 }
 
 func SelectAlertCookies(db *sql.DB) ([]*AlertEntity, error) {
-	rows, e := db.Query("select rule_id, managed_type, managed_id, status, current_value, triggered_at from tpt_alert_cookies")
+	rows, e := db.Query("select action_id, managed_type, managed_id, status, current_value, triggered_at from tpt_alert_cookies")
 	if nil != e {
 		return nil, e
 	}
@@ -114,7 +114,7 @@ func SelectAlertCookies(db *sql.DB) ([]*AlertEntity, error) {
 	alertEntities := make([]*AlertEntity, 0, 2)
 	for rows.Next() {
 		entity := &AlertEntity{}
-		e = rows.Scan(&entity.RuleId, //RuleId       int64     `json:"action_id"`
+		e = rows.Scan(&entity.ActionId, //ActionId       int64     `json:"action_id"`
 			&entity.ManagedType, //ManagedType  string    `json:"managed_type"`
 			&entity.ManagedId,
 			&entity.Status,       //Status       string    `json:"status"`
@@ -130,7 +130,7 @@ func SelectAlertCookies(db *sql.DB) ([]*AlertEntity, error) {
 }
 
 func SelectHistories(db *sql.DB) ([]*HistoryEntity, error) {
-	rows, e := db.Query("select id, rule_id, managed_type, managed_id, current_value, sampled_at from tpt_histories")
+	rows, e := db.Query("select id, action_id, managed_type, managed_id, current_value, sampled_at from tpt_histories")
 	if nil != e {
 		return nil, e
 	}
@@ -140,7 +140,7 @@ func SelectHistories(db *sql.DB) ([]*HistoryEntity, error) {
 		var id int64
 		entity := &HistoryEntity{}
 		e = rows.Scan(&id,
-			&entity.RuleId,      //RuleId       int64     `json:"action_id"`
+			&entity.ActionId,    //ActionId       int64     `json:"action_id"`
 			&entity.ManagedType, //ManagedType  string    `json:"managed_type"`
 			&entity.ManagedId,
 			&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
@@ -154,10 +154,10 @@ func SelectHistories(db *sql.DB) ([]*HistoryEntity, error) {
 	return historyEntities, nil
 }
 
-func AssertAlerts(t *testing.T, entity *AlertEntity, rule_id, status int64, value string, now time.Time, mo_type string, mo_id int64) {
+func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status int64, value string, now time.Time, mo_type string, mo_id int64) {
 
-	if entity.RuleId != rule_id {
-		t.Error(" entity.RuleId != rule_id, excepted is ", rule_id, ", actual is ", entity.RuleId)
+	if entity.ActionId != action_id {
+		t.Error(" entity.ActionId != action_id, excepted is ", action_id, ", actual is ", entity.ActionId)
 	}
 	if entity.Status != status {
 		t.Error(" entity.Status != status, excepted is ", status, ", actual is ", entity.Status)
@@ -177,9 +177,9 @@ func AssertAlerts(t *testing.T, entity *AlertEntity, rule_id, status int64, valu
 
 }
 
-func AssertHistories(t *testing.T, entity *HistoryEntity, rule_id int64, value float64, now time.Time, mo_type string, mo_id int64) {
-	if entity.RuleId != rule_id {
-		t.Error(" entity.RuleId != rule_id, excepted is ", rule_id, ", actual is ", entity.RuleId)
+func AssertHistories(t *testing.T, entity *HistoryEntity, action_id int64, value float64, now time.Time, mo_type string, mo_id int64) {
+	if entity.ActionId != action_id {
+		t.Error(" entity.ActionId != action_id, excepted is ", action_id, ", actual is ", entity.ActionId)
 	}
 	if math.Abs(entity.CurrentValue-value) > 0.002 {
 		t.Error(" entity.CurrentValue != value, excepted is ", value, ", actual is ", entity.CurrentValue)

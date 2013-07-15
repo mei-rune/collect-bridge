@@ -375,6 +375,100 @@ func (self *whereBuilder) build(params map[string]string) error {
 	return nil
 }
 
+func (self *whereBuilder) buildSQL(params map[string]string) error {
+	e := self.build(params)
+	if nil != e {
+		return e
+	}
+
+	if groupBy, ok := params["groupBy"]; ok {
+		if 0 != len(groupBy) {
+			return errors.New("groupBy is empty.")
+		}
+
+		self.buffer.WriteString(" GROUP BY ")
+		self.buffer.WriteString(groupBy)
+	}
+
+	if having, ok := params["having"]; ok {
+		if 0 != len(having) {
+			return errors.New("having is empty.")
+		}
+
+		self.buffer.WriteString(" HAVING ")
+		self.buffer.WriteString(having)
+	}
+
+	if order, ok := params["order"]; ok {
+		if 0 != len(order) {
+			return errors.New("order is empty.")
+		}
+
+		self.buffer.WriteString(" ORDER BY ")
+		self.buffer.WriteString(order)
+	}
+
+	if limit, ok := params["limit"]; ok {
+		i, e := strconv.ParseInt(limit, 10, 64)
+		if nil != e {
+			return fmt.Errorf("limit is not a number, actual value is '" + limit + "'")
+		}
+		if i <= 0 {
+			return fmt.Errorf("limit must is geater zero, actual value is '" + limit + "'")
+		}
+
+		if offset, ok := params["offset"]; ok {
+			i, e = strconv.ParseInt(offset, 10, 64)
+			if nil != e {
+				return fmt.Errorf("offset is not a number, actual value is '" + offset + "'")
+			}
+
+			if i < 0 {
+				return fmt.Errorf("offset must is geater(or equals) zero, actual value is '" + offset + "'")
+			}
+
+			self.buffer.WriteString(" LIMIT ")
+			self.buffer.WriteString(offset)
+			self.buffer.WriteString(" , ")
+			self.buffer.WriteString(limit)
+		} else {
+			self.buffer.WriteString(" LIMIT ")
+			self.buffer.WriteString(limit)
+		}
+	}
+	return nil
+}
+
+func BuildWhere(drv string, table *types.TableDefinition, idx int, params map[string]string) (string, []interface{}, error) {
+	if nil == params {
+		return "", nil, nil
+	}
+
+	var buffer bytes.Buffer
+	builder := &whereBuilder{tables: nil,
+		table:               table,
+		idx:                 idx,
+		isFirst:             true,
+		prefix:              " WHERE ",
+		buffer:              &buffer,
+		operators:           default_operators,
+		operators_for_field: nil,
+		add_argument:        (*whereBuilder).appendNumericArguments}
+
+	if IsNumericParams(drv) {
+		builder.add_argument = (*whereBuilder).appendNumericArguments
+	} else {
+		builder.add_argument = (*whereBuilder).appendSimpleArguments
+	}
+
+	e := builder.buildSQL(params)
+	if nil != e {
+		return "", nil, e
+	}
+
+	return buffer.String(), builder.params, nil
+}
+
 type updateBuilder struct {
 	drv    *simple_driver
 	table  *types.TableDefinition

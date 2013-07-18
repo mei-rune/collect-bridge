@@ -186,7 +186,7 @@ func (self *server) serve(i int, ctx *context) {
 	for is_running {
 		select {
 		case <-ticker.C:
-			fmt.Println("tick")
+			//fmt.Println("tick")
 		case req, ok := <-self.c:
 			if !ok {
 				is_running = false

@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS tpt_alert_cookies (
-  id                SERIAL  PRIMARY KEY,
+  id                BIGSERIAL  PRIMARY KEY,
   action_id         bigint  NOT NULL,
   managed_type      varchar(200)  NOT NULL,
   managed_id        bigint  NOT NULL,
@@ -13,7 +13,7 @@ DROP INDEX IF EXISTS tpt_alert_cookies_action_id_idx;
 CREATE INDEX tpt_alert_cookies_action_id_idx ON tpt_alert_cookies USING btree (action_id);
 
 CREATE TABLE IF NOT EXISTS tpt_alert_histories (
-  id                SERIAL  PRIMARY KEY,
+  id                BIGSERIAL  PRIMARY KEY,
   action_id         bigint  NOT NULL,
   managed_type      varchar(200)  NOT NULL,
   managed_id        bigint  NOT NULL,
@@ -190,7 +190,7 @@ CREATE TRIGGER tpt_alert_histories_partition_trigger
 
 -- histories
 CREATE TABLE IF NOT EXISTS tpt_histories (
-  id                SERIAL  PRIMARY KEY,
+  id                BIGSERIAL  PRIMARY KEY,
   action_id         bigint  NOT NULL,
   managed_type      varchar(200)  NOT NULL,
   managed_id        bigint  NOT NULL,
@@ -429,3 +429,22 @@ CREATE TRIGGER tpt_histories_partition_trigger
 -- CREATE TRIGGER insert_tpt_alert_histories_trigger
 --    BEFORE INSERT ON tpt_alert_histories
 --    FOR EACH ROW EXECUTE PROCEDURE tpt_alert_histories_insert_trigger();
+
+
+CREATE TABLE IF NOT EXISTS tpt_delayed_jobs (
+  id                BIGSERIAL  PRIMARY KEY,
+  priority          int DEFAULT 0,
+  attempts          int DEFAULT 0,
+  queue             varchar(200),
+  handler           text  NOT NULL,
+  handler_id        varchar(200)  NOT NULL,
+  last_error        varchar(2000),
+  run_at            timestamp with time zone,
+  locked_at         timestamp with time zone,
+  failed_at         timestamp with time zone,
+  locked_by         varchar(200),
+  created_at        timestamp with time zone  NOT NULL,
+  updated_at        timestamp with time zone NOT NULL,
+
+  CONSTRAINT tpt_delayed_jobs_unique_handler_id UNIQUE (handler_id)
+);

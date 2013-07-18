@@ -62,12 +62,29 @@ func Main() {
 		return
 	}
 
-	if !commons.FileExists(*models_file) {
-		file := filepath.Join("..", *models_file)
+	files := []string{*models_file,
+		filepath.Join("..", *models_file),
+		"conf/tpt_models.xml",
+		"../conf/tpt_models.xml",
+		"lib/models/tpt_models.xml",
+		"../lib/models/tpt_models.xml"}
+	found := false
+	for _, file := range files {
 		if commons.FileExists(file) {
 			*models_file = file
+			found = true
+			break
 		}
 	}
+
+	if !found {
+		fmt.Println("models file is not exists, search path is:")
+		for _, file := range files {
+			fmt.Println("    ", file)
+		}
+		return
+	}
+
 	srv, e := newServer(*drv, *dbUrl, *models_file, *goroutines)
 	if nil != e {
 		fmt.Println(e)

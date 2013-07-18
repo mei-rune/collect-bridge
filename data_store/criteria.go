@@ -48,11 +48,17 @@ func init() {
 	default_operators["exists"] = (*whereBuilder).exists
 	default_operators["in"] = (*whereBuilder).in
 	default_operators["nin"] = (*whereBuilder).nin
+	default_operators[">"] = (*whereBuilder).gt
 	default_operators["gt"] = (*whereBuilder).gt
+	default_operators[">="] = (*whereBuilder).gte
 	default_operators["gte"] = (*whereBuilder).gte
+	default_operators["="] = (*whereBuilder).eq
 	default_operators["eq"] = (*whereBuilder).eq
+	default_operators["!="] = (*whereBuilder).ne
 	default_operators["ne"] = (*whereBuilder).ne
+	default_operators["<"] = (*whereBuilder).lt
 	default_operators["lt"] = (*whereBuilder).lt
+	default_operators["<="] = (*whereBuilder).lte
 	default_operators["lte"] = (*whereBuilder).lte
 	default_operators["between"] = (*whereBuilder).between
 	default_operators["is"] = (*whereBuilder).is
@@ -381,7 +387,7 @@ func (self *whereBuilder) buildSQL(params map[string]string) error {
 		return e
 	}
 
-	if groupBy, ok := params["groupBy"]; ok {
+	if groupBy, ok := params["group_by"]; ok {
 		if 0 != len(groupBy) {
 			return errors.New("groupBy is empty.")
 		}

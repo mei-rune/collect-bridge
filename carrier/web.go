@@ -23,8 +23,8 @@ import (
 
 var (
 	listenAddress = flag.String("carrier.listen", ":7074", "the address of http")
-	dbUrl         = flag.String("carrier.dburl", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
-	drv           = flag.String("carrier.db", "postgres", "the db driver")
+	dbUrl         = flag.String("data_db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
+	drv           = flag.String("data_db.name", "postgres", "the db driver")
 	goroutines    = flag.Int("carrier.connections", 10, "the db connection number")
 
 	server_instance *server = nil
@@ -285,6 +285,7 @@ func (self *server) find(ctx *context, table *types.TableDefinition, projection 
 		response.Write([]byte(e.Error()))
 		return
 	}
+	defer rows.Close()
 
 	entities := make([]interface{}, 0, 100)
 	for rows.Next() {
@@ -302,6 +303,13 @@ func (self *server) find(ctx *context, table *types.TableDefinition, projection 
 		}
 
 		entities = append(entities, v)
+	}
+
+	e = rows.Err()
+	if nil != e {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(e.Error()))
+		return
 	}
 
 	response.WriteHeader(http.StatusOK)

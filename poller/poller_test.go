@@ -3,11 +3,13 @@ package poller
 import (
 	"bytes"
 	"carrier"
+	"commons"
 	"commons/types"
 	ds "data_store"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/garyburd/redigo/redis"
 	"io/ioutil"
 	"net/http"
@@ -435,6 +437,17 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 	})
 }
 
+func getMetric(parentId, metric string) commons.Result {
+	client_url := ""
+	if is_test {
+		client_url = commons.NewUrlBuilder(*sampling_url).Concat("metrics", "managed_object", fmt.Sprint(parentId), metric).ToUrl()
+	} else {
+		client_url = commons.NewUrlBuilder(*sampling_url).Concat("managed_object", fmt.Sprint(parentId), metric).ToUrl()
+	}
+	metricClient := &commons.HttpClient{Url: *sampling_url}
+	return metricClient.Invoke("GET", client_url, nil, 200)
+}
+
 func TestIntegratedHistoryWithCarrier(t *testing.T) {
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
 		mo_id := ds.CreateItForTest(t, client, "network_device", mo)
@@ -444,6 +457,19 @@ func TestIntegratedHistoryWithCarrier(t *testing.T) {
 		rule_id := ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "history", map[string]interface{}{
 			"name":      "this is a test history",
 			"attribute": "services"})
+
+		res := getMetric(mo_id, "sys")
+		if res.HasError() {
+			t.Error("read metric failed,", res.ErrorMessage())
+			return
+		}
+		sys, e := res.Value().AsObject()
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		value, _ := commons.AsInt(sys["services"])
 
 		carrier.SrvTest(t, func(db *sql.DB, url string) {
 			is_test = true
@@ -489,9 +515,9 @@ func TestIntegratedHistoryWithCarrier(t *testing.T) {
 						t.Error(" entity.ActionId != rule_id, excepted is ", rule_id_int, ", actual is ", entity.ActionId)
 					}
 
-					// if entity.CurrentValue != value {
-					// 	t.Error(" entity.CurrentValue != value, excepted is ", value, ", actual is ", entity.CurrentValue)
-					// }
+					if int(entity.CurrentValue) != value {
+						t.Error(" entity.CurrentValue != value, excepted is ", value, ", actual is ", entity.CurrentValue)
+					}
 
 					if entity.ManagedType != "managed_object" {
 						t.Error(" entity.ManagedType != mo_type, excepted is managed_object, actual is ", entity.ManagedType)

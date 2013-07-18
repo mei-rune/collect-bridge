@@ -251,7 +251,7 @@ type AlertEntity struct {
 type HistoryEntity struct {
 	Id           int64     `json:"id"`
 	ActionId     int64     `json:"action_id"`
-	CurrentValue float64   `json:"current_value"`
+	CurrentValue float64   `json:"value"`
 	SampledAt    time.Time `json:"sampled_at"`
 	ManagedType  string    `json:"managed_type"`
 	ManagedId    int64     `json:"managed_id"`

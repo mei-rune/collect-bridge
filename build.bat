@@ -6,7 +6,6 @@ go get github.com/lib/pq
 go get github.com/mattn/go-sqlite3
 go get code.google.com/p/mahonia
 
-
 if /i "%ENGINE_PATH%" NEQ "" goto defined_engine_path
 set ENGINE_PATH=%~dp0%..\
 :defined_engine_path
@@ -20,14 +19,15 @@ if NOT exist %PUBLISH_PATH% mkdir %PUBLISH_PATH%
 if NOT exist %PUBLISH_PATH%\bin mkdir %PUBLISH_PATH%\bin
 if NOT exist %PUBLISH_PATH%\lib mkdir %PUBLISH_PATH%\lib
 
+
 cd %ENGINE_PATH%src\data_store\ds
 del "*.exe"
 go build
+
 @if errorlevel 1 goto failed
 copy "ds.exe"  %PUBLISH_PATH%\bin\tpt_ds.exe
 @if errorlevel 1 goto failed
 xcopy /Y /S /E %ENGINE_PATH%src\data_store\etc\*   %PUBLISH_PATH%\lib\models\
-@if errorlevel 1 goto failed
 
 
 cd %ENGINE_PATH%src\sampling\sampling

@@ -227,7 +227,7 @@ func TestHistoriesServer(t *testing.T) {
 		now, _ := nowt.MarshalJSON()
 
 		_, e := httpInvoke("PUT", url+"/histories", `[{"action_id": 123,
-        "current_value": 23,
+        "value": 23,
         "sampled_at": `+string(now)+`,
         "managed_type": "mo",
         "managed_id": 123}]`, 200)
@@ -237,7 +237,7 @@ func TestHistoriesServer(t *testing.T) {
 		}
 
 		_, e = httpInvoke("PUT", url+"/histories", `[{"action_id": 1243,
-        "current_value": 233,
+        "value": 233,
         "sampled_at": `+string(now)+`,
         "managed_type": "mo2",
         "managed_id": 124}]`, 200)

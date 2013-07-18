@@ -388,7 +388,7 @@ func (self *whereBuilder) buildSQL(params map[string]string) error {
 	}
 
 	if groupBy, ok := params["group_by"]; ok {
-		if 0 != len(groupBy) {
+		if 0 == len(groupBy) {
 			return errors.New("groupBy is empty.")
 		}
 
@@ -397,7 +397,7 @@ func (self *whereBuilder) buildSQL(params map[string]string) error {
 	}
 
 	if having, ok := params["having"]; ok {
-		if 0 != len(having) {
+		if 0 == len(having) {
 			return errors.New("having is empty.")
 		}
 
@@ -406,7 +406,7 @@ func (self *whereBuilder) buildSQL(params map[string]string) error {
 	}
 
 	if order, ok := params["order"]; ok {
-		if 0 != len(order) {
+		if 0 == len(order) {
 			return errors.New("order is empty.")
 		}
 

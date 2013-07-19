@@ -44,10 +44,9 @@ func (self *Redis) run() {
 			self.wait.Done()
 		}()
 
-		<-ticker.C
 		for self.isRunning() {
-			self.c <- nil
 			<-ticker.C
+			self.c <- nil
 		}
 	}()
 

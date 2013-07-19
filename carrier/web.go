@@ -654,7 +654,7 @@ func Main(is_test bool) error {
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
-		return
+		return nil
 	}
 
 	if 0 >= *goroutines {

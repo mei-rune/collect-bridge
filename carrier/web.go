@@ -651,6 +651,11 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 }
 
 func Main(is_test bool) error {
+	flag.Parse()
+	if nil != flag.Args() && 0 != len(flag.Args()) {
+		flag.Usage()
+		return
+	}
 
 	if 0 >= *goroutines {
 		return errors.New("goroutines must is greate 0")

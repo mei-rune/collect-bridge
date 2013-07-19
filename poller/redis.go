@@ -34,7 +34,6 @@ func (self *Redis) run() {
 	}()
 
 	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
 
 	go func() {
 		defer func() {
@@ -42,6 +41,7 @@ func (self *Redis) run() {
 				log.Println("[panic]", o)
 			}
 			self.wait.Done()
+			ticker.Stop()
 		}()
 
 		for self.isRunning() {

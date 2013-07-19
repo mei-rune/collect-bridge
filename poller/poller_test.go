@@ -98,16 +98,16 @@ func getResultFromRedis(c redis.Conn, key string) (string, error) {
 
 func TestIntegratedPoller(t *testing.T) {
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
-		t.Log("Please run redis at " + redis_address + " before run unit test.")
+		t.Log("Please run redis at " + *redisAddress + " before run unit test.")
 		id := ds.CreateItForTest(t, client, "network_device", mo)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 		mt_id := ds.CreateItByParentForTest(t, client, "network_device", id, "metric_trigger", metric_trigger2)
 		ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "redis_command", redis_commands2)
 
-		c, err := redis.DialTimeout("tcp", redis_address, 0, 1*time.Second, 1*time.Second)
+		c, err := redis.DialTimeout("tcp", *redisAddress, 0, 1*time.Second, 1*time.Second)
 		if err != nil {
-			t.Errorf("[redis] connect to '%s' failed, %v", redis_address, err)
+			t.Errorf("[redis] connect to '%s' failed, %v", *redisAddress, err)
 			return
 		}
 		err = SetResultToRedis(c, "abc", "")

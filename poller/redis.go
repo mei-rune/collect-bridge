@@ -140,9 +140,9 @@ func (self *Redis) Close() {
 	self.wait.Wait()
 }
 
-func newRedis(address string) (chan []string, error) {
-	redis := &Redis{Address: address, c: make(chan []string, 3000), status: 1}
-	go redis.run()
-	redis.wait.Add(1)
-	return redis.c, nil
+func newRedis(address string) (*Redis, error) {
+	client := &Redis{Address: address, c: make(chan []string, 3000), status: 1}
+	go client.run()
+	client.wait.Add(1)
+	return client, nil
 }

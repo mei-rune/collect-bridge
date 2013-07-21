@@ -79,22 +79,34 @@ func Runforever() {
 		return
 	}
 
+	if !is_test {
+		defer alert_foreign.Close()
+	}
+
 	histories_foreign, err := newForeignDb("histories", commons.NewUrlBuilder(*foreignUrl).Concat("histories").ToUrl())
 	if nil != err {
 		fmt.Println("connect to foreign db failed,", err)
 		return
 	}
 
-	redis_channel, err := newRedis(*redisAddress)
+	if !is_test {
+		defer histories_foreign.Close()
+	}
+
+	redis_client, err := newRedis(*redisAddress)
 	if nil != err {
 		fmt.Println("connect to redis failed,", err)
 		return
 	}
 
+	if !is_test {
+		defer redis_client.Close()
+	}
+
 	ds_client := ds.NewClient(*dsUrl)
 
 	ctx := map[string]interface{}{"sampling.url": *sampling_url,
-		"redis_channel":     forward(redis_channel),
+		"redis_channel":     forward(redis_client.c),
 		"alerts_channel":    forward2(alert_foreign.c),
 		"histories_channel": forward2(histories_foreign.c)}
 

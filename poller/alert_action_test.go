@@ -10,6 +10,7 @@ import (
 )
 
 func TestAlertSimple(t *testing.T) {
+	publish := make(chan []string, 1000)
 	c1 := make(chan *data_object, 10)
 	c := make(chan *data_object, 10)
 
@@ -49,7 +50,7 @@ func TestAlertSimple(t *testing.T) {
 				"operator":  ">",
 				"value":     "12"}},
 			map[string]interface{}{"managed_id": "1213"},
-			map[string]interface{}{"alerts_channel": forward2(c1)})
+			map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)})
 
 		if nil != e {
 			t.Error(e)
@@ -87,6 +88,11 @@ func TestAlertSimple(t *testing.T) {
 				if "1213" != v.attributes["managed_id"] {
 					t.Errorf("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
 				}
+				select {
+				case <-publish:
+				case <-time.After(1 * time.Second):
+					t.Error("not recv and last_status is", alert.last_status)
+				}
 			default:
 				t.Error("not recv and last_status is", alert.last_status)
 			}
@@ -118,6 +124,7 @@ func TestAlertSimple(t *testing.T) {
 }
 
 func TestAlertSimple2(t *testing.T) {
+	publish := make(chan []string, 10000)
 	c1 := make(chan *data_object, 10)
 	c := make(chan *data_object, 10)
 
@@ -155,7 +162,7 @@ func TestAlertSimple2(t *testing.T) {
 				"operator":  ">",
 				"value":     "12"}},
 			map[string]interface{}{"managed_id": "1213"},
-			map[string]interface{}{"alerts_channel": forward2(c1)})
+			map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)})
 
 		if nil != e {
 			t.Error(e)
@@ -193,6 +200,13 @@ func TestAlertSimple2(t *testing.T) {
 				if "1213" != v.attributes["managed_id"] {
 					t.Errorf("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
 				}
+
+				select {
+				case <-publish:
+				case <-time.After(1 * time.Second):
+					t.Error("not recv and last_status is", alert.last_status)
+				}
+
 			default:
 				t.Error("not recv and last_status is", alert.last_status)
 			}
@@ -237,6 +251,7 @@ func TestAlertSimple2(t *testing.T) {
 }
 
 func TestAlertWithSendFailed(t *testing.T) {
+	publish := make(chan []string, 10000)
 	c1 := make(chan *data_object, 10)
 	c := make(chan *data_object, 10)
 
@@ -284,7 +299,7 @@ func TestAlertWithSendFailed(t *testing.T) {
 				"operator":  ">",
 				"value":     "12"}},
 			map[string]interface{}{"managed_id": "1213"},
-			map[string]interface{}{"alerts_channel": forward2(c1)})
+			map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)})
 
 		if nil != e {
 			t.Error(e)
@@ -328,6 +343,18 @@ func TestAlertWithSendFailed(t *testing.T) {
 				if "1213" != v.attributes["managed_id"] {
 					t.Errorf("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
 				}
+
+				select {
+				case <-publish:
+					if int32(0) != atomic.LoadInt32(&returnFailed) {
+						t.Error("excepted is not recv, but actual is recv")
+					}
+				default:
+					if int32(0) == atomic.LoadInt32(&returnFailed) {
+						t.Error("excepted is recv, but actual is not recv")
+					}
+				}
+
 			default:
 				t.Error("not recv and last_status is", alert.last_status)
 			}
@@ -367,6 +394,7 @@ func TestAlertWithSendFailed(t *testing.T) {
 }
 
 func TestAlertRepectedOverflow(t *testing.T) {
+	publish := make(chan []string, 10000)
 	c1 := make(chan *data_object, 10)
 	c := make(chan *data_object, 10)
 
@@ -388,7 +416,7 @@ func TestAlertRepectedOverflow(t *testing.T) {
 			"operator":  ">",
 			"value":     "12"}},
 		map[string]interface{}{"managed_id": "1213"},
-		map[string]interface{}{"alerts_channel": forward2(c1)})
+		map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)})
 
 	if nil != e {
 		t.Error(e)
@@ -430,6 +458,7 @@ func TestAlertRepectedOverflow(t *testing.T) {
 }
 
 func TestAlertRepectedOverflow2(t *testing.T) {
+	publish := make(chan []string, 10000)
 	c1 := make(chan *data_object, 10)
 	c := make(chan *data_object, 10)
 
@@ -451,7 +480,7 @@ func TestAlertRepectedOverflow2(t *testing.T) {
 			"operator":  ">",
 			"value":     "12"}},
 		map[string]interface{}{"managed_id": "1213"},
-		map[string]interface{}{"alerts_channel": forward2(c1)})
+		map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)})
 
 	if nil != e {
 		t.Error(e)

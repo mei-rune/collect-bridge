@@ -1,5 +1,5 @@
 go get github.com/runner-mei/go-restful
-go get github.com/runner-mei/snmpclient.go
+go get github.com/runner-mei/snmpclient
 go get github.com/garyburd/redigo/redis
 go get github.com/grsmv/inflect
 go get github.com/lib/pq

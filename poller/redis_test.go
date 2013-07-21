@@ -46,7 +46,7 @@ func redisTest(t *testing.T, cb func(client chan []string, c redis.Conn)) {
 		clearRedis(t, c, fmt.Sprintf("a%v", i))
 	}
 
-	cb(redis_client, c)
+	cb(redis_client.c, c)
 }
 func TestRedis(t *testing.T) {
 	redisTest(t, func(redis_channel chan []string, c redis.Conn) {

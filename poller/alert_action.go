@@ -19,6 +19,7 @@ type alertAction struct {
 
 	options     map[string]interface{}
 	contex      map[string]interface{}
+	publish     chan<- []string
 	channel     chan<- *data_object
 	cached_data *data_object
 
@@ -27,7 +28,7 @@ type alertAction struct {
 	repeated     int
 	already_send bool
 
-	begin_send_at, wait_response_at, end_send_at int64
+	begin_send_at, wait_response_at, responsed_at, end_send_at int64
 
 	stats_last_status  int
 	stats_repeated     int
@@ -44,6 +45,7 @@ func (self *alertAction) Stats() map[string]interface{} {
 		"already_send":     self.stats_already_send,
 		"begin_send_at":    atomic.LoadInt64(&self.begin_send_at),
 		"wait_response_at": atomic.LoadInt64(&self.wait_response_at),
+		"responsed_at":     atomic.LoadInt64(&self.responsed_at),
 		"end_send_at":      atomic.LoadInt64(&self.end_send_at)}
 }
 
@@ -112,11 +114,25 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 }
 
 func (self *alertAction) send(evt map[string]interface{}) error {
+	bs, e := json.Marshal(evt)
+	if nil != e {
+		return errors.New("marshal alert_event failed, " + e.Error())
+	}
+
+	atomic.StoreInt64(&self.begin_send_at, 0)
+	atomic.StoreInt64(&self.wait_response_at, 0)
+	atomic.StoreInt64(&self.responsed_at, 0)
+	atomic.StoreInt64(&self.end_send_at, 0)
+
 	self.cached_data.attributes = evt
 	atomic.StoreInt64(&self.begin_send_at, time.Now().Unix())
 	self.channel <- self.cached_data
 	atomic.StoreInt64(&self.wait_response_at, time.Now().Unix())
-	e := <-self.cached_data.c
+	e = <-self.cached_data.c
+	atomic.StoreInt64(&self.responsed_at, time.Now().Unix())
+	if nil == e {
+		self.publish <- []string{"PUBLISH", "tpt_alert_events", string(bs)}
+	}
 	atomic.StoreInt64(&self.end_send_at, time.Now().Unix())
 	return e
 }
@@ -148,6 +164,15 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		return nil, NotificationChannelTypeError
 	}
 
+	c = ctx["redis_channel"]
+	if nil == c {
+		return nil, errors.New("'redis_channel' is nil")
+	}
+	publish, ok := c.(chan<- []string)
+	if !ok {
+		return nil, errors.New("'redis_channel' is not a chan []stirng")
+	}
+
 	checker, e := makeChecker(attributes, ctx)
 	if nil != e {
 		return nil, e
@@ -176,6 +201,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		options:      options,
 		delay_times:  delay_times,
 		contex:       contex,
+		publish:      publish,
 		channel:      channel,
 		cached_data:  &data_object{c: make(chan error, 2)},
 		checker:      checker}, nil

@@ -1,5 +1,7 @@
 go get github.com/runner-mei/go-restful
 go get github.com/runner-mei/snmpclient
+go get github.com/runner-mei/daemontools
+go get github.com/runner-mei/delayed_job
 go get github.com/garyburd/redigo/redis
 go get github.com/grsmv/inflect
 go get github.com/lib/pq
@@ -19,6 +21,21 @@ if NOT exist %PUBLISH_PATH% mkdir %PUBLISH_PATH%
 if NOT exist %PUBLISH_PATH%\bin mkdir %PUBLISH_PATH%\bin
 if NOT exist %PUBLISH_PATH%\lib mkdir %PUBLISH_PATH%\lib
 
+
+for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
+  cd %%a\src\github.com\runner-mei\daemontools\daemontools
+  del "*.exe"
+  go build
+  @if errorlevel 1 goto failed
+  copy daemontools.exe  %PUBLISH_PATH%\bin\tpt_daemontools.exe
+
+
+  cd %%a\src\github.com\runner-mei\delayed_job\delayed_job
+  del "*.exe"
+  go build
+  @if errorlevel 1 goto failed
+  copy delayed_job.exe  %PUBLISH_PATH%\bin\tpt_delayed_job.exe
+)
 
 cd %ENGINE_PATH%src\data_store\ds
 del "*.exe"

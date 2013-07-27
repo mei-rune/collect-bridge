@@ -386,7 +386,6 @@
       </restriction>
     </property>
 
-
     <property name="created_at">
       <restriction base="datetime">
         <readonly />
@@ -431,18 +430,117 @@
     </property>
   </class>
 
-
   <class name="DbCommand" base="Action">
-    <property name="command_type">
+    <property name="drv">
       <restriction base="string">
-        <enumeration value="insert" />
-        <enumeration value="update" />
-        <enumeration value="delete" />
+        <maxLength>200</maxLength>
       </restriction>
     </property>
-    <property name="sql">
+    <property name="url">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="script">
+      <restriction base="string">
+        <maxLength>2000</maxLength>
+      </restriction>
+    </property>
+  </class>
+
+  <class name="Mail" base="Action">
+    <property name="from">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+
+    <property name="to">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+        <required />
+      </restriction>
+    </property>
+
+    <property name="cc">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+
+    <property name="bcc">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+
+
+    <property name="subject">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+        <required />
+      </restriction>
+    </property>
+
+    <property name="content_type">
+      <restriction base="string">
+        <!-- html, text -->
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+
+    <property name="content">
+      <restriction base="string">
+        <maxLength>2000</maxLength>
+        <required />
+      </restriction>
+    </property>
+  </class>
+
+
+  <class name="Syslog" base="Action">
+    <property name="facility">
       <restriction base="string">
         <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
+    <property name="severity">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
+    <property name="tag">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+
+    <property name="content">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+        <required />
+      </restriction>
+    </property>
+  </class>
+
+
+  <class name="ExecCommand" base="Action">
+    <property name="work_directory">
+      <restriction base="string">
+        <maxLength>512</maxLength>
+      </restriction>
+    </property>
+    <property name="prompt">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+      </restriction>
+    </property>
+    <property name="command">
+      <restriction base="string">
+        <maxLength>250</maxLength>
+        <required />
       </restriction>
     </property>
   </class>
@@ -521,6 +619,33 @@
     <belongs_to>ManagedObject</belongs_to>
   </class>
   
+  <class name="NotificationGroup">
+    <property name="name">
+      <restriction base="string">
+        <required/>
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="description">
+      <restriction base="string">
+        <required/>
+        <maxLength>2000</maxLength>
+      </restriction>
+    </property>
+    <property name="created_at">
+      <restriction base="datetime">
+        <required/>
+      </restriction>
+    </property>
+    <property name="updated_at">
+      <restriction base="datetime">
+        <required/>
+      </restriction>
+    </property>
+    <has_many polymorphic="true">Action</belongs_to>
+  </class>
+  
+
   <!-- For Test as Follow
    * Magazine       extends PrintedDocument extends Document{documents}
    * Book    extends PrintedDocument extends Document{documents}

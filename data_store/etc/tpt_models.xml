@@ -642,7 +642,7 @@
         <required/>
       </restriction>
     </property>
-    <has_many polymorphic="true">Action</belongs_to>
+    <has_many polymorphic="true">Action</has_many>
   </class>
   
 

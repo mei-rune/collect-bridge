@@ -44,9 +44,10 @@ func (self *redis_gateway) run() {
 			ticker.Stop()
 		}()
 
+		<-ticker.C
 		for self.isRunning() {
-			<-ticker.C
 			self.c <- nil
+			<-ticker.C
 		}
 	}()
 

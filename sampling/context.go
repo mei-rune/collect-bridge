@@ -36,6 +36,8 @@ func (self *context) CopyTo(copy map[string]interface{}) {
 
 func (self *context) Set(key string, value interface{}) {
 	switch key[0] {
+	// case '@': // thread safe?
+	// 	self.mo[key[1:]] = value
 	case '&', '!':
 		if nil == self.metrics_cache {
 			self.metrics_cache = make(map[string]interface{})

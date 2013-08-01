@@ -20,7 +20,7 @@ var (
 	dsUrl         = flag.String("ds", "http://127.0.0.1:7071", "the address of ds")
 	sampling_url  = flag.String("sampling", "http://127.0.0.1:7072", "the address of bridge")
 	timeout       = flag.Duration("timeout", 1*time.Minute, "the timeout of http")
-	refresh       = flag.Duration("refresh", 5, "the refresh interval of cache")
+	refresh       = flag.Duration("refresh", 5*time.Second, "the refresh interval of cache")
 	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:7074", "the url of foreign db")
 
 	trigger_exporter         = &Exporter{}

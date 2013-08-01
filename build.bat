@@ -27,7 +27,7 @@ for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
   del "*.exe"
   go build
   @if errorlevel 1 goto failed
-  copy daemontools.exe  %PUBLISH_PATH%\startup.exe
+  copy daemontools.exe  %PUBLISH_PATH%\Service_Daemon.exe
 
 
   cd %%a\src\github.com\runner-mei\delayed_job\delayed_job

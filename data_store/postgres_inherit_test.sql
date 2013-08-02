@@ -1,21 +1,28 @@
 
-DROP TABLE IF EXISTS tpt_histories;
+
+DROP TABLE IF EXISTS tpt_mails;
+DROP TABLE IF EXISTS tpt_syslogs;
+DROP TABLE IF EXISTS tpt_db_commands;
+DROP TABLE IF EXISTS tpt_exec_commands;
+DROP TABLE IF EXISTS tpt_notification_groups;
+DROP TABLE IF EXISTS tpt_histories CASCADE;
+DROP TABLE IF EXISTS tpt_alert_histories CASCADE;
 DROP TABLE IF EXISTS tpt_alerts;
 DROP TABLE IF EXISTS tpt_redis_commands;
-DROP TABLE IF EXISTS tpt_actions;
+DROP TABLE IF EXISTS tpt_actions CASCADE;
 DROP TABLE IF EXISTS tpt_metric_triggers;
-DROP TABLE IF EXISTS tpt_triggers;
+DROP TABLE IF EXISTS tpt_triggers CASCADE;
 DROP TABLE IF EXISTS tpt_wbem_params;
 DROP TABLE IF EXISTS tpt_ssh_params;
 DROP TABLE IF EXISTS tpt_snmp_params;
 DROP TABLE IF EXISTS tpt_endpoint_params;
-DROP TABLE IF EXISTS tpt_access_params;
+DROP TABLE IF EXISTS tpt_access_params CASCADE;
 DROP TABLE IF EXISTS tpt_network_links;
 DROP TABLE IF EXISTS tpt_network_addresses;
 DROP TABLE IF EXISTS tpt_network_device_ports;
-DROP TABLE IF EXISTS tpt_network_devices;
-DROP TABLE IF EXISTS tpt_managed_objects;
-DROP TABLE IF EXISTS tpt_attributes;
+DROP TABLE IF EXISTS tpt_network_devices CASCADE;
+DROP TABLE IF EXISTS tpt_managed_objects CASCADE;
+DROP TABLE IF EXISTS tpt_attributes CASCADE;
 DROP SEQUENCE IF EXISTS tpt_actions_seq;
 DROP SEQUENCE IF EXISTS tpt_triggers_seq;
 DROP SEQUENCE IF EXISTS tpt_managed_object_seq;
@@ -209,16 +216,55 @@ CREATE TABLE tpt_redis_commands (
   CONSTRAINT tpt_redis_commands_pkey PRIMARY KEY (id)
 ) INHERITS (tpt_actions);
 
+CREATE TABLE tpt_mails (
+  from_address varchar(250),
+  to_address varchar(250) NOT NULL,
+  cc_address varchar(250),
+  bcc_address varchar(250),
+  subject varchar(250) NOT NULL,
+  content_type varchar(50) NOT NULL,
+  content varchar(2000) NOT NULL,
+
+  CONSTRAINT tpt_mails_pkey PRIMARY KEY (id)
+) INHERITS (tpt_actions);
+
+
+CREATE TABLE tpt_syslogs (
+  facility varchar(50) NOT NULL,
+  severity varchar(50) NOT NULL,
+  tag varchar(100),
+  content varchar(2000) NOT NULL,
+
+  CONSTRAINT tpt_syslogs_pkey PRIMARY KEY (id)
+) INHERITS (tpt_actions);
+
+
+CREATE TABLE tpt_db_commands (
+  drv varchar(200) NOT NULL,
+  url varchar(200) NOT NULL,
+  script varchar(2000) NOT NULL,
+
+  CONSTRAINT tpt_db_commands_pkey PRIMARY KEY (id)
+) INHERITS (tpt_actions);
+
+CREATE TABLE tpt_exec_commands (
+  work_directory varchar(500) ,
+  prompt varchar(250) ,
+  command varchar(500) NOT NULL,
+
+  CONSTRAINT tpt_exec_commands_pkey PRIMARY KEY (id)
+) INHERITS (tpt_actions);
 
 CREATE TABLE tpt_alerts (
   -- id integer NOT NULL DEFAULT nextval('actions_seq')  PRIMARY KEY,
-  delay_times      integer,
-  enabled          boolean,
-  level            integer,
+  delay_times           integer,
+  enabled               boolean,
+  level                 integer,
 
-  expression_style varchar(50),
-  expression_code  varchar(2000),
-  
+  expression_style      varchar(50),
+  expression_code       varchar(2000),
+  notification_group_id integer,
+
   CONSTRAINT tpt_alerts_pkey PRIMARY KEY (id)
 ) INHERITS (tpt_actions);
 
@@ -227,6 +273,15 @@ CREATE TABLE tpt_histories (
   attribute  varchar(200),
   CONSTRAINT tpt_histories_pkey PRIMARY KEY (id)
 ) INHERITS (tpt_actions);
+
+
+CREATE TABLE tpt_notification_groups (
+  id serial PRIMARY KEY,
+  name varchar(200) NOT NULL,
+  description varchar(2000),
+  created_at timestamp,
+  updated_at timestamp
+);
 
 
 DROP TABLE IF EXISTS tpt_documents;

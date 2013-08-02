@@ -449,31 +449,30 @@
   </class>
 
   <class name="Mail" base="Action">
-    <property name="from">
+    <property name="from_address">
       <restriction base="string">
         <maxLength>200</maxLength>
       </restriction>
     </property>
 
-    <property name="to">
+    <property name="to_address">
       <restriction base="string">
         <maxLength>200</maxLength>
         <required />
       </restriction>
     </property>
 
-    <property name="cc">
+    <property name="cc_address">
       <restriction base="string">
         <maxLength>200</maxLength>
       </restriction>
     </property>
 
-    <property name="bcc">
+    <property name="bcc_address">
       <restriction base="string">
         <maxLength>200</maxLength>
       </restriction>
     </property>
-
 
     <property name="subject">
       <restriction base="string">
@@ -502,12 +501,49 @@
     <property name="facility">
       <restriction base="string">
         <maxLength>250</maxLength>
+        <enumeration>
+          <value>kernel</value>
+          <value>user</value>
+          <value>user</value>
+          <value>mail</value>
+          <value>daemon</value>
+          <value>auth</value>
+          <value>syslog</value>
+          <value>lpr</value>
+          <value>news</value>
+          <value>uucp</value>
+          <value>cron</value>
+          <value>authpriv</value>
+          <value>system0</value>
+          <value>system1</value>
+          <value>system2</value>
+          <value>system3</value>
+          <value>system4</value>
+          <value>local0</value>
+          <value>local1</value>
+          <value>local2</value>
+          <value>local3</value>
+          <value>local4</value>
+          <value>local5</value>
+          <value>local6</value>
+          <value>local7</value>
+        </enumeration>
       </restriction>
     </property>
 
     <property name="severity">
       <restriction base="string">
         <maxLength>250</maxLength>
+        <enumeration>
+          <value>emerg</value>
+          <value>alert</value>
+          <value>crit</value>
+          <value>err</value>
+          <value>waining</value>
+          <value>notice</value>
+          <value>info</value>
+          <value>debug</value>
+        </enumeration>
       </restriction>
     </property>
 

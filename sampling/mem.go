@@ -8,7 +8,7 @@ type memCisco struct {
 	snmpBase
 }
 
-func (self *memCisco) Call(params commons.Map) commons.Result {
+func (self *memCisco) Call(params MContext) commons.Result {
 	res := self.CallA(params)
 	if !res.HasError() {
 		return res
@@ -20,13 +20,13 @@ func (self *memCisco) Call(params commons.Map) commons.Result {
 	return self.CallHost(params)
 }
 
-func (self *memCisco) CallHost(params commons.Map) commons.Result {
+func (self *memCisco) CallHost(params MContext) commons.Result {
 	var windows memWindows
 	windows.CopyFrom(&self.snmpBase)
 	return windows.Call(params)
 }
 
-func (self *memCisco) CallA(params commons.Map) commons.Result {
+func (self *memCisco) CallA(params MContext) commons.Result {
 	total, e := self.GetInt64(params, "1.3.6.1.4.1.9.3.6.6.0")
 	if nil != e {
 		return commons.ReturnWithInternalError(e.Error())
@@ -43,7 +43,7 @@ func (self *memCisco) CallA(params commons.Map) commons.Result {
 		"free":     free})
 }
 
-func (self *memCisco) CallB(params commons.Map) commons.Result {
+func (self *memCisco) CallB(params MContext) commons.Result {
 	used, e := self.GetInt64(params, "1.3.6.1.4.1.9.9.109.1.1.1.1.12.1")
 	if nil != e {
 		return commons.ReturnWithInternalError(e.Error())
@@ -64,7 +64,7 @@ type memWindows struct {
 	snmpBase
 }
 
-func (self *memWindows) Call(params commons.Map) commons.Result {
+func (self *memWindows) Call(params MContext) commons.Result {
 	//HOST-RESOURCES-MIB:hrStorageTable  = ".1.3.6.1.2.1.25.2.3.1.";
 	//HOST-RESOURCES-MIB:hrMemorySize  = ".1.3.6.1.2.1.25.2.2.0";
 	//Physical Memory type = "1.3.6.1.2.1.25.2.1.2";
@@ -97,12 +97,12 @@ func (self *memWindows) Call(params commons.Map) commons.Result {
 }
 
 func init() {
-	Methods["default_mem"] = newRouteSpec("mem", "default mem", nil,
+	Methods["default_mem"] = newRouteSpec("get", "mem", "default mem", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &memWindows{}
 			return drv, drv.Init(params)
 		})
-	Methods["cisco_mem"] = newRouteSpec("mem", "the mem of cisco", Match().Oid("1.3.6.1.4.1.9").Build(),
+	Methods["cisco_mem"] = newRouteSpec("get", "mem", "the mem of cisco", Match().Oid("1.3.6.1.4.1.9").Build(),
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &memCisco{}
 			return drv, drv.Init(params)

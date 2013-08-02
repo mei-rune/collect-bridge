@@ -1,11 +1,12 @@
 package sampling
 
 import (
+	"commons"
 	"testing"
 )
 
 func TestCircularBuffer(t *testing.T) {
-	cb := newCircularBuffer(make([]interface{}, 11))
+	cb := newCircularBuffer(make([]commons.Result, 10))
 
 	check := func(cb *circularBuffer, c int) {
 		if c < 10 {
@@ -19,7 +20,7 @@ func TestCircularBuffer(t *testing.T) {
 			}
 
 			for i := 0; i <= c; i++ {
-				if all[i] != i {
+				if all[i].InterfaceValue() != i {
 					t.Error("all[", i, "] is error, excepted is ", all[i], ", actual is", i)
 				}
 			}
@@ -35,7 +36,7 @@ func TestCircularBuffer(t *testing.T) {
 			}
 
 			for i := 0; i < 10; i++ {
-				if all[i] != c-9+i {
+				if all[i].InterfaceValue() != c-9+i {
 					t.Error("all[", i, "] is error, excepted is", all[i], ", actual is", c-9+i)
 				}
 			}
@@ -43,7 +44,7 @@ func TestCircularBuffer(t *testing.T) {
 	}
 
 	for i := 0; i < 100; i++ {
-		cb.push(i)
+		cb.push(commons.Return(i))
 		check(cb, i)
 	}
 }

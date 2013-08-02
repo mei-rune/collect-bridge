@@ -22,8 +22,12 @@ type Filter struct {
 	Arguments []string `json:"arguments"`
 }
 
+type MContext interface {
+	commons.Map
+}
+
 type Method interface {
-	Call(params commons.Map) commons.Result
+	Call(params MContext) commons.Result
 }
 
 type RouteSpec struct {

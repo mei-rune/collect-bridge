@@ -8,7 +8,7 @@ type ipAddress struct {
 	snmpBase
 }
 
-func (self *ipAddress) Call(params commons.Map) commons.Result {
+func (self *ipAddress) Call(params MContext) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.2.1.4.20.1", "1,2,3,4,5",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
@@ -25,7 +25,7 @@ type route struct {
 	snmpBase
 }
 
-func (self *route) Call(params commons.Map) commons.Result {
+func (self *route) Call(params MContext) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.2.1.4.21.1", "1,2,7,8,9,10,11",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
@@ -44,7 +44,7 @@ type arp struct {
 	snmpBase
 }
 
-func (self *arp) Call(params commons.Map) commons.Result {
+func (self *arp) Call(params MContext) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.2.1.4.22.1", "1,2,3,4",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
@@ -58,19 +58,19 @@ func (self *arp) Call(params commons.Map) commons.Result {
 
 func init() {
 
-	Methods["ipAddress"] = newRouteSpec("ipAddress", "the address table", nil,
+	Methods["ipAddress"] = newRouteSpec("get", "ipAddress", "the address table", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &ipAddress{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["route"] = newRouteSpec("route", "the route table", nil,
+	Methods["route"] = newRouteSpec("get", "route", "the route table", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &route{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["arp"] = newRouteSpec("arp", "the arp table", nil,
+	Methods["arp"] = newRouteSpec("get", "arp", "the arp table", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &arp{}
 			return drv, drv.Init(params)

@@ -17,8 +17,8 @@ func (self *Route) Invoke(params commons.Map) commons.Result {
 	return self.invoke.Call(params)
 }
 
-func newRouteSpec(name, descr string, match Matchers, call func(rs *RouteSpec, params map[string]interface{}) (Method, error)) *RouteSpec {
-	return &RouteSpec{Method: "get",
+func newRouteSpec(method, name, descr string, match Matchers, call func(rs *RouteSpec, params map[string]interface{}) (Method, error)) *RouteSpec {
+	return &RouteSpec{Method: method,
 		Name:        name,
 		Description: descr,
 		Author:      "mfk",

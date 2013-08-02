@@ -54,7 +54,7 @@ func (self *server) returnResult(resp *restful.Response, res commons.Result) {
 	}
 }
 
-type invoke_func func(self *dispatcher, name string, params commons.Map) commons.Result
+type invoke_func func(self *dispatcher, name string, params MContext) commons.Result
 
 func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker invoke_func) {
 	managed_type := req.PathParameter("type")
@@ -67,9 +67,9 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 		self.returnResult(resp, commons.ReturnWithIsRequired("id"))
 		return
 	}
-	metric_name := req.PathParameter("metric_name")
+	metric_name := req.PathParameter("metric-name")
 	if 0 == len(metric_name) {
-		self.returnResult(resp, commons.ReturnWithIsRequired("metric_name"))
+		self.returnResult(resp, commons.ReturnWithIsRequired("metric-name"))
 		return
 	}
 
@@ -107,17 +107,21 @@ func (self *server) native_invoke(req *restful.Request, resp *restful.Response, 
 		self.returnResult(resp, commons.ReturnWithIsRequired("ip"))
 		return
 	}
-	metric_name := req.PathParameter("metric_name")
+	metric_name := req.PathParameter("metric-name")
 	if 0 == len(metric_name) {
-		self.returnResult(resp, commons.ReturnWithIsRequired("metric_name"))
+		self.returnResult(resp, commons.ReturnWithIsRequired("metric-name"))
 		return
 	}
 
 	query_params := make(map[string]string)
 	query_params["@address"] = ip
-	query_params["metric_name"] = metric_name
+	query_params["metric-name"] = metric_name
 	for k, v := range req.Request.URL.Query() {
 		query_params[k] = v[len(v)-1]
+	}
+
+	if 0 != len(empty_mo) {
+		panic("empty_mo is not empty.")
 	}
 
 	params := &context{params: query_params,

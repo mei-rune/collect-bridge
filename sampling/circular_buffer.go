@@ -1,79 +1,81 @@
 package sampling
 
+import (
+	"commons"
+)
+
 /* Circular buffer object */
 type circularBuffer struct {
-	//int         size;   /* maximum number of elements           */
-	start    int           /* index of oldest element              */
-	end      int           /* index at which to write new element  */
-	elements []interface{} /* vector of elements                   */
+	start    int              /* index of oldest element              */
+	count    int              /* the count of elements                */
+	elements []commons.Result /* vector of elements                   */
 }
 
-func newCircularBuffer(elements []interface{}) *circularBuffer {
+func newCircularBuffer(elements []commons.Result) *circularBuffer {
 	return &circularBuffer{elements: elements}
 }
 
+func (self *circularBuffer) init(elements []commons.Result)  {
+	self.elements = elements
+	self.start = 0
+	self.count = 0
+}
+
 func (self *circularBuffer) isFull() bool {
-	return (self.end+1)%len(self.elements) == self.start
+	return self.count == len(self.elements)
 }
 
 func (self *circularBuffer) isEmpty() bool {
-	return self.end == self.start
+	return 0 == self.count
 }
 
 /* Write an element, overwriting oldest element if buffer is full. App can
-   choose to avoid the overwrite by checking cbIsFull(). */
-func (self *circularBuffer) push(elem interface{}) {
-	self.elements[self.end] = elem
-	self.end = (self.end + 1) % len(self.elements)
-	if self.end == self.start {
+   choose to avoid the overwrite by checking isFull(). */
+func (self *circularBuffer) push(elem commons.Result) {
+	end := (self.start + self.count) % len(self.elements)
+	self.elements[end] = elem
+	if self.count == len(self.elements) {
 		self.start = (self.start + 1) % len(self.elements) /* full, overwrite */
+	} else {
+		self.count++
 	}
 }
 
-/* Read oldest element. App must ensure !cbIsEmpty() first. */
-func (self *circularBuffer) pop() interface{} {
+/* Read oldest element. App must ensure !isEmpty() first. */
+func (self *circularBuffer) pop() commons.Result {
 	if self.isEmpty() {
 		return nil
 	}
+
 	elem := self.elements[self.start]
 	self.start = (self.start + 1) % len(self.elements)
+	self.count--
 	return elem
 }
 
 /* Read all elements.*/
 func (self *circularBuffer) size() int {
-	if self.end == self.start {
-		return 0
-	}
-
-	if self.end > self.start {
-		return self.end - self.start
-	}
-
-	count := len(self.elements) - self.start
-	count += self.end
-	return count
+	return self.count
 }
 
 /* Read all elements.*/
-func (self *circularBuffer) all() []interface{} {
-	if self.end == self.start {
+func (self *circularBuffer) all() []commons.Result {
+	if 0 == self.count {
 		return nil
 	}
 
-	if self.end > self.start {
-		res := make([]interface{}, 0, self.end-self.start)
-		for i := self.start; i < self.end; i++ {
+	res := make([]commons.Result, 0, self.count)
+	if self.count <= (len(self.elements) - self.start) {
+		for i := self.start; i < (self.start + self.count); i++ {
 			res = append(res, self.elements[i])
 		}
 		return res
 	}
 
-	res := make([]interface{}, 0, len(self.elements))
 	for i := self.start; i < len(self.elements); i++ {
 		res = append(res, self.elements[i])
 	}
-	for i := 0; i < self.end; i++ {
+	for i := 0; len(res) < self.count; i++ {
 		res = append(res, self.elements[i])
 	}
 

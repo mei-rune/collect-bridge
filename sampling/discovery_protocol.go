@@ -8,7 +8,7 @@ type cisco_discovery_protocol struct {
 	snmpBase
 }
 
-func (self *cisco_discovery_protocol) Call(params commons.Map) commons.Result {
+func (self *cisco_discovery_protocol) Call(params MContext) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.4.1.9.9.23.1.2.1.1", "4,6,7,12",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
@@ -24,7 +24,7 @@ type huawei_discovery_protocol struct {
 	snmpBase
 }
 
-func (self *huawei_discovery_protocol) Call(params commons.Map) commons.Result {
+func (self *huawei_discovery_protocol) Call(params MContext) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.4.1.2011.6.7.5.6.1", "1,2,3",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
@@ -37,13 +37,13 @@ func (self *huawei_discovery_protocol) Call(params commons.Map) commons.Result {
 
 func init() {
 
-	Methods["cisco_discovery_protocol"] = newRouteSpec("cisco_discovery_protocol", "the discovery protocol of cisco", nil,
+	Methods["cisco_discovery_protocol"] = newRouteSpec("get", "cisco_discovery_protocol", "the discovery protocol of cisco", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &cisco_discovery_protocol{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["huawei_discovery_protocol"] = newRouteSpec("huawei_discovery_protocol", "the discovery protocol of huawei", nil,
+	Methods["huawei_discovery_protocol"] = newRouteSpec("get", "huawei_discovery_protocol", "the discovery protocol of huawei", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &huawei_discovery_protocol{}
 			return drv, drv.Init(params)

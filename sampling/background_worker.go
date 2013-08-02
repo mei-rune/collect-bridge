@@ -20,7 +20,6 @@ type backgroundWorker struct {
 	c                chan func()
 	wait             sync.WaitGroup
 	last_error       string
-	closers          []func()
 	period_interval  time.Duration
 	timeout_interval time.Duration
 
@@ -101,7 +100,7 @@ func (self *backgroundWorker) add(id string, bw worker) {
 	}
 }
 
-func (self *backgroundWorker) remove(id string, bw worker) {
+func (self *backgroundWorker) remove(id string) {
 	self.c <- func() {
 		delete(self.workers, id)
 	}

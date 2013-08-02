@@ -139,7 +139,7 @@ func notAcceptable(metric_name string) commons.Result {
 	return commons.ReturnWithNotAcceptable("'" + metric_name + "' is not acceptable.")
 }
 
-func (self *dispatcher) Get(metric_name string, params commons.Map) commons.Result {
+func (self *dispatcher) Get(metric_name string, params MContext) commons.Result {
 	route := self.route_for_get[metric_name]
 	if nil != route {
 		return route.Invoke(params)
@@ -153,7 +153,7 @@ func (self *dispatcher) Get(metric_name string, params commons.Map) commons.Resu
 	return routes.Invoke(params)
 }
 
-func (self *dispatcher) Put(metric_name string, params commons.Map) commons.Result {
+func (self *dispatcher) Put(metric_name string, params MContext) commons.Result {
 	route := self.route_for_put[metric_name]
 	if nil != route {
 		return route.Invoke(params)
@@ -167,7 +167,7 @@ func (self *dispatcher) Put(metric_name string, params commons.Map) commons.Resu
 	return routes.Invoke(params)
 }
 
-func (self *dispatcher) Create(metric_name string, params commons.Map) commons.Result {
+func (self *dispatcher) Create(metric_name string, params MContext) commons.Result {
 	route := self.route_for_create[metric_name]
 	if nil != route {
 		return route.Invoke(params)
@@ -181,7 +181,7 @@ func (self *dispatcher) Create(metric_name string, params commons.Map) commons.R
 	return routes.Invoke(params)
 }
 
-func (self *dispatcher) Delete(metric_name string, params commons.Map) commons.Result {
+func (self *dispatcher) Delete(metric_name string, params MContext) commons.Result {
 	route := self.route_for_delete[metric_name]
 	if nil != route {
 		return route.Invoke(params)

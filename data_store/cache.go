@@ -238,6 +238,10 @@ func (c *Cache) doChildren(req *cache_request) *cache_request {
 			c.set(req.id, req.result)
 		}
 	}
+	if nil == req.result {
+		return req
+	}
+
 	// res := req.result["$"+req.child_type]
 	// if nil != res {
 	// 	if result, ok := res.(map[string]interface{}); ok {

@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	redisAddress  = flag.String("redis", "127.0.0.1:6379", "the address of redis")
-	listenAddress = flag.String("listen", ":7073", "the address of http")
+	redisAddress  = flag.String("redis_address", "127.0.0.1:6379", "the address of redis")
+	listenAddress = flag.String("poller.listen", ":7073", "the address of http")
 	dsUrl         = flag.String("ds", "http://127.0.0.1:7071", "the address of ds")
 	sampling_url  = flag.String("sampling", "http://127.0.0.1:7072", "the address of bridge")
 	timeout       = flag.Duration("timeout", 1*time.Minute, "the timeout of http")
@@ -104,11 +104,13 @@ func Runforever() {
 	}
 
 	ds_client := ds.NewClient(*dsUrl)
+	notification_groups := ds.NewCacheWithIncludes(*refresh, ds_client, "notification_group", "action")
 
 	ctx := map[string]interface{}{"sampling.url": *sampling_url,
-		"redis_channel":     forward(redis_client.c),
-		"alerts_channel":    forward2(alert_foreign.c),
-		"histories_channel": forward2(histories_foreign.c)}
+		"redis_channel":       forward(redis_client.c),
+		"alerts_channel":      forward2(alert_foreign.c),
+		"histories_channel":   forward2(histories_foreign.c),
+		"notification_groups": notification_groups}
 
 	srv := newServer(*refresh, ds_client, ctx)
 	err = srv.Start()

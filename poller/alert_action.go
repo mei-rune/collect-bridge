@@ -2,15 +2,24 @@ package poller
 
 import (
 	"commons"
+	ds "data_store"
+	//"commons/types"
 	"encoding/json"
 	"errors"
+	"flag"
 	"sync/atomic"
 	"time"
 )
 
 const MAX_REPEATED = 9999990
 
-var reset_error = errors.New("please reset channel.")
+var (
+	notification_priority     = flag.Int("alert.notification.priority", 0, "the priority of notification job")
+	notification_max_attempts = flag.Int("alert.notification.max_attempts", -1, "the max attempts while notification push failed")
+	notification_queue        = flag.String("alert.notification.queue", "", "the default queue name")
+
+	reset_error = errors.New("please reset channel.")
+)
 
 type alertAction struct {
 	id          int64
@@ -27,6 +36,9 @@ type alertAction struct {
 	last_status  int
 	repeated     int
 	already_send bool
+
+	notification_group_id string
+	notification_groups   *ds.Cache
 
 	begin_send_at, wait_response_at, responsed_at, end_send_at int64
 
@@ -93,13 +105,22 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	}
 
 	if _, found := evt["current_value"]; !found {
-		bs, _ := json.Marshal(value)
+		bs, err := json.Marshal(value)
+		if nil != err {
+			return errors.New("marshal current value failed," + err.Error())
+		}
 		if nil != bs {
 			evt["current_value"] = string(bs)
 		}
 	}
 
 	evt["status"] = current
+	if nil != self.notification_groups {
+		err := self.fillNotificationData(evt)
+		if nil != err {
+			return err
+		}
+	}
 
 	err = self.send(evt)
 	if nil == err {
@@ -111,6 +132,35 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 		self.cached_data = &data_object{c: make(chan error, 2)}
 	}
 	return err
+}
+
+func (self *alertAction) fillNotificationData(evt map[string]interface{}) error {
+	rules, err := self.notification_groups.GetChildren(self.notification_group_id, "action", nil)
+	if nil != err {
+		return errors.New("load notfications failed, " + err.Error())
+	}
+	if nil == rules {
+		return nil
+	}
+
+	args := map[string]interface{}{}
+	for k, v := range evt {
+		args[k] = v
+	}
+	payload_object := map[string]interface{}{"type": "multiplexed", "arguments": args,
+		"rules": rules}
+	if 0 < *notification_max_attempts {
+		payload_object["max_attempts"] = *notification_max_attempts
+	}
+
+	bs, err := json.Marshal(payload_object)
+	if nil != err {
+		return errors.New("marshal payload_object failed," + err.Error())
+	}
+	if nil != bs {
+		evt["notification"] = map[string]interface{}{"priority": *notification_priority, "queue": *notification_queue, "payload_object": string(bs)}
+	}
+	return nil
 }
 
 func (self *alertAction) send(evt map[string]interface{}) error {
@@ -194,17 +244,30 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		}
 	}
 
+	notification_group_id := commons.GetStringWithDefault(attributes, "notification_group_id", "")
+	var notification_groups *ds.Cache
+	if 0 != len(notification_group_id) {
+		if c, ok := ctx["notification_groups"]; ok && nil != c {
+			notification_groups, _ = c.(*ds.Cache)
+		}
+		if nil == notification_groups {
+			return nil, errors.New("'notification_groups' is missing")
+		}
+	}
+
 	return &alertAction{id: id,
 		name: name,
 		//description: commons.GetString(attributes, "description", ""),
-		already_send: false,
-		options:      options,
-		delay_times:  delay_times,
-		contex:       contex,
-		publish:      publish,
-		channel:      channel,
-		cached_data:  &data_object{c: make(chan error, 2)},
-		checker:      checker}, nil
+		already_send:          false,
+		options:               options,
+		delay_times:           delay_times,
+		contex:                contex,
+		publish:               publish,
+		channel:               channel,
+		cached_data:           &data_object{c: make(chan error, 2)},
+		checker:               checker,
+		notification_group_id: notification_group_id,
+		notification_groups:   notification_groups}, nil
 }
 
 func makeChecker(attributes, ctx map[string]interface{}) (Checker, error) {

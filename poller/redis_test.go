@@ -6,9 +6,20 @@ import (
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
+
+func containsResult(t *testing.T, c redis.Conn, cmd, key, excepted string) {
+	reply, err := c.Do(cmd, key)
+	s, err := redis.String(reply, err)
+	if nil != err {
+		t.Errorf("GET %s failed, %v", key, err)
+	} else if !strings.Contains(s, excepted) {
+		t.Errorf("check %s failed, actual is %v, excepted is %v", key, reply, excepted)
+	}
+}
 
 func checkResult(t *testing.T, c redis.Conn, cmd, key, excepted string) {
 	reply, err := c.Do(cmd, key)

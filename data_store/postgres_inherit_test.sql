@@ -230,6 +230,7 @@ CREATE TABLE tpt_mails (
 
 
 CREATE TABLE tpt_syslogs (
+  to_address varchar(250) NOT NULL,
   facility varchar(50) NOT NULL,
   severity varchar(50) NOT NULL,
   tag varchar(100),

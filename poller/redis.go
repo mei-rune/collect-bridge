@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var redis_error = expvar.NewString("redis")
+var redis_error = expvar.NewString("redis_gateway")
 
 type redis_gateway struct {
 	Address string
@@ -27,10 +27,12 @@ func (self *redis_gateway) isRunning() bool {
 }
 
 func (self *redis_gateway) run() {
+	is_running := int32(1)
 	defer func() {
 		log.Println("redis client is exit.")
 		close(self.c)
 		self.wait.Done()
+		atomic.StoreInt32(&is_running, 0)
 	}()
 
 	ticker := time.NewTicker(1 * time.Second)
@@ -45,7 +47,7 @@ func (self *redis_gateway) run() {
 		}()
 
 		<-ticker.C
-		for self.isRunning() {
+		for 1 == atomic.LoadInt32(&is_running) {
 			self.c <- nil
 			<-ticker.C
 		}

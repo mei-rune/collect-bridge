@@ -498,12 +498,17 @@
 
 
   <class name="Syslog" base="Action">
+    <property name="to_address">
+      <restriction base="string">
+        <required />
+      </restriction>
+    </property>
+
     <property name="facility">
       <restriction base="string">
         <maxLength>250</maxLength>
         <enumeration>
           <value>kernel</value>
-          <value>user</value>
           <value>user</value>
           <value>mail</value>
           <value>daemon</value>
@@ -664,7 +669,6 @@
     </property>
     <property name="description">
       <restriction base="string">
-        <required/>
         <maxLength>2000</maxLength>
       </restriction>
     </property>

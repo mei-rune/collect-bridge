@@ -27,7 +27,11 @@ var (
 	drv           = flag.String("data_db.name", "postgres", "the db driver")
 	goroutines    = flag.Int("carrier.connections", 10, "the db connection number")
 
-	server_instance *server = nil
+	delayed_job_table_name = flag.String("delayed_job_table_name", "delayed_jobs", "the table name of delayed job")
+
+	delayed_job_table         = ""
+	isNumericParams           = true
+	server_instance   *server = nil
 )
 
 var (
@@ -238,14 +242,22 @@ func (self *server) run(ctx *context, obj *request_object) {
 	obj.cb(self, ctx, obj.response, obj.request)
 }
 
+type Notification struct {
+	Id            string `json:"id"`
+	Priority      int    `json:"priority"`
+	Queue         string `json:"queue"`
+	PayloadObject string `json:"payload_object"`
+}
+
 type AlertEntity struct {
-	Id           int64     `json:"id"`
-	ActionId     int64     `json:"action_id"`
-	Status       int64     `json:"status"`
-	CurrentValue string    `json:"current_value"`
-	TriggeredAt  time.Time `json:"triggered_at"`
-	ManagedType  string    `json:"managed_type"`
-	ManagedId    int64     `json:"managed_id"`
+	Id               int64         `json:"id"`
+	ActionId         int64         `json:"action_id"`
+	Status           int64         `json:"status"`
+	CurrentValue     string        `json:"current_value"`
+	TriggeredAt      time.Time     `json:"triggered_at"`
+	ManagedType      string        `json:"managed_type"`
+	ManagedId        int64         `json:"managed_id"`
+	NotificationData *Notification `json:"notification,omitempty"`
 }
 
 type HistoryEntity struct {
@@ -487,6 +499,8 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 		}
 	}()
 
+	now := time.Now()
+
 	for _, entity := range entities {
 		if 0 == entity.Status {
 			_, e := tx.Exec("DELETE FROM tpt_alert_cookies WHERE action_id = $1", entity.ActionId)
@@ -497,7 +511,13 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 			}
 		} else {
 			var id int64
-			e := tx.QueryRow("SELECT id FROM tpt_alert_cookies WHERE action_id = $1", entity.ActionId).Scan(&id)
+			var e error
+
+			if isNumericParams {
+				e = tx.QueryRow("SELECT id FROM tpt_alert_cookies WHERE action_id = $1", entity.ActionId).Scan(&id)
+			} else {
+				e = tx.QueryRow("SELECT id FROM tpt_alert_cookies WHERE action_id = ?", entity.ActionId).Scan(&id)
+			}
 			if nil != e {
 				if sql.ErrNoRows != e {
 					response.WriteHeader(http.StatusInternalServerError)
@@ -505,12 +525,22 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 					return
 				}
 
-				_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, current_value, triggered_at)
-    		VALUES ($1, $2, $3, $4, $5, $6)`, entity.ActionId, entity.ManagedType, entity.ManagedId,
-					entity.Status, entity.CurrentValue, entity.TriggeredAt)
+				if isNumericParams {
+					_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+						entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
+				} else {
+					_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES (?, ?, ?, ?, ?, ?)`,
+						entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
+				}
 			} else {
-				_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = $1, current_value = $2, triggered_at = $3  WHERE id = $4`,
-					entity.Status, entity.CurrentValue, entity.TriggeredAt, id)
+
+				if isNumericParams {
+					_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = $1, current_value = $2, triggered_at = $3  WHERE id = $4`,
+						entity.Status, entity.CurrentValue, entity.TriggeredAt, id)
+				} else {
+					_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = ?, current_value = ?, triggered_at = ?  WHERE id = ?`,
+						entity.Status, entity.CurrentValue, entity.TriggeredAt, id)
+				}
 			}
 			if nil != e {
 				response.WriteHeader(http.StatusInternalServerError)
@@ -519,13 +549,38 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 			}
 		}
 
-		_, e = tx.Exec("INSERT INTO tpt_alert_histories_"+strconv.Itoa(entity.TriggeredAt.Year())+months[entity.TriggeredAt.Month()]+
-			"(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6)",
-			entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
+		if isNumericParams {
+			_, e = tx.Exec("INSERT INTO tpt_alert_histories_"+strconv.Itoa(entity.TriggeredAt.Year())+months[entity.TriggeredAt.Month()]+
+				"(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6)",
+				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
+		} else {
+			_, e = tx.Exec("INSERT INTO tpt_alert_histories_"+strconv.Itoa(entity.TriggeredAt.Year())+months[entity.TriggeredAt.Month()]+
+				"(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES (?, ?, ?, ?, ?, ?)",
+				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
+		}
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(e.Error()))
 			return
+		}
+
+		if nil != entity.NotificationData {
+			var queue, id interface{}
+			if 0 != len(entity.NotificationData.Queue) {
+				queue = entity.NotificationData.Queue
+			}
+
+			if 0 != len(entity.NotificationData.Id) {
+				id = entity.NotificationData.Id
+			}
+
+			_, e = tx.Exec(delayed_job_table,
+				entity.NotificationData.Priority, 0, queue, entity.NotificationData.PayloadObject, id, now, now, now)
+			if nil != e {
+				response.WriteHeader(http.StatusInternalServerError)
+				response.Write([]byte(e.Error()))
+				return
+			}
 		}
 	}
 
@@ -564,9 +619,16 @@ func (self *server) onHistories(ctx *context, response http.ResponseWriter, requ
 	}()
 
 	for _, entity := range entities {
-		_, e = tx.Exec("INSERT INTO tpt_histories_"+strconv.Itoa(entity.SampledAt.Year())+months[entity.SampledAt.Month()]+
-			"(action_id, managed_type, managed_id, current_value, sampled_at) VALUES ($1, $2, $3, $4, $5)",
-			entity.ActionId, entity.ManagedType, entity.ManagedId, entity.CurrentValue, entity.SampledAt)
+
+		if isNumericParams {
+			_, e = tx.Exec("INSERT INTO tpt_histories_"+strconv.Itoa(entity.SampledAt.Year())+months[entity.SampledAt.Month()]+
+				"(action_id, managed_type, managed_id, current_value, sampled_at) VALUES ($1, $2, $3, $4, $5)",
+				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.CurrentValue, entity.SampledAt)
+		} else {
+			_, e = tx.Exec("INSERT INTO tpt_histories_"+strconv.Itoa(entity.SampledAt.Year())+months[entity.SampledAt.Month()]+
+				"(action_id, managed_type, managed_id, current_value, sampled_at) VALUES (?, ?, ?, ?, ?)",
+				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.CurrentValue, entity.SampledAt)
+		}
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(e.Error()))
@@ -660,6 +722,14 @@ func Main(is_test bool) error {
 	if 0 >= *goroutines {
 		return errors.New("goroutines must is greate 0")
 	}
+
+	isNumericParams = ds.IsNumericParams(*drv)
+	if isNumericParams {
+		delayed_job_table = "INSERT INTO " + *delayed_job_table_name + "(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)"
+	} else {
+		delayed_job_table = "INSERT INTO " + *delayed_job_table_name + "(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)"
+	}
+
 	if "sqlite3" == *drv {
 		*goroutines = 1
 	}

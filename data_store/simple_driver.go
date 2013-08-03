@@ -401,7 +401,7 @@ func typeFrom(table *types.TableDefinition, attributes map[string]interface{}) (
 
 	defintion := table.FindByUnderscoreName(nm)
 	if nil == defintion {
-		return nil, errors.New("table '" + nm + "' is not exists.")
+		return nil, errors.New("table '" + nm + "' with parent was table '" + table.UnderscoreName + "' is not exists.")
 	}
 
 	if !defintion.IsSubclassOf(table) {

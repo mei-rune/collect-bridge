@@ -99,16 +99,15 @@ func TestAlertsServer(t *testing.T) {
 func TestAlertsServer2(t *testing.T) {
 	SrvTest(t, func(db *sql.DB, url string) {
 		nowt, _ := time.Parse(time.RFC3339, "2013-07-13T14:13:28.7024412+08:00")
-
 		_, e := httpInvoke("PUT", url+"/alerts", `[{"action_id":1,
-"current_value":"",
-"managed_id":1,
-"managed_type":"managed_object",
-"metric":"sys",
-"name":"this is a test alert",
-"status":1,
-"trigger_id":"1",
-"triggered_at":"2013-07-13T14:13:28.7024412+08:00"}]`, 200)
+			"current_value":"",
+			"managed_id":1,
+			"managed_type":"managed_object",
+			"metric":"sys",
+			"name":"this is a test alert",
+			"status":1,
+			"trigger_id":"1",
+			"triggered_at":"2013-07-13T14:13:28.7024412+08:00"}]`, 200)
 		if nil != e {
 			t.Error(e)
 			return

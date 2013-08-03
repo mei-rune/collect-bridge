@@ -509,13 +509,8 @@ func syslogTest(t *testing.T, cb func(client net.PacketConn, port string, c chan
 	}
 	defer client.Close()
 
-	// var wait sync.WaitGroup
-	// wait.Add(1)
-	// defer wait.Wait()
-
 	c := make(chan string, 100)
 	go func() {
-		//defer wait.Done()
 		for {
 			bs := make([]byte, 1024)
 			n, _, e := client.ReadFrom(bs)
@@ -624,7 +619,6 @@ func TestNotificationsForSyslog(t *testing.T) {
 					case <-time.After(10 * time.Microsecond):
 						t.Error("recv syslog time out")
 					}
-
 				})
 			})
 		})

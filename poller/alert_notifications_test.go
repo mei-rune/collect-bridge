@@ -199,7 +199,7 @@ var delayed_job_table_name = flag.String("delayed_job_table_name_test", "delayed
 //   </property>
 // </class>
 
-var notifications = []map[string]interface{}{map[string]interface{}{"name": "test1",
+var redis_test_attributes = map[string]interface{}{"name": "test1",
 	"description": "",
 	"type":        "redis_command",
 	"parent_type": "alert",
@@ -208,38 +208,58 @@ var notifications = []map[string]interface{}{map[string]interface{}{"name": "tes
 	"updated_at":  "2013-07-13T14:13:28.7024412+08:00",
 	"command":     "SET",
 	"arg0":        "$action_id",
-	"arg1":        "$current_value"},
-	map[string]interface{}{"name": "test1",
-		"description": "",
-		"type":        "db_command",
-		"parent_type": "alert",
-		"parent_id":   "1",
-		"created_at":  "2013-07-13T14:13:28.7024412+08:00",
-		"updated_at":  "2013-07-13T14:13:28.7024412+08:00",
-		"drv":         "postgres",
-		"url":         "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable",
-		"script":      "insert into tpt_test_for_handler(priority, queue) values(12, '{{.current_value}}')"},
-	map[string]interface{}{"name": "test1",
-		"description":    "",
-		"type":           "exec_command",
-		"parent_type":    "alert",
-		"parent_id":      "1",
-		"created_at":     "2013-07-13T14:13:28.7024412+08:00",
-		"updated_at":     "2013-07-13T14:13:28.7024412+08:00",
-		"command":        "cmd /c echo {{.current_value}}",
-		"prompt":         "{a:13}",
-		"work_directory": "c:\\windows\\"},
-	map[string]interface{}{"name": "test1",
-		"description": "",
-		"type":        "syslog",
-		"parent_type": "alert",
-		"parent_id":   "1",
-		"created_at":  "2013-07-13T14:13:28.7024412+08:00",
-		"updated_at":  "2013-07-13T14:13:28.7024412+08:00",
-		"facility":    "user",
-		"severity":    "alert",
-		"tag":         "abc",
-		"content":     "aaaaa {{.current_value}}"}}
+	"arg1":        "$current_value"}
+
+var db_command_test_attributes = map[string]interface{}{"name": "test1",
+	"description": "",
+	"type":        "db_command",
+	"parent_type": "alert",
+	"parent_id":   "1",
+	"created_at":  "2013-07-13T14:13:28.7024412+08:00",
+	"updated_at":  "2013-07-13T14:13:28.7024412+08:00",
+	"drv":         "postgres",
+	"url":         "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable",
+	"script":      "insert into tpt_test_for_handler(priority, queue) values(12, '{{.current_value}}')"}
+
+var exec_command_test_attributes = map[string]interface{}{"name": "test1",
+	"description":    "",
+	"type":           "exec_command",
+	"parent_type":    "alert",
+	"parent_id":      "1",
+	"created_at":     "2013-07-13T14:13:28.7024412+08:00",
+	"updated_at":     "2013-07-13T14:13:28.7024412+08:00",
+	"command":        "cmd /c echo {{.current_value}}",
+	"prompt":         "{a:13}",
+	"work_directory": "c:\\windows\\"}
+
+var syslog_test_attributes = map[string]interface{}{"name": "test1",
+	"description": "",
+	"type":        "syslog",
+	"parent_type": "alert",
+	"parent_id":   "1",
+	"created_at":  "2013-07-13T14:13:28.7024412+08:00",
+	"updated_at":  "2013-07-13T14:13:28.7024412+08:00",
+	"facility":    "user",
+	"severity":    "alert",
+	"tag":         "abc",
+	"content":     "aaaaa {{.current_value}}"}
+
+var mail_test_attributes = map[string]interface{}{"name": "test1",
+	"description":  "",
+	"type":         "mail",
+	"parent_type":  "alert",
+	"parent_id":    "1",
+	"created_at":   "2013-07-13T14:13:28.7024412+08:00",
+	"updated_at":   "2013-07-13T14:13:28.7024412+08:00",
+	"subject":      "subject {{.current_value}}",
+	"content_type": "text",
+	"content":      "aaaaa {{.current_value}}"}
+
+var notifications = []map[string]interface{}{redis_test_attributes,
+	db_command_test_attributes,
+	exec_command_test_attributes,
+	syslog_test_attributes,
+	mail_test_attributes}
 
 func TestNotificationsForRedis(t *testing.T) {
 	redisTest(t, func(redis_channel chan []string, c redis.Conn) {
@@ -255,7 +275,7 @@ func TestNotificationsForRedis(t *testing.T) {
 					}
 
 					notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
-					ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "redis_command", notifications[0])
+					ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "redis_command", redis_test_attributes)
 
 					action, e := newAlertAction(map[string]interface{}{
 						"id":                    "123",
@@ -357,7 +377,7 @@ func TestNotificationsForDb(t *testing.T) {
 				}
 
 				notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
-				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "db_command", notifications[1])
+				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "db_command", db_command_test_attributes)
 
 				action, e := newAlertAction(map[string]interface{}{
 					"id":                    "123",
@@ -443,7 +463,7 @@ func TestNotificationsForExec(t *testing.T) {
 				}
 
 				notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
-				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "exec_command", notifications[2])
+				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "exec_command", exec_command_test_attributes)
 
 				action, e := newAlertAction(map[string]interface{}{
 					"id":                    "123",
@@ -535,20 +555,6 @@ func TestNotificationsForSyslog(t *testing.T) {
 		srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
 			delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
 				carrier.SrvTest(t, func(db *sql.DB, url string) {
-					_, e := db.Exec(`
-					DROP TABLE IF EXISTS tpt_test_for_handler;
-
-					CREATE TABLE IF NOT EXISTS tpt_test_for_handler (
-					  id                BIGSERIAL  PRIMARY KEY,
-					  priority          int DEFAULT 0,
-					  queue             varchar(200)
-					);`)
-
-					if nil != e {
-						t.Error(e)
-						return
-					}
-
 					is_test = true
 					*foreignUrl = url
 					Runforever()
@@ -558,7 +564,7 @@ func TestNotificationsForSyslog(t *testing.T) {
 					}
 
 					notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
-					ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "syslog", notifications[3])
+					ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "syslog", syslog_test_attributes)
 
 					action, e := newAlertAction(map[string]interface{}{
 						"id":                    "123",
@@ -620,6 +626,84 @@ func TestNotificationsForSyslog(t *testing.T) {
 						t.Error("recv syslog time out")
 					}
 				})
+			})
+		})
+	})
+}
+
+var test_mail_to = flag.String("test.notification.mail_to", "", "the address of mail")
+
+func TestNotificationsForMail(t *testing.T) {
+	if "" == *test_mail_to {
+		t.Skip("please set 'test.mail_to', 'test.mail_from' and 'test.smtp_server'")
+		return
+	}
+
+	mail_test_attributes["to_address"] = *test_mail_to
+	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+		delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
+			carrier.SrvTest(t, func(db *sql.DB, url string) {
+				is_test = true
+				*foreignUrl = url
+				Runforever()
+				if nil == server_test {
+					t.Error("load trigger failed.")
+					return
+				}
+
+				notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
+				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "mail", mail_test_attributes)
+
+				action, e := newAlertAction(map[string]interface{}{
+					"id":                    "123",
+					"name":                  "this is a test alert",
+					"notification_group_id": notification_group_id,
+					"delay_times":           0,
+					"expression_style":      "json",
+					"expression_code": map[string]interface{}{
+						"attribute": "a",
+						"operator":  ">",
+						"value":     "12"}},
+					map[string]interface{}{"managed_id": 1213},
+					server_test.ctx)
+
+				if nil != e {
+					t.Error(e)
+					return
+				}
+
+				//alert := action.(*alertAction)
+				for i := 0; i < 10; i++ {
+					e = action.Run(time.Now(), commons.Return(map[string]interface{}{"a": "13"}))
+					if nil != e {
+						t.Error(e)
+						return
+					}
+				}
+
+				i, j, e := worker.WorkOff(1)
+				if nil != e {
+					t.Error(e)
+					return
+				}
+
+				if i != 1 {
+					t.Log("success is", i, "failed is", j)
+					t.Error("excepted job count is 1, excepted is", i)
+					return
+				}
+
+				i, j, e = worker.WorkOff(1)
+				if nil != e {
+					t.Error(e)
+					return
+				}
+
+				if i != 1 {
+					t.Log("success is", i, "failed is", j)
+					t.Error("excepted job count is 1, excepted is", i)
+					return
+				}
 			})
 		})
 	})

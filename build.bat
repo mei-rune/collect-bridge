@@ -38,6 +38,13 @@ for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
 )
 
 cd %ENGINE_PATH%src\data_store\ds
+go test -v
+@if errorlevel 1 goto failed
+
+cd %ENGINE_PATH%src\data_store
+go test -v
+@if errorlevel 1 goto failed
+cd %ENGINE_PATH%src\data_store\ds
 del "*.exe"
 go build
 
@@ -47,12 +54,27 @@ copy "ds.exe"  %PUBLISH_PATH%\bin\tpt_ds.exe
 xcopy /Y /S /E %ENGINE_PATH%src\data_store\etc\*   %PUBLISH_PATH%\lib\models\
 
 
+cd %ENGINE_PATH%src\snmp
+go test -v
+@if errorlevel 1 goto failed
+
+cd %ENGINE_PATH%src\lua_binding
+go test -v
+@if errorlevel 1 goto failed
+
+cd %ENGINE_PATH%src\sampling
+REM go test -v
+REM @if errorlevel 1 goto failed
 cd %ENGINE_PATH%src\sampling\sampling
 del "*.exe"
 go build
 @if errorlevel 1 goto failed
 copy "sampling.exe"  %PUBLISH_PATH%\bin\tpt_sampling.exe
 
+
+cd %ENGINE_PATH%src\poller
+go test -v
+@if errorlevel 1 goto failed
 
 cd %ENGINE_PATH%src\poller\poller
 del "*.exe"
@@ -61,6 +83,10 @@ go build
 copy "poller.exe" %PUBLISH_PATH%\bin\tpt_poller.exe
 @if errorlevel 1 goto failed
 
+
+cd %ENGINE_PATH%src\carrier
+go test -v
+@if errorlevel 1 goto failed
 
 cd %ENGINE_PATH%src\carrier\carrier
 del "*.exe"

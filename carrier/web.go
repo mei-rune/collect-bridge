@@ -17,6 +17,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -271,9 +272,44 @@ type HistoryEntity struct {
 
 var months = []string{"_00", "_01", "_02", "_03", "_04", "_05", "_06", "_07", "_08", "_09", "_10", "_11", "_12", "_13"}
 
-//
+type resultScan interface {
+	Scan(dest ...interface{}) error
+}
+
+func (self *server) findById(ctx *context, table *types.TableDefinition, projection string,
+	scan func(rows resultScan) (interface{}, error), response http.ResponseWriter, request *http.Request) {
+	paths := strings.Split(strings.Trim(request.URL.Path, "/"), "/")
+	if 2 != len(paths) {
+		http.Error(response, "404 page not found, path must is 'alerts' or 'histories', actual path is '"+
+			request.URL.Path+"'", http.StatusNotFound)
+		return
+	}
+
+	v, e := scan(ctx.db.QueryRow("select " + projection + " from " + table.CollectionName + " where id = " + paths[1]))
+	if nil != e {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(e.Error()))
+		return
+	}
+
+	response.WriteHeader(http.StatusOK)
+
+	bs, _ := time.Now().MarshalJSON()
+	response.Write([]byte(`{"created_at":`))
+	response.Write(bs)
+	response.Write([]byte(`, "value":`))
+	encoder := json.NewEncoder(response)
+	e = encoder.Encode(v)
+	if nil != e {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(e.Error()))
+	} else {
+		response.Write([]byte(`}`))
+	}
+}
+
 func (self *server) find(ctx *context, table *types.TableDefinition, projection string,
-	scan func(rows *sql.Rows) (interface{}, error), response http.ResponseWriter, request *http.Request) {
+	scan func(rows resultScan) (interface{}, error), response http.ResponseWriter, request *http.Request) {
 	query_params := make(map[string]string)
 	for k, v := range request.URL.Query() {
 		query_params[k] = v[len(v)-1]
@@ -325,19 +361,51 @@ func (self *server) find(ctx *context, table *types.TableDefinition, projection 
 	}
 
 	response.WriteHeader(http.StatusOK)
-
 	bs, _ := time.Now().MarshalJSON()
 	response.Write([]byte(`{"created_at":`))
 	response.Write(bs)
 	response.Write([]byte(`, "value":`))
-	encoder := json.NewEncoder(response)
-	e = encoder.Encode(entities)
+	if nil == entities || 0 == len(entities) {
+		response.Write([]byte(`[]}`))
+	} else {
+		encoder := json.NewEncoder(response)
+		e = encoder.Encode(entities)
+		if nil != e {
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(e.Error()))
+		} else {
+			response.Write([]byte(`}`))
+		}
+	}
+}
+
+func (self *server) removeById(ctx *context, table *types.TableDefinition, response http.ResponseWriter, request *http.Request) {
+	paths := strings.Split(strings.Trim(request.URL.Path, "/"), "/")
+	if 2 != len(paths) {
+		http.Error(response, "404 page not found, path must is 'alerts' or 'histories', actual path is '"+
+			request.URL.Path+"'", http.StatusNotFound)
+		return
+	}
+
+	res, e := ctx.db.Exec("DELETE FROM " + table.CollectionName + " WHERE id = " + paths[1])
 	if nil != e {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(e.Error()))
-	} else {
-		response.Write([]byte(`}`))
+		return
 	}
+	effected, e := res.RowsAffected()
+	if nil != e {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(e.Error()))
+		return
+	}
+
+	bs, _ := time.Now().MarshalJSON()
+	response.Write([]byte(`{"created_at":`))
+	response.Write(bs)
+	response.Write([]byte(`, "effected":`))
+	response.Write([]byte(strconv.FormatInt(effected, 10)))
+	response.Write([]byte(`}`))
 }
 
 func (self *server) remove(ctx *context, table *types.TableDefinition, response http.ResponseWriter, request *http.Request) {
@@ -411,7 +479,7 @@ func (self *server) count(ctx *context, table *types.TableDefinition, response h
 
 func (self *server) findAlertCookies(ctx *context, response http.ResponseWriter, request *http.Request) {
 	self.find(ctx, tpt_alert_cookies, " id, action_id, managed_type, managed_id, status, current_value, triggered_at ",
-		func(rows *sql.Rows) (interface{}, error) {
+		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
 			return entity, rows.Scan(
 				&entity.Id,           //Id           int64     `json:"id"`
@@ -425,7 +493,36 @@ func (self *server) findAlertCookies(ctx *context, response http.ResponseWriter,
 }
 func (self *server) findAlertHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
 	self.find(ctx, tpt_alert_history, " id, action_id, managed_type, managed_id, status, current_value, triggered_at ",
-		func(rows *sql.Rows) (interface{}, error) {
+		func(rows resultScan) (interface{}, error) {
+			entity := &AlertEntity{}
+			return entity, rows.Scan(
+				&entity.Id,           //Id           int64     `json:"id"`
+				&entity.ActionId,     //ActionId     int64     `json:"action_id"`
+				&entity.ManagedType,  //ManagedType  string    `json:"managed_type"`
+				&entity.ManagedId,    //ManagedId    int64     `json:"managed_id"`
+				&entity.Status,       //Status       string    `json:"status"`
+				&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
+				&entity.TriggeredAt)  //TriggeredAt  time.Time `json:"triggered_at"`
+		}, response, request)
+}
+
+func (self *server) findAlertCookiesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.findById(ctx, tpt_alert_cookies, " id, action_id, managed_type, managed_id, status, current_value, triggered_at ",
+		func(rows resultScan) (interface{}, error) {
+			entity := &AlertEntity{}
+			return entity, rows.Scan(
+				&entity.Id,           //Id           int64     `json:"id"`
+				&entity.ActionId,     //ActionId     int64     `json:"action_id"`
+				&entity.ManagedType,  //ManagedType  string    `json:"managed_type"`
+				&entity.ManagedId,    //ManagedId    int64     `json:"managed_id"`
+				&entity.Status,       //Status       string    `json:"status"`
+				&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
+				&entity.TriggeredAt)  //TriggeredAt  time.Time `json:"triggered_at"`
+		}, response, request)
+}
+func (self *server) findAlertHistoriesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.findById(ctx, tpt_alert_history, " id, action_id, managed_type, managed_id, status, current_value, triggered_at ",
+		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
 			return entity, rows.Scan(
 				&entity.Id,           //Id           int64     `json:"id"`
@@ -444,7 +541,6 @@ func (self *server) countAlertCookies(ctx *context, response http.ResponseWriter
 func (self *server) countAlertHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
 	self.count(ctx, tpt_alert_history, response, request)
 }
-
 func (self *server) countHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
 	self.count(ctx, tpt_history, response, request)
 }
@@ -455,14 +551,37 @@ func (self *server) removeAlertCookies(ctx *context, response http.ResponseWrite
 func (self *server) removeAlertHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
 	self.remove(ctx, tpt_alert_history, response, request)
 }
-
 func (self *server) removeHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
 	self.remove(ctx, tpt_history, response, request)
 }
 
+func (self *server) removeAlertCookiesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.removeById(ctx, tpt_alert_cookies, response, request)
+}
+func (self *server) removeAlertHistoriesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.removeById(ctx, tpt_alert_history, response, request)
+}
+func (self *server) removeHistoriesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.removeById(ctx, tpt_history, response, request)
+}
+
 func (self *server) findHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
 	self.find(ctx, tpt_history, " id, action_id, managed_type, managed_id, current_value, sampled_at ",
-		func(rows *sql.Rows) (interface{}, error) {
+		func(rows resultScan) (interface{}, error) {
+			entity := &HistoryEntity{}
+			return entity, rows.Scan(
+				&entity.Id,           //Id           int64     `json:"id"`
+				&entity.ActionId,     //ActionId     int64     `json:"action_id"`
+				&entity.ManagedType,  //ManagedType  string    `json:"managed_type"`
+				&entity.ManagedId,    //ManagedId    int64     `json:"managed_id"`
+				&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
+				&entity.SampledAt)    //TriggeredAt  time.Time `json:"triggered_at"`
+		}, response, request)
+}
+
+func (self *server) findHistoriesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
+	self.findById(ctx, tpt_history, " id, action_id, managed_type, managed_id, current_value, sampled_at ",
+		func(rows resultScan) (interface{}, error) {
 			entity := &HistoryEntity{}
 			return entity, rows.Scan(
 				&entity.Id,           //Id           int64     `json:"id"`
@@ -653,6 +772,8 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 		}
 	}()
 
+	// fmt.Println(request.Method, request.URL.Path)
+
 	var cb func(s *server, ctx *context, response http.ResponseWriter, request *http.Request) = nil
 	switch request.Method {
 	case "PUT":
@@ -681,9 +802,24 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 		case "/histories/count", "/histories/count/":
 			cb = (*server).countHistories
 		default:
-			http.Error(response, "404 page not found, path must is 'alerts' or 'history', actual path is '"+
-				request.URL.Path+"'", http.StatusNotFound)
-			return
+			paths := strings.Split(strings.Trim(request.URL.Path, "/"), "/")
+			if 2 != len(paths) {
+				http.Error(response, "404 page not found, path must is 'alerts' or 'histories', actual path is '"+
+					request.URL.Path+"'", http.StatusNotFound)
+				return
+			}
+			switch paths[0] {
+			case "alert_cookies":
+				cb = (*server).findAlertCookiesBy
+			case "alerts":
+				cb = (*server).findAlertHistoriesBy
+			case "histories":
+				cb = (*server).findHistoriesBy
+			default:
+				http.Error(response, "404 page not found, path must is 'alerts' or 'histories', actual path is '"+
+					request.URL.Path+"'", http.StatusNotFound)
+				return
+			}
 		}
 	case "DELETE":
 		switch request.URL.Path {
@@ -694,9 +830,24 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 		case "/histories", "/histories/":
 			cb = (*server).removeHistories
 		default:
-			http.Error(response, "404 page not found, path must is 'alerts' or 'history', actual path is '"+
-				request.URL.Path+"'", http.StatusNotFound)
-			return
+			paths := strings.Split(strings.Trim(request.URL.Path, "/"), "/")
+			if 2 != len(paths) {
+				http.Error(response, "404 page not found, path must is 'alerts' or 'histories', actual path is '"+
+					request.URL.Path+"'", http.StatusNotFound)
+				return
+			}
+			switch paths[0] {
+			case "alert_cookies":
+				cb = (*server).removeAlertCookiesBy
+			case "alerts":
+				cb = (*server).removeAlertHistoriesBy
+			case "histories":
+				cb = (*server).removeHistoriesBy
+			default:
+				http.Error(response, "404 page not found, path must is 'alerts' or 'histories', actual path is '"+
+					request.URL.Path+"'", http.StatusNotFound)
+				return
+			}
 		}
 	default:
 		http.Error(response, "404 page not found, method must is 'PUT'", http.StatusNotFound)

@@ -111,14 +111,14 @@ function mj.directory_exists(pa)
   return mj.invoke_native("io_ext.directory_exists", pa)
 end
 
-function mj.execute(schema, action, params)
+function mj.execute(schema, action, params, body)
   if "table" ~= type(params) then
      return {error_message= "'params' is not a table."}
   end
-  return coroutine.yield(action, schema, params)
+  return coroutine.yield(action, schema, params, body)
 end
 
-function mj.execute_module(module_name, action, params)
+function mj.execute_module(module_name, action, params, body)
   module = require(module_name)
   if nil == module then
     return {error_message=  "module '"..module_name.."' is not exists."}
@@ -128,22 +128,23 @@ function mj.execute_module(module_name, action, params)
     return {error_message= "method '"..action.."' is not implemented in module '"..module_name.."'."}
   end
 
-  return func(params)
+  return func(params, body)
 end
 
-function mj.execute_script(action, script, params)
+function mj.execute_script(action, script, params, body)
   if 'string' ~= type(script) then
     return {error_message= "'script' is not a string."}
   end
   local env = {["mj"] = mj,
    ["action"] = action,
-   ['params'] = params}
+   ['params'] = params,
+   ['body'] = body}
   setmetatable(env, _ENV)
   func = assert(load(script, nil, 'bt', env))
   return func()
 end
 
-function mj.execute_task(action, params)
+function mj.execute_task(action, params, body)
   --if nil == task then
   --  print("params = nil")
   --end
@@ -159,20 +160,20 @@ function mj.execute_task(action, params)
       if nil == schema then
         return {error_message= "'schema' is nil"}
       elseif "script" == schema then
-        return mj.execute_script(action, params["script"], params)
+        return mj.execute_script(action, params["script"], params, body)
       else
-        return mj.execute_module(schema, action, params)
+        return mj.execute_module(schema, action, params, body)
       end
     end)
 end
 
 function mj.loop()
   mj.log(mj.SYSTEM, "lua enter looping")
-  local action, params = mj.receive()  -- get new value
+  local action, params, body = mj.receive()  -- get new value
   while "__exit__" ~= action do
     -- mj.log(mj.SYSTEM, "lua vm receive - '"..action.."'")
-    co = mj.execute_task(action, params)
-    action, params = mj.send_and_recv(co)
+    co = mj.execute_task(action, params, body)
+    action, params, body = mj.send_and_recv(co)
   end
   mj.log(mj.SYSTEM, "lua exit looping")
 end

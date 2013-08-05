@@ -126,7 +126,7 @@ func TestParams(t *testing.T) {
 	ResumeLuaFiber(drv, 2)
 	params, _ = toParams(drv.LS, 2)
 
-	// A nil map is equivalent to an empty map except that no elements may be added. 
+	// A nil map is equivalent to an empty map except that no elements may be added.
 	assertExceptedEqualActual(t, int(0), len(params), "test params - ")
 
 	drv.Stop()
@@ -372,9 +372,9 @@ func TestInvokeModule(t *testing.T) {
 	params := map[string]string{"schema": "test_invoke_module"}
 	v := drv.Get(params)
 	testResult(t, drv, "get test ok test1whj23", "", v)
-	v = drv.Put(params)
+	v = drv.Put(params, 123)
 	testResult(t, drv, "put test ok test1whj23", "", v)
-	v = drv.Create(params)
+	v = drv.Create(params, 123)
 	testResult(t, drv, "2328", "create test ok test1whj23", v)
 	v = drv.Delete(params)
 	testResult(t, drv, false, "delete test ok test1whj23", v)
@@ -394,10 +394,10 @@ func TestInvokeModuleFailed(t *testing.T) {
 	v := drv.Get(params)
 	testResult(t, drv, nil, "get error for test_invoke_module_failed", v)
 
-	v = drv.Put(params)
+	v = drv.Put(params, 123)
 	testResult(t, drv, nil, "put error for test_invoke_module_failed", v)
 
-	v = drv.Create(params)
+	v = drv.Create(params, 123)
 	testResult(t, drv, nil, "record not found", v)
 
 	v = drv.Delete(params)
@@ -427,9 +427,9 @@ func TestInvokeModuleAndCallback(t *testing.T) {
 	params := map[string]string{"schema": "test_invoke_module_and_callback", "dumy": "test_dumy_TestInvokeModuleAndCallback"}
 	v := drv.Get(params)
 	testResult(t, drv, "get test cb ok test1whj23", "", v)
-	v = drv.Put(params)
+	v = drv.Put(params, 123)
 	testResult(t, drv, "put test cb ok test1whj23", "", v)
-	v = drv.Create(params)
+	v = drv.Create(params, 123)
 	testResult(t, drv, false, "create test cb ok test1whj23", v)
 	b := drv.Delete(params)
 	testResult(t, drv, false, "delete test cb ok test1whj23", b)
@@ -457,10 +457,10 @@ func TestInvokeModuleAndCallbackFailed(t *testing.T) {
 	v := drv.Get(params)
 	testResult(t, drv, nil, "get test cb ok test1whj23", v)
 
-	v = drv.Put(params)
+	v = drv.Put(params, 123)
 	testResult(t, drv, nil, "put test cb ok test1whj23", v)
 
-	v = drv.Create(params)
+	v = drv.Create(params, 123)
 	testResult(t, drv, false, "", v)
 
 	b := drv.Delete(params)

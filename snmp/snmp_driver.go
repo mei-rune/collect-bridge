@@ -91,7 +91,7 @@ func getHost(params map[string]string) (string, error) {
 	return host, nil
 }
 
-func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]string) commons.Result {
+func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]string, body interface{}) commons.Result {
 	host, e := getHost(params)
 	if nil != e {
 		return commons.ReturnWithBadRequest(e.Error())
@@ -181,14 +181,14 @@ func (self *SnmpDriver) Get(params map[string]string) commons.Result {
 	if nil != err {
 		return internalErrorResult("get action failed", err)
 	}
-	return self.invoke(action, params)
+	return self.invoke(action, params, nil)
 }
 
-func (self *SnmpDriver) Put(params map[string]string) commons.Result {
-	return self.invoke(snmpclient.SNMP_PDU_SET, params)
+func (self *SnmpDriver) Put(params map[string]string, body interface{}) commons.Result {
+	return self.invoke(snmpclient.SNMP_PDU_SET, params, body)
 }
 
-func (self *SnmpDriver) Create(params map[string]string) commons.Result {
+func (self *SnmpDriver) Create(params map[string]string, body interface{}) commons.Result {
 	return commons.ReturnWithNotImplemented()
 }
 

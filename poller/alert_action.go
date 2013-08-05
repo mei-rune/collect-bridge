@@ -258,7 +258,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 	return &alertAction{id: id,
 		name: name,
 		//description: commons.GetString(attributes, "description", ""),
-		already_send:          false,
+		already_send:          true,
 		options:               options,
 		delay_times:           delay_times,
 		contex:                contex,
@@ -266,6 +266,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		channel:               channel,
 		cached_data:           &data_object{c: make(chan error, 2)},
 		checker:               checker,
+		last_status:           commons.GetIntWithDefault(attributes, "last_status", 0),
 		notification_group_id: notification_group_id,
 		notification_groups:   notification_groups}, nil
 }

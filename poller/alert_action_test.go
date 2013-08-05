@@ -213,6 +213,12 @@ func TestAlertSimple2(t *testing.T) {
 		}
 
 		//////////////////////////////////////////
+		// send resume
+		for i := 0; i < 2*test.delay_times; i++ {
+			sendAndNotRecv(map[string]interface{}{"a": "12"})
+		}
+
+		//////////////////////////////////////////
 		// send alert
 		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
@@ -505,5 +511,103 @@ func TestAlertRepectedOverflow2(t *testing.T) {
 
 	if count != 1 {
 		t.Error("excepted recv count is 1 and actual is ", count)
+	}
+}
+
+func TestAlertLoadLastStatus(t *testing.T) {
+	publish := make(chan []string, 1000)
+	c1 := make(chan *data_object, 10)
+	c := make(chan *data_object, 10)
+
+	defer close(c1)
+	go func() {
+		for v := range c1 {
+			c <- v
+			v.c <- nil
+		}
+	}()
+
+	all_tests := []struct {
+		delay_times int
+	}{{delay_times: 1}}
+
+	for _, test := range all_tests {
+		action, e := newAlertAction(map[string]interface{}{
+			"type":             "alert",
+			"id":               "123",
+			"name":             "this is a test alert",
+			"delay_times":      test.delay_times,
+			"last_status":      1,
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "a",
+				"operator":  ">",
+				"value":     "12"}},
+			map[string]interface{}{"managed_id": "1213"},
+			map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)})
+
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		alert := action.(*alertAction)
+
+		sendAndNotRecv := func(a map[string]interface{}) {
+			e := action.Run(time.Now(), commons.Return(a))
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			select {
+			case <-c:
+				t.Error("excepted not recv and actual is recved")
+			default:
+			}
+		}
+
+		sendAndRecv := func(status int, a map[string]interface{}) {
+			e = action.Run(time.Now(), commons.Return(a))
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			select {
+			case v := <-c:
+				if status != v.attributes["status"] {
+					t.Errorf("status != %v, actual is %v", status, v.attributes["status"])
+				}
+				if "1213" != v.attributes["managed_id"] {
+					t.Errorf("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
+				}
+				select {
+				case <-publish:
+				case <-time.After(1 * time.Second):
+					t.Error("not recv and last_status is", alert.last_status)
+				}
+			default:
+				t.Error("not recv and last_status is", alert.last_status)
+			}
+		}
+
+		//////////////////////////////////////////
+		// send alert
+		for i := 0; i < 2*test.delay_times; i++ {
+			sendAndNotRecv(map[string]interface{}{"a": "13"})
+		}
+
+		//////////////////////////////////////////
+		// send resume
+		for i := 0; i < test.delay_times-1; i++ {
+			sendAndNotRecv(map[string]interface{}{"a": "12"})
+		}
+
+		sendAndRecv(0, map[string]interface{}{"a": "12"})
+
+		for i := 0; i < test.delay_times; i++ {
+			sendAndNotRecv(map[string]interface{}{"a": "12"})
+		}
 	}
 }

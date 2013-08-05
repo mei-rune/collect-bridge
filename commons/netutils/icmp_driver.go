@@ -52,7 +52,7 @@ func (self *ICMPDriver) Get(params map[string]string) commons.Result {
 	return commons.Return(values)
 }
 
-func (self *ICMPDriver) Put(params map[string]string) commons.Result {
+func (self *ICMPDriver) Put(params map[string]string, body interface{}) commons.Result {
 	id, ok := params["id"]
 	if !ok {
 		return commons.ReturnWithIsRequired("id")
@@ -62,17 +62,24 @@ func (self *ICMPDriver) Put(params map[string]string) commons.Result {
 		return commons.ReturnWithNotFound("icmp_pinger", id)
 	}
 
-	body, ok := params["body"]
-	if !ok {
-		return commons.ReturnWithIsRequired("body")
-	}
-	if "" == body {
-		return commons.ReturnWithIsRequired("body")
-	}
-	ipList := make([]string, 0, 100)
-	e := json.Unmarshal([]byte(body), &ipList)
-	if nil != e {
-		return commons.ReturnWithBadRequest("read body failed, it is not []string of json - " + e.Error() + body)
+	var ipList []string
+	switch bo := body.(type) {
+	case []byte:
+		ipList = make([]string, 0, 100)
+		e := json.Unmarshal(bo, &ipList)
+		if nil != e {
+			return commons.ReturnWithBadRequest("read body failed, it is not []string of json - " + e.Error() + string(bo))
+		}
+	case string:
+		ipList = make([]string, 0, 100)
+		e := json.Unmarshal([]byte(bo), &ipList)
+		if nil != e {
+			return commons.ReturnWithBadRequest("read body failed, it is not []string of json - " + e.Error() + bo)
+		}
+	case []string:
+		ipList = bo
+	default:
+		return commons.ReturnWithBadRequest("read body failed, it is not map[string]string")
 	}
 
 	for _, ip_raw := range ipList {
@@ -92,17 +99,25 @@ func (self *ICMPDriver) Put(params map[string]string) commons.Result {
 	return commons.Return(true)
 }
 
-func (self *ICMPDriver) Create(params map[string]string) commons.Result {
-	body, _ := params["body"]
-	if "" == body {
-		body = "{}"
+func (self *ICMPDriver) Create(params map[string]string, body interface{}) commons.Result {
+	var params2 map[string]string
+	switch bo := body.(type) {
+	case []byte:
+		e := json.Unmarshal(bo, &params2)
+		if nil != e {
+			return commons.ReturnWithBadRequest("read body failed, it is not map[string]string of json - " + e.Error())
+		}
+	case string:
+		e := json.Unmarshal([]byte(bo), &params2)
+		if nil != e {
+			return commons.ReturnWithBadRequest("read body failed, it is not map[string]string of json - " + e.Error())
+		}
+	case map[string]string:
+		params2 = bo
+	default:
+		return commons.ReturnWithBadRequest("read body failed, it is not map[string]string")
 	}
 
-	params2 := make(map[string]string)
-	e := json.Unmarshal([]byte(body), &params2)
-	if nil != e {
-		return commons.ReturnWithBadRequest("read body failed, it is not map[string]string of json - " + e.Error())
-	}
 	network, _ := params2["network"]
 	if "" == network {
 		network, _ = params["network"]

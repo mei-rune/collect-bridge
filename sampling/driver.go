@@ -43,7 +43,7 @@ func (self *Metrics) Get(params map[string]string) commons.Result {
 	return driver.Get(params)
 }
 
-func (self *Metrics) Put(params map[string]string) commons.Result {
+func (self *Metrics) Put(params map[string]string, body interface{}) commons.Result {
 	id, ok := params["metric"]
 	if !ok {
 		return MetricNotExists
@@ -53,10 +53,10 @@ func (self *Metrics) Put(params map[string]string) commons.Result {
 	if !ok {
 		return MetricNotDefined(id)
 	}
-	return driver.Put(params)
+	return driver.Put(params, body)
 }
 
-func (self *Metrics) Create(params map[string]string) commons.Result {
+func (self *Metrics) Create(params map[string]string, body interface{}) commons.Result {
 	id, ok := params["metric"]
 	if !ok {
 		return MetricNotExists
@@ -66,7 +66,7 @@ func (self *Metrics) Create(params map[string]string) commons.Result {
 	if !ok {
 		return MetricNotDefined(id)
 	}
-	return driver.Create(params)
+	return driver.Create(params, body)
 }
 
 func (self *Metrics) Delete(params map[string]string) commons.Result {

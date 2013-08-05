@@ -84,6 +84,7 @@ type whereBuilder struct {
 	operators_for_field map[string]map[string]op_func
 	operators           map[string]op_func
 	add_argument        func(self *whereBuilder)
+	limit_and_offset    func(self *whereBuilder, limit, offset string)
 }
 
 func (self *whereBuilder) appendArguments() {
@@ -122,6 +123,30 @@ func (self *whereBuilder) append(ss ...string) error {
 		self.buffer.WriteString(s)
 	}
 	return nil
+}
+
+func (self *whereBuilder) limit_and_offset_postgres(limit, offset string) {
+	if 0 != len(limit) {
+		self.buffer.WriteString(" LIMIT ")
+		self.buffer.WriteString(limit)
+	}
+
+	if 0 != len(offset) {
+		self.buffer.WriteString(" OFFSET ")
+		self.buffer.WriteString(offset)
+	}
+}
+
+func (self *whereBuilder) limit_and_offset_generic(limit, offset string) {
+	if len(offset) != 0 {
+		self.buffer.WriteString(" LIMIT ")
+		self.buffer.WriteString(offset)
+		self.buffer.WriteString(" , ")
+		self.buffer.WriteString(limit)
+	} else {
+		self.buffer.WriteString(" LIMIT ")
+		self.buffer.WriteString(limit)
+	}
 }
 
 func (self *whereBuilder) add(column *types.ColumnDefinition, op, s string) error {
@@ -423,6 +448,10 @@ func (self *whereBuilder) buildSQL(params map[string]string) error {
 			return fmt.Errorf("limit must is geater zero, actual value is '" + limit + "'")
 		}
 
+		if nil == self.limit_and_offset {
+			self.limit_and_offset = (*whereBuilder).limit_and_offset_generic
+		}
+
 		if offset, ok := params["offset"]; ok {
 			i, e = strconv.ParseInt(offset, 10, 64)
 			if nil != e {
@@ -433,13 +462,9 @@ func (self *whereBuilder) buildSQL(params map[string]string) error {
 				return fmt.Errorf("offset must is geater(or equals) zero, actual value is '" + offset + "'")
 			}
 
-			self.buffer.WriteString(" LIMIT ")
-			self.buffer.WriteString(offset)
-			self.buffer.WriteString(" , ")
-			self.buffer.WriteString(limit)
+			self.limit_and_offset(self, limit, offset)
 		} else {
-			self.buffer.WriteString(" LIMIT ")
-			self.buffer.WriteString(limit)
+			self.limit_and_offset(self, limit, "")
 		}
 	}
 	return nil
@@ -466,6 +491,19 @@ func BuildWhere(drv string, table *types.TableDefinition, idx int, params map[st
 	} else {
 		builder.add_argument = (*whereBuilder).appendSimpleArguments
 	}
+
+	switch GetDBType(drv) {
+	case POSTGRESQL:
+		builder.limit_and_offset = (*whereBuilder).limit_and_offset_postgres
+	default:
+		builder.limit_and_offset = (*whereBuilder).limit_and_offset_generic
+	}
+
+	// POSTGRESQL  = 1
+	// MSSQL       = 2
+	// ORACLE      = 3
+	// SQLITE      = 4
+	// MYSQL       = 5
 
 	e := builder.buildSQL(params)
 	if nil != e {

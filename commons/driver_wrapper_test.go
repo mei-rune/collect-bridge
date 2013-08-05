@@ -2,6 +2,7 @@ package commons
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
@@ -36,16 +37,16 @@ func (svc *mock_driver) Get(params map[string]string) Result {
 	return Return(nil).SetOption("result", resp)
 }
 
-func (svc *mock_driver) Put(params map[string]string) Result {
+func (svc *mock_driver) Put(params map[string]string, body interface{}) Result {
 	a, _ := strconv.Atoi(params["a"])
-	b, _ := strconv.Atoi(params["b"])
+	b, _ := strconv.Atoi(fmt.Sprint(body))
 
 	return Return(nil).SetOption("result", a+b)
 }
 
-func (svc *mock_driver) Create(params map[string]string) Result {
+func (svc *mock_driver) Create(params map[string]string, body interface{}) Result {
 	a, _ := strconv.Atoi(params["a"])
-	b, _ := strconv.Atoi(params["b"])
+	b, _ := strconv.Atoi(fmt.Sprint(body))
 
 	return Return(nil).SetOption("result", a-b)
 }
@@ -113,14 +114,14 @@ func TestDriverWrapper(t *testing.T) {
 	if !reflect.DeepEqual(Return(nil).SetOption("result", 2), result) {
 		t.Errorf("get error, excepted is %v, actual is %v", result, Return(nil).SetOption("result", 2))
 	}
-	result = mock.Put(map[string]string{"a": "1", "b": "3"})
+	result = mock.Put(map[string]string{"a": "1", "b": "3"}, 3)
 	if result.HasError() {
 		t.Errorf("put error! %v", result.ErrorMessage())
 	}
 	if !reflect.DeepEqual(Return(nil).SetOption("result", 4), result) {
 		t.Errorf("put error, excepted is %v, actual is %v", result, Return(nil).SetOption("result", 4))
 	}
-	result = mock.Create(map[string]string{"a": "9", "b": "3"})
+	result = mock.Create(map[string]string{"a": "9", "b": "3"}, 3)
 	if result.HasError() {
 		t.Errorf("create error! %v", result.ErrorMessage())
 	}

@@ -22,6 +22,7 @@ var (
 	timeout       = flag.Duration("timeout", 1*time.Minute, "the timeout of http")
 	refresh       = flag.Duration("refresh", 5*time.Second, "the refresh interval of cache")
 	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:7074", "the url of foreign db")
+	load_cookies  = flag.Bool("load_cookies", true, "load cookies is enabled while value is true")
 
 	trigger_exporter         = &Exporter{}
 	is_test                  = false

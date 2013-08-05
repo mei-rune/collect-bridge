@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -121,10 +122,64 @@ func (s *server) stopJob(id string) {
 	log.Println("stop trigger with id was '" + id + "'")
 }
 
+func (s *server) loadCookies(id2results map[int]map[string]interface{}) error {
+	client := commons.NewClient(*foreignUrl, "alert_cookies")
+
+	for offset := 0; ; offset += 100 {
+		res := client.Get(map[string]string{"limit": "100", "offset": strconv.FormatInt(int64(offset), 10)})
+		if res.HasError() {
+			return errors.New("load cookies failed, " + res.ErrorMessage())
+		}
+
+		cookies, e := res.Value().AsObjects()
+		if nil != e {
+			return errors.New("load cookies failed, results is not a []map[string]interface{}, " + e.Error())
+		}
+
+		if nil == cookies {
+			break
+		}
+		for _, attributes := range cookies {
+			action_id := commons.GetIntWithDefault(attributes, "id", 0)
+			if _, ok := id2results[action_id]; ok {
+				attributes["last_status"] = attributes["status"]
+			} else {
+				id := fmt.Sprint(attributes["id"])
+				dres := client.Delete(map[string]string{"id": id})
+				if dres.HasError() {
+					log.Println("delete alert cookies with id was " + id + " is failed, " + dres.ErrorMessage())
+				}
+			}
+		}
+
+		if 100 != len(cookies) {
+			break
+		}
+	}
+	return nil
+}
+
 func (s *server) onStart() error {
 	results, err := s.client.FindByWithIncludes("trigger", map[string]string{}, "action")
 	if nil != err {
 		return errors.New("load triggers from db failed," + err.Error())
+	}
+
+	id2results := map[int]map[string]interface{}{}
+	for _, attributes := range results {
+		id := commons.GetIntWithDefault(attributes, "id", 0)
+		if 0 == id {
+			return errors.New("'id' of trigger is 0?")
+		}
+
+		id2results[id] = attributes
+	}
+
+	if *load_cookies {
+		e := s.loadCookies(id2results)
+		if nil != e {
+			return e
+		}
 	}
 
 	for _, attributes := range results {

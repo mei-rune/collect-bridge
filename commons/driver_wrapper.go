@@ -32,6 +32,7 @@ type driver_message struct {
 	command      int
 	f            func()
 	arguments    map[string]string
+	body         interface{}
 	returnResult Result
 }
 
@@ -48,6 +49,7 @@ func getCachedCh() (msg *driver_message) {
 }
 
 func putCachedCh(msg *driver_message) {
+	msg.body = nil
 	msg.arguments = nil
 	msg.returnResult = nil
 	msg.f = nil
@@ -193,7 +195,6 @@ exit:
 }
 
 func onStart(self *DriverWrapper) (err error) {
-
 	defer func() {
 		if e := recover(); nil != e {
 			err = NewPanicError("call onStart failed - ", e)
@@ -272,13 +273,13 @@ func (self *DriverWrapper) safelyCall(msg *driver_message) *driver_message {
 		msg.returnResult = self.drv.Get(msg.arguments)
 	case DRV_MESSAGE_REQ_PUT:
 		msg.command = DRV_MESSAGE_RET_NORMAL
-		msg.returnResult = self.drv.Put(msg.arguments)
+		msg.returnResult = self.drv.Put(msg.arguments, msg.body)
 	case DRV_MESSAGE_REQ_DELETE:
 		msg.command = DRV_MESSAGE_RET_NORMAL
 		msg.returnResult = self.drv.Delete(msg.arguments)
 	case DRV_MESSAGE_REQ_CREATE:
 		msg.command = DRV_MESSAGE_RET_NORMAL
-		msg.returnResult = self.drv.Create(msg.arguments)
+		msg.returnResult = self.drv.Create(msg.arguments, msg.body)
 	case DRV_MESSAGE_REQ_CALL:
 		msg.command = DRV_MESSAGE_RET_NORMAL
 		msg.f()
@@ -290,7 +291,7 @@ func (self *DriverWrapper) safelyCall(msg *driver_message) *driver_message {
 	return nil
 }
 
-func (self *DriverWrapper) invoke(cmd int, params map[string]string, f func()) Result {
+func (self *DriverWrapper) invoke(cmd int, params map[string]string, body interface{}, f func()) Result {
 	if !self.IsAlive() {
 		return ReturnError(ServiceUnavailableCode, DieError.Error())
 	}
@@ -310,6 +311,7 @@ func (self *DriverWrapper) invoke(cmd int, params map[string]string, f func()) R
 
 	msg.command = cmd
 	msg.arguments = params
+	msg.body = body
 	msg.f = f
 	self.ch <- msg
 
@@ -327,21 +329,21 @@ func (self *DriverWrapper) invoke(cmd int, params map[string]string, f func()) R
 }
 
 func (self *DriverWrapper) Get(params map[string]string) Result {
-	return self.invoke(DRV_MESSAGE_REQ_GET, params, nil)
+	return self.invoke(DRV_MESSAGE_REQ_GET, params, nil, nil)
 }
 
-func (self *DriverWrapper) Put(params map[string]string) Result {
-	return self.invoke(DRV_MESSAGE_REQ_PUT, params, nil)
+func (self *DriverWrapper) Put(params map[string]string, body interface{}) Result {
+	return self.invoke(DRV_MESSAGE_REQ_PUT, params, body, nil)
 }
 
-func (self *DriverWrapper) Create(params map[string]string) Result {
-	return self.invoke(DRV_MESSAGE_REQ_CREATE, params, nil)
+func (self *DriverWrapper) Create(params map[string]string, body interface{}) Result {
+	return self.invoke(DRV_MESSAGE_REQ_CREATE, params, body, nil)
 }
 
 func (self *DriverWrapper) Delete(params map[string]string) Result {
-	return self.invoke(DRV_MESSAGE_REQ_DELETE, params, nil)
+	return self.invoke(DRV_MESSAGE_REQ_DELETE, params, nil, nil)
 }
 
 func (self *DriverWrapper) Call(f func()) {
-	self.invoke(DRV_MESSAGE_REQ_DELETE, nil, f)
+	self.invoke(DRV_MESSAGE_REQ_DELETE, nil, nil, f)
 }

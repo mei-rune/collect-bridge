@@ -2,6 +2,7 @@ package carrier
 
 import (
 	"database/sql"
+	"fmt"
 	"io/ioutil"
 	"math"
 	"net/http/httptest"
@@ -73,6 +74,8 @@ func SrvTest(t *testing.T, cb func(db *sql.DB, url string)) {
 		defer server_instance.Close()
 		hsrv := httptest.NewServer(server_instance)
 		defer hsrv.Close()
+
+		fmt.Println("[carrier-test] serving at " + hsrv.URL)
 
 		cb(db, hsrv.URL)
 	})

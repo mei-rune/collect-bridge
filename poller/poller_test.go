@@ -116,6 +116,8 @@ func TestIntegratedPoller(t *testing.T) {
 			return
 		}
 
+		*load_cookies = false
+		defer func() { *load_cookies = true }()
 		is_test = true
 		Runforever()
 
@@ -149,7 +151,6 @@ func TestIntegratedPoller(t *testing.T) {
 		}
 
 		t.Error("not wait")
-
 	})
 }
 
@@ -177,6 +178,8 @@ func TestIntegratedAlert(t *testing.T) {
 
 		is_test = true
 		*foreignUrl = ts.URL
+		*load_cookies = false
+		defer func() { *load_cookies = true }()
 		Runforever()
 
 		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
@@ -237,6 +240,8 @@ func TestIntegratedAlert2(t *testing.T) {
 
 		is_test = true
 		*foreignUrl = ts.URL
+		*load_cookies = false
+		defer func() { *load_cookies = true }()
 		Runforever()
 
 		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
@@ -319,6 +324,8 @@ func TestIntegratedHistory(t *testing.T) {
 
 		is_test = true
 		*foreignUrl = ts.URL
+		*load_cookies = false
+		defer func() { *load_cookies = true }()
 		Runforever()
 
 		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {

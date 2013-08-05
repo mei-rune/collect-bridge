@@ -95,6 +95,7 @@ type Continuous struct {
 	IntValue    int
 	StringValue string
 	Params      map[string]string
+	Body        interface{}
 	Result      commons.Result
 	Any         interface{}
 }
@@ -160,6 +161,11 @@ func readCallArguments(drv *LuaDriver, ctx *Continuous) {
 		return
 	}
 	ctx.Params, ctx.Error = ctx.ToParamsParam(3)
+	if nil != ctx.Error {
+		return
+	}
+
+	ctx.Body, ctx.Error = ctx.ToAnyParam(4)
 }
 
 func writeCallResult(drv *LuaDriver, ctx *Continuous) (int, error) {
@@ -190,7 +196,6 @@ func readActionResult(drv *LuaDriver, ctx *Continuous) {
 }
 
 func writeActionArguments(drv *LuaDriver, ctx *Continuous) (int, error) {
-
 	err := ctx.PushStringParam(ctx.StringValue)
 	if nil != err {
 		return -1, err
@@ -199,7 +204,12 @@ func writeActionArguments(drv *LuaDriver, ctx *Continuous) (int, error) {
 	if nil != err {
 		return -1, err
 	}
-	return 2, nil
+
+	err = ctx.PushAnyParam(ctx.Body)
+	if nil != err {
+		return -1, err
+	}
+	return 3, nil
 }
 
 func internalError(msg string) commons.Result {
@@ -241,7 +251,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 				return
 			}
 
-			ctx.Result = drv.Put(ctx.Params)
+			ctx.Result = drv.Put(ctx.Params, ctx.Body)
 		}}, &NativeMethod{
 		Name:  "create",
 		Read:  readCallArguments,
@@ -253,7 +263,7 @@ func NewLuaDriver(timeout time.Duration, drvMgr *commons.DriverManager) *LuaDriv
 				return
 			}
 
-			ctx.Result = drv.Create(ctx.Params)
+			ctx.Result = drv.Create(ctx.Params, ctx.Body)
 		}}, &NativeMethod{
 		Name:  "delete",
 		Read:  readCallArguments,
@@ -570,7 +580,7 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 				ctx.on_end(self, ctx)
 			}
 			// There is no explicit function to close or to destroy a thread. Threads are
-			// subject to garbage collection, like any Lua object. 
+			// subject to garbage collection, like any Lua object.
 			return ctx
 		case C.LUA_YIELD:
 			ctx.status = LUA_EXECUTE_YIELD
@@ -606,7 +616,7 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 			ctx.IntValue = int(ret)
 			ctx.Error = getError(ls, ret, "script execute failed")
 			// There is no explicit function to close or to destroy a thread. Threads are
-			// subject to garbage collection, like any Lua object. 
+			// subject to garbage collection, like any Lua object.
 			return ctx
 		}
 	}
@@ -635,7 +645,7 @@ func toContinuous(values []interface{}) (ctx *Continuous, err error) {
 	return
 }
 
-func (self *LuaDriver) newContinuous(action string, params map[string]string) *Continuous {
+func (self *LuaDriver) newContinuous(action string, params map[string]string, body interface{}) *Continuous {
 	if nil == self.LS {
 		return &Continuous{status: LUA_EXECUTE_FAILED,
 			Error: errors.New("lua status is nil.")}
@@ -650,6 +660,7 @@ func (self *LuaDriver) newContinuous(action string, params map[string]string) *C
 		status:      LUA_EXECUTE_END,
 		StringValue: action,
 		Params:      params,
+		Body:        body,
 		on_end:      readActionResult,
 		method:      method}
 
@@ -691,12 +702,12 @@ func (self *LuaDriver) newContinuous(action string, params map[string]string) *C
 	return ctx
 }
 
-func (driver *LuaDriver) invoke(action string, params map[string]string) (interface{}, error) {
+func (driver *LuaDriver) invoke(action string, params map[string]string, body interface{}) (interface{}, error) {
 	t := 5 * time.Minute
 	old := time.Now()
 
 	values := driver.SafelyCall(t, func() *Continuous {
-		return driver.newContinuous(action, params)
+		return driver.newContinuous(action, params, body)
 	})
 	ctx, err := toContinuous(values)
 	if nil != err {
@@ -735,8 +746,8 @@ func (driver *LuaDriver) invoke(action string, params map[string]string) (interf
 	return nil, ctx.Error
 }
 
-func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]string) commons.Result {
-	ret, err := driver.invoke(action, params)
+func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]string, body interface{}) commons.Result {
+	ret, err := driver.invoke(action, params, body)
 	if nil == ret {
 		if nil == err {
 			return internalError("error is nil")
@@ -760,17 +771,17 @@ func (driver *LuaDriver) invokeAndReturnMap(action string, params map[string]str
 }
 
 func (driver *LuaDriver) Get(params map[string]string) commons.Result {
-	return driver.invokeAndReturnMap("get", params)
+	return driver.invokeAndReturnMap("get", params, nil)
 }
 
-func (driver *LuaDriver) Put(params map[string]string) commons.Result {
-	return driver.invokeAndReturnMap("put", params)
+func (driver *LuaDriver) Put(params map[string]string, body interface{}) commons.Result {
+	return driver.invokeAndReturnMap("put", params, body)
 }
 
-func (driver *LuaDriver) Create(params map[string]string) commons.Result {
-	return driver.invokeAndReturnMap("create", params)
+func (driver *LuaDriver) Create(params map[string]string, body interface{}) commons.Result {
+	return driver.invokeAndReturnMap("create", params, body)
 }
 
 func (driver *LuaDriver) Delete(params map[string]string) commons.Result {
-	return driver.invokeAndReturnMap("delete", params)
+	return driver.invokeAndReturnMap("delete", params, nil)
 }

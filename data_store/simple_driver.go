@@ -158,6 +158,13 @@ func (self *simple_driver) newWhere(idx int,
 		builder.add_argument = (*whereBuilder).appendSimpleArguments
 	}
 
+	switch self.dbType {
+	case POSTGRESQL:
+		builder.limit_and_offset = (*whereBuilder).limit_and_offset_postgres
+	default:
+		builder.limit_and_offset = (*whereBuilder).limit_and_offset_generic
+	}
+
 	return builder
 }
 

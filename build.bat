@@ -84,6 +84,8 @@ copy "%ENGINE_PATH%src\lua_binding\lib\cjson.dll" %PUBLISH_PATH%\bin\cjson.dll
 xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\microlight\*" %PUBLISH_PATH%\lib\microlight\
 @if errorlevel 1 goto failed
 
+copy "%ENGINE_PATH%src\autostart_engine.conf" %PUBLISH_PATH%\conf\autostart_engine.conf
+
 @goto :eof
 
 :failed

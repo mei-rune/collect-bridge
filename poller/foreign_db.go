@@ -41,6 +41,7 @@ func (self *foreignDb) Close() {
 }
 
 func (self *foreignDb) run() {
+	is_running := int32(1)
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -63,22 +64,23 @@ func (self *foreignDb) run() {
 
 		log.Println("foreignDb is exit.")
 		close(self.c)
+		atomic.StoreInt32(&is_running, 0)
 		self.wait.Done()
 	}()
 
 	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
 
 	go func() {
 		defer func() {
 			if o := recover(); nil != o {
 				log.Println("[panic]", o)
 			}
+			ticker.Stop()
 			self.wait.Done()
 		}()
 
 		<-ticker.C
-		for self.isRunning() {
+		for 1 == atomic.LoadInt32(&is_running) {
 			self.c <- nil
 			<-ticker.C
 		}

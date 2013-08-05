@@ -68,7 +68,7 @@ func NewError(v interface{}) error {
 }
 
 func IsTimeout(e error) bool {
-	return timeout_message == TimeoutErr.Error()
+	return timeout_message == e.Error()
 }
 
 // func IsNotFound(e error) bool {

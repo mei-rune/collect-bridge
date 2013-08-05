@@ -37,6 +37,10 @@ func TestClientMgrTimeout(t *testing.T) {
 	}
 
 	for i := 0; i < 19 && 0 != len(mgr.clients); i++ {
+		mgr.SafelyCall(5*time.Minute, func() {
+			mgr.Test()
+		})
+
 		time.Sleep(time.Second)
 	}
 

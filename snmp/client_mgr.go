@@ -181,7 +181,7 @@ func (self *TestClient) Stats() string {
 }
 func (self *TestClient) Test() error {
 	self.test = true
-	return errors.New("time out")
+	return errors.New("it is expired.")
 }
 
 func (self *TestClient) CreatePDU(op snmpclient.SnmpType, version snmpclient.SnmpVersion) (snmpclient.PDU, snmpclient.SnmpError) {

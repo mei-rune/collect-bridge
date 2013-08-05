@@ -72,9 +72,9 @@ go build
 copy "sampling.exe"  %PUBLISH_PATH%\bin\tpt_sampling.exe
 
 
-cd %ENGINE_PATH%src\poller
-go test -v
-@if errorlevel 1 goto failed
+REM cd %ENGINE_PATH%src\poller
+REM go test -v
+REM @if errorlevel 1 goto failed
 
 cd %ENGINE_PATH%src\poller\poller
 del "*.exe"

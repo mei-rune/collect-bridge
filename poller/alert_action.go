@@ -61,7 +61,7 @@ func (self *alertAction) Stats() map[string]interface{} {
 		"end_send_at":      atomic.LoadInt64(&self.end_send_at)}
 
 	if nil != self.notification_groups {
-		stats["notification_group_id"] = notification_group_id
+		stats["notification_group_id"] = self.notification_group_id
 	}
 	return stats
 }

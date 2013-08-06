@@ -210,11 +210,14 @@ func TestNotifications(t *testing.T) {
 
 	rules := json.RawMessage(bs)
 	handler := map[string]interface{}{"arguments": map[string]interface{}{"action_id": 1,
-		"managed_type":  "managed_object",
-		"managed_id":    1,
-		"status":        1,
-		"current_value": "2",
-		"triggered_at":  "2013-07-13T14:13:28.7024412+08:00"},
+		"managed_type":    "managed_object",
+		"managed_id":      1,
+		"status":          1,
+		"previous_status": 0,
+		"event_id":        "123",
+		"sequence_id":     1,
+		"current_value":   "2",
+		"triggered_at":    "2013-07-13T14:13:28.7024412+08:00"},
 		"type":  "multiplexed",
 		"rules": &rules}
 
@@ -237,6 +240,9 @@ func TestNotifications(t *testing.T) {
         "metric":"sys",
         "name":"this is a test alert",
         "status":1,
+        "previous_status": 0,
+        "event_id": "123",
+        "sequence_id": 1,
         "trigger_id":"1",
         "triggered_at":"2013-07-13T14:13:28.7024412+08:00","notification":` + string(bs) + `}]`
 

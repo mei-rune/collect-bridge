@@ -48,6 +48,18 @@ var (
 		Type:       types.GetTypeDefinition("integer"),
 		Collection: types.COLLECTION_UNKNOWN}}
 
+	previous_status_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "previous_status",
+		Type:       types.GetTypeDefinition("integer"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	event_id_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "event_id",
+		Type:       types.GetTypeDefinition("string"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
+	sequence_id_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "sequence_id",
+		Type:       types.GetTypeDefinition("integer"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
 	managed_type_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "managed_type",
 		Type:       types.GetTypeDefinition("string"),
 		Collection: types.COLLECTION_UNKNOWN}}
@@ -90,28 +102,12 @@ var (
 
 func init() {
 
-	// type AlertEntity struct {
-	// 	Id           int64     `json:"id"`
-	// 	ActionId       int64     `json:"action_id"`
-	// 	Status       int64     `json:"status"`
-	// 	CurrentValue string    `json:"current_value"`
-	// 	TriggeredAt  time.Time `json:"triggered_at"`
-	// 	ManagedType  string    `json:"managed_type"`
-	// 	ManagedId    int64     `json:"managed_id"`
-	// }
-
-	// type HistoryEntity struct {
-	// 	Id           int64     `json:"id"`
-	// 	ActionId       int64     `json:"action_id"`
-	// 	CurrentValue float64   `json:"current_value"`
-	// 	SampledAt    time.Time `json:"sampled_at"`
-	// 	ManagedType  string    `json:"managed_type"`
-	// 	ManagedId    int64     `json:"managed_id"`
-	// }
-
 	attributes := map[string]*types.ColumnDefinition{id_column.Name: id_column,
-		action_id_column.Name:           action_id_column,           // 	ActionId       int64     `json:"action_id"`
+		action_id_column.Name:           action_id_column,           // 	ActionId     int64     `json:"action_id"`
 		status_column.Name:              status_column,              // 	Status       int64     `json:"status"`
+		previous_status_column.Name:     previous_status_column,     //
+		event_id_column.Name:            event_id_column,            //
+		sequence_id_column.Name:         sequence_id_column,         //
 		alert_current_value_column.Name: alert_current_value_column, // 	CurrentValue string    `json:"current_value"`
 		triggered_at_column.Name:        triggered_at_column,        // 	TriggeredAt  time.Time `json:"triggered_at"`
 		managed_type_column.Name:        managed_type_column,        // 	ManagedType  string    `json:"managed_type"`
@@ -254,6 +250,9 @@ type AlertEntity struct {
 	Id               int64         `json:"id"`
 	ActionId         int64         `json:"action_id"`
 	Status           int64         `json:"status"`
+	PreviousStatus   int64         `json:"previous_status"`
+	EventId          string        `json:"event_id"`
+	SequenceId       int64         `json:"sequence_id"`
 	CurrentValue     string        `json:"current_value"`
 	TriggeredAt      time.Time     `json:"triggered_at"`
 	ManagedType      string        `json:"managed_type"`
@@ -477,61 +476,75 @@ func (self *server) count(ctx *context, table *types.TableDefinition, response h
 	response.Write([]byte(`}`))
 }
 
+const prejection_sql = " id, action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at "
+
 func (self *server) findAlertCookies(ctx *context, response http.ResponseWriter, request *http.Request) {
-	self.find(ctx, tpt_alert_cookies, " id, action_id, managed_type, managed_id, status, current_value, triggered_at ",
+	self.find(ctx, tpt_alert_cookies, prejection_sql,
 		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
 			return entity, rows.Scan(
-				&entity.Id,           //Id           int64     `json:"id"`
-				&entity.ActionId,     //ActionId     int64     `json:"action_id"`
-				&entity.ManagedType,  //ManagedType  string    `json:"managed_type"`
-				&entity.ManagedId,    //ManagedId    int64     `json:"managed_id"`
-				&entity.Status,       //Status       string    `json:"status"`
-				&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
-				&entity.TriggeredAt)  //TriggeredAt  time.Time `json:"triggered_at"`
+				&entity.Id,             //Id               int64     `json:"id"`
+				&entity.ActionId,       //ActionId         int64     `json:"action_id"`
+				&entity.ManagedType,    //ManagedType      string    `json:"managed_type"`
+				&entity.ManagedId,      //ManagedId        int64     `json:"managed_id"`
+				&entity.Status,         //Status           string    `json:"status"`
+				&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
+				&entity.EventId,        //EventId          string    `json:"event_id"`
+				&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+				&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
+				&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
 		}, response, request)
 }
 func (self *server) findAlertHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
-	self.find(ctx, tpt_alert_history, " id, action_id, managed_type, managed_id, status, current_value, triggered_at ",
+	self.find(ctx, tpt_alert_history, prejection_sql,
 		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
 			return entity, rows.Scan(
-				&entity.Id,           //Id           int64     `json:"id"`
-				&entity.ActionId,     //ActionId     int64     `json:"action_id"`
-				&entity.ManagedType,  //ManagedType  string    `json:"managed_type"`
-				&entity.ManagedId,    //ManagedId    int64     `json:"managed_id"`
-				&entity.Status,       //Status       string    `json:"status"`
-				&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
-				&entity.TriggeredAt)  //TriggeredAt  time.Time `json:"triggered_at"`
+				&entity.Id,             //Id               int64     `json:"id"`
+				&entity.ActionId,       //ActionId         int64     `json:"action_id"`
+				&entity.ManagedType,    //ManagedType      string    `json:"managed_type"`
+				&entity.ManagedId,      //ManagedId        int64     `json:"managed_id"`
+				&entity.Status,         //Status           string    `json:"status"`
+				&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
+				&entity.EventId,        //EventId          string    `json:"event_id"`
+				&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+				&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
+				&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
 		}, response, request)
 }
 
 func (self *server) findAlertCookiesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
-	self.findById(ctx, tpt_alert_cookies, " id, action_id, managed_type, managed_id, status, current_value, triggered_at ",
+	self.findById(ctx, tpt_alert_cookies, prejection_sql,
 		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
 			return entity, rows.Scan(
-				&entity.Id,           //Id           int64     `json:"id"`
-				&entity.ActionId,     //ActionId     int64     `json:"action_id"`
-				&entity.ManagedType,  //ManagedType  string    `json:"managed_type"`
-				&entity.ManagedId,    //ManagedId    int64     `json:"managed_id"`
-				&entity.Status,       //Status       string    `json:"status"`
-				&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
-				&entity.TriggeredAt)  //TriggeredAt  time.Time `json:"triggered_at"`
+				&entity.Id,             //Id               int64     `json:"id"`
+				&entity.ActionId,       //ActionId         int64     `json:"action_id"`
+				&entity.ManagedType,    //ManagedType      string    `json:"managed_type"`
+				&entity.ManagedId,      //ManagedId        int64     `json:"managed_id"`
+				&entity.Status,         //Status           string    `json:"status"`
+				&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
+				&entity.EventId,        //EventId          string    `json:"event_id"`
+				&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+				&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
+				&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
 		}, response, request)
 }
 func (self *server) findAlertHistoriesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
-	self.findById(ctx, tpt_alert_history, " id, action_id, managed_type, managed_id, status, current_value, triggered_at ",
+	self.findById(ctx, tpt_alert_history, " id, action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at ",
 		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
 			return entity, rows.Scan(
-				&entity.Id,           //Id           int64     `json:"id"`
-				&entity.ActionId,     //ActionId     int64     `json:"action_id"`
-				&entity.ManagedType,  //ManagedType  string    `json:"managed_type"`
-				&entity.ManagedId,    //ManagedId    int64     `json:"managed_id"`
-				&entity.Status,       //Status       string    `json:"status"`
-				&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
-				&entity.TriggeredAt)  //TriggeredAt  time.Time `json:"triggered_at"`
+				&entity.Id,             //Id               int64     `json:"id"`
+				&entity.ActionId,       //ActionId         int64     `json:"action_id"`
+				&entity.ManagedType,    //ManagedType      string    `json:"managed_type"`
+				&entity.ManagedId,      //ManagedId        int64     `json:"managed_id"`
+				&entity.Status,         //Status           string    `json:"status"`
+				&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
+				&entity.EventId,        //EventId          string    `json:"event_id"`
+				&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+				&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
+				&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
 		}, response, request)
 }
 
@@ -645,20 +658,20 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 				}
 
 				if isNumericParams {
-					_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6)`,
-						entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
+					_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+						entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.CurrentValue, entity.TriggeredAt)
 				} else {
-					_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES (?, ?, ?, ?, ?, ?)`,
-						entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
+					_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+						entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.CurrentValue, entity.TriggeredAt)
 				}
 			} else {
 
 				if isNumericParams {
-					_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = $1, current_value = $2, triggered_at = $3  WHERE id = $4`,
-						entity.Status, entity.CurrentValue, entity.TriggeredAt, id)
+					_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = $1, previous_status = $2, event_id = $3, sequence_id = $4, current_value = $5, triggered_at = $6  WHERE id = $7`,
+						entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.CurrentValue, entity.TriggeredAt, id)
 				} else {
-					_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = ?, current_value = ?, triggered_at = ?  WHERE id = ?`,
-						entity.Status, entity.CurrentValue, entity.TriggeredAt, id)
+					_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = ?, previous_status = ?, event_id = ?, sequence_id = ?, current_value = ?, triggered_at = ?  WHERE id = ?`,
+						entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.CurrentValue, entity.TriggeredAt, id)
 				}
 			}
 			if nil != e {
@@ -670,12 +683,12 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 
 		if isNumericParams {
 			_, e = tx.Exec("INSERT INTO tpt_alert_histories_"+strconv.Itoa(entity.TriggeredAt.Year())+months[entity.TriggeredAt.Month()]+
-				"(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6)",
-				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
+				"(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.CurrentValue, entity.TriggeredAt)
 		} else {
 			_, e = tx.Exec("INSERT INTO tpt_alert_histories_"+strconv.Itoa(entity.TriggeredAt.Year())+months[entity.TriggeredAt.Month()]+
-				"(action_id, managed_type, managed_id, status, current_value, triggered_at) VALUES (?, ?, ?, ?, ?, ?)",
-				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.CurrentValue, entity.TriggeredAt)
+				"(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.CurrentValue, entity.TriggeredAt)
 		}
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)

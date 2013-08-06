@@ -83,22 +83,25 @@ func SrvTest(t *testing.T, cb func(db *sql.DB, url string)) {
 
 func SelectAlertHistories(db *sql.DB) ([]*AlertEntity, error) {
 
-	rows, e := db.Query("select id, action_id, managed_type, managed_id, status, current_value, triggered_at from tpt_alert_histories")
+	rows, e := db.Query("select " + prejection_sql + " from tpt_alert_histories")
 	if nil != e {
 		return nil, e
 	}
 
 	alertEntities := make([]*AlertEntity, 0, 2)
 	for rows.Next() {
-		var id int64
 		entity := &AlertEntity{}
-		e = rows.Scan(&id, //id
-			&entity.ActionId,    //ActionId       int64     `json:"action_id"`
-			&entity.ManagedType, //ManagedType  string    `json:"managed_type"`
-			&entity.ManagedId,
-			&entity.Status,       //Status       string    `json:"status"`
-			&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
-			&entity.TriggeredAt)  //TriggeredAt  time.Time `json:"triggered_at"`
+		e = rows.Scan(
+			&entity.Id,             //Id               int64     `json:"id"`
+			&entity.ActionId,       //ActionId         int64     `json:"action_id"`
+			&entity.ManagedType,    //ManagedType      string    `json:"managed_type"`
+			&entity.ManagedId,      //ManagedId        int64     `json:"managed_id"`
+			&entity.Status,         //Status           string    `json:"status"`
+			&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
+			&entity.EventId,        //EventId          string    `json:"event_id"`
+			&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+			&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
+			&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
 		if nil != e {
 			return nil, e
 		}
@@ -109,7 +112,7 @@ func SelectAlertHistories(db *sql.DB) ([]*AlertEntity, error) {
 }
 
 func SelectAlertCookies(db *sql.DB) ([]*AlertEntity, error) {
-	rows, e := db.Query("select action_id, managed_type, managed_id, status, current_value, triggered_at from tpt_alert_cookies")
+	rows, e := db.Query("select " + prejection_sql + " from tpt_alert_cookies")
 	if nil != e {
 		return nil, e
 	}
@@ -117,12 +120,17 @@ func SelectAlertCookies(db *sql.DB) ([]*AlertEntity, error) {
 	alertEntities := make([]*AlertEntity, 0, 2)
 	for rows.Next() {
 		entity := &AlertEntity{}
-		e = rows.Scan(&entity.ActionId, //ActionId       int64     `json:"action_id"`
-			&entity.ManagedType, //ManagedType  string    `json:"managed_type"`
-			&entity.ManagedId,
-			&entity.Status,       //Status       string    `json:"status"`
-			&entity.CurrentValue, //CurrentValue string    `json:"current_value"`
-			&entity.TriggeredAt)  //TriggeredAt  time.Time `json:"triggered_at"`
+		e = rows.Scan(
+			&entity.Id,             //Id               int64     `json:"id"`
+			&entity.ActionId,       //ActionId         int64     `json:"action_id"`
+			&entity.ManagedType,    //ManagedType      string    `json:"managed_type"`
+			&entity.ManagedId,      //ManagedId        int64     `json:"managed_id"`
+			&entity.Status,         //Status           string    `json:"status"`
+			&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
+			&entity.EventId,        //EventId          string    `json:"event_id"`
+			&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+			&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
+			&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
 		if nil != e {
 			return nil, e
 		}
@@ -157,22 +165,31 @@ func SelectHistories(db *sql.DB) ([]*HistoryEntity, error) {
 	return historyEntities, nil
 }
 
-func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status int64, value string, now time.Time, mo_type string, mo_id int64) {
+func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status, previousStatus int64, eventId string, sequenceId int64, value string, now time.Time, mo_type string, mo_id int64) {
 
 	if entity.ActionId != action_id {
-		t.Error(" entity.ActionId != action_id, excepted is ", action_id, ", actual is ", entity.ActionId)
+		t.Error(" entity.ActionId != action_id, excepted is ", action_id, ", actual is", entity.ActionId)
 	}
 	if entity.Status != status {
-		t.Error(" entity.Status != status, excepted is ", status, ", actual is ", entity.Status)
+		t.Error(" entity.Status != status, excepted is ", status, ", actual is", entity.Status)
+	}
+	if entity.PreviousStatus != previousStatus {
+		t.Error(" entity.PreviousStatus != previousStatus, excepted is ", previousStatus, ", actual is", entity.PreviousStatus)
+	}
+	if entity.EventId != eventId {
+		t.Error(" entity.EventId != eventId, excepted is ", eventId, ", actual is", entity.EventId)
+	}
+	if entity.SequenceId != sequenceId {
+		t.Error(" entity.SequenceId != sequenceId, excepted is ", sequenceId, ", actual is", entity.SequenceId)
 	}
 	if entity.CurrentValue != value {
-		t.Error(" entity.CurrentValue != value, excepted is ", value, ", actual is ", entity.CurrentValue)
+		t.Error(" entity.CurrentValue != value, excepted is ", value, ", actual is", entity.CurrentValue)
 	}
 	if entity.TriggeredAt.Unix() != now.Unix() {
-		t.Error(" entity.TriggeredAt != now, excepted is ", now, ", actual is ", entity.TriggeredAt)
+		t.Error(" entity.TriggeredAt != now, excepted is ", now, ", actual is", entity.TriggeredAt)
 	}
 	if entity.ManagedType != mo_type {
-		t.Error(" entity.ManagedType != mo_type, excepted is ", mo_type, ", actual is ", entity.ManagedType)
+		t.Error(" entity.ManagedType != mo_type, excepted is ", mo_type, ", actual is", entity.ManagedType)
 	}
 	if entity.ManagedId != mo_id {
 		t.Error(" entity.ManagedId != mo_id, excepted is ", mo_id, ", actual is ", entity.ManagedId)
@@ -182,19 +199,19 @@ func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status int64, va
 
 func AssertHistories(t *testing.T, entity *HistoryEntity, action_id int64, value float64, now time.Time, mo_type string, mo_id int64) {
 	if entity.ActionId != action_id {
-		t.Error(" entity.ActionId != action_id, excepted is ", action_id, ", actual is ", entity.ActionId)
+		t.Error(" entity.ActionId != action_id, excepted is ", action_id, ", actual is", entity.ActionId)
 	}
 	if math.Abs(entity.CurrentValue-value) > 0.002 {
-		t.Error(" entity.CurrentValue != value, excepted is ", value, ", actual is ", entity.CurrentValue)
+		t.Error(" entity.CurrentValue != value, excepted is ", value, ", actual is", entity.CurrentValue)
 	}
 	if entity.SampledAt.Unix() != now.Unix() {
-		t.Error(" entity.SampledAt != now, excepted is ", now, ", actual is ", entity.SampledAt)
+		t.Error(" entity.SampledAt != now, excepted is ", now, ", actual is", entity.SampledAt)
 	}
 	if entity.ManagedType != mo_type {
-		t.Error(" entity.ManagedType != mo_type, excepted is ", mo_type, ", actual is ", entity.ManagedType)
+		t.Error(" entity.ManagedType != mo_type, excepted is ", mo_type, ", actual is", entity.ManagedType)
 	}
 	if entity.ManagedId != mo_id {
-		t.Error(" entity.ManagedId != mo_id, excepted is ", mo_id, ", actual is ", entity.ManagedId)
+		t.Error(" entity.ManagedId != mo_id, excepted is ", mo_id, ", actual is", entity.ManagedId)
 	}
 
 }

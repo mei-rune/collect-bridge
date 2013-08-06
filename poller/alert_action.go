@@ -2,7 +2,14 @@ package poller
 
 import (
 	"commons"
+	"crypto/md5"
+	"crypto/rand"
 	ds "data_store"
+	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"os"
 	//"commons/types"
 	"encoding/json"
 	"errors"
@@ -21,6 +28,60 @@ var (
 	reset_error = errors.New("please reset channel.")
 )
 
+var (
+
+	// objectIdCounter is atomically incremented when generating a new ObjectId
+	// using NewObjectId() function. It's used as a counter part of an id.
+	objectIdCounter uint32 = 0
+
+	// machineId stores machine id generated once and used in subsequent calls
+	// to NewObjectId function.
+	machineId  = readMachineId()
+	currentPid = os.Getpid()
+)
+
+// initMachineId generates machine id and puts it into the machineId global
+// variable. If this function fails to get the hostname, it will cause
+// a runtime error.
+func readMachineId() []byte {
+	var sum [3]byte
+	id := sum[:]
+	hostname, err1 := os.Hostname()
+	if err1 != nil {
+		_, err2 := io.ReadFull(rand.Reader, id)
+		if err2 != nil {
+			panic(fmt.Errorf("cannot get hostname: %v; %v", err1, err2))
+		}
+		return id
+	}
+	hw := md5.New()
+	hw.Write([]byte(hostname))
+	copy(id, hw.Sum(nil))
+	return id
+}
+
+// NewObjectId returns a new unique ObjectId.
+// This function causes a runtime error if it fails to get the hostname
+// of the current machine.
+func generateId() string {
+	var b [12]byte
+	// Timestamp, 4 bytes, big endian
+	binary.BigEndian.PutUint32(b[:], uint32(time.Now().Unix()))
+	// Machine, first 3 bytes of md5(hostname)
+	b[4] = machineId[0]
+	b[5] = machineId[1]
+	b[6] = machineId[2]
+	// Pid, 2 bytes, specs don't specify endianness, but we use big endian.
+	b[7] = byte(currentPid >> 8)
+	b[8] = byte(currentPid)
+	// Increment, 3 bytes, big endian
+	i := atomic.AddUint32(&objectIdCounter, 1)
+	b[9] = byte(i >> 16)
+	b[10] = byte(i >> 8)
+	b[11] = byte(i)
+	return hex.EncodeToString(b[:])
+}
+
 type alertAction struct {
 	id          int64
 	name        string
@@ -32,33 +93,42 @@ type alertAction struct {
 	channel     chan<- *data_object
 	cached_data *data_object
 
-	checker      Checker
-	last_status  int
-	repeated     int
-	already_send bool
+	checker         Checker
+	previous_status int
+	last_status     int
+	repeated        int
+	already_send    bool
+	last_event_id   string
+	sequence_id     int
 
 	notification_group_id string
 	notification_groups   *ds.Cache
 
 	begin_send_at, wait_response_at, responsed_at, end_send_at int64
 
-	stats_last_status  int
-	stats_repeated     int
-	stats_already_send bool
+	stats_previous_status int
+	stats_last_status     int
+	stats_repeated        int
+	stats_already_send    bool
+	stats_last_event_id   string
+	stats_sequence_id     int
 }
 
 func (self *alertAction) Stats() map[string]interface{} {
 	stats := map[string]interface{}{
-		"type":             "alert",
-		"id":               self.id,
-		"name":             self.name,
-		"last_status":      self.stats_last_status,
-		"repeated":         self.stats_repeated,
-		"already_send":     self.stats_already_send,
-		"begin_send_at":    atomic.LoadInt64(&self.begin_send_at),
-		"wait_response_at": atomic.LoadInt64(&self.wait_response_at),
-		"responsed_at":     atomic.LoadInt64(&self.responsed_at),
-		"end_send_at":      atomic.LoadInt64(&self.end_send_at)}
+		"type":                  "alert",
+		"id":                    self.id,
+		"name":                  self.name,
+		"stats_previous_status": self.stats_previous_status,
+		"last_status":           self.stats_last_status,
+		"repeated":              self.stats_repeated,
+		"already_send":          self.stats_already_send,
+		"event_id":              self.stats_last_event_id,
+		"sequence_id":           self.stats_sequence_id,
+		"begin_send_at":         atomic.LoadInt64(&self.begin_send_at),
+		"wait_response_at":      atomic.LoadInt64(&self.wait_response_at),
+		"responsed_at":          atomic.LoadInt64(&self.responsed_at),
+		"end_send_at":           atomic.LoadInt64(&self.end_send_at)}
 
 	if nil != self.notification_groups {
 		stats["notification_group_id"] = self.notification_group_id
@@ -70,9 +140,12 @@ func (self *alertAction) RunBefore() {
 }
 
 func (self *alertAction) RunAfter() {
+	self.stats_previous_status = self.previous_status
 	self.stats_last_status = self.last_status
 	self.stats_repeated = self.repeated
 	self.stats_already_send = self.already_send
+	self.stats_last_event_id = self.last_event_id
+	self.stats_sequence_id = self.sequence_id
 }
 
 func (self *alertAction) Run(t time.Time, value interface{}) error {
@@ -119,6 +192,14 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 		}
 	}
 
+	if 0 == self.previous_status {
+		self.sequence_id = 1
+		self.last_event_id = generateId()
+	}
+
+	evt["event_id"] = self.last_event_id
+	evt["sequence_id"] = self.sequence_id
+	evt["previous_status"] = self.previous_status
 	evt["status"] = current
 	if nil != self.notification_groups {
 		err := self.fillNotificationData(evt)
@@ -129,6 +210,8 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 
 	err = self.send(evt)
 	if nil == err {
+		self.previous_status = current
+		self.sequence_id++
 		self.already_send = true
 		return nil
 	}
@@ -272,6 +355,9 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		cached_data:           &data_object{c: make(chan error, 2)},
 		checker:               checker,
 		last_status:           commons.GetIntWithDefault(attributes, "last_status", 0),
+		previous_status:       commons.GetIntWithDefault(attributes, "previous_status", 0),
+		last_event_id:         commons.GetStringWithDefault(attributes, "event_id", ""),
+		sequence_id:           commons.GetIntWithDefault(attributes, "seqence_id", 0),
 		notification_group_id: notification_group_id,
 		notification_groups:   notification_groups}, nil
 }

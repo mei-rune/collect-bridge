@@ -143,6 +143,9 @@ func (s *server) loadCookies(id2results map[int]map[string]interface{}) error {
 			action_id := commons.GetIntWithDefault(attributes, "id", 0)
 			if _, ok := id2results[action_id]; ok {
 				attributes["last_status"] = attributes["status"]
+				attributes["previous_status"] = attributes["previous_status"]
+				attributes["event_id"] = attributes["event_id"]
+				attributes["sequence_id"] = attributes["sequence_id"]
 			} else {
 				id := fmt.Sprint(attributes["id"])
 				dres := client.Delete(map[string]string{"id": id})

@@ -100,6 +100,7 @@ func SelectAlertHistories(db *sql.DB) ([]*AlertEntity, error) {
 			&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
 			&entity.EventId,        //EventId          string    `json:"event_id"`
 			&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+			&entity.Content,        //Content          string    `json:"content"`
 			&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
 			&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
 		if nil != e {
@@ -129,6 +130,7 @@ func SelectAlertCookies(db *sql.DB) ([]*AlertEntity, error) {
 			&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
 			&entity.EventId,        //EventId          string    `json:"event_id"`
 			&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+			&entity.Content,        //Content          string    `json:"content"`
 			&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
 			&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
 		if nil != e {
@@ -165,7 +167,7 @@ func SelectHistories(db *sql.DB) ([]*HistoryEntity, error) {
 	return historyEntities, nil
 }
 
-func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status, previousStatus int64, eventId string, sequenceId int64, value string, now time.Time, mo_type string, mo_id int64) {
+func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status, previousStatus int64, eventId string, sequenceId int64, content, value string, now time.Time, mo_type string, mo_id int64) {
 
 	if entity.ActionId != action_id {
 		t.Error(" entity.ActionId != action_id, excepted is ", action_id, ", actual is", entity.ActionId)
@@ -181,6 +183,9 @@ func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status, previous
 	}
 	if entity.SequenceId != sequenceId {
 		t.Error(" entity.SequenceId != sequenceId, excepted is ", sequenceId, ", actual is", entity.SequenceId)
+	}
+	if entity.Content != content {
+		t.Error(" entity.Content != content, excepted is ", content, ", actual is", entity.Content)
 	}
 	if entity.CurrentValue != value {
 		t.Error(" entity.CurrentValue != value, excepted is ", value, ", actual is", entity.CurrentValue)

@@ -1,0 +1,1 @@
+test_catalog_alert {{.name}} {{.status}}

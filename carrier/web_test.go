@@ -62,6 +62,7 @@ func TestAlertsServer(t *testing.T) {
         "previous_status": 0,
         "event_id": "123",
         "sequence_id": 1,
+        "content": "content is alerted",
         "current_value": "23",
         "triggered_at": `+string(now)+`,
         "managed_type": "mo",
@@ -81,7 +82,7 @@ func TestAlertsServer(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
 
 		entities, e = SelectAlertCookies(db)
 		if nil != e {
@@ -94,7 +95,7 @@ func TestAlertsServer(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
 
 	})
 }
@@ -103,6 +104,7 @@ func TestAlertsServer2(t *testing.T) {
 	SrvTest(t, func(db *sql.DB, url string) {
 		nowt, _ := time.Parse(time.RFC3339, "2013-07-13T14:13:28.7024412+08:00")
 		_, e := httpInvoke("PUT", url+"/alerts", `[{"action_id":1,
+      "content": "content is alerted",
 			"current_value":"",
 			"managed_id":1,
 			"managed_type":"managed_object",
@@ -129,7 +131,7 @@ func TestAlertsServer2(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 1, 1, 0, "123", 1, "", nowt, "managed_object", 1)
+		AssertAlerts(t, entities[0], 1, 1, 0, "123", 1, "content is alerted", "", nowt, "managed_object", 1)
 
 		entities, e = SelectAlertCookies(db)
 		if nil != e {
@@ -142,7 +144,7 @@ func TestAlertsServer2(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 1, 1, 0, "123", 1, "", nowt, "managed_object", 1)
+		AssertAlerts(t, entities[0], 1, 1, 0, "123", 1, "content is alerted", "", nowt, "managed_object", 1)
 
 	})
 }
@@ -157,6 +159,7 @@ func TestAlertsCookies(t *testing.T) {
         "previous_status": 0,
         "event_id": "123",
         "sequence_id": 1,
+        "content": "content is alerted",
         "current_value": "23",
         "triggered_at": `+string(now)+`,
         "managed_type": "mo",
@@ -176,7 +179,7 @@ func TestAlertsCookies(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
 
 		entities, e = SelectAlertCookies(db)
 		if nil != e {
@@ -189,13 +192,14 @@ func TestAlertsCookies(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
 
 		_, e = httpInvoke("PUT", url+"/alerts", `[{"action_id": 123,
         "status": 0,
         "previous_status": 1,
         "event_id": "123",
         "sequence_id": 1,
+        "content": "content is alerted",
         "current_value": "65",
         "triggered_at": `+string(now)+`,
         "managed_type": "mo",
@@ -215,8 +219,8 @@ func TestAlertsCookies(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "23", nowt, "mo", 123)
-		AssertAlerts(t, entities[1], 123, 0, 1, "123", 1, "65", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[1], 123, 0, 1, "123", 1, "content is alerted", "65", nowt, "mo", 123)
 
 		entities, e = SelectAlertCookies(db)
 		if nil != e {
@@ -295,7 +299,7 @@ func TestFind(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				var e error
 				if strings.HasPrefix(test.tname, "tpt_alert") {
-					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'ss', now())", test.tname, i, i%2))
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', now())", test.tname, i, i%2))
 				} else {
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, now())", test.tname, i, i%2))
 				}
@@ -351,7 +355,7 @@ func TestCount(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				var e error
 				if strings.HasPrefix(test.tname, "tpt_alert") {
-					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'ss', now())", test.tname, i, i%2))
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', now())", test.tname, i, i%2))
 				} else {
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, now())", test.tname, i, i%2))
 				}
@@ -406,7 +410,7 @@ func TestRemove(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				var e error
 				if strings.HasPrefix(test.tname, "tpt_alert") {
-					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'ss', now())", test.tname, i, i%2))
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', now())", test.tname, i, i%2))
 				} else {
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, now())", test.tname, i, i%2))
 				}

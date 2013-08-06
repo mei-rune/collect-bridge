@@ -234,6 +234,7 @@ func TestNotifications(t *testing.T) {
 	}
 
 	js := `[{"action_id":1,
+        "content": "content is alerted",
         "current_value":"2",
         "managed_id":1,
         "managed_type":"managed_object",

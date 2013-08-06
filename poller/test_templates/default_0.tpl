@@ -1,0 +1,1 @@
+default_template_resume {{.name}} {{.status}}

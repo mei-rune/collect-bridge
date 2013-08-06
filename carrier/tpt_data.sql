@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS tpt_alert_cookies (
   previous_status   int  NOT NULL,
   event_id          varchar(200)  NOT NULL,
   sequence_id       int  NOT NULL,
+  content           varchar(250)  NOT NULL,
   current_value     varchar(2000)  NOT NULL,
   triggered_at      timestamp with time zone NOT NULL,
 
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS tpt_alert_histories (
   previous_status   int  NOT NULL,
   event_id          varchar(200)  NOT NULL,
   sequence_id       int  NOT NULL,
+  content           varchar(250)  NOT NULL,
   current_value     varchar(2000) NOT NULL,
   triggered_at      timestamp with time zone  NOT NULL
 );
@@ -180,7 +182,8 @@ returns TRIGGER AS $$
 begin
   execute 'INSERT INTO tpt_alert_histories_'
     || to_char( NEW.triggered_at, 'YYYY_MM' )
-    || '(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)' USING NEW.action_id, NEW.managed_type, NEW.managed_id, NEW.status,  NEW.previous_status,  NEW.event_id,  NEW.sequence_id, NEW.current_value, NEW.triggered_at ;
+    || '(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)'  
+    USING NEW.action_id, NEW.managed_type, NEW.managed_id, NEW.status, NEW.previous_status, NEW.event_id,  NEW.sequence_id, NEW.content, NEW.current_value, NEW.triggered_at;
   RETURN NULL;
 end;
 $$

@@ -1,6 +1,7 @@
 package poller
 
 import (
+	"bytes"
 	"commons"
 	"crypto/md5"
 	"crypto/rand"
@@ -10,6 +11,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"text/template"
 	//"commons/types"
 	"encoding/json"
 	"errors"
@@ -93,6 +98,8 @@ type alertAction struct {
 	channel     chan<- *data_object
 	cached_data *data_object
 
+	templates       []*template.Template
+	information     string
 	checker         Checker
 	previous_status int
 	last_status     int
@@ -112,23 +119,25 @@ type alertAction struct {
 	stats_already_send    bool
 	stats_last_event_id   string
 	stats_sequence_id     int
+	stats_information     string
 }
 
 func (self *alertAction) Stats() map[string]interface{} {
 	stats := map[string]interface{}{
-		"type":                  "alert",
-		"id":                    self.id,
-		"name":                  self.name,
-		"stats_previous_status": self.stats_previous_status,
-		"last_status":           self.stats_last_status,
-		"repeated":              self.stats_repeated,
-		"already_send":          self.stats_already_send,
-		"event_id":              self.stats_last_event_id,
-		"sequence_id":           self.stats_sequence_id,
-		"begin_send_at":         atomic.LoadInt64(&self.begin_send_at),
-		"wait_response_at":      atomic.LoadInt64(&self.wait_response_at),
-		"responsed_at":          atomic.LoadInt64(&self.responsed_at),
-		"end_send_at":           atomic.LoadInt64(&self.end_send_at)}
+		"type":             "alert",
+		"id":               self.id,
+		"name":             self.name,
+		"information":      self.stats_information,
+		"previous_status":  self.stats_previous_status,
+		"last_status":      self.stats_last_status,
+		"repeated":         self.stats_repeated,
+		"already_send":     self.stats_already_send,
+		"event_id":         self.stats_last_event_id,
+		"sequence_id":      self.stats_sequence_id,
+		"begin_send_at":    atomic.LoadInt64(&self.begin_send_at),
+		"wait_response_at": atomic.LoadInt64(&self.wait_response_at),
+		"responsed_at":     atomic.LoadInt64(&self.responsed_at),
+		"end_send_at":      atomic.LoadInt64(&self.end_send_at)}
 
 	if nil != self.notification_groups {
 		stats["notification_group_id"] = self.notification_group_id
@@ -146,6 +155,7 @@ func (self *alertAction) RunAfter() {
 	self.stats_already_send = self.already_send
 	self.stats_last_event_id = self.last_event_id
 	self.stats_sequence_id = self.sequence_id
+	self.stats_information = self.information
 }
 
 func (self *alertAction) Run(t time.Time, value interface{}) error {
@@ -201,6 +211,7 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	evt["sequence_id"] = self.sequence_id
 	evt["previous_status"] = self.previous_status
 	evt["status"] = current
+	evt["content"] = self.message(current, self.previous_status, evt)
 	if nil != self.notification_groups {
 		err := self.fillNotificationData(evt)
 		if nil != err {
@@ -249,6 +260,26 @@ func (self *alertAction) fillNotificationData(evt map[string]interface{}) error 
 		evt["notification"] = map[string]interface{}{"priority": *notification_priority, "queue": *notification_queue, "payload_object": string(bs)}
 	}
 	return nil
+}
+
+func (self *alertAction) message(current, previous int, evt map[string]interface{}) string {
+	if len(self.templates) > current {
+		var buffer bytes.Buffer
+		e := self.templates[current].Execute(&buffer, evt)
+		if nil == e {
+			return buffer.String()
+		}
+		self.information = "execute template failed, " + e.Error()
+	}
+
+	switch current {
+	case 0:
+		return fmt.Sprintf("%v is resumed", self.name)
+	case 1:
+		return fmt.Sprintf("%v is alerted", self.name)
+	default:
+		return fmt.Sprintf("%v is alerted, status is %v", self.name, current)
+	}
 }
 
 func (self *alertAction) send(evt map[string]interface{}) error {
@@ -343,6 +374,11 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		}
 	}
 
+	templates, e := loadTemplates(ctx, attributes, "templates")
+	if nil != e {
+		return nil, e
+	}
+
 	return &alertAction{id: id,
 		name: name,
 		//description: commons.GetString(attributes, "description", ""),
@@ -354,6 +390,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		channel:               channel,
 		cached_data:           &data_object{c: make(chan error, 2)},
 		checker:               checker,
+		templates:             templates,
 		last_status:           commons.GetIntWithDefault(attributes, "last_status", 0),
 		previous_status:       commons.GetIntWithDefault(attributes, "previous_status", 0),
 		last_event_id:         commons.GetStringWithDefault(attributes, "event_id", ""),
@@ -388,4 +425,131 @@ func makeChecker(attributes, ctx map[string]interface{}) (Checker, error) {
 		return makeJsonChecker(code)
 	}
 	return nil, errors.New("expression style '" + style + "' is unknown")
+}
+
+func abs(s string) string {
+	r, e := filepath.Abs(s)
+	if nil != e {
+		return s
+	}
+	return r
+}
+
+func get_alerts_template_path() string {
+	dirs := []string{filepath.Join(abs(filepath.Dir(os.Args[0])), "lib/alerts/templates"),
+		filepath.Join(abs(filepath.Dir(os.Args[0])), "../lib/alerts/templates"),
+		filepath.Join(abs("."), "lib/alerts/templates"),
+		filepath.Join(abs("."), "../lib/alerts/templates"),
+		filepath.Join(abs(filepath.Dir(os.Args[0])), "conf/alerts_templates"),
+		filepath.Join(abs(filepath.Dir(os.Args[0])), "../conf/alerts_templates"),
+		filepath.Join(abs("."), "conf/alerts_templates"),
+		filepath.Join(abs("."), "../conf/alerts_templates")}
+	for _, s := range dirs {
+		fi, e := os.Stat(s)
+		if nil == e && fi.IsDir() {
+			return s
+		}
+	}
+	return ""
+}
+
+func loadTemplates(ctx, args map[string]interface{}, key string) ([]*template.Template, error) {
+	templates, e := templatesWith(args, key)
+	if nil != e {
+		return nil, e
+	}
+	if 0 != len(templates) {
+		return templates, nil
+	}
+
+	pa := commons.GetStringWithDefault(ctx, "alerts_template_path", get_alerts_template_path())
+	if 0 == len(pa) {
+		return []*template.Template{}, nil
+	}
+
+	cat := commons.GetStringWithDefault(args, "catalog", "")
+	if 0 != len(cat) {
+		templates, e = loadTemplatesFromDir(pa, cat)
+		if nil != e {
+			return nil, e
+		}
+		if 0 != len(templates) {
+			return templates, nil
+		}
+	}
+
+	return loadTemplatesFromDir(pa, "default")
+}
+
+func loadTemplatesFromDir(pa, prefix string) (templates []*template.Template, err error) {
+	for i := 0; i < 9999; i++ {
+		nm := filepath.Clean(filepath.Join(pa, prefix+"_"+strconv.FormatInt(int64(i), 10)+".tpl"))
+		if fi, e := os.Stat(nm); nil != e || fi.IsDir() {
+			break
+		}
+		t, e := template.ParseFiles(nm)
+		if nil != e {
+			return nil, fmt.Errorf("load message templates of alerts failed, parse '%v' failed, %v", nm, e.Error())
+		}
+		templates = append(templates, t)
+	}
+	if nil == templates {
+		templates = []*template.Template{}
+	}
+	return
+}
+
+func templatesWith(args map[string]interface{}, key string) ([]*template.Template, error) {
+	v, ok := args[key]
+	if !ok {
+		return []*template.Template{}, nil
+	}
+	var e error
+	if s, ok := v.(string); ok {
+		if 0 == len(strings.TrimSpace(s)) {
+			return []*template.Template{}, nil
+		}
+		var ss []string
+		e = json.Unmarshal([]byte(s), &ss)
+		if nil != e {
+			return nil, fmt.Errorf("load message templates of alerts failed, %v is not a valid json string, %s - `%v`", key, e.Error(), string(s))
+		}
+		if nil == ss || 0 == len(ss) {
+			return []*template.Template{}, nil
+		}
+		tt := make([]*template.Template, len(ss))
+		for i, s := range ss {
+			tt[i], e = template.New("default").Parse(s)
+			if nil != e {
+				return nil, fmt.Errorf("load message templates of alerts failed, parse %v[%v] failed, %v", key, i, e.Error())
+			}
+		}
+		return tt, nil
+	}
+
+	if ii, ok := v.([]interface{}); ok {
+		tt := make([]*template.Template, len(ii))
+		for i, o := range ii {
+			s, ok := o.(string)
+			if !ok {
+				return nil, fmt.Errorf("load message templates of alerts failed, %v[%v] is not a string", key, i)
+			}
+			tt[i], e = template.New("default").Parse(s)
+			if nil != e {
+				return nil, fmt.Errorf("load message templates of alerts failed, parse %v[%v] failed, %v", key, i, e.Error())
+			}
+		}
+		return tt, nil
+	}
+	if ss, ok := v.([]string); ok {
+		tt := make([]*template.Template, len(ss))
+		for i, s := range ss {
+			tt[i], e = template.New("default").Parse(s)
+			if nil != e {
+				return nil, fmt.Errorf("load message templates of alerts failed, parse %v[%v] failed, %v", key, i, e.Error())
+			}
+		}
+		return tt, nil
+	}
+	return []*template.Template{}, nil
 }

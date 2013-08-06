@@ -771,3 +771,133 @@ func TestAlertEventId(t *testing.T) {
 		}
 	}
 }
+
+func TestAlertMessage(t *testing.T) {
+	publish := make(chan []string, 1000)
+	c1 := make(chan *data_object, 10)
+	c := make(chan *data_object, 10)
+
+	defer close(c1)
+	go func() {
+		for v := range c1 {
+			c <- v
+			v.c <- nil
+		}
+	}()
+
+	all_tests := []struct {
+		rule, ctx                     map[string]interface{}
+		alert_message, resume_message string
+	}{{rule: map[string]interface{}{
+		"type":             "alert",
+		"id":               "123",
+		"name":             "this is a test alert",
+		"delay_times":      0,
+		"expression_style": "json",
+		"expression_code": map[string]interface{}{
+			"attribute": "a",
+			"operator":  ">",
+			"value":     "12"}},
+		ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)},
+		alert_message:  "this is a test alert is alerted",
+		resume_message: "this is a test alert is resumed"},
+		{rule: map[string]interface{}{
+			"type":             "alert",
+			"id":               "123",
+			"name":             "this is a test alert",
+			"delay_times":      0,
+			"templates":        []string{"from template resume {{.name}} {{.status}}", "from template alert {{.name}} {{.status}}"},
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "a",
+				"operator":  ">",
+				"value":     "12"}},
+			ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)},
+			alert_message:  "from template alert this is a test alert 1",
+			resume_message: "from template resume this is a test alert 0"},
+		{rule: map[string]interface{}{
+			"type":             "alert",
+			"id":               "123",
+			"name":             "this is a test alert",
+			"delay_times":      0,
+			"templates":        `["form_templates resume {{.name}} {{.status}}", "form_templates alert {{.name}} {{.status}}"]`,
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "a",
+				"operator":  ">",
+				"value":     "12"}},
+			ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)},
+			alert_message:  "form_templates alert this is a test alert 1",
+			resume_message: "form_templates resume this is a test alert 0"},
+		{rule: map[string]interface{}{
+			"type":             "alert",
+			"id":               "123",
+			"name":             "this is a test alert",
+			"delay_times":      0,
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "a",
+				"operator":  ">",
+				"value":     "12"}},
+			ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish), "alerts_template_path": "./test_templates/"},
+			alert_message:  "default_template_alert this is a test alert 1",
+			resume_message: "default_template_resume this is a test alert 0"},
+		{rule: map[string]interface{}{
+			"type":             "alert",
+			"id":               "123",
+			"name":             "this is a test alert",
+			"delay_times":      0,
+			"catalog":          "test_catalog",
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "a",
+				"operator":  ">",
+				"value":     "12"}},
+			ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish), "alerts_template_path": "./test_templates/"},
+			alert_message:  "test_catalog_alert this is a test alert 1",
+			resume_message: "test_catalog_resume this is a test alert 0"}}
+
+	for _, test := range all_tests {
+
+		action, e := newAlertAction(test.rule,
+			map[string]interface{}{"managed_id": "1213"},
+			test.ctx)
+
+		if nil != e {
+			t.Error(e)
+			continue
+		}
+
+		alert := action.(*alertAction)
+
+		sendAndRecv := func(message string, a map[string]interface{}) {
+			e = action.Run(time.Now(), commons.Return(a))
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			select {
+			case v := <-c:
+				if message != v.attributes["content"] {
+					t.Errorf("message != %v, actual is %v", message, v.attributes["content"])
+				}
+				select {
+				case <-publish:
+				case <-time.After(1 * time.Second):
+					t.Error("not recv and last_status is", alert.last_status)
+				}
+			default:
+				t.Error("not recv and last_status is", alert.last_status)
+			}
+		}
+
+		//////////////////////////////////////////
+		// send alert
+		sendAndRecv(test.alert_message, map[string]interface{}{"a": "13"})
+
+		//////////////////////////////////////////
+		// send resume
+		sendAndRecv(test.resume_message, map[string]interface{}{"a": "12"})
+	}
+}

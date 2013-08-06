@@ -67,6 +67,7 @@ func forward(c chan<- []string) chan<- []string {
 func forward2(c chan<- *data_object) chan<- *data_object {
 	return c
 }
+
 func Runforever() {
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {

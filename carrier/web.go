@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	_ "github.com/lib/pq"
+	"io/ioutil"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -23,11 +24,11 @@ import (
 )
 
 var (
-	listenAddress = flag.String("carrier.listen", ":7074", "the address of http")
-	dbUrl         = flag.String("data_db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
-	drv           = flag.String("data_db.name", "postgres", "the db driver")
-	goroutines    = flag.Int("carrier.connections", 10, "the db connection number")
-
+	listenAddress          = flag.String("carrier.listen", ":7074", "the address of http")
+	dbUrl                  = flag.String("data_db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
+	drv                    = flag.String("data_db.name", "postgres", "the db driver")
+	goroutines             = flag.Int("carrier.connections", 10, "the db connection number")
+	run_mode               = flag.String("run_mode", "server", "clean_db, reset_db, init_db or server")
 	delayed_job_table_name = flag.String("delayed_job_table_name", "delayed_jobs", "the table name of delayed job")
 
 	delayed_job_table         = ""
@@ -890,6 +891,66 @@ func Main(is_test bool) error {
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
+		return nil
+	}
+
+	switch *run_mode {
+	case "clean_db":
+		db, e := sql.Open(*drv, *dbUrl)
+		if nil != e {
+			return errors.New("connect to db failed," + e.Error())
+		}
+		defer db.Close()
+
+		_, e = db.Exec(deletion_sql)
+		if nil != e {
+			return errors.New("create table failed," + e.Error())
+		}
+		return nil
+	case "init_db":
+		db, e := sql.Open(*drv, *dbUrl)
+		if nil != e {
+			return errors.New("connect to db failed," + e.Error())
+		}
+		defer db.Close()
+
+		sql := sql_string
+		bs, e := ioutil.ReadFile("tpt_data.sql")
+		if nil != e {
+			fmt.Println("[warn] read 'tpt_data.sql' failed")
+		} else {
+			sql = string(bs)
+		}
+
+		_, e = db.Exec(sql)
+		if nil != e {
+			return errors.New("create table failed," + e.Error())
+		}
+		return nil
+	case "reset_db":
+		db, e := sql.Open(*drv, *dbUrl)
+		if nil != e {
+			return errors.New("connect to db failed," + e.Error())
+		}
+		defer db.Close()
+
+		_, e = db.Exec(deletion_sql)
+		if nil != e {
+			return errors.New("delete table failed," + e.Error())
+		}
+
+		sql := sql_string
+		bs, e := ioutil.ReadFile("tpt_data.sql")
+		if nil != e {
+			fmt.Println("[warn] read 'tpt_data.sql' failed")
+		} else {
+			sql = string(bs)
+		}
+
+		_, e = db.Exec(sql)
+		if nil != e {
+			return errors.New("create table failed," + e.Error())
+		}
 		return nil
 	}
 

@@ -3,27 +3,11 @@ package carrier
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net/http/httptest"
 	"testing"
 	"time"
 )
-
-var deletion_sql = `
--- alert
-DROP INDEX IF EXISTS tpt_alert_cookies_action_id_idx;
-DROP TABLE IF EXISTS tpt_alert_cookies CASCADE;
-
-DROP INDEX IF EXISTS tpt_alert_histories_mo_id_idx;
-DROP INDEX IF EXISTS tpt_alert_histories_action_id_idx;
-DROP TABLE IF EXISTS tpt_alert_histories CASCADE;
-
--- histories
-DROP INDEX IF EXISTS tpt_histories_mo_id_idx;
-DROP INDEX IF EXISTS tpt_histories_action_id_idx;
-DROP TABLE IF EXISTS tpt_histories CASCADE;
-`
 
 func SimpleTest(t *testing.T, cb func(db *sql.DB)) {
 	db, e := sql.Open(*drv, *dbUrl)
@@ -31,28 +15,20 @@ func SimpleTest(t *testing.T, cb func(db *sql.DB)) {
 		t.Error("connect to db failed,", e)
 		return
 	}
+	mode := *run_mode
+	*run_mode = "reset_db"
+	defer func() { *run_mode = mode }()
 
-	_, e = db.Exec(deletion_sql)
+	e = Main(true)
 	if nil != e {
-		t.Error("delete table from db failed,", e)
+		t.Error(e)
 		return
 	}
 
-	bs, e := ioutil.ReadFile("tpt_data.sql")
+	*run_mode = mode
+	e = Main(true)
 	if nil != e {
-		bs, e = ioutil.ReadFile("carrier/tpt_data.sql")
-		if nil != e {
-			bs, e = ioutil.ReadFile("../carrier/tpt_data.sql")
-			if nil != e {
-				t.Error("read sql from file failed,", e)
-				return
-			}
-		}
-	}
-
-	_, e = db.Exec(string(bs))
-	if nil != e {
-		t.Error("create table to db failed,", e)
+		t.Error(e)
 		return
 	}
 

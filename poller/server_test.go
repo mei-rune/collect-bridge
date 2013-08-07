@@ -14,10 +14,10 @@ func TestCookiesIsClear(t *testing.T) {
 		carrier.SrvTest(t, func(db *sql.DB, url string) {
 			*foreignUrl = url
 
-			_, e := db.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (1, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');
-      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (2, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');
-      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (3, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');
-      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (4, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');`)
+			_, e := db.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (1, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');
+      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (2, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');
+      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (3, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');
+      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (4, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`)
 
 			if nil != e {
 				t.Error(e)
@@ -59,10 +59,10 @@ func TestCookiesNotClear(t *testing.T) {
 		carrier.SrvTest(t, func(db *sql.DB, url string) {
 			*foreignUrl = url
 
-			_, e := db.Exec(fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');
-      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (112, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');
-      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (113, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');
-      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (114, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');`, rule_id))
+			_, e := db.Exec(fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');
+      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (112, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');
+      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (113, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');
+      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (114, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`, rule_id))
 			if nil != e {
 				t.Error(e)
 				return
@@ -107,10 +107,10 @@ func TestCookiesLoadStatus(t *testing.T) {
 		carrier.SrvTest(t, func(db *sql.DB, url string) {
 			*foreignUrl = url
 
-			_, e := db.Exec(fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');
-      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (112, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');
-      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (113, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');
-      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at) VALUES (114, 'mo', 1, 1, 0, 'aa', 1, 'ww', '2013-08-05 12:12:12');`, rule_id))
+			_, e := db.Exec(fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');
+      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (112, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');
+      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (113, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');
+      INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (114, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`, rule_id))
 			if nil != e {
 				t.Error(e)
 				return

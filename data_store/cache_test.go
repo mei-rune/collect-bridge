@@ -274,7 +274,7 @@ func TestCacheRefresh(t *testing.T) {
 		messages := make([]string, 0, 3)
 		excepted := []string{"GET,/network_device/2", "GET,/network_device/3", "GET,/network_device/4"}
 
-		ws_instance.Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+		Container.RegisteredWebServices()[0].Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 			messages = append(messages, fmt.Sprintf("%s,%s", req.Request.Method, req.Request.URL))
 			chain.ProcessFilter(req, resp)
 		})
@@ -334,7 +334,7 @@ func TestCachesBasic(t *testing.T) {
 		messages := make([]string, 0, 3)
 		excepted := []string{"GET,/network_device/@count", "GET,/network_device/1"}
 
-		ws_instance.Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+		Container.RegisteredWebServices()[0].Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 			messages = append(messages, fmt.Sprintf("%s,%s", req.Request.Method, req.Request.URL))
 			chain.ProcessFilter(req, resp)
 		})
@@ -376,7 +376,7 @@ func TestCachesBasicAlias(t *testing.T) {
 		messages := make([]string, 0, 3)
 		excepted := []string{"GET,/network_device/@count", "GET,/network_device/1"}
 
-		ws_instance.Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+		Container.RegisteredWebServices()[0].Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 			messages = append(messages, fmt.Sprintf("%s,%s", req.Request.Method, req.Request.URL))
 			chain.ProcessFilter(req, resp)
 		})
@@ -468,7 +468,7 @@ func TestCachesFailed(t *testing.T) {
 		messages := make([]string, 0, 3)
 		excepted := []string{"GET,/devdddice/@count"}
 
-		ws_instance.Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+		Container.RegisteredWebServices()[0].Filter(func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 			messages = append(messages, fmt.Sprintf("%s,%s", req.Request.Method, req.Request.URL))
 			chain.ProcessFilter(req, resp)
 		})

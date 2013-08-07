@@ -4,7 +4,7 @@ import (
 	"commons"
 	"commons/types"
 	"database/sql"
-	_ "expvar"
+	"expvar"
 	"flag"
 	"fmt"
 	"github.com/runner-mei/go-restful"
@@ -12,10 +12,9 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	_ "net/http/pprof"
+	pprof "net/http/pprof"
 	"os"
 	"path/filepath"
-	_ "runtime/pprof"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -31,13 +30,28 @@ var (
 	//test_db    = flag.String("test.db", "sqlite3", "the db driver name for test")
 	//test_dbUrl = flag.String("test.dburl", "test.sqlite3.db", "the db url")
 
-	test_db                          = flag.String("test.db", "postgres", "the db driver name for test")
-	test_dbUrl                       = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
-	test_address                     = flag.String("test.listen", ":7071", "the address of http")
-	is_test      int32               = 0
-	srv_instance *server             = nil
-	ws_instance  *restful.WebService = nil
+	test_db      = flag.String("test.db", "postgres", "the db driver name for test")
+	test_dbUrl   = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
+	test_address = flag.String("test.listen", ":7071", "the address of http")
+
+	Container    *restful.Container = restful.DefaultContainer
+	is_test      int32              = 0
+	srv_instance *server            = nil
 )
+
+func expvarHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, "{\n")
+	first := true
+	expvar.Do(func(kv expvar.KeyValue) {
+		if !first {
+			fmt.Fprintf(w, ",\n")
+		}
+		first = false
+		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+	})
+	fmt.Fprintf(w, "\n}\n")
+}
 
 func mainHandle(req *restful.Request, resp *restful.Response) {
 	errFile := "_log_/error.html"
@@ -189,28 +203,20 @@ func Main() {
 		Doc("delete some object").
 		Param(ws.PathParameter("type", "type of the instance").DataType("string")))
 
-	restful.Add(ws)
+	Container.Add(ws)
+
+	if restful.DefaultContainer != Container {
+		Container.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
+		Container.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+		Container.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+		Container.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+		Container.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+	}
 
 	if 1 == atomic.LoadInt32(&is_test) {
 		log.Println("[ds-test] serving at '" + *address + "'")
-		ws_instance = ws
-		//http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
-		//http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-		//http.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-		//for _, pf := range rpprof.Profiles() {
-		//	http.Handle("/debug/pprof/"+pf.Name(), pprof.Handler(pf.Name()))
-		//}
-		//http.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 	} else {
 		log.Println("[ds] serving at '" + *address + "'")
-		// mux := http.NewServeMux()
-		// mux.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
-		// mux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-		// mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-		// for _, pf := range rpprof.Profiles() {
-		// 	mux.Handle("/debug/pprof/"+pf.Name(), pprof.Handler(pf.Name()))
-		// }
-		// mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 		http.ListenAndServe(*address, nil)
 	}
 }
@@ -242,10 +248,12 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 	*models_file = file
 	atomic.StoreInt32(&is_test, 1)
 
+	Container = restful.NewContainer()
 	Main()
-	defer restful.ClearRegisteredWebServices()
 
-	hsrv := httptest.NewServer(http.HandlerFunc(restful.DefaultDispatch))
+	hsrv := httptest.NewServer(Container)
+
+	log.Println("[ds-test] serving at '" + hsrv.URL + "'")
 	defer hsrv.Close()
 
 	time.Sleep(10 * time.Microsecond)
@@ -255,7 +263,6 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 		srv_instance.Close()
 		srv_instance = nil
 	}
-	restful.ClearRegisteredWebServices()
 }
 
 func SrvTest(t *testing.T, file string, cb func(client *Client, definitions *types.TableDefinitions)) {

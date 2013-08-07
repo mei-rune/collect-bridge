@@ -203,7 +203,7 @@ func (self *foreignDb) save(objects *bytes.Buffer) (e error) {
 		}
 	}()
 
-	fmt.Println(self.action, self.url, objects.String())
+	//fmt.Println(self.action, self.url, objects.String())
 	req, err := http.NewRequest(self.action, self.url, objects)
 	if err != nil {
 		return err

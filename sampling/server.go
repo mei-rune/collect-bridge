@@ -4,12 +4,12 @@ import (
 	"commons"
 	ds "data_store"
 	"errors"
+	"fmt"
 	"github.com/runner-mei/go-restful"
 	"net/http/httptest"
 	"time"
 
 	"commons/types"
-	"net/http"
 	"testing"
 )
 
@@ -177,11 +177,20 @@ func (self *server) NativeDelete(req *restful.Request, resp *restful.Response) {
 
 func SrvTest(t *testing.T, file string, cb func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions)) {
 	ds.SrvTest(t, file, func(client *ds.Client, definitions *types.TableDefinitions) {
-		is_test = true
 		*ds_url = client.Url
+		is_test = true
+		Container = restful.NewContainer()
 		Main()
 
-		hsrv := httptest.NewServer(http.HandlerFunc(restful.DefaultDispatch))
+		// for _, ws := range Container.RegisteredWebServices() {
+		// 	fmt.Println(ws.RootPath())
+		// 	for _, r := range ws.Routes() {
+		// 		fmt.Println(r.Path)
+		// 	}
+		// }
+
+		hsrv := httptest.NewServer(Container)
+		fmt.Println("[sampling-test] serving at '" + hsrv.URL + "'")
 		defer hsrv.Close()
 
 		cb(client, hsrv.URL, definitions)

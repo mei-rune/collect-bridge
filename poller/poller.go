@@ -9,7 +9,7 @@ import (
 	"github.com/runner-mei/go-restful"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
+	pprof "net/http/pprof"
 	"os"
 	"time"
 )
@@ -24,9 +24,10 @@ var (
 	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:7074", "the url of foreign db")
 	load_cookies  = flag.Bool("load_cookies", true, "load cookies is enabled while value is true")
 
-	trigger_exporter         = &Exporter{}
-	is_test                  = false
-	server_test      *server = nil
+	trigger_exporter                    = &Exporter{}
+	Container        *restful.Container = restful.DefaultContainer
+	is_test                             = false
+	server_test      *server            = nil
 )
 
 func init() {
@@ -43,6 +44,20 @@ func (self *Exporter) String() string {
 		return ""
 	}
 	return self.Var.String()
+}
+
+func expvarHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, "{\n")
+	first := true
+	expvar.Do(func(kv expvar.KeyValue) {
+		if !first {
+			fmt.Fprintf(w, ",\n")
+		}
+		first = false
+		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+	})
+	fmt.Fprintf(w, "\n}\n")
 }
 
 func mainHandle(req *restful.Request, resp *restful.Response) {
@@ -156,8 +171,15 @@ func Runforever() {
 	ws.Route(ws.GET("/by_address/{address}").To(srv.StatsByAddress).
 		Doc("get info of the trigger").
 		Param(ws.PathParameter("address", "address of the trigger").DataType("string"))) // on the response
+	Container.Add(ws)
 
-	restful.Add(ws)
+	if restful.DefaultContainer != Container {
+		Container.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
+		Container.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+		Container.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+		Container.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+		Container.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+	}
 
 	if is_test {
 		log.Println("[poller-test] serving at '" + *listenAddress + "'")

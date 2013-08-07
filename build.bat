@@ -8,6 +8,9 @@ go get github.com/lib/pq
 go get github.com/mattn/go-sqlite3
 go get code.google.com/p/mahonia
 
+echo "GOROOT=%GOROOT%"
+echo "GOPATH=%GOPATH%"
+
 if /i "%ENGINE_PATH%" NEQ "" goto defined_engine_path
 set ENGINE_PATH=%~dp0%..\
 :defined_engine_path

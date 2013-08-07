@@ -379,12 +379,25 @@ func (self *whereBuilder) build(params map[string]string) error {
 
 	attributes := self.table.Attributes
 	for nm, exp := range params {
+		if 0 == len(nm) {
+			continue
+		}
+
 		if '@' != nm[0] {
 			continue
 		}
-		column, _ := attributes[nm[1:]]
+
+		name := nm[1:]
+		if ']' == name[len(name)-1] {
+			idx := strings.LastIndex(name, "[")
+			if -1 != idx {
+				name = name[:idx]
+			}
+		}
+
+		column, _ := attributes[name]
 		if nil == column {
-			return errors.New("column '" + nm[1:] + "' is not exists in the " + self.table.Name + ".")
+			return errors.New("column '" + name + "' is not exists in the " + self.table.Name + ".")
 		}
 
 		op, v := split(exp)
@@ -396,7 +409,7 @@ func (self *whereBuilder) build(params map[string]string) error {
 
 		f, _ := operators[op]
 		if nil == f {
-			return errors.New("'" + op + "' is unsupported operator for the column '" + nm[1:] + "'.")
+			return errors.New("'" + op + "' is unsupported operator for the column '" + name + "'.")
 		}
 		e := f(self, column, v)
 		if nil != e {
@@ -419,6 +432,8 @@ func (self *whereBuilder) buildSQL(params map[string]string) error {
 
 		self.buffer.WriteString(" GROUP BY ")
 		self.buffer.WriteString(groupBy)
+	} else if _, ok := params["group_by[0]"]; ok {
+		return errors.New("groupBy have multiple occurrences in the query.")
 	}
 
 	if having, ok := params["having"]; ok {
@@ -428,6 +443,8 @@ func (self *whereBuilder) buildSQL(params map[string]string) error {
 
 		self.buffer.WriteString(" HAVING ")
 		self.buffer.WriteString(having)
+	} else if _, ok := params["having[0]"]; ok {
+		return errors.New("having have multiple occurrences in the query.")
 	}
 
 	if order, ok := params["order"]; ok {
@@ -437,6 +454,8 @@ func (self *whereBuilder) buildSQL(params map[string]string) error {
 
 		self.buffer.WriteString(" ORDER BY ")
 		self.buffer.WriteString(order)
+	} else if _, ok := params["order[0]"]; ok {
+		return errors.New("order have multiple occurrences in the query.")
 	}
 
 	if limit, ok := params["limit"]; ok {
@@ -463,25 +482,201 @@ func (self *whereBuilder) buildSQL(params map[string]string) error {
 			}
 
 			self.limit_and_offset(self, limit, offset)
+		} else if _, ok := params["offset[0]"]; ok {
+			return errors.New("offset have multiple occurrences in the query.")
 		} else {
 			self.limit_and_offset(self, limit, "")
+		}
+	} else if _, ok := params["limit[0]"]; ok {
+		return errors.New("limit have multiple occurrences in the query.")
+	}
+	return nil
+}
+
+var index_string = init_index_string()
+
+func init_index_string() []string {
+	res := make([]string, 100)
+	for i := 0; i < len(res); i++ {
+		res[i] = "[" + strconv.FormatInt(int64(i), 10) + "]"
+	}
+	return res
+}
+
+func convertQueryParams(params map[string][]string) map[string]string {
+	if nil == params {
+		return nil
+	}
+	if 0 == len(params) {
+		return map[string]string{}
+	}
+	res := make(map[string]string, 2*len(params))
+	for k, vv := range params {
+		switch len(vv) {
+		case 0:
+			break
+		case 1:
+			res[k] = vv[0]
+		case 2:
+			res[k+"[0]"] = vv[0]
+			res[k+"[1]"] = vv[1]
+		case 3:
+			res[k+"[0]"] = vv[0]
+			res[k+"[1]"] = vv[1]
+			res[k+"[2]"] = vv[2]
+		case 4:
+			res[k+"[0]"] = vv[0]
+			res[k+"[1]"] = vv[1]
+			res[k+"[2]"] = vv[2]
+			res[k+"[3]"] = vv[3]
+		case 5:
+			res[k+"[0]"] = vv[0]
+			res[k+"[1]"] = vv[1]
+			res[k+"[2]"] = vv[2]
+			res[k+"[3]"] = vv[3]
+			res[k+"[4]"] = vv[4]
+		default:
+			for idx, v := range vv {
+				if idx < len(index_string) {
+					res[k+index_string[idx]] = v
+				} else {
+					res[k+"["+strconv.FormatInt(int64(idx), 10)+"]"] = v
+				}
+			}
+		}
+	}
+	return res
+}
+
+func (self *whereBuilder) buildWithQueryParams(params map[string][]string) error {
+	if nil == params || 0 == len(params) {
+		return nil
+	}
+
+	attributes := self.table.Attributes
+	for nm, exps := range params {
+		if '@' != nm[0] {
+			continue
+		}
+		for idx, exp := range exps {
+			column, _ := attributes[nm[1:]]
+			if nil == column {
+				return errors.New("column '" + nm[1:] + "[" + strconv.FormatInt(int64(idx), 10) + "]' is not exists in the " + self.table.Name + ".")
+			}
+
+			op, v := split(exp)
+
+			operators := self.operators_for_field[column.Name]
+			if nil == operators {
+				operators = self.operators
+			}
+
+			f, _ := operators[op]
+			if nil == f {
+				return errors.New("'" + op + "[" + strconv.FormatInt(int64(idx), 10) + "]' is unsupported operator for the column '" + nm[1:] + "'.")
+			}
+			e := f(self, column, v)
+			if nil != e {
+				return e
+			}
 		}
 	}
 	return nil
 }
 
-func BuildWhere(drv string, table *types.TableDefinition, idx int, params map[string]string) (string, []interface{}, error) {
-	if nil == params {
-		return "", nil, nil
+func (self *whereBuilder) buildSQLWithQueryParams(params map[string][]string) error {
+	e := self.buildWithQueryParams(params)
+	if nil != e {
+		return e
 	}
 
-	var buffer bytes.Buffer
+	if groupBy, ok := params["group_by"]; ok {
+		if 0 == len(groupBy) {
+			return errors.New("groupBy is empty.")
+		}
+		if 1 != len(groupBy) {
+			return errors.New("groupBy have multiple occurrences in the query.")
+		}
+
+		self.buffer.WriteString(" GROUP BY ")
+		self.buffer.WriteString(groupBy[0])
+	}
+
+	if having, ok := params["having"]; ok {
+		if 0 == len(having) {
+			return errors.New("having is empty.")
+		}
+		if 1 != len(having) {
+			return errors.New("having have multiple occurrences in the query.")
+		}
+
+		self.buffer.WriteString(" HAVING ")
+		self.buffer.WriteString(having[0])
+	}
+
+	if order, ok := params["order"]; ok {
+		if 0 == len(order) {
+			return errors.New("order is empty.")
+		}
+		if 1 != len(order) {
+			return errors.New("order have multiple occurrences in the query.")
+		}
+
+		self.buffer.WriteString(" ORDER BY ")
+		self.buffer.WriteString(order[0])
+	}
+
+	if limit, ok := params["limit"]; ok {
+		if 0 == len(limit) {
+			return errors.New("limit is empty.")
+		}
+		if 1 != len(limit) {
+			return errors.New("limit have multiple occurrences in the query.")
+		}
+		i, e := strconv.ParseInt(limit[0], 10, 64)
+		if nil != e {
+			return fmt.Errorf("limit is not a number, actual value is '" + limit[0] + "'")
+		}
+		if i <= 0 {
+			return fmt.Errorf("limit must is geater zero, actual value is '" + limit[0] + "'")
+		}
+
+		if nil == self.limit_and_offset {
+			self.limit_and_offset = (*whereBuilder).limit_and_offset_generic
+		}
+
+		if offset, ok := params["offset"]; ok {
+			if 0 == len(offset) {
+				return errors.New("offset is empty.")
+			}
+			if 1 != len(offset) {
+				return errors.New("offset have multiple occurrences in the query.")
+			}
+
+			i, e = strconv.ParseInt(offset[0], 10, 64)
+			if nil != e {
+				return fmt.Errorf("offset is not a number, actual value is '" + offset[0] + "'")
+			}
+
+			if i < 0 {
+				return fmt.Errorf("offset must is geater(or equals) zero, actual value is '" + offset[0] + "'")
+			}
+
+			self.limit_and_offset(self, limit[0], offset[0])
+		} else {
+			self.limit_and_offset(self, limit[0], "")
+		}
+	}
+	return nil
+}
+
+func newWhere(drv string, table *types.TableDefinition, idx int) *whereBuilder {
 	builder := &whereBuilder{tables: nil,
 		table:               table,
 		idx:                 idx,
 		isFirst:             true,
 		prefix:              " WHERE ",
-		buffer:              &buffer,
+		buffer:              bytes.NewBuffer(make([]byte, 0, 100)),
 		operators:           default_operators,
 		operators_for_field: nil,
 		add_argument:        (*whereBuilder).appendNumericArguments}
@@ -504,13 +699,35 @@ func BuildWhere(drv string, table *types.TableDefinition, idx int, params map[st
 	// ORACLE      = 3
 	// SQLITE      = 4
 	// MYSQL       = 5
+	return builder
+}
 
+func BuildWhereWithQueryParams(drv string, table *types.TableDefinition, idx int, params map[string][]string) (string, []interface{}, error) {
+	if nil == params || 0 == len(params) {
+		return "", nil, nil
+	}
+
+	builder := newWhere(drv, table, idx)
+	e := builder.buildSQLWithQueryParams(params)
+	if nil != e {
+		return "", nil, e
+	}
+
+	return builder.buffer.String(), builder.params, nil
+}
+
+func BuildWhere(drv string, table *types.TableDefinition, idx int, params map[string]string) (string, []interface{}, error) {
+	if nil == params || 0 == len(params) {
+		return "", nil, nil
+	}
+
+	builder := newWhere(drv, table, idx)
 	e := builder.buildSQL(params)
 	if nil != e {
 		return "", nil, e
 	}
 
-	return buffer.String(), builder.params, nil
+	return builder.buffer.String(), builder.params, nil
 }
 
 type updateBuilder struct {

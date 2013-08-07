@@ -316,11 +316,7 @@ func (self *server) findById(ctx *context, table *types.TableDefinition, project
 
 func (self *server) find(ctx *context, table *types.TableDefinition, projection string,
 	scan func(rows resultScan) (interface{}, error), response http.ResponseWriter, request *http.Request) {
-	query_params := make(map[string]string)
-	for k, v := range request.URL.Query() {
-		query_params[k] = v[len(v)-1]
-	}
-	where, params, e := ds.BuildWhere(ctx.drv, table, 1, query_params)
+	where, params, e := ds.BuildWhereWithQueryParams(ctx.drv, table, 1, request.URL.Query())
 	if nil != e {
 		response.WriteHeader(http.StatusBadRequest)
 		response.Write([]byte(e.Error()))

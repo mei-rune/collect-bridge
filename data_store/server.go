@@ -176,21 +176,13 @@ func (self *server) FindById(req *restful.Request, resp *restful.Response) {
 
 		switch t {
 		case "@count":
-			params := make(map[string]string)
-			for k, v := range req.Request.URL.Query() {
-				params[k] = v[len(v)-1]
-			}
-			res, e := db.count(table, params)
+			res, e := db.count(table, convertQueryParams(req.Request.URL.Query()))
 			if nil != e {
 				return commons.ReturnWithInternalError(e.Error())
 			}
 			return commons.Return(res)
 		case "@snapshot":
-			params := make(map[string]string)
-			for k, v := range req.Request.URL.Query() {
-				params[k] = v[len(v)-1]
-			}
-			res, e := db.snapshot(table, params)
+			res, e := db.snapshot(table, convertQueryParams(req.Request.URL.Query()))
 			if nil != e {
 				return commons.ReturnWithInternalError(e.Error())
 			}
@@ -226,12 +218,7 @@ func (self *server) FindByParams(req *restful.Request, resp *restful.Response) {
 			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
-		params := make(map[string]string)
-		for k, v := range req.Request.URL.Query() {
-			params[k] = v[len(v)-1]
-		}
-
-		res, e := db.find(defintion, params)
+		res, e := db.find(defintion, convertQueryParams(req.Request.URL.Query()))
 		if nil != e {
 			return commons.ReturnWithInternalError(e.Error())
 		}
@@ -379,11 +366,7 @@ func (self *server) UpdateByParams(req *restful.Request, resp *restful.Response)
 		if nil != e {
 			return commons.ReturnError(commons.BadRequestCode, "read body failed - "+e.Error())
 		}
-		params := make(map[string]string)
-		for k, v := range req.Request.URL.Query() {
-			params[k] = v[len(v)-1]
-		}
-		affected, e := db.update(defintion, params, attributes)
+		affected, e := db.update(defintion, convertQueryParams(req.Request.URL.Query()), attributes)
 		if nil != e {
 			return commons.ReturnWithInternalError(e.Error())
 		} else {
@@ -438,11 +421,7 @@ func (self *server) DeleteByParams(req *restful.Request, resp *restful.Response)
 			return commons.ReturnError(commons.TableIsNotExists, "table '"+t+"' is not exists.")
 		}
 
-		params := make(map[string]string)
-		for k, v := range req.Request.URL.Query() {
-			params[k] = v[len(v)-1]
-		}
-		affected, e := db.delete(defintion, params)
+		affected, e := db.delete(defintion, convertQueryParams(req.Request.URL.Query()))
 		if nil != e {
 			fmt.Println("dddd", e.Error())
 			return commons.ReturnWithInternalError(e.Error())
@@ -470,11 +449,7 @@ func (self *server) Create(req *restful.Request, resp *restful.Response) {
 		}
 
 		if "true" == req.QueryParameter("save") {
-			params := make(map[string]string)
-			for k, v := range req.Request.URL.Query() {
-				params[k] = v[len(v)-1]
-			}
-			action, lastInsertId, e := db.save(defintion, params, attributes)
+			action, lastInsertId, e := db.save(defintion, convertQueryParams(req.Request.URL.Query()), attributes)
 
 			var res *commons.SimpleResult
 			if nil != e {

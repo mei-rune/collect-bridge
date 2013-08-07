@@ -106,7 +106,7 @@ xcopy /Y /S /E %ENGINE_PATH%src\poller\templates\*   %PUBLISH_PATH%\lib\alerts\t
 @if errorlevel 1 goto failed
 
 cd %ENGINE_PATH%src\carrier
-go test -v  %test_data_db_url% %test_delayed_job_db_url%  -redis=127.0.0.1:9456
+go test -v  %test_data_db_url% %test_delayed_job_db_url%  -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
 @if errorlevel 1 goto failed
 
 cd %ENGINE_PATH%src\carrier\carrier

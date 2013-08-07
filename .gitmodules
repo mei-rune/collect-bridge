@@ -3,7 +3,7 @@
 	url = https://github.com/stevedonovan/Microlight.git
 [submodule "lua_binding/lua-cjson"]
 	path = lua_binding/lua-cjson
-	url = git@github.com:runner-mei/lua-cjson.git
+	url = https://github.com/runner-mei/lua-cjson.git
 [submodule "lua_binding/lua"]
 	path = lua_binding/lua
-	url = git@github.com:runner-mei/lua.git
+	url = https://github.com/runner-mei/lua.git

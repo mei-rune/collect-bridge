@@ -53,7 +53,7 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 		t.FailNow()
 		return
 	}
-	conn, err := sql.Open(*test_db, *test_dbUrl)
+	conn, err := sql.Open(*db_drv, *db_url)
 	if err != nil {
 		t.Fatal(err)
 		return
@@ -83,7 +83,7 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 
 	primaryKey_decl := "INTEGER PRIMARY KEY AUTOINCREMENT"
 	timezone := ""
-	if "postgres" == *test_db {
+	if "postgres" == *db_drv {
 		primaryKey_decl = "SERIAL PRIMARY KEY"
 		timezone = " with time zone"
 	}
@@ -139,7 +139,7 @@ func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefin
 		return
 	}
 
-	simple := newSession(*test_db, conn, definitions)
+	simple := newSession(*db_drv, conn, definitions)
 	cb(simple, definitions)
 }
 

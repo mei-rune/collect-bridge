@@ -22,17 +22,17 @@ import (
 
 var (
 	models_file = flag.String("ds.models", "etc/tpt_models.xml", "the name of models file")
-	dbUrl       = flag.String("ds.dburl", "host=127.0.0.1 dbname=tpt_extreme user=tpt password=extreme sslmode=disable", "the db url")
-	drv         = flag.String("ds.db", "postgres", "the db driver")
-	goroutines  = flag.Int("ds.connections", 10, "the db connection number")
+	db_url      = flag.String("db.url", "host=127.0.0.1 dbname=tpt_extreme user=tpt password=extreme sslmode=disable", "the db url")
+	db_drv      = flag.String("db.driver", "postgres", "the db driver")
+	goroutines  = flag.Int("db.connections", 10, "the db connection number")
 	address     = flag.String("ds.listen", ":7071", "the address of http")
 
 	//test_db    = flag.String("test.db", "sqlite3", "the db driver name for test")
 	//test_dbUrl = flag.String("test.dburl", "test.sqlite3.db", "the db url")
 
-	test_db      = flag.String("test.db", "postgres", "the db driver name for test")
-	test_dbUrl   = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
-	test_address = flag.String("test.listen", ":7071", "the address of http")
+	// test_db      = flag.String("test.db", "postgres", "the db driver name for test")
+	// test_dbUrl   = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
+	// test_address = flag.String("test.listen", ":7071", "the address of http")
 
 	Container    *restful.Container = restful.DefaultContainer
 	is_test      int32              = 0
@@ -99,7 +99,7 @@ func Main() {
 		return
 	}
 
-	srv, e := newServer(*drv, *dbUrl, *models_file, *goroutines)
+	srv, e := newServer(*db_drv, *db_url, *models_file, *goroutines)
 	if nil != e {
 		fmt.Println(e)
 		return
@@ -227,7 +227,7 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 		t.Errorf("read file '%s' failed, %s", file, err.Error())
 		return
 	}
-	conn, err := sql.Open(*test_db, *test_dbUrl)
+	conn, err := sql.Open(*db_drv, *db_url)
 	if err != nil {
 		t.Fatal(err)
 		return
@@ -238,13 +238,10 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 		}
 	}()
 
-	init_cb(*test_db, conn)
+	init_cb(*db_drv, conn)
 	conn.Close()
 	conn = nil
 
-	*drv = *test_db
-	*dbUrl = *test_dbUrl
-	*address = *test_address
 	*models_file = file
 	atomic.StoreInt32(&is_test, 1)
 

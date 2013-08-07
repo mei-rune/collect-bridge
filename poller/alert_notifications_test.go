@@ -353,7 +353,7 @@ func assertCount(t *testing.T, db *sql.DB, sql string, excepted int64) {
 func TestNotificationsForDb(t *testing.T) {
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
 		delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
-			carrier.SrvTest(t, func(db *sql.DB, url string) {
+			carrier.SrvTest2(t, func(db *sql.DB, db_drv, db_url, url string) {
 				_, e := db.Exec(`
 					DROP TABLE IF EXISTS tpt_test_for_handler;
 
@@ -376,6 +376,8 @@ func TestNotificationsForDb(t *testing.T) {
 					return
 				}
 
+				db_command_test_attributes["drv"] = db_drv
+				db_command_test_attributes["url"] = db_url
 				notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
 				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "db_command", db_command_test_attributes)
 

@@ -845,6 +845,20 @@ func TestAlertMessage(t *testing.T) {
 		{rule: map[string]interface{}{
 			"type":             "alert",
 			"id":               "123",
+			"catalog":          "missing_template_catalog",
+			"name":             "this is a test alert",
+			"delay_times":      0,
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "a",
+				"operator":  ">",
+				"value":     "12"}},
+			ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish), "alerts_template_path": "./test_templates/"},
+			alert_message:  "default_template_alert this is a test alert 1",
+			resume_message: "default_template_resume this is a test alert 0"},
+		{rule: map[string]interface{}{
+			"type":             "alert",
+			"id":               "123",
 			"name":             "this is a test alert",
 			"delay_times":      0,
 			"catalog":          "test_catalog",

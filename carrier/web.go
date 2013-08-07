@@ -14,7 +14,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
+	"net/http/pprof"
 	"os"
 	"runtime"
 	"strconv"
@@ -25,9 +25,9 @@ import (
 
 var (
 	listenAddress          = flag.String("carrier.listen", ":7074", "the address of http")
-	dbUrl                  = flag.String("data_db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
-	drv                    = flag.String("data_db.name", "postgres", "the db driver")
-	goroutines             = flag.Int("carrier.connections", 10, "the db connection number")
+	db_url                 = flag.String("data_db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
+	db_drv                 = flag.String("data_db.driver", "postgres", "the db driver")
+	goroutines             = flag.Int("data_db.connections", 10, "the db connection number")
 	run_mode               = flag.String("run_mode", "server", "clean_db, reset_db, init_db or server")
 	delayed_job_table_name = flag.String("delayed_job_table_name", "delayed_jobs", "the table name of delayed job")
 
@@ -785,6 +785,20 @@ func (self *server) onHistories(ctx *context, response http.ResponseWriter, requ
 	isCommited = true
 }
 
+func expvarHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, "{\n")
+	first := true
+	expvar.Do(func(kv expvar.KeyValue) {
+		if !first {
+			fmt.Fprintf(w, ",\n")
+		}
+		first = false
+		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+	})
+	fmt.Fprintf(w, "\n}\n")
+}
+
 func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Request) {
 	defer func() {
 		if nil != request.Body {
@@ -821,6 +835,23 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 			cb = (*server).findHistories
 		case "/histories/count", "/histories/count/":
 			cb = (*server).countHistories
+
+		case "/debug/vars":
+			expvarHandler(response, request)
+			return
+		case "/debug/pprof/":
+			pprof.Index(response, request)
+			return
+		case "/debug/pprof/cmdline":
+			pprof.Cmdline(response, request)
+			return
+		case "/debug/pprof/profile":
+			pprof.Profile(response, request)
+			return
+		case "/debug/pprof/symbol":
+			pprof.Symbol(response, request)
+			return
+
 		default:
 			paths := strings.Split(strings.Trim(request.URL.Path, "/"), "/")
 			if 2 != len(paths) {
@@ -892,7 +923,7 @@ func Main(is_test bool) error {
 
 	switch *run_mode {
 	case "clean_db":
-		db, e := sql.Open(*drv, *dbUrl)
+		db, e := sql.Open(*db_drv, *db_url)
 		if nil != e {
 			return errors.New("connect to db failed," + e.Error())
 		}
@@ -904,7 +935,7 @@ func Main(is_test bool) error {
 		}
 		return nil
 	case "init_db":
-		db, e := sql.Open(*drv, *dbUrl)
+		db, e := sql.Open(*db_drv, *db_url)
 		if nil != e {
 			return errors.New("connect to db failed," + e.Error())
 		}
@@ -924,7 +955,7 @@ func Main(is_test bool) error {
 		}
 		return nil
 	case "reset_db":
-		db, e := sql.Open(*drv, *dbUrl)
+		db, e := sql.Open(*db_drv, *db_url)
 		if nil != e {
 			return errors.New("connect to db failed," + e.Error())
 		}
@@ -954,14 +985,14 @@ func Main(is_test bool) error {
 		return errors.New("goroutines must is greate 0")
 	}
 
-	isNumericParams = ds.IsNumericParams(*drv)
+	isNumericParams = ds.IsNumericParams(*db_drv)
 	if isNumericParams {
 		delayed_job_table = "INSERT INTO " + *delayed_job_table_name + "(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)"
 	} else {
 		delayed_job_table = "INSERT INTO " + *delayed_job_table_name + "(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)"
 	}
 
-	if "sqlite3" == *drv {
+	if "sqlite3" == *db_drv {
 		*goroutines = 1
 	}
 
@@ -981,7 +1012,7 @@ func Main(is_test bool) error {
 
 	contexts := make([]*context, 0, *goroutines)
 	for i := 0; i < *goroutines; i++ {
-		db, e := sql.Open(*drv, *dbUrl)
+		db, e := sql.Open(*db_drv, *db_url)
 		if nil != e {
 			for _, conn := range contexts {
 				conn.db.Close()
@@ -989,7 +1020,7 @@ func Main(is_test bool) error {
 			return errors.New("connect to db failed," + e.Error())
 		}
 
-		contexts = append(contexts, &context{drv: *drv, url: *dbUrl, db: db})
+		contexts = append(contexts, &context{drv: *db_drv, url: *db_url, db: db})
 	}
 
 	for i := 0; i < *goroutines; i++ {

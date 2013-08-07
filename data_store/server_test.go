@@ -35,7 +35,7 @@ func serverTest(t *testing.T, file string, cb func(db *Client, definitions *type
 
 		primaryKey_decl := "INTEGER PRIMARY KEY AUTOINCREMENT"
 		timezone := ""
-		if "postgres" == *test_db {
+		if "postgres" == drv {
 			primaryKey_decl = "SERIAL PRIMARY KEY"
 			timezone = " with time zone"
 		}

@@ -10,7 +10,7 @@ import (
 )
 
 func SimpleTest(t *testing.T, cb func(db *sql.DB)) {
-	db, e := sql.Open(*drv, *dbUrl)
+	db, e := sql.Open(*db_drv, *db_url)
 	if nil != e {
 		t.Error("connect to db failed,", e)
 		return
@@ -36,6 +36,12 @@ func SimpleTest(t *testing.T, cb func(db *sql.DB)) {
 }
 
 func SrvTest(t *testing.T, cb func(db *sql.DB, url string)) {
+	SrvTest2(t, func(db *sql.DB, db_drv, db_url, url string) {
+		cb(db, url)
+	})
+}
+
+func SrvTest2(t *testing.T, cb func(db *sql.DB, db_drv, db_url, url string)) {
 	SimpleTest(t, func(db *sql.DB) {
 		e := Main(true)
 		if nil != e {
@@ -53,7 +59,7 @@ func SrvTest(t *testing.T, cb func(db *sql.DB, url string)) {
 
 		fmt.Println("[carrier-test] serving at " + hsrv.URL)
 
-		cb(db, hsrv.URL)
+		cb(db, *db_drv, *db_url, hsrv.URL)
 	})
 }
 

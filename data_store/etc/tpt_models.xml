@@ -625,7 +625,6 @@
         -->
       </restriction>
     </property>
-    <has_many>AlertCookie</has_many>
   </class>
 
 

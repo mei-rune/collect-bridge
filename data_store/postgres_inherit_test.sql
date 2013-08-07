@@ -261,6 +261,8 @@ CREATE TABLE tpt_alerts (
   delay_times           integer,
   enabled               boolean,
   level                 integer,
+  catalog               varchar(200),
+  templates             varchar(2000),
 
   expression_style      varchar(50),
   expression_code       varchar(2000),

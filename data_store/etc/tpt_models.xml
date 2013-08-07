@@ -586,26 +586,6 @@
     </property>
   </class>
 
-  <class name="AlertCookie">
-    <property name="status">
-      <restriction base="integer">
-      </restriction>
-    </property>
-    <property name="occurred_at">
-      <restriction base="datetime">
-        <required/>
-      </restriction>
-    </property>
-    <property name="message">
-      <restriction base="string">
-        <required/>
-        <maxLength>2000</maxLength>
-      </restriction>
-    </property>
-    <belongs_to>Alert</belongs_to> 
-    <belongs_to>ManagedObject</belongs_to> 
-  </class>
-
   <class name="Alert" base="Action">
     <property name="delay_times">
       <restriction base="integer">
@@ -622,6 +602,16 @@
     <property name="expression_style">
       <restriction base="string">
         <maxLength>50</maxLength>
+      </restriction>
+    </property>
+    <property name="catalog">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
+    <property name="templates">
+      <restriction base="string">
+        <maxLength>2000</maxLength>
       </restriction>
     </property>
     <property name="expression_code">

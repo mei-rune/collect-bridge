@@ -57,6 +57,22 @@ for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
   copy delayed_job.exe  %PUBLISH_PATH%\bin\tpt_delayed_job.exe
 )
 
+
+if NOT exist "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" (
+  cd %ENGINE_PATH%\src\lua_binding\lua
+  mingw32-make mingw_amd64
+  @if errorlevel 1 goto failed
+  xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lua\src\*.exe" "%ENGINE_PATH%src\lua_binding\lib\"
+  xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lua\src\*.dll" "%ENGINE_PATH%src\lua_binding\lib\"
+)
+
+xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lib\lua52_amd64.dll" "%ENGINE_PATH%src\lua_binding\"
+xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lib\cjson.dll" "%ENGINE_PATH%src\lua_binding\"
+
+cd %ENGINE_PATH%src\lua_binding
+go test -v
+@if errorlevel 1 goto failed
+
 cd %ENGINE_PATH%src\data_store
 go test -v %test_db_url%
 @if errorlevel 1 goto failed
@@ -77,9 +93,6 @@ cd %ENGINE_PATH%src\snmp
 go test -v
 @if errorlevel 1 goto failed
 
-cd %ENGINE_PATH%src\lua_binding
-go test -v
-@if errorlevel 1 goto failed
 
 cd %ENGINE_PATH%src\sampling
 REM go test -v %test_db_url%
@@ -124,7 +137,7 @@ REM copy "%ENGINE_PATH%src\bridge\discovery_tools\discovery_tools.exe" %~dp0\bin
 REM @if errorlevel 1 goto failed
 
 cd %~dp0
-copy "%ENGINE_PATH%src\lua_binding\lib\lua52.dll" %PUBLISH_PATH%\bin\lua52.dll
+copy "%ENGINE_PATH%src\lua_binding\lib\lua52_amd64.dll" %PUBLISH_PATH%\bin\lua52_amd64.dll
 @if errorlevel 1 goto failed
 copy "%ENGINE_PATH%src\lua_binding\lib\cjson.dll" %PUBLISH_PATH%\bin\cjson.dll
 @if errorlevel 1 goto failed

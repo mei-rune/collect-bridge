@@ -1,7 +1,8 @@
 package lua_binding
 
 // #cgo windows CFLAGS: -DLUA_COMPAT_ALL -DLUA_COMPAT_ALL -I ./include
-// #cgo windows LDFLAGS: -L ./lib -llua52 -lm
+// #cgo windows,386 LDFLAGS: -L ./lib -llua52_386 -lm
+// #cgo windows,amd64 LDFLAGS: -L ./lib -llua52_amd64 -lm
 // #cgo linux CFLAGS: -DLUA_USE_LINUX -DLUA_COMPAT_ALL
 // #cgo linux LDFLAGS: -L. -llua52 -ldl  -lm
 // #include <stdlib.h>

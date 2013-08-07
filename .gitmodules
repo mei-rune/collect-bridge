@@ -4,3 +4,6 @@
 [submodule "lua_binding/lua-cjson"]
 	path = lua_binding/lua-cjson
 	url = https://github.com/mpx/lua-cjson.git
+[submodule "lua_binding/lua"]
+	path = lua_binding/lua
+	url = git@github.com:runner-mei/lua.git

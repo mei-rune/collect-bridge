@@ -261,6 +261,9 @@ func (self *server) Children(req *restful.Request, resp *restful.Response) {
 
 		res, e := db.children(parent_type, parent_id, defintion, req.PathParameter("foreign_key"))
 		if nil != e {
+			if sql.ErrNoRows == e {
+				return commons.ReturnError(commons.NotFoundCode, e.Error())
+			}
 			return commons.ReturnWithInternalError(e.Error())
 		}
 
@@ -303,6 +306,9 @@ func (self *server) Parent(req *restful.Request, resp *restful.Response) {
 
 		res, e := db.parent(child_type, child_id, defintion, req.PathParameter("foreign_key"))
 		if nil != e {
+			if sql.ErrNoRows == e {
+				return commons.ReturnError(commons.NotFoundCode, e.Error())
+			}
 			return commons.ReturnWithInternalError(e.Error())
 		}
 
@@ -423,7 +429,6 @@ func (self *server) DeleteByParams(req *restful.Request, resp *restful.Response)
 
 		affected, e := db.delete(defintion, convertQueryParams(req.Request.URL.Query()))
 		if nil != e {
-			fmt.Println("dddd", e.Error())
 			return commons.ReturnWithInternalError(e.Error())
 		} else {
 			return commons.Return(nil).SetEffected(affected)

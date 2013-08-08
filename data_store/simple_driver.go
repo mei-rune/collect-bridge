@@ -175,10 +175,6 @@ func scanOne(row resultScan, columns []*types.ColumnDefinition) ([]interface{}, 
 	}
 
 	if e := row.Scan(scanResultContainer...); nil != e {
-		if sql.ErrNoRows == e {
-			return nil, nil
-		}
-
 		return nil, e
 	}
 
@@ -200,9 +196,9 @@ func (self *simple_driver) selectOne(sql string, args []interface{},
 	return scanOne(row, columns)
 }
 
-func (self *simple_driver) selectAll(query string, args []interface{},
+func (self *simple_driver) selectAll(sql string, args []interface{},
 	columns []*types.ColumnDefinition) ([][]interface{}, error) {
-	rs, e := self.db.Prepare(query)
+	rs, e := self.db.Prepare(sql)
 	if e != nil {
 		return nil, e
 	}
@@ -210,10 +206,6 @@ func (self *simple_driver) selectAll(query string, args []interface{},
 
 	rows, e := rs.Query(args...)
 	if e != nil {
-		if sql.ErrNoRows == e {
-			return [][]interface{}{}, nil
-		}
-
 		return nil, e
 	}
 
@@ -227,9 +219,6 @@ func (self *simple_driver) selectAll(query string, args []interface{},
 	}
 
 	if nil != rows.Err() {
-		if sql.ErrNoRows == rows.Err() {
-			return [][]interface{}{}, nil
-		}
 		return nil, rows.Err()
 	}
 	return results, nil

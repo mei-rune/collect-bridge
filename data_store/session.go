@@ -47,7 +47,7 @@ func (self *session) findById(table *types.TableDefinition, id interface{}, incl
 
 	if 0 != len(includes) {
 		e = self.loadIncludes(table, result, includes)
-		if nil != e {
+		if nil != e && sql.ErrNoRows != e {
 			return nil, e
 		}
 	}
@@ -65,7 +65,7 @@ func (self *session) find(table *types.TableDefinition,
 	if includes, ok := params["includes"]; ok && 0 != len(includes) {
 		for _, result := range results {
 			e = self.loadIncludes(table, result, includes)
-			if nil != e {
+			if nil != e && sql.ErrNoRows != e {
 				return nil, e
 			}
 		}

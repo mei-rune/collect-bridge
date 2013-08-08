@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/runner-mei/delayed_job"
 	"testing"
+	"time"
 )
 
 // <class name="RedisCommand" base="Action">
@@ -233,6 +234,9 @@ func TestNotifications(t *testing.T) {
 		return
 	}
 
+	nowt := time.Now()
+	now, _ := nowt.MarshalJSON()
+
 	js := `[{"action_id":1,
         "content": "content is alerted",
         "current_value":"2",
@@ -245,7 +249,7 @@ func TestNotifications(t *testing.T) {
         "event_id": "123",
         "sequence_id": 1,
         "trigger_id":"1",
-        "triggered_at":"2013-07-13T14:13:28.7024412+08:00","notification":` + string(bs) + `}]`
+        "triggered_at":` + string(now) + `,"notification":` + string(bs) + `}]`
 
 	t.Log(js)
 

@@ -27,13 +27,6 @@ var (
 	goroutines  = flag.Int("db.connections", 10, "the db connection number")
 	address     = flag.String("ds.listen", ":7071", "the address of http")
 
-	//test_db    = flag.String("test.db", "sqlite3", "the db driver name for test")
-	//test_dbUrl = flag.String("test.dburl", "test.sqlite3.db", "the db url")
-
-	// test_db      = flag.String("test.db", "postgres", "the db driver name for test")
-	// test_dbUrl   = flag.String("test.dburl", "host=127.0.0.1 dbname=test user=postgres password=mfk sslmode=disable", "the db url")
-	// test_address = flag.String("test.listen", ":7071", "the address of http")
-
 	Container    *restful.Container = restful.DefaultContainer
 	is_test      int32              = 0
 	srv_instance *server            = nil
@@ -517,25 +510,6 @@ CREATE TABLE tpt_zip_files (id  INTEGER PRIMARY KEY AUTOINCREMENT, body text, do
 			t.Fatal(err)
 			t.FailNow()
 			return
-		}
-
-		if "sqlite3" == drv {
-			_, err = conn.Exec(`CREATE TABLE IF NOT EXISTS tpt_alerts (
-  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-  name               varchar(250),
-  description        varchar(2000),
-  parent_type        varchar(250),
-  parent_id          integer,
-
-  delay_times       integer,
-  expression_style   varchar(50),
-  expression_code    varchar(2000)
-);`)
-			if err != nil {
-				t.Fatal(err)
-				t.FailNow()
-				return
-			}
 		}
 
 	}, cb)

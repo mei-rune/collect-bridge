@@ -102,7 +102,9 @@ func TestAlertsServer(t *testing.T) {
 
 func TestAlertsServer2(t *testing.T) {
 	SrvTest(t, func(db *sql.DB, url string) {
-		nowt, _ := time.Parse(time.RFC3339, "2013-07-13T14:13:28.7024412+08:00")
+		nowt := time.Now()
+		now, _ := nowt.MarshalJSON()
+
 		_, e := httpInvoke("PUT", url+"/alerts", `[{"action_id":1,
       "content": "content is alerted",
 			"current_value":"",
@@ -115,7 +117,7 @@ func TestAlertsServer2(t *testing.T) {
       "event_id": "123",
       "sequence_id": 1,
 			"trigger_id":"1",
-			"triggered_at":"2013-07-13T14:13:28.7024412+08:00"}]`, 200)
+			"triggered_at":`+string(now)+`}]`, 200)
 		if nil != e {
 			t.Error(e)
 			return

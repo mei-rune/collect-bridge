@@ -15,7 +15,8 @@ DROP INDEX IF EXISTS tpt_histories_action_id_idx;
 DROP TABLE IF EXISTS tpt_histories CASCADE;
 `
 
-var sql_string = `CREATE TABLE IF NOT EXISTS tpt_alert_cookies (
+var sql_string = `
+CREATE TABLE IF NOT EXISTS tpt_alert_cookies (
   id                BIGSERIAL  PRIMARY KEY,
   action_id         bigint  NOT NULL,
   managed_type      varchar(200)  NOT NULL,
@@ -188,10 +189,6 @@ END;
 $$
 language plpgsql;
 
-SELECT tpt_alert_histories_partition_creation( '2010-01-01', '2028-01-01' );
-SELECT tpt_alert_histories_partition_triggered_at_idx_creation( '2010-01-01', '2028-01-01' );
-SELECT tpt_alert_histories_partition_mo_id_idx_creation( '2010-01-01', '2028-01-01' );
-SELECT tpt_alert_histories_partition_action_id_idx_creation( '2010-01-01', '2028-01-01' );
 
 -- drop function tpt_alert_histories_partition_function();
 CREATE OR REPLACE FUNCTION  tpt_alert_histories_partition_function()
@@ -214,6 +211,26 @@ CREATE TRIGGER tpt_alert_histories_partition_trigger
   FOR each row
   execute procedure tpt_alert_histories_partition_function() ;
 
+
+
+
+CREATE OR REPLACE FUNCTION tpt_alert_histories_creation( DATE, DATE )
+returns void AS $$
+BEGIN
+
+  EXECUTE tpt_alert_histories_partition_creation( $1, $2 );
+  EXECUTE tpt_alert_histories_partition_triggered_at_idx_creation( $1, $2);
+  EXECUTE tpt_alert_histories_partition_mo_id_idx_creation( $1, $2 );
+  EXECUTE tpt_alert_histories_partition_action_id_idx_creation( $1, $2 );
+
+END;
+$$
+language plpgsql;
+
+
+
+
+-- ============================================================================================
 -- histories
 CREATE TABLE IF NOT EXISTS tpt_histories (
   id                BIGSERIAL  PRIMARY KEY,
@@ -361,10 +378,6 @@ END;
 $$
 language plpgsql;
 
-SELECT tpt_histories_partition_creation( '2010-01-01', '2028-01-01' );
-SELECT tpt_histories_partition_sampled_at_idx_creation( '2010-01-01', '2028-01-01' );
-SELECT tpt_histories_partition_mo_id_idx_creation( '2010-01-01', '2028-01-01' );
-SELECT tpt_histories_partition_action_id_idx_creation( '2010-01-01', '2028-01-01' );
 
 -- drop function tpt_histories_partition_function();
 CREATE OR REPLACE FUNCTION  tpt_histories_partition_function()
@@ -387,6 +400,18 @@ CREATE TRIGGER tpt_histories_partition_trigger
   execute procedure tpt_histories_partition_function() ;
 
 
+CREATE OR REPLACE FUNCTION tpt_histories_creation( DATE, DATE )
+returns void AS $$
+BEGIN
+
+  EXECUTE tpt_histories_partition_creation( $1, $2 );
+  EXECUTE tpt_histories_partition_sampled_at_idx_creation( $1, $2);
+  EXECUTE tpt_histories_partition_mo_id_idx_creation( $1, $2 );
+  EXECUTE tpt_histories_partition_action_id_idx_creation( $1, $2 );
+
+END;
+$$
+language plpgsql;
 
 
 -- -- alert
@@ -473,4 +498,9 @@ CREATE TABLE IF NOT EXISTS tpt_delayed_jobs (
   updated_at        timestamp with time zone NOT NULL,
 
   CONSTRAINT tpt_delayed_jobs_unique_handler_id UNIQUE (handler_id)
-);`
+);
+
+
+-- SELECT tpt_alert_histories_creation( '2010-01-01', '2028-01-01' );
+-- SELECT tpt_histories_creation( '2010-01-01', '2028-01-01' );
+`

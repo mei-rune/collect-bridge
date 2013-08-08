@@ -6,7 +6,6 @@ DROP TABLE IF EXISTS tpt_db_commands;
 DROP TABLE IF EXISTS tpt_exec_commands;
 DROP TABLE IF EXISTS tpt_notification_groups;
 DROP TABLE IF EXISTS tpt_histories CASCADE;
-DROP TABLE IF EXISTS tpt_alert_histories CASCADE;
 DROP TABLE IF EXISTS tpt_alerts;
 DROP TABLE IF EXISTS tpt_redis_commands;
 DROP TABLE IF EXISTS tpt_actions CASCADE;
@@ -217,6 +216,7 @@ CREATE TABLE tpt_redis_commands (
 ) INHERITS (tpt_actions);
 
 CREATE TABLE tpt_mails (
+  -- id integer NOT NULL DEFAULT nextval('actions_seq')  PRIMARY KEY,
   from_address varchar(250),
   to_address varchar(250) NOT NULL,
   cc_address varchar(250),
@@ -230,6 +230,7 @@ CREATE TABLE tpt_mails (
 
 
 CREATE TABLE tpt_syslogs (
+  -- id integer NOT NULL DEFAULT nextval('actions_seq')  PRIMARY KEY,
   to_address varchar(250) NOT NULL,
   facility varchar(50) NOT NULL,
   severity varchar(50) NOT NULL,
@@ -241,6 +242,7 @@ CREATE TABLE tpt_syslogs (
 
 
 CREATE TABLE tpt_db_commands (
+  -- id integer NOT NULL DEFAULT nextval('actions_seq')  PRIMARY KEY,
   drv varchar(200) NOT NULL,
   url varchar(200) NOT NULL,
   script varchar(2000) NOT NULL,
@@ -249,6 +251,7 @@ CREATE TABLE tpt_db_commands (
 ) INHERITS (tpt_actions);
 
 CREATE TABLE tpt_exec_commands (
+  -- id integer NOT NULL DEFAULT nextval('actions_seq')  PRIMARY KEY,
   work_directory varchar(500) ,
   prompt varchar(250) ,
   command varchar(500) NOT NULL,

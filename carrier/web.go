@@ -921,6 +921,20 @@ func Main(is_test bool) error {
 		return nil
 	}
 
+	create_histores_table_sql := `
+			                          SELECT tpt_alert_histories_creation( '2010-01-01', '2028-01-01' );
+																SELECT tpt_histories_creation( '2010-01-01', '2028-01-01' );
+																`
+	if is_test {
+		now := time.Now()
+		create_histores_table_sql = fmt.Sprintf(`SELECT tpt_alert_histories_creation( '%v-%v-01', '%v-%v-01' );
+																SELECT tpt_histories_creation( '%v-%v-01', '%v-%v-01' );`,
+			now.Year(), int(now.Month()),
+			now.Year(), int(now.Month())+2,
+			now.Year(), int(now.Month()),
+			now.Year(), int(now.Month())+2)
+	}
+
 	switch *run_mode {
 	case "clean_db":
 		db, e := sql.Open(*db_drv, *db_url)
@@ -953,6 +967,12 @@ func Main(is_test bool) error {
 		if nil != e {
 			return errors.New("create table failed," + e.Error())
 		}
+
+		_, e = db.Exec(create_histores_table_sql)
+		if nil != e {
+			return errors.New("create histories table failed," + e.Error())
+		}
+
 		return nil
 	case "reset_db":
 		db, e := sql.Open(*db_drv, *db_url)
@@ -978,6 +998,12 @@ func Main(is_test bool) error {
 		if nil != e {
 			return errors.New("create table failed," + e.Error())
 		}
+
+		_, e = db.Exec(create_histores_table_sql)
+		if nil != e {
+			return errors.New("create histories table failed," + e.Error())
+		}
+
 		return nil
 	}
 

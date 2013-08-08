@@ -921,10 +921,8 @@ func Main(is_test bool) error {
 		return nil
 	}
 
-	create_histores_table_sql := `
-			                          SELECT tpt_alert_histories_creation( '2010-01-01', '2028-01-01' );
-																SELECT tpt_histories_creation( '2010-01-01', '2028-01-01' );
-																`
+	create_histores_table_sql := `SELECT tpt_alert_histories_creation( '2010-01-01', '2028-01-01' );
+																SELECT tpt_histories_creation( '2010-01-01', '2028-01-01' );`
 	if is_test {
 		now := time.Now()
 		create_histores_table_sql = fmt.Sprintf(`SELECT tpt_alert_histories_creation( '%v-%v-01', '%v-%v-01' );

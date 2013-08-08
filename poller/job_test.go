@@ -110,7 +110,6 @@ func TestJobWithSamplingFailed(t *testing.T) {
 }
 
 func TestJobFull(t *testing.T) {
-
 	l, e := net.Listen("tcp", "127.0.0.1:0")
 	if nil != e {
 		t.Error(e)

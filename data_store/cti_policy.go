@@ -299,6 +299,11 @@ func (self *postgresql_cti_policy) findById(table *types.TableDefinition,
 		return nil, e
 	}
 
+	if nil == values {
+		// it is no rows
+		return nil, nil
+	}
+
 	tablename, ok := values[0].(string)
 	if !ok {
 		return nil, errors.New("table name is not a string")

@@ -69,8 +69,16 @@ if NOT exist "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" (
   xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lua\src\*.dll" "%ENGINE_PATH%src\lua_binding\lib\"
 )
 
+if NOT exist "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" (
+  cd %ENGINE_PATH%\src\lua_binding\lua-cjson
+  mingw32-make
+  @if errorlevel 1 goto failed
+  xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lua-cjson\*.exe" "%ENGINE_PATH%src\lua_binding\lib\"
+  xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lua-cjson\*.dll" "%ENGINE_PATH%src\lua_binding\lib\"
+)
+
 xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lib\lua52_amd64.dll" "%ENGINE_PATH%src\lua_binding\"
-xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lib\cjson.dll" "%ENGINE_PATH%src\lua_binding\"
+xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lib\cjson_amd64.dll" "%ENGINE_PATH%src\lua_binding\"
 
 cd %ENGINE_PATH%src\lua_binding
 go test -v
@@ -142,7 +150,7 @@ REM @if errorlevel 1 goto failed
 cd %~dp0
 copy "%ENGINE_PATH%src\lua_binding\lib\lua52_amd64.dll" %PUBLISH_PATH%\bin\lua52_amd64.dll
 @if errorlevel 1 goto failed
-copy "%ENGINE_PATH%src\lua_binding\lib\cjson.dll" %PUBLISH_PATH%\bin\cjson.dll
+copy "%ENGINE_PATH%src\lua_binding\lib\cjson_amd64.dll" %PUBLISH_PATH%\bin\cjson_amd64.dll
 @if errorlevel 1 goto failed
 xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\microlight\*" %PUBLISH_PATH%\lib\microlight\
 @if errorlevel 1 goto failed

@@ -143,7 +143,7 @@ function mj.execute_script(action, script, params)
 end
 
 
-local cjson = require 'cjson'
+local cjson = require('cjson_'..mj.arch)
 
 function mj.execute_task(action, params)
   --if nil == task then

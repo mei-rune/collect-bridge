@@ -38,7 +38,7 @@ func (self *memCisco) CallA(params MContext) commons.Result {
 	}
 
 	return commons.Return(map[string]interface{}{"total": total,
-		"used_per": float64(total-free) / float64(total),
+		"used_per": (float64(total-free) / float64(total)) * 100,
 		"used":     total - free,
 		"free":     free})
 }
@@ -55,7 +55,7 @@ func (self *memCisco) CallB(params MContext) commons.Result {
 	}
 
 	return commons.Return(map[string]interface{}{"total": used + free,
-		"used_per": float64(used) / float64(used+free),
+		"used_per": (float64(used) / float64(used+free)) * 100,
 		"used":     used,
 		"free":     free})
 }
@@ -93,7 +93,7 @@ func (self *memWindows) Call(params MContext) commons.Result {
 
 	used := uint64(float64(total) * used_per)
 	free := total - used
-	return commons.Return(map[string]interface{}{"total": total, "used_per": used_per, "used": used, "free": free})
+	return commons.Return(map[string]interface{}{"total": total, "used_per": used_per * 100, "used": used, "free": free})
 }
 
 func init() {

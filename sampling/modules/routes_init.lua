@@ -1,7 +1,7 @@
 module("routes_init",  package.seeall)
 
 require 'routes'
-local cjson = require 'cjson'
+local cjson = require('cjson_'..mj.arch)
 
 function filename(name)
   local pa, file = ml.splitpath(name)

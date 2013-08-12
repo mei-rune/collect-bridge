@@ -354,7 +354,8 @@ type systemUpTime struct {
 }
 
 func (self *systemUpTime) Call(params MContext) commons.Result {
-	return self.GetResult(params, "1.3.6.1.2.1.1.3.0", RES_UINT64)
+	t, e := self.GetUint64(params, "1.3.6.1.2.1.1.3.0")
+	return commons.Return(t/100).SetError(commons.InternalErrorCode, e.Error())
 }
 
 type systemLocation struct {
@@ -386,7 +387,7 @@ func (self *systemInfo) Call(params MContext) commons.Result {
 			new_row := map[string]interface{}{}
 			new_row["descr"] = GetString(params, old_row, "1")
 			new_row["oid"] = oid
-			new_row["upTime"] = GetUint32(params, old_row, "3", 0)
+			new_row["upTime"] = GetUint32(params, old_row, "3", 0) / 100
 			new_row["contact"] = GetString(params, old_row, "4")
 			new_row["name"] = GetString(params, old_row, "5")
 			new_row["location"] = GetString(params, old_row, "6")

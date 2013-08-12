@@ -44,11 +44,10 @@ func (self *metricJob) Stats() map[string]interface{} {
 
 func (self *metricJob) run(t time.Time) error {
 	res := self.client.Invoke("GET", self.client.Url, nil, 200)
-	if res.HasError() {
-		return errors.New("read metric failed, " + res.ErrorMessage())
-	}
-
 	self.callActions(t, res)
+	if res.HasError() {
+		return errors.New("sampling failed, " + res.ErrorMessage())
+	}
 	return nil
 }
 

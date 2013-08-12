@@ -44,6 +44,9 @@ func (self *historyAction) RunAfter() {
 func (self *historyAction) Run(t time.Time, value interface{}) error {
 	created_at := t
 	if current, ok := value.(commons.Result); ok {
+		if current.HasError() {
+			return errors.New("sampling failed, " + current.ErrorMessage())
+		}
 		created_at = current.CreatedAt()
 	}
 

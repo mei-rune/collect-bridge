@@ -625,6 +625,11 @@
         -->
       </restriction>
     </property>
+    <property name="notification_group_ids">
+      <restriction base="string">
+        <maxLength>200</maxLength>
+      </restriction>
+    </property>
   </class>
 
 

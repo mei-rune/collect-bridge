@@ -9,21 +9,21 @@ import (
 )
 
 type Checker interface {
-	Run(value interface{}, res map[string]interface{}) (int, error)
+	Run(value interface{}, res map[string]interface{}) (int, interface{}, error)
 }
 
-type jsonFunc func(value interface{}, res map[string]interface{}) (bool, error)
+type jsonFunc func(value interface{}, res map[string]interface{}) (bool, interface{}, error)
 
-func (f jsonFunc) Run(value interface{}, res map[string]interface{}) (int, error) {
-	r, e := f(value, res)
+func (f jsonFunc) Run(value interface{}, res map[string]interface{}) (int, interface{}, error) {
+	r, v, e := f(value, res)
 	if nil != e {
-		return 0, e
+		return 0, v, e
 	}
 
 	if r {
-		return 1, nil
+		return 1, v, nil
 	} else {
-		return 0, nil
+		return 0, v, nil
 	}
 }
 
@@ -107,57 +107,57 @@ func get_int64(value interface{}, name string) (int64, error) {
 }
 
 func int_gt(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		i64, e := get_int64(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return i64 > operand, nil
+		return i64 > operand, i64, nil
 	}
 }
 func int_gte(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		i64, e := get_int64(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return i64 >= operand, nil
+		return i64 >= operand, i64, nil
 	}
 }
 func int_lt(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		i64, e := get_int64(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return i64 < operand, nil
+		return i64 < operand, i64, nil
 	}
 }
 func int_lte(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		i64, e := get_int64(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return i64 <= operand, nil
+		return i64 <= operand, i64, nil
 	}
 }
 func int_not_equals(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		i64, e := get_int64(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return i64 != operand, nil
+		return i64 != operand, i64, nil
 	}
 }
 func int_equals(attribute string, operand int64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		i64, e := get_int64(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return i64 == operand, nil
+		return i64 == operand, i64, nil
 	}
 }
 
@@ -170,57 +170,57 @@ func get_float(value interface{}, name string) (float64, error) {
 }
 
 func float_gt(attribute string, operand float64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		f64, e := get_float(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return f64 > operand, nil
+		return f64 > operand, f64, nil
 	}
 }
 func float_gte(attribute string, operand float64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		f64, e := get_float(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return f64 >= operand, nil
+		return f64 >= operand, f64, nil
 	}
 }
 func float_lt(attribute string, operand float64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		f64, e := get_float(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return f64 < operand, nil
+		return f64 < operand, f64, nil
 	}
 }
 func float_lte(attribute string, operand float64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		f64, e := get_float(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return f64 <= operand, nil
+		return f64 <= operand, f64, nil
 	}
 }
 func float_not_equals(attribute string, operand float64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		f64, e := get_float(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return f64 != operand, nil
+		return f64 != operand, f64, nil
 	}
 }
 func float_equals(attribute string, operand float64) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		f64, e := get_float(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return f64 == operand, nil
+		return f64 == operand, f64, nil
 	}
 }
 
@@ -233,38 +233,38 @@ func get_string(value interface{}, name string) (string, error) {
 }
 
 func string_not_contains(attribute string, operand string) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		v, e := get_string(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return !strings.Contains(v, operand), nil
+		return !strings.Contains(v, operand), v, nil
 	}
 }
 func string_contains(attribute string, operand string) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		v, e := get_string(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return strings.Contains(v, operand), nil
+		return strings.Contains(v, operand), v, nil
 	}
 }
 func str_not_equals(attribute string, operand string) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		v, e := get_string(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return v != operand, nil
+		return v != operand, v, nil
 	}
 }
 func str_equals(attribute string, operand string) jsonFunc {
-	return func(value interface{}, res map[string]interface{}) (bool, error) {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
 		v, e := get_string(value, attribute)
 		if nil != e {
-			return false, e
+			return false, nil, e
 		}
-		return v == operand, nil
+		return v == operand, v, nil
 	}
 }

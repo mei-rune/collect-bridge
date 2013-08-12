@@ -157,9 +157,13 @@ xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\microlight\*" %PUBLISH_PATH%\lib\mi
 
 copy "%ENGINE_PATH%src\autostart_engine.conf" %PUBLISH_PATH%\conf\autostart_engine.conf
 
+
+@echo "====================================="
+@echo "build success!"
 @goto :eof
 
 :failed
-@echo "±‡“Î ß∞‹"
+@echo "====================================="
+@echo "ooooooooo, build failed!"
 cd %~dp0
 exit /b -1

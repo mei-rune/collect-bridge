@@ -219,7 +219,7 @@ var db_command_test_attributes = map[string]interface{}{"name": "test1",
 	"updated_at":  "2013-07-13T14:13:28.7024412+08:00",
 	"drv":         "postgres",
 	"url":         "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable",
-	"script":      "insert into tpt_test_for_handler(priority, queue) values(12, '{{.current_value}}')"}
+	"script":      "insert into tpt_test_for_handler(priority, queue) values(12, 'aaa {{.current_value}}')"}
 
 var exec_command_test_attributes = map[string]interface{}{"name": "test1",
 	"description":    "",
@@ -228,8 +228,8 @@ var exec_command_test_attributes = map[string]interface{}{"name": "test1",
 	"parent_id":      "1",
 	"created_at":     "2013-07-13T14:13:28.7024412+08:00",
 	"updated_at":     "2013-07-13T14:13:28.7024412+08:00",
-	"command":        "cmd /c echo {{.current_value}}",
-	"prompt":         "{a:13}",
+	"command":        "cmd /c echo aaa{{.current_value}}",
+	"prompt":         "aaa13",
 	"work_directory": "c:\\windows\\"}
 
 var syslog_test_attributes = map[string]interface{}{"name": "test1",
@@ -278,11 +278,11 @@ func TestNotificationsForRedis(t *testing.T) {
 					ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "redis_command", redis_test_attributes)
 
 					action, e := newAlertAction(map[string]interface{}{
-						"id":                    "123",
-						"name":                  "this is a test alert",
-						"notification_group_id": notification_group_id,
-						"delay_times":           0,
-						"expression_style":      "json",
+						"id":   "123",
+						"name": "this is a test alert",
+						"notification_group_ids": notification_group_id,
+						"delay_times":            0,
+						"expression_style":       "json",
 						"expression_code": map[string]interface{}{
 							"attribute": "a",
 							"operator":  ">",
@@ -330,7 +330,7 @@ func TestNotificationsForRedis(t *testing.T) {
 						return
 					}
 
-					containsResult(t, c, "GET", "123", `{"a":"13"}`)
+					containsResult(t, c, "GET", "123", `13`)
 				})
 			})
 		})
@@ -382,11 +382,11 @@ func TestNotificationsForDb(t *testing.T) {
 				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "db_command", db_command_test_attributes)
 
 				action, e := newAlertAction(map[string]interface{}{
-					"id":                    "123",
-					"name":                  "this is a test alert",
-					"notification_group_id": notification_group_id,
-					"delay_times":           0,
-					"expression_style":      "json",
+					"id":   "123",
+					"name": "this is a test alert",
+					"notification_group_ids": notification_group_id,
+					"delay_times":            0,
+					"expression_style":       "json",
 					"expression_code": map[string]interface{}{
 						"attribute": "a",
 						"operator":  ">",
@@ -432,7 +432,7 @@ func TestNotificationsForDb(t *testing.T) {
 					return
 				}
 
-				assertCount(t, db, "SELECT count(*) FROM tpt_test_for_handler WHERE priority = 12 and queue like '%{\"a\":\"13\"}%'", 1)
+				assertCount(t, db, "SELECT count(*) FROM tpt_test_for_handler WHERE priority = 12 and queue like 'aaa 13'", 1)
 			})
 		})
 	})
@@ -468,11 +468,11 @@ func TestNotificationsForExec(t *testing.T) {
 				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "exec_command", exec_command_test_attributes)
 
 				action, e := newAlertAction(map[string]interface{}{
-					"id":                    "123",
-					"name":                  "this is a test alert",
-					"notification_group_id": notification_group_id,
-					"delay_times":           0,
-					"expression_style":      "json",
+					"id":   "123",
+					"name": "this is a test alert",
+					"notification_group_ids": notification_group_id,
+					"delay_times":            0,
+					"expression_style":       "json",
 					"expression_code": map[string]interface{}{
 						"attribute": "a",
 						"operator":  ">",
@@ -569,11 +569,11 @@ func TestNotificationsForSyslog(t *testing.T) {
 					ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "syslog", syslog_test_attributes)
 
 					action, e := newAlertAction(map[string]interface{}{
-						"id":                    "123",
-						"name":                  "this is a test alert",
-						"notification_group_id": notification_group_id,
-						"delay_times":           0,
-						"expression_style":      "json",
+						"id":   "123",
+						"name": "this is a test alert",
+						"notification_group_ids": notification_group_id,
+						"delay_times":            0,
+						"expression_style":       "json",
 						"expression_code": map[string]interface{}{
 							"attribute": "a",
 							"operator":  ">",
@@ -621,8 +621,8 @@ func TestNotificationsForSyslog(t *testing.T) {
 
 					select {
 					case s := <-c:
-						if !strings.Contains(s, ` {"value":{"a":"13"},`) {
-							t.Error(`excepted message contains [ {"value":{"a":"13"},], but actual is`, s)
+						if !strings.Contains(s, `aaaaa 13`) {
+							t.Error(`excepted message contains [aaaaa 13], but actual is`, s)
 						}
 					case <-time.After(10 * time.Microsecond):
 						t.Error("recv syslog time out")
@@ -657,11 +657,11 @@ func TestNotificationsForMail(t *testing.T) {
 				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "mail", mail_test_attributes)
 
 				action, e := newAlertAction(map[string]interface{}{
-					"id":                    "123",
-					"name":                  "this is a test alert",
-					"notification_group_id": notification_group_id,
-					"delay_times":           0,
-					"expression_style":      "json",
+					"id":   "123",
+					"name": "this is a test alert",
+					"notification_group_ids": notification_group_id,
+					"delay_times":            0,
+					"expression_style":       "json",
 					"expression_code": map[string]interface{}{
 						"attribute": "a",
 						"operator":  ">",

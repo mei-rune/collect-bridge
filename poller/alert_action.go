@@ -108,8 +108,8 @@ type alertAction struct {
 	last_event_id   string
 	sequence_id     int
 
-	notification_group_id string
-	notification_groups   *ds.Cache
+	notification_group_ids []string
+	notification_groups    *ds.Cache
 
 	begin_send_at, wait_response_at, responsed_at, end_send_at int64
 
@@ -140,7 +140,7 @@ func (self *alertAction) Stats() map[string]interface{} {
 		"end_send_at":      atomic.LoadInt64(&self.end_send_at)}
 
 	if nil != self.notification_groups {
-		stats["notification_group_id"] = self.notification_group_id
+		stats["notification_group_ids"] = self.notification_group_ids
 	}
 	return stats
 }
@@ -159,7 +159,13 @@ func (self *alertAction) RunAfter() {
 }
 
 func (self *alertAction) Run(t time.Time, value interface{}) error {
-	current, err := self.checker.Run(value, self.contex)
+	if res, ok := value.(commons.Result); ok {
+		if res.HasError() {
+			return errors.New("sampling failed, " + res.ErrorMessage())
+		}
+	}
+
+	current, current_value, err := self.checker.Run(value, self.contex)
 	if nil != err {
 		return err
 	}
@@ -193,7 +199,7 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	}
 
 	if _, found := evt["current_value"]; !found {
-		bs, err := json.Marshal(value)
+		bs, err := json.Marshal(current_value)
 		if nil != err {
 			return errors.New("marshal current value failed," + err.Error())
 		}
@@ -211,9 +217,9 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	evt["sequence_id"] = self.sequence_id
 	evt["previous_status"] = self.previous_status
 	evt["status"] = current
-	evt["content"] = self.message(current, self.previous_status, evt)
+	evt["content"] = self.gen_message(current, self.previous_status, evt)
 	if nil != self.notification_groups {
-		err := self.fillNotificationData(evt)
+		err := self.fillNotificationData(current, evt)
 		if nil != err {
 			return err
 		}
@@ -233,8 +239,29 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	return err
 }
 
-func (self *alertAction) fillNotificationData(evt map[string]interface{}) error {
-	rules, err := self.notification_groups.GetChildren(self.notification_group_id, "action", nil)
+func (self *alertAction) fillNotificationData(current int, evt map[string]interface{}) error {
+	if nil == self.notification_group_ids || 0 == len(self.notification_group_ids) {
+		return nil
+	}
+
+	notification_group_id := self.notification_group_ids[0]
+	switch len(self.notification_group_ids) {
+	case 1:
+		break
+	case 2:
+		if 0 != current {
+			notification_group_id = self.notification_group_ids[1]
+		}
+		break
+	default:
+		if current >= len(self.notification_group_ids) {
+			notification_group_id = self.notification_group_ids[1]
+		} else {
+			notification_group_id = self.notification_group_ids[current]
+		}
+	}
+
+	rules, err := self.notification_groups.GetChildren(notification_group_id, "action", nil)
 	if nil != err {
 		return errors.New("load notfications failed, " + err.Error())
 	}
@@ -262,7 +289,7 @@ func (self *alertAction) fillNotificationData(evt map[string]interface{}) error 
 	return nil
 }
 
-func (self *alertAction) message(current, previous int, evt map[string]interface{}) string {
+func (self *alertAction) gen_message(current, previous int, evt map[string]interface{}) string {
 	if len(self.templates) > current {
 		var buffer bytes.Buffer
 		e := self.templates[current].Execute(&buffer, evt)
@@ -363,14 +390,21 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		}
 	}
 
-	notification_group_id := commons.GetStringWithDefault(attributes, "notification_group_id", "")
+	var notification_group_ids []string
+	notification_group_ids_str := commons.GetStringWithDefault(attributes, "notification_group_ids", "")
 	var notification_groups *ds.Cache
-	if 0 != len(notification_group_id) {
+	if 0 != len(notification_group_ids_str) {
 		if c, ok := ctx["notification_groups"]; ok && nil != c {
 			notification_groups, _ = c.(*ds.Cache)
 		}
 		if nil == notification_groups {
 			return nil, errors.New("'notification_groups' is missing")
+		}
+		notification_group_ids = strings.Split(notification_group_ids_str, ",")
+		for _, s := range notification_group_ids {
+			if _, e = strconv.ParseInt(s, 10, 0); nil != e {
+				return nil, errors.New("parse 'notification_group_ids' failed, it is not a int array - '" + notification_group_ids_str + "'")
+			}
 		}
 	}
 
@@ -382,21 +416,21 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 	return &alertAction{id: id,
 		name: name,
 		//description: commons.GetString(attributes, "description", ""),
-		already_send:          true,
-		options:               options,
-		delay_times:           delay_times,
-		contex:                contex,
-		publish:               publish,
-		channel:               channel,
-		cached_data:           &data_object{c: make(chan error, 2)},
-		checker:               checker,
-		templates:             templates,
-		last_status:           commons.GetIntWithDefault(attributes, "last_status", 0),
-		previous_status:       commons.GetIntWithDefault(attributes, "previous_status", 0),
-		last_event_id:         commons.GetStringWithDefault(attributes, "event_id", ""),
-		sequence_id:           commons.GetIntWithDefault(attributes, "seqence_id", 0),
-		notification_group_id: notification_group_id,
-		notification_groups:   notification_groups}, nil
+		already_send:           true,
+		options:                options,
+		delay_times:            delay_times,
+		contex:                 contex,
+		publish:                publish,
+		channel:                channel,
+		cached_data:            &data_object{c: make(chan error, 2)},
+		checker:                checker,
+		templates:              templates,
+		last_status:            commons.GetIntWithDefault(attributes, "last_status", 0),
+		previous_status:        commons.GetIntWithDefault(attributes, "previous_status", 0),
+		last_event_id:          commons.GetStringWithDefault(attributes, "event_id", ""),
+		sequence_id:            commons.GetIntWithDefault(attributes, "seqence_id", 0),
+		notification_group_ids: notification_group_ids,
+		notification_groups:    notification_groups}, nil
 }
 
 func makeChecker(attributes, ctx map[string]interface{}) (Checker, error) {

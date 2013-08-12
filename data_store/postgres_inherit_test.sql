@@ -261,15 +261,15 @@ CREATE TABLE tpt_exec_commands (
 
 CREATE TABLE tpt_alerts (
   -- id integer NOT NULL DEFAULT nextval('actions_seq')  PRIMARY KEY,
-  delay_times           integer,
-  enabled               boolean,
-  level                 integer,
-  catalog               varchar(200),
-  templates             varchar(2000),
+  delay_times            integer,
+  enabled                boolean,
+  level                  integer,
+  catalog                varchar(200),
+  templates              varchar(2000),
 
-  expression_style      varchar(50),
-  expression_code       varchar(2000),
-  notification_group_id integer,
+  expression_style       varchar(50),
+  expression_code        varchar(2000),
+  notification_group_ids varchar(250),
 
   CONSTRAINT tpt_alerts_pkey PRIMARY KEY (id)
 ) INHERITS (tpt_actions);

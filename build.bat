@@ -42,6 +42,8 @@ echo "GOPATH=%GOPATH%"
 @set PUBLISH_PATH=%~dp0%..\build\
 :defined_publish_path
 
+echo "ENGINE_PATH=%ENGINE_PATH%"
+echo "PUBLISH_PATH=%PUBLISH_PATH%"
 
 @if not defined test_db_url (
   @set test_db_url=-db.url="host=127.0.0.1 dbname=tpt_models_test user=tpt password=extreme sslmode=disable"

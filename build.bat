@@ -89,7 +89,6 @@ go get code.google.com/p/mahonia
 go get code.google.com/p/winsvc
 go get bitbucket.org/liamstask/goose
 
-@echo build_install_directory
 :build_install_directory
 @if not defined is_install goto build_3td_library
 @if NOT exist %PUBLISH_PATH% mkdir %PUBLISH_PATH%
@@ -122,6 +121,29 @@ for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
 )
 
 :build_3td_library_ok
+
+@if not defined is_clean goto build_lua_and_cjson
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lib\*.dll"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lib\*.exe"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lib\*.so"
+
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua\src\*.a"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua\src\*.o"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua\src\*.obj"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua\src\*.lib"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua\src\*.so"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua\src\*.dll"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua\src\*.exe"
+
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua-cjson\*.a"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua-cjson\*.o"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua-cjson\*.obj"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua-cjson\*.lib"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua-cjson\*.so"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua-cjson\*.dll"
+del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lua-cjson\*.exe"
+
+:build_lua_and_cjson
 @if not defined is_compile goto install_lua_and_cjson
 if NOT exist "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" (
   cd %ENGINE_PATH%\src\lua_binding\lua
@@ -142,8 +164,6 @@ if NOT exist "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" (
 :install_lua_and_cjson
 xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" "%ENGINE_PATH%\src\lua_binding\"
 xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" "%ENGINE_PATH%\src\lua_binding\"
-xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" "%ENGINE_PATH%\src\sampling\"
-xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" "%ENGINE_PATH%\src\sampling\"
 
 :test_lua_binding
 @if not defined is_test goto build_lua_binding
@@ -183,6 +203,9 @@ go test -v
 
 :build_snmp
 
+:test_sampling
+xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" "%ENGINE_PATH%\src\sampling\"
+xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" "%ENGINE_PATH%\src\sampling\"
 @if not defined is_test goto build_sampling
 cd %ENGINE_PATH%\src\sampling
 go test -v %test_db_url%

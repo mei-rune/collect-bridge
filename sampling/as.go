@@ -302,6 +302,10 @@ func parseMAC(s string) (string, error) {
 	switch len(s) {
 	case 0:
 		return "", nil
+	case 2:
+		if "30" == s { // skip invalid address
+			return "", nil
+		}
 	case 12:
 		return s[:2] + ":" + s[2:4] + ":" + s[4:6] + ":" + s[6:8] + ":" + s[8:10] + ":" + s[10:], nil
 	case 14:

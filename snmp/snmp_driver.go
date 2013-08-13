@@ -335,7 +335,9 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpc
 			return internalErrorResult("init pdu failed", err)
 		}
 
+		//fmt.Println("===============get==================")
 		for _, next_oid := range next_oids {
+			//fmt.Println(next_oid, ",")
 			err = req.GetVariableBindings().AppendWith(next_oid, snmpclient.NewSnmpNil())
 			if nil != err {
 				return internalErrorResult("append vb failed", err)
@@ -352,8 +354,10 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpc
 				len(next_oids), resp.GetVariableBindings().Len()), nil)
 		}
 
+		//fmt.Println("===============result==================")
 		offset := 0
 		for i, vb := range resp.GetVariableBindings().All() {
+			//fmt.Println(i, ",", vb.Oid, ",", vb.Value.String())
 
 			if !strings.HasPrefix(vb.Oid.GetString(), next_oids_s[i]) {
 				continue

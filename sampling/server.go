@@ -29,15 +29,9 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 	if nil != e {
 		return nil, errors.New("new dispatcher failed, " + e.Error())
 	}
-	caches := ds.NewCaches(refresh, ds.NewClient(ds_url),
-		"*", map[string]string{"snmp": "snmp_param"})
-	mo_cache, e := caches.GetCache("managed_object")
-	if nil != e {
-		return nil, errors.New("get cache 'managed_object' failed, " + e.Error())
-	}
-	if nil == mo_cache {
-		return nil, errors.New("table 'managed_object' is not exists.")
-	}
+	client := ds.NewClient(ds_url)
+	caches := ds.NewCaches(refresh, client, "*", map[string]string{"snmp": "snmp_param"})
+	mo_cache := ds.NewCacheWithIncludes(refresh, client, "managed_object", "*")
 
 	return &server{caches: caches, mo_cache: mo_cache,
 		dispatcher: dispatch}, nil

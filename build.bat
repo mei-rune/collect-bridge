@@ -35,11 +35,11 @@ echo "GOROOT=%GOROOT%"
 echo "GOPATH=%GOPATH%"
 
 @if /i "%ENGINE_PATH%" NEQ "" goto defined_engine_path
-@set ENGINE_PATH=%~dp0%..\
+@set ENGINE_PATH=%~dp0%..
 :defined_engine_path
 
 @if /i "%PUBLISH_PATH%" NEQ "" goto defined_publish_path
-@set PUBLISH_PATH=%~dp0%..\build\
+@set PUBLISH_PATH=%~dp0%..\build
 :defined_publish_path
 
 echo "ENGINE_PATH=%ENGINE_PATH%"
@@ -127,43 +127,43 @@ if NOT exist "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" (
   cd %ENGINE_PATH%\src\lua_binding\lua
   mingw32-make mingw_amd64
   @if errorlevel 1 goto failed
-  xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lua\src\*.exe" "%ENGINE_PATH%src\lua_binding\lib\"
-  xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lua\src\*.dll" "%ENGINE_PATH%src\lua_binding\lib\"
+  xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lua\src\*.exe" "%ENGINE_PATH%\src\lua_binding\lib\"
+  xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lua\src\*.dll" "%ENGINE_PATH%\src\lua_binding\lib\"
 )
 
 if NOT exist "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" (
   cd %ENGINE_PATH%\src\lua_binding\lua-cjson
   mingw32-make
   @if errorlevel 1 goto failed
-  xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lua-cjson\*.exe" "%ENGINE_PATH%src\lua_binding\lib\"
-  xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lua-cjson\*.dll" "%ENGINE_PATH%src\lua_binding\lib\"
+  xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lua-cjson\*.exe" "%ENGINE_PATH%\src\lua_binding\lib\"
+  xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lua-cjson\*.dll" "%ENGINE_PATH%\src\lua_binding\lib\"
 )
 
 :install_lua_and_cjson
-xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lib\lua52_amd64.dll" "%ENGINE_PATH%src\lua_binding\"
-xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lib\cjson_amd64.dll" "%ENGINE_PATH%src\lua_binding\"
-xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lib\lua52_amd64.dll" "%ENGINE_PATH%src\sampling\"
-xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\lib\cjson_amd64.dll" "%ENGINE_PATH%src\sampling\"
+xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" "%ENGINE_PATH%\src\lua_binding\"
+xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" "%ENGINE_PATH%\src\lua_binding\"
+xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" "%ENGINE_PATH%\src\sampling\"
+xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" "%ENGINE_PATH%\src\sampling\"
 
 :test_lua_binding
 @if not defined is_test goto build_lua_binding
-cd %ENGINE_PATH%src\lua_binding
+cd %ENGINE_PATH%\src\lua_binding
 go test -v
 @if errorlevel 1 goto failed
 :build_lua_binding
 
 @if not defined is_test goto build_data_store
-cd %ENGINE_PATH%src\data_store
+cd %ENGINE_PATH%\src\data_store
 go test -v %test_db_url%
 @if errorlevel 1 goto failed
 
-cd %ENGINE_PATH%src\data_store\ds
+cd %ENGINE_PATH%\src\data_store\ds
 go test -v %test_db_url%
 @if errorlevel 1 goto failed
 
 :build_data_store
 @if not defined is_compile goto install_data_store
-cd %ENGINE_PATH%src\data_store\ds
+cd %ENGINE_PATH%\src\data_store\ds
 del "*.exe"
 go build
 @if errorlevel 1 goto failed
@@ -172,25 +172,25 @@ go build
 @if not defined is_install goto test_snmp
 copy "ds.exe"  %PUBLISH_PATH%\bin\tpt_ds.exe
 @if errorlevel 1 goto failed
-xcopy /Y /S /E %ENGINE_PATH%src\data_store\etc\*   %PUBLISH_PATH%\lib\models\
+xcopy /Y /S /E %ENGINE_PATH%\src\data_store\etc\*   %PUBLISH_PATH%\lib\models\
 @if errorlevel 1 goto failed
 
 :test_snmp
 @if not defined is_test goto build_snmp
-cd %ENGINE_PATH%src\snmp
+cd %ENGINE_PATH%\src\snmp
 go test -v
 @if errorlevel 1 goto failed
 
 :build_snmp
 
 @if not defined is_test goto build_sampling
-cd %ENGINE_PATH%src\sampling
+cd %ENGINE_PATH%\src\sampling
 go test -v %test_db_url%
 @if errorlevel 1 goto failed
 
 :build_sampling
 @if not defined is_compile goto install_sampling
-cd %ENGINE_PATH%src\sampling\sampling
+cd %ENGINE_PATH%\src\sampling\sampling
 del "*.exe"
 go build
 @if errorlevel 1 goto failed
@@ -199,22 +199,22 @@ go build
 @if not defined is_install goto test_poller
 copy "sampling.exe"  %PUBLISH_PATH%\bin\tpt_sampling.exe
 @if errorlevel 1 goto failed
-copy "%ENGINE_PATH%src\lua_binding\lib\lua52_amd64.dll" %PUBLISH_PATH%\bin\lua52_amd64.dll
+copy "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" %PUBLISH_PATH%\bin\lua52_amd64.dll
 @if errorlevel 1 goto failed
-copy "%ENGINE_PATH%src\lua_binding\lib\cjson_amd64.dll" %PUBLISH_PATH%\bin\cjson_amd64.dll
+copy "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" %PUBLISH_PATH%\bin\cjson_amd64.dll
 @if errorlevel 1 goto failed
-xcopy /Y /S /E "%ENGINE_PATH%src\lua_binding\microlight\*" %PUBLISH_PATH%\lib\microlight\
+xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\microlight\*" %PUBLISH_PATH%\lib\microlight\
 @if errorlevel 1 goto failed
 
 :test_poller
 @if not defined is_test goto build_poller
-cd %ENGINE_PATH%src\poller
+cd %ENGINE_PATH%\src\poller
 go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
 @if errorlevel 1 goto failed
 
 :build_poller
 @if not defined is_compile goto install_poller
-cd %ENGINE_PATH%src\poller\poller
+cd %ENGINE_PATH%\src\poller\poller
 del "*.exe"
 go build
 @if errorlevel 1 goto failed
@@ -222,18 +222,18 @@ go build
 @if not defined is_install goto test_carrier
 copy "poller.exe" %PUBLISH_PATH%\bin\tpt_poller.exe
 @if errorlevel 1 goto failed
-xcopy /Y /S /E %ENGINE_PATH%src\poller\templates\*   %PUBLISH_PATH%\lib\alerts\templates\
+xcopy /Y /S /E %ENGINE_PATH%\src\poller\templates\*   %PUBLISH_PATH%\lib\alerts\templates\
 @if errorlevel 1 goto failed
 
 :test_carrier
 @if not defined is_test goto build_carrier
-cd %ENGINE_PATH%src\carrier
+cd %ENGINE_PATH%\src\carrier
 go test -v  %test_data_db_url% %test_delayed_job_db_url%  -redis=127.0.0.1:9456
 @if errorlevel 1 goto failed
 
 :build_carrier
 @if not defined is_compile goto install_carrier
-cd %ENGINE_PATH%src\carrier\carrier
+cd %ENGINE_PATH%\src\carrier\carrier
 del "*.exe"
 go build
 @if errorlevel 1 goto failed
@@ -244,13 +244,13 @@ copy "carrier.exe" %PUBLISH_PATH%\bin\tpt_carrier.exe
 @if errorlevel 1 goto failed
 
 
-REM cd %ENGINE_PATH%src\bridge\discovery_tools
+REM cd %ENGINE_PATH%\src\bridge\discovery_tools
 REM go build
 REM @if errorlevel 1 goto failed
-REM copy "%ENGINE_PATH%src\bridge\discovery_tools\discovery_tools.exe" %~dp0\bin\discovery_tools.exe
+REM copy "%ENGINE_PATH%\src\bridge\discovery_tools\discovery_tools.exe" %~dp0\bin\discovery_tools.exe
 REM @if errorlevel 1 goto failed
 
-copy "%ENGINE_PATH%src\autostart_engine.conf" %PUBLISH_PATH%\conf\autostart_engine.conf
+copy "%ENGINE_PATH%\src\autostart_engine.conf" %PUBLISH_PATH%\conf\autostart_engine.conf
 
 
 :build_ok

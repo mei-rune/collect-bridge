@@ -43,7 +43,7 @@ func (self *metricJob) Stats() map[string]interface{} {
 }
 
 func (self *metricJob) run(t time.Time) error {
-	res := self.client.Invoke("GET", self.client.Url, nil, 200)
+	res := self.client.InvokeWith("GET", self.client.Url, nil, 200)
 	self.callActions(t, res)
 	if res.HasError() {
 		return errors.New("sampling failed, " + res.ErrorMessage())

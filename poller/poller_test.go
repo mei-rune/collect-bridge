@@ -452,7 +452,7 @@ func getMetric(parentId, metric string) commons.Result {
 		client_url = commons.NewUrlBuilder(*sampling_url).Concat("managed_object", fmt.Sprint(parentId), metric).ToUrl()
 	}
 	metricClient := &commons.HttpClient{Url: *sampling_url}
-	return metricClient.Invoke("GET", client_url, nil, 200)
+	return metricClient.InvokeWith("GET", client_url, nil, 200)
 }
 
 func TestIntegratedHistoryWithCarrier(t *testing.T) {

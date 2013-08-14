@@ -98,8 +98,8 @@ var (
 	}
 )
 
-func IsAsciiAndPrintable(bytes []byte) bool {
-	for _, c := range bytes {
+func IsAsciiAndPrintable(bs []byte) bool {
+	for _, c := range bs {
 		if c >= unicode.MaxASCII {
 			return false
 		}
@@ -111,9 +111,9 @@ func IsAsciiAndPrintable(bytes []byte) bool {
 	return true
 }
 
-func IsUtf8AndPrintable(bytes []byte) bool {
-	for 0 != len(bytes) {
-		c, l := utf8.DecodeRune(bytes)
+func IsUtf8AndPrintable(bs []byte) bool {
+	for 0 != len(bs) {
+		c, l := utf8.DecodeRune(bs)
 		if utf8.RuneError == c {
 			return false
 		}
@@ -121,18 +121,18 @@ func IsUtf8AndPrintable(bytes []byte) bool {
 		if !unicode.IsPrint(c) {
 			return false
 		}
-		bytes = bytes[l:]
+		bs = bs[l:]
 	}
 	return true
 }
 
-func IsUtf16AndPrintable(bytes []byte) bool {
-	if 0 != len(bytes)%2 {
+func IsUtf16AndPrintable(bs []byte) bool {
+	if 0 != len(bs)%2 {
 		return false
 	}
 
-	for i := 0; i < len(bytes); i += 2 {
-		u16 := binary.LittleEndian.Uint16(bytes[i:])
+	for i := 0; i < len(bs); i += 2 {
+		u16 := binary.LittleEndian.Uint16(bs[i:])
 		if !unicode.IsPrint(rune(u16)) {
 			return false
 		}
@@ -140,13 +140,13 @@ func IsUtf16AndPrintable(bytes []byte) bool {
 	return true
 }
 
-func IsUtf32AndPrintable(bytes []byte) bool {
-	if 0 != len(bytes)%4 {
+func IsUtf32AndPrintable(bs []byte) bool {
+	if 0 != len(bs)%4 {
 		return false
 	}
 
-	for i := 0; i < len(bytes); i += 4 {
-		u32 := binary.LittleEndian.Uint32(bytes[i:])
+	for i := 0; i < len(bs); i += 4 {
+		u32 := binary.LittleEndian.Uint32(bs[i:])
 		if !unicode.IsPrint(rune(u32)) {
 			return false
 		}
@@ -161,7 +161,7 @@ func printValue(value string) {
 		return
 	}
 
-	bytes, err := hex.DecodeString(value[8:])
+	bs, err := hex.DecodeString(value[8:])
 	if nil != err {
 		fmt.Println(value)
 		return
@@ -170,56 +170,56 @@ func printValue(value string) {
 	if nil != decoder {
 		fmt.Println(value)
 
-		for 0 != len(bytes) {
-			c, length, status := decoder(bytes)
+		for 0 != len(bs) {
+			c, length, status := decoder(bs)
 			switch status {
 			case mahonia.SUCCESS:
 				if unicode.IsPrint(c) {
-					out.Write(bytes[0:length])
+					out.Write(bs[0:length])
 				} else {
 					for i := 0; i < length; i++ {
 						out.Write([]byte{'.'})
 					}
 				}
-				bytes = bytes[length:]
+				bs = bs[length:]
 			case mahonia.INVALID_CHAR:
 				out.Write([]byte{'.'})
-				bytes = bytes[1:]
+				bs = bs[1:]
 			case mahonia.NO_ROOM:
 				out.Write([]byte{'.'})
-				bytes = bytes[0:0]
+				bs = bs[0:0]
 			case mahonia.STATE_ONLY:
-				bytes = bytes[length:]
+				bs = bs[length:]
 			}
 		}
 		out.Write([]byte{'\n'})
 		return
 	}
 
-	if IsUtf8AndPrintable(bytes) {
-		fmt.Println(string(bytes))
+	if IsUtf8AndPrintable(bs) {
+		fmt.Println(string(bs))
 		return
 	}
 
-	if IsUtf16AndPrintable(bytes) {
-		rr := make([]rune, len(bytes)/2)
-		for i := 0; i < len(bytes); i += 2 {
-			rr[i/2] = rune(binary.LittleEndian.Uint16(bytes[i:]))
+	if IsUtf16AndPrintable(bs) {
+		rr := make([]rune, len(bs)/2)
+		for i := 0; i < len(bs); i += 2 {
+			rr[i/2] = rune(binary.LittleEndian.Uint16(bs[i:]))
 		}
 		fmt.Println(string(rr))
 		return
 	}
-	if IsUtf32AndPrintable(bytes) {
-		rr := make([]rune, len(bytes)/4)
-		for i := 0; i < len(bytes); i += 4 {
-			rr[i/4] = rune(binary.LittleEndian.Uint32(bytes[i:]))
+	if IsUtf32AndPrintable(bs) {
+		rr := make([]rune, len(bs)/4)
+		for i := 0; i < len(bs); i += 4 {
+			rr[i/4] = rune(binary.LittleEndian.Uint32(bs[i:]))
 		}
 		fmt.Println(string(rr))
 		return
 	}
 	fmt.Println(value)
 
-	for _, c := range bytes {
+	for _, c := range bs {
 		if c >= unicode.MaxASCII {
 			fmt.Print(".")
 		} else {
@@ -404,32 +404,34 @@ func metric_invoke() error {
 		return errors.New("unsupported action - " + *action)
 	}
 
-	bytes, err := ioutil.ReadAll(resp.Body)
+	bs, err := ioutil.ReadAll(resp.Body)
 	if nil != err {
 		return fmt.Errorf("read body failed - " + err.Error())
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return errors.New(string(bytes))
+		return errors.New(string(bs))
 	}
 
 	returnObject := commons.SimpleResult{}
-	err = json.Unmarshal(bytes, &returnObject)
+	decoder := json.NewDecoder(bytes.NewBuffer(bs))
+	decoder.UseNumber()
+	err = decoder.Decode(&returnObject)
 	if nil != err {
-		return errors.New("unmarshal failed - " + err.Error() + "\n" + string(bytes))
+		return errors.New("unmarshal failed - " + err.Error() + "\n" + string(bs))
 	}
 	value := returnObject.InterfaceValue()
 	if nil == value {
-		return errors.New("result is empty.\n" + string(bytes))
+		return errors.New("result is empty.\n" + string(bs))
 	}
 	// vbs := value.(map[string]interface{})
 	// if 0 == len(vbs) {
-	// 	return errors.New("result is empty." + "\n" + string(bytes))
+	// 	return errors.New("result is empty." + "\n" + string(bs))
 	// }
 
-	bs, err := json.MarshalIndent(value, "", "  ")
+	bs, err = json.MarshalIndent(value, "", "  ")
 	if nil != err {
-		return errors.New("marshal failed - " + err.Error() + "\n" + string(bytes))
+		return errors.New("marshal failed - " + err.Error() + "\n" + string(bs))
 	}
 	fmt.Println(string(bs))
 	return nil

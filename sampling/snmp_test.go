@@ -17,19 +17,19 @@ func TestSnmpRead(t *testing.T) {
 			columns       string
 			error_code    int
 			error_message string
-		}{{action: "snmp_get", oid: "", error_code: commons.BadRequestCode, error_message: "'oid' is empty."},
+		}{{action: "snmp_get", oid: "", error_code: commons.BadRequestCode, error_message: "'snmp.oid' is empty."},
 			{action: "snmp_get", oid: "1.3.6.1.2.1.1.5.0", error_code: 0, error_message: ""},
 			{action: "snmp_next", oid: "1.3.6.1.2.1.1.4.0", error_code: 0, error_message: ""},
 			//{action: "snmp_bulk", oid: "1.3.6.1.2.1.1.4.0,1.3.6.1.2.1.1.5.0", error_code: 0, error_message: ""},
 			{action: "snmp_table", oid: "1.3.6.1.2.1.2.2.1", error_code: 0, error_message: ""},
 			{action: "snmp_table", oid: "1.3.6.1.2.1.2.2.1", columns: "1,2,3,4,5,6", error_code: 0, error_message: ""}} {
 
-			params := map[string]string{"oid": test.oid,
+			params := map[string]string{"snmp.oid": test.oid,
 				"snmp.version":        "v2c",
 				"snmp.read_community": "public"}
 
 			if "snmp_table" == test.action && 0 != len(test.columns) {
-				params["columns"] = test.columns
+				params["snmp.columns"] = test.columns
 			}
 			res := nativeGet(t, sampling_url, "127.0.0.1", test.action, params)
 
@@ -124,14 +124,14 @@ func TestSnmpRead(t *testing.T) {
 
 func TestSnmpWrite(t *testing.T) {
 	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
-		sss := snmpclient.SnmpOctetString("aaaaaaa")
+		sss := snmpclient.SnmpOctetString("cccccc")
 		for idx, test := range []struct {
 			action        string
 			oid           string
 			body          interface{}
 			error_code    int
 			error_message string
-		}{{action: "snmp_set", oid: "", body: "aaa", error_code: commons.BadRequestCode, error_message: "'oid' is empty."},
+		}{{action: "snmp_set", oid: "", body: "aaa", error_code: commons.BadRequestCode, error_message: "'snmp.oid' is empty."},
 			{action: "snmp_set", oid: "1.3.6.1.2.1.1.6.0", body: sss.String(), error_code: 0, error_message: ""}} {
 
 			read_params := map[string]string{"snmp.version": "v2c",
@@ -142,7 +142,7 @@ func TestSnmpWrite(t *testing.T) {
 				continue
 			}
 
-			params := map[string]string{"oid": test.oid,
+			params := map[string]string{"snmp.oid": test.oid,
 				"snmp.version":         "v2c",
 				"snmp.write_community": "private",
 				"timeout":              "1s"}

@@ -97,6 +97,7 @@ go get bitbucket.org/liamstask/goose
 @if NOT exist %PUBLISH_PATH%\lib\alerts mkdir %PUBLISH_PATH%\lib\alerts
 @if NOT exist %PUBLISH_PATH%\lib\alerts\templates mkdir %PUBLISH_PATH%\lib\alerts\templates
 @if NOT exist %PUBLISH_PATH%\conf mkdir %PUBLISH_PATH%\conf
+@if NOT exist %PUBLISH_PATH%\tools mkdir %PUBLISH_PATH%\tools
 
 :build_3td_library
 @if not defined is_compile goto build_3td_library_ok
@@ -217,11 +218,20 @@ cd %ENGINE_PATH%\src\sampling\sampling
 del "*.exe"
 go build
 @if errorlevel 1 goto failed
+cd %ENGINE_PATH%\src\sampling\snmptools
+del "*.exe"
+go build
+@if errorlevel 1 goto failed
 
 :install_sampling
 @if not defined is_install goto test_poller
+cd %ENGINE_PATH%\src\sampling\sampling
 copy "sampling.exe"  %PUBLISH_PATH%\bin\tpt_sampling.exe
 @if errorlevel 1 goto failed
+cd %ENGINE_PATH%\src\sampling\snmptools
+copy "snmptools.exe"  %PUBLISH_PATH%\tools\tpt_snmptools.exe
+@if errorlevel 1 goto failed
+
 copy "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" %PUBLISH_PATH%\bin\lua52_amd64.dll
 @if errorlevel 1 goto failed
 copy "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" %PUBLISH_PATH%\bin\cjson_amd64.dll

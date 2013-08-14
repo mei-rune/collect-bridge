@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type result_type int
@@ -472,7 +473,7 @@ func (self *interfaceAll) Call(params MContext) commons.Result {
 			new_row["ifOutDiscards"] = GetUint64(params, old_row, "19", 0)
 			new_row["ifOutErrors"] = GetUint64(params, old_row, "20", 0)
 			new_row["ifOutQLen"] = GetUint64(params, old_row, "21", 0)
-			new_row["ifSpecific"] = GetUint64(params, old_row, "22", 0)
+			new_row["ifSpecific"] = GetOid(params, old_row, "22")
 			return new_row, nil
 		})
 }
@@ -530,7 +531,7 @@ func (self *interfaceDescr) Call(params MContext) commons.Result {
 			new_row["ifMtu"] = GetInt32(params, old_row, "4", -1)
 			new_row["ifSpeed"] = GetUint64(params, old_row, "5", 0)
 			new_row["ifPhysAddress"] = GetHardwareAddress(params, old_row, "6")
-			new_row["ifSpecific"] = GetUint64(params, old_row, "22", 0)
+			new_row["ifSpecific"] = GetOid(params, old_row, "22")
 			return new_row, nil
 		})
 }
@@ -627,15 +628,25 @@ type snmpRead struct {
 }
 
 func (self *snmpRead) Call(params MContext) commons.Result {
-	oid, e := params.GetString("oid")
-	if nil != e {
-		return commons.ReturnWithIsRequired("oid")
+	address := params.GetStringWithDefault("@address", "")
+	if 0 == len(address) {
+		return commons.ReturnWithIsRequired("@address")
 	}
-	if 0 == len(oid) {
-		return commons.ReturnWithBadRequest("'oid' is empty.")
+	idx := strings.IndexRune(address, ',')
+	if -1 != idx {
+		params.Set("@address", address[0:idx])
+		params.Set("snmp.port", address[idx+1:])
 	}
 
-	typ := params.GetStringWithDefault("type", "")
+	oid, e := params.GetString("snmp.oid")
+	if nil != e {
+		return commons.ReturnWithIsRequired("snmp.oid")
+	}
+	if 0 == len(oid) {
+		return commons.ReturnWithBadRequest("'snmp.oid' is empty.")
+	}
+
+	typ := params.GetStringWithDefault("snmp.type", "")
 	switch typ {
 	case "string":
 		return self.ReadResult(params, self.action, oid, RES_STRING)
@@ -663,13 +674,24 @@ type snmpWrite struct {
 }
 
 func (self *snmpWrite) Call(params MContext) commons.Result {
-	oid, e := params.GetString("oid")
+	address := params.GetStringWithDefault("@address", "")
+	if 0 == len(address) {
+		return commons.ReturnWithIsRequired("@address")
+	}
+	idx := strings.IndexRune(address, ',')
+	if -1 != idx {
+		params.Set("@address", address[0:idx])
+		params.Set("snmp.port", address[idx+1:])
+	}
+
+	oid, e := params.GetString("snmp.oid")
 	if nil != e {
-		return commons.ReturnWithIsRequired("oid")
+		return commons.ReturnWithIsRequired("snmp.oid")
 	}
 	if 0 == len(oid) {
-		return commons.ReturnWithBadRequest("'oid' is empty.")
+		return commons.ReturnWithBadRequest("'snmp.oid' is empty.")
 	}
+
 	body, e := params.Body()
 	if nil != e {
 		return commons.ReturnWithBadRequest("read body failed, " + e.Error())
@@ -690,15 +712,25 @@ type snmpTable struct {
 }
 
 func (self *snmpTable) Call(params MContext) commons.Result {
-	oid, e := params.GetString("oid")
-	if nil != e {
-		return commons.ReturnWithIsRequired("oid")
+	address := params.GetStringWithDefault("@address", "")
+	if 0 == len(address) {
+		return commons.ReturnWithIsRequired("@address")
 	}
-	if 0 == len(oid) {
-		return commons.ReturnWithBadRequest("'oid' is empty.")
+	idx := strings.IndexRune(address, ',')
+	if -1 != idx {
+		params.Set("@address", address[0:idx])
+		params.Set("snmp.port", address[idx+1:])
 	}
 
-	return self.GetAllResult(params, oid, params.GetStringWithDefault("columns", ""),
+	oid, e := params.GetString("snmp.oid")
+	if nil != e {
+		return commons.ReturnWithIsRequired("snmp.oid")
+	}
+	if 0 == len(oid) {
+		return commons.ReturnWithBadRequest("'snmp.oid' is empty.")
+	}
+
+	return self.GetAllResult(params, oid, params.GetStringWithDefault("snmp.columns", ""),
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			return old_row, nil
 		})

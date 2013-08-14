@@ -13,7 +13,7 @@ type Route struct {
 	invoke     Method
 }
 
-func (self *Route) Invoke(params commons.Map) commons.Result {
+func (self *Route) Invoke(params MContext) commons.Result {
 	return self.invoke.Call(params)
 }
 
@@ -106,7 +106,7 @@ func (self *Routers) clear() {
 	self.routes = self.routes[0:0]
 }
 
-func (self *Routers) Invoke(params commons.Map) commons.Result {
+func (self *Routers) Invoke(params MContext) commons.Result {
 	for _, s := range self.routes {
 		matched, e := s.matchers.Match(params, false)
 		if nil != e {

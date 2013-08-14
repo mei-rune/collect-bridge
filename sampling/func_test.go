@@ -7,6 +7,14 @@ import (
 	"time"
 )
 
+type MockContext struct {
+	commons.StringMap
+}
+
+func (self MockContext) Body() interface{} {
+	return self.GetWithDefault("body", nil)
+}
+
 func TestSysOid(t *testing.T) {
 	snmp := snmp.NewSnmpDriver(10*time.Second, nil)
 	e := snmp.Start()
@@ -22,10 +30,10 @@ func TestSysOid(t *testing.T) {
 		t.Error(e)
 		return
 	}
-	res := sys.Call(commons.StringMap(map[string]string{"snmp.version": "v2c",
+	res := sys.Call(MockContext{commons.StringMap(map[string]string{"snmp.version": "v2c",
 		"@address":            "127.0.0.1",
 		"snmp.port":           "161",
-		"snmp.read_community": "public"}))
+		"snmp.read_community": "public"})})
 	if res.HasError() {
 		t.Error(res.Error())
 		return
@@ -56,7 +64,7 @@ func TestSysOidFailed(t *testing.T) {
 		t.Error(e)
 		return
 	}
-	res := sys.Call(commons.StringMap(map[string]string{}))
+	res := sys.Call(MockContext{commons.StringMap(map[string]string{})})
 	if !res.HasError() {
 		t.Error("excepted error is ''snmp' is required.', actual is nil")
 		return

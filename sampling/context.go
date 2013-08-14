@@ -17,6 +17,7 @@ func split(exp string) (string, string) {
 }
 
 type context struct {
+	body         interface{}
 	params       map[string]string
 	managed_type string
 	managed_id   string
@@ -26,6 +27,10 @@ type context struct {
 	local         map[string]map[string]interface{}
 	pry           *proxy
 	metrics_cache map[string]interface{}
+}
+
+func (self *context) Body() interface{} {
+	return self.body
 }
 
 func (self *context) CopyTo(copy map[string]interface{}) {

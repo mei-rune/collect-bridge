@@ -93,11 +93,38 @@ func (self *snmpBase) copyParameter(params MContext, snmp_params map[string]stri
 	}
 	return nil
 }
+func (self *snmpBase) GetNext(params MContext, oid string) (map[string]interface{}, error) {
+	return self.Read(params, "next", oid)
+}
 
 func (self *snmpBase) Get(params MContext, oid string) (map[string]interface{}, error) {
+	return self.Read(params, "get", oid)
+}
+
+func (self *snmpBase) GetBulk(params MContext, oid string) (map[string]interface{}, error) {
+	return self.Read(params, "bulk", oid)
+}
+
+func (self *snmpBase) Write(params MContext, oid string, value interface{}) error {
 	snmp_params := make(map[string]string)
 	snmp_params["snmp.oid"] = oid
-	snmp_params["snmp.action"] = "get"
+	snmp_params["snmp.action"] = "set"
+	e := self.copyParameter(params, snmp_params, "write")
+	if nil != e {
+		return e
+	}
+	res := self.drv.Put(snmp_params, value)
+	if res.HasError() {
+		return res.Error()
+	}
+
+	return nil
+}
+
+func (self *snmpBase) Read(params MContext, action, oid string) (map[string]interface{}, error) {
+	snmp_params := make(map[string]string)
+	snmp_params["snmp.oid"] = oid
+	snmp_params["snmp.action"] = action
 	e := self.copyParameter(params, snmp_params, "read")
 	if nil != e {
 		return nil, e
@@ -119,7 +146,11 @@ func (self *snmpBase) Get(params MContext, oid string) (map[string]interface{}, 
 }
 
 func (self *snmpBase) GetResult(params MContext, oid string, rt result_type) commons.Result {
-	values, e := self.Get(params, oid)
+	return self.ReadResult(params, "get", oid, rt)
+}
+
+func (self *snmpBase) ReadResult(params MContext, action, oid string, rt result_type) commons.Result {
+	values, e := self.Read(params, action, oid)
 	if nil != e {
 		return commons.ReturnWithInternalError(e.Error())
 	}
@@ -355,7 +386,10 @@ type systemUpTime struct {
 
 func (self *systemUpTime) Call(params MContext) commons.Result {
 	t, e := self.GetUint64(params, "1.3.6.1.2.1.1.3.0")
-	return commons.Return(t/100).SetError(commons.InternalErrorCode, e.Error())
+	if nil != e {
+		return commons.Return(0).SetError(commons.InternalErrorCode, e.Error())
+	}
+	return commons.Return(t / 100)
 }
 
 type systemLocation struct {
@@ -405,7 +439,7 @@ type interfaceAll struct {
 }
 
 func (self *interfaceAll) Call(params MContext) commons.Result {
-	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
+	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
 			new_row["ifIndex"] = GetInt32(params, old_row, "1", -1)
@@ -429,6 +463,46 @@ func (self *interfaceAll) Call(params MContext) commons.Result {
 			new_row["ifOutDiscards"] = GetUint64(params, old_row, "19", 0)
 			new_row["ifOutErrors"] = GetUint64(params, old_row, "20", 0)
 			new_row["ifOutQLen"] = GetUint64(params, old_row, "21", 0)
+			new_row["ifSpecific"] = GetUint64(params, old_row, "22", 0)
+			return new_row, nil
+		})
+}
+
+type interfaceStatus struct {
+	snmpBase
+}
+
+func (self *interfaceStatus) Call(params MContext) commons.Result {
+	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,7,8",
+		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
+			new_row := map[string]interface{}{}
+			new_row["ifIndex"] = GetInt32(params, old_row, "1", -1)
+			new_row["ifAdminStatus"] = GetInt32(params, old_row, "7", -1)
+			new_row["ifOpStatus"] = GetInt32(params, old_row, "8", -1)
+			return new_row, nil
+		})
+}
+
+type interfaceScalar struct {
+	snmpBase
+}
+
+func (self *interfaceScalar) Call(params MContext) commons.Result {
+	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,10,11,12,13,14,15,16,17,18,19,20",
+		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
+			new_row := map[string]interface{}{}
+			new_row["ifIndex"] = GetInt32(params, old_row, "1", -1)
+			new_row["ifInOctets"] = GetUint64(params, old_row, "10", 0)
+			new_row["ifInUcastPkts"] = GetUint64(params, old_row, "11", 0)
+			new_row["ifInNUcastPkts"] = GetUint64(params, old_row, "12", 0)
+			new_row["ifInDiscards"] = GetUint64(params, old_row, "13", 0)
+			new_row["ifInErrors"] = GetUint64(params, old_row, "14", 0)
+			new_row["ifInUnknownProtos"] = GetUint64(params, old_row, "15", 0)
+			new_row["ifOutOctets"] = GetUint64(params, old_row, "16", 0)
+			new_row["ifOutUcastPkts"] = GetUint64(params, old_row, "17", 0)
+			new_row["ifOutNUcastPkts"] = GetUint64(params, old_row, "18", 0)
+			new_row["ifOutDiscards"] = GetUint64(params, old_row, "19", 0)
+			new_row["ifOutErrors"] = GetUint64(params, old_row, "20", 0)
 			return new_row, nil
 		})
 }
@@ -438,7 +512,7 @@ type interfaceDescr struct {
 }
 
 func (self *interfaceDescr) Call(params MContext) commons.Result {
-	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6",
+	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,22",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
 			new_row["ifIndex"] = GetInt32(params, old_row, "1", -1)
@@ -447,6 +521,7 @@ func (self *interfaceDescr) Call(params MContext) commons.Result {
 			new_row["ifMtu"] = GetInt32(params, old_row, "4", -1)
 			new_row["ifSpeed"] = GetUint64(params, old_row, "5", 0)
 			new_row["ifPhysAddress"] = GetHardwareAddress(params, old_row, "6")
+			new_row["ifSpecific"] = GetUint64(params, old_row, "22", 0)
 			return new_row, nil
 		})
 }
@@ -537,7 +612,111 @@ SERVICES:
 	return commons.Return((services & 0x7) >> 1)
 }
 
+type snmpRead struct {
+	snmpBase
+	action string
+}
+
+func (self *snmpRead) Call(params MContext) commons.Result {
+	oid, e := params.GetString("oid")
+	if nil != e {
+		return commons.ReturnWithIsRequired("oid")
+	}
+	if 0 == len(oid) {
+		return commons.ReturnWithBadRequest("'oid' is empty.")
+	}
+
+	typ := params.GetStringWithDefault("type", "")
+	switch typ {
+	case "string":
+		return self.ReadResult(params, self.action, oid, RES_STRING)
+	case "oid":
+		return self.ReadResult(params, self.action, oid, RES_OID)
+	case "int32":
+		return self.ReadResult(params, self.action, oid, RES_INT32)
+	case "int64":
+		return self.ReadResult(params, self.action, oid, RES_INT64)
+	case "uint32":
+		return self.ReadResult(params, self.action, oid, RES_UINT32)
+	case "uint64":
+		return self.ReadResult(params, self.action, oid, RES_UINT64)
+	default:
+		values, e := self.Read(params, self.action, oid)
+		if nil != e {
+			return commons.ReturnWithInternalError(e.Error())
+		}
+		return commons.Return(values)
+	}
+}
+
+type snmpWrite struct {
+	snmpBase
+}
+
+func (self *snmpWrite) Call(params MContext) commons.Result {
+	oid, e := params.GetString("oid")
+	if nil != e {
+		return commons.ReturnWithIsRequired("oid")
+	}
+	if 0 == len(oid) {
+		return commons.ReturnWithBadRequest("'oid' is empty.")
+	}
+	e = self.Write(params, oid, params.Body())
+	if nil != e {
+		return commons.ReturnWithInternalError(e.Error())
+	}
+	return commons.Return(true)
+}
+
+type snmpTable struct {
+	snmpBase
+}
+
+func (self *snmpTable) Call(params MContext) commons.Result {
+	oid, e := params.GetString("oid")
+	if nil != e {
+		return commons.ReturnWithIsRequired("oid")
+	}
+	if 0 == len(oid) {
+		return commons.ReturnWithBadRequest("'oid' is empty.")
+	}
+
+	return self.GetAllResult(params, oid, params.GetStringWithDefault("columns", ""),
+		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
+			return old_row, nil
+		})
+}
+
 func init() {
+
+	Methods["snmp_get"] = newRouteSpec("get", "snmp_get", "get a snmp value", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &snmpRead{action: "get"}
+			return drv, drv.Init(params)
+		})
+	Methods["snmp_next"] = newRouteSpec("get", "snmp_next", "get a next snmp value", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &snmpRead{action: "next"}
+			return drv, drv.Init(params)
+		})
+
+	Methods["snmp_bulk"] = newRouteSpec("get", "snmp_bulk", "get some snmp value", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &snmpRead{action: "bulk"}
+			return drv, drv.Init(params)
+		})
+
+	Methods["snmp_table"] = newRouteSpec("get", "snmp_table", "get a snmp table", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &snmpTable{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["snmp_set"] = newRouteSpec("put", "snmp_set", "set a snmp value", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &snmpWrite{}
+			return drv, drv.Init(params)
+		})
 
 	Methods["sys_oid"] = newRouteSpec("get", "sys.oid", "the oid of system", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
@@ -596,6 +775,17 @@ func init() {
 	Methods["interfaceDescr"] = newRouteSpec("get", "interfaceDescr", "the descr part of interface info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &interfaceDescr{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["interfaceStatus"] = newRouteSpec("get", "interfaceStatus", "the status part of interface info", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &interfaceStatus{}
+			return drv, drv.Init(params)
+		})
+	Methods["interfaceScalar"] = newRouteSpec("get", "interfaceScalar", "the scalar part of interface info", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &interfaceScalar{}
 			return drv, drv.Init(params)
 		})
 }

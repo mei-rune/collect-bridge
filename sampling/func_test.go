@@ -11,8 +11,11 @@ type MockContext struct {
 	commons.StringMap
 }
 
-func (self MockContext) Body() interface{} {
-	return self.GetWithDefault("body", nil)
+func (self MockContext) SetBodyClass(value interface{}) {
+}
+
+func (self MockContext) Body() (interface{}, error) {
+	return self.GetWithDefault("body", nil), nil
 }
 
 func TestSysOid(t *testing.T) {

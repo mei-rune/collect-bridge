@@ -24,7 +24,8 @@ type Filter struct {
 
 type MContext interface {
 	commons.Map
-	Body() interface{}
+	SetBodyClass(value interface{})
+	Body() (interface{}, error)
 }
 
 type Method interface {

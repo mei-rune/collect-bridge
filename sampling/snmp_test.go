@@ -4,6 +4,7 @@ import (
 	"commons"
 	"commons/types"
 	ds "data_store"
+	"github.com/runner-mei/snmpclient"
 	"strings"
 	"testing"
 )
@@ -117,6 +118,78 @@ func TestSnmpRead(t *testing.T) {
 				t.Errorf("test[%v]: excepted is '[octets]', actual is '%v'", idx, res.Value())
 			}
 			t.Logf("test[%v]: result is '%v'", idx, res.Value())
+		}
+	})
+}
+
+func TestSnmpWrite(t *testing.T) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
+		sss := snmpclient.SnmpOctetString("aaaaaaa")
+		for idx, test := range []struct {
+			action        string
+			oid           string
+			body          interface{}
+			error_code    int
+			error_message string
+		}{{action: "snmp_set", oid: "", body: "aaa", error_code: commons.BadRequestCode, error_message: "'oid' is empty."},
+			{action: "snmp_set", oid: "1.3.6.1.2.1.1.6.0", body: sss.String(), error_code: 0, error_message: ""}} {
+
+			read_params := map[string]string{"snmp.version": "v2c",
+				"snmp.read_community": "public"}
+			old_res1 := nativeGet(t, sampling_url, "127.0.0.1", "sys.location", read_params)
+			if old_res1.HasError() {
+				t.Errorf("test[%v]: %v", idx, old_res1.Error())
+				continue
+			}
+
+			params := map[string]string{"oid": test.oid,
+				"snmp.version":         "v2c",
+				"snmp.write_community": "private",
+				"timeout":              "1s"}
+			res := nativePut(t, sampling_url, "127.0.0.1", test.action, params, test.body)
+			if res.HasError() {
+				if 0 != test.error_code {
+					if test.error_code != res.ErrorCode() {
+						t.Errorf("test[%v]: excepted error_code is '%v', actual error_code is '%v'", idx, test.error_code, res.ErrorCode())
+					}
+
+					if !strings.Contains(res.ErrorMessage(), test.error_message) {
+						t.Errorf("test[%v]: excepted error_message contains '%v', actual error_message is '%v'", idx, test.error_message, res.ErrorMessage())
+					}
+					continue
+				}
+				t.Errorf("test[%v]: %v", idx, res.Error())
+				continue
+			}
+
+			old_res2 := nativeGet(t, sampling_url, "127.0.0.1", "sys.location", read_params)
+			if old_res2.HasError() {
+				t.Errorf("test[%v]: %v", idx, old_res2.Error())
+				continue
+			}
+			s1, e := old_res1.Value().AsString()
+			if nil != e {
+				t.Errorf("test[%v]: convert old_res1 failed, %v -- %T", idx, e.Error(), old_res1.InterfaceValue())
+				continue
+			}
+			s2, e := old_res2.Value().AsString()
+			if nil != e {
+				t.Errorf("test[%v]: convert old_res2 failed, %v -- %T", idx, e.Error(), old_res1.InterfaceValue())
+				continue
+			}
+
+			if s1 == s2 {
+				t.Errorf("test[%v]: edit failed, s1 is %v, s2 is %v", idx, s1, s2)
+				continue
+			}
+			t.Log(s1)
+
+			old_value := snmpclient.SnmpOctetString(s1)
+			res = nativePut(t, sampling_url, "127.0.0.1", test.action, params, old_value.String())
+			if res.HasError() {
+				t.Errorf("test[%v]: %v", idx, res.Error())
+				continue
+			}
 		}
 	})
 }

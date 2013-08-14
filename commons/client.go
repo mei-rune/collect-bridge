@@ -48,15 +48,28 @@ func (self *HttpClient) CreateUrl() *UrlBuilder {
 	return NewUrlBuilder(self.Url)
 }
 
-func (self *HttpClient) Invoke(action, url string, msg []byte, exceptedCode int) Result {
-	if nil == msg {
-		return self.invokeAction(action, url, nil, exceptedCode)
+func (self *HttpClient) InvokeWithObject(action, url string, body interface{}, exceptedCode int) Result {
+	if nil == body {
+		return self.InvokeWith(action, url, nil, exceptedCode)
 	} else {
-		return self.invokeAction(action, url, bytes.NewBuffer(msg), exceptedCode)
+		buffer := bytes.NewBuffer(make([]byte, 0, 1000))
+		e := json.NewEncoder(buffer).Encode(body)
+		if nil != e {
+			return ReturnError(BadRequestCode, e.Error())
+		}
+		return self.InvokeWith(action, url, buffer, exceptedCode)
 	}
 }
 
-func (self *HttpClient) invokeAction(action, url string, body io.Reader, exceptedCode int) Result {
+func (self *HttpClient) InvokeWithBytes(action, url string, msg []byte, exceptedCode int) Result {
+	if nil == msg {
+		return self.InvokeWith(action, url, nil, exceptedCode)
+	} else {
+		return self.InvokeWith(action, url, bytes.NewBuffer(msg), exceptedCode)
+	}
+}
+
+func (self *HttpClient) InvokeWith(action, url string, body io.Reader, exceptedCode int) Result {
 	self.Warnings = nil
 
 	//fmt.Println(action, url)
@@ -121,12 +134,7 @@ func NewClient(url, target string) *Client {
 }
 
 func (self *Client) Create(params map[string]string, body interface{}) Result {
-	buffer := bytes.NewBuffer(make([]byte, 0, 1000))
-	e := json.NewEncoder(buffer).Encode(body)
-	if nil != e {
-		return ReturnError(BadRequestCode, e.Error())
-	}
-	return self.invokeAction("POST", self.CreateUrl().WithQueries(params, "").ToUrl(), buffer, 201)
+	return self.InvokeWithObject("POST", self.CreateUrl().WithQueries(params, "").ToUrl(), body, 201)
 }
 
 func (self *Client) Put(params map[string]string, body interface{}) Result {
@@ -136,33 +144,27 @@ func (self *Client) Put(params map[string]string, body interface{}) Result {
 	}
 	delete(params, "id")
 
-	buffer := bytes.NewBuffer(make([]byte, 0, 1000))
-	e := json.NewEncoder(buffer).Encode(body)
-	if nil != e {
-		return ReturnError(BadRequestCode, e.Error())
-	}
-
-	return self.invokeAction("PUT", self.CreateUrl().Concat(id).WithQueries(params, "").ToUrl(), buffer, 200)
+	return self.InvokeWithObject("PUT", self.CreateUrl().Concat(id).WithQueries(params, "").ToUrl(), body, 200)
 }
 
 func (self *Client) Delete(params map[string]string) Result {
 	id := params["id"]
 
 	if 0 == len(id) {
-		return ReturnWithIsRequired("id")
+		return self.InvokeWith("DELETE", self.CreateUrl().WithQueries(params, "").ToUrl(), nil, 200)
 	}
 
 	delete(params, "id")
-	return self.invokeAction("DELETE", self.CreateUrl().Concat(id).WithQueries(params, "").ToUrl(), nil, 200)
+	return self.InvokeWith("DELETE", self.CreateUrl().Concat(id).WithQueries(params, "").ToUrl(), nil, 200)
 }
 
 func (self *Client) Get(params map[string]string) Result {
 	id := params["id"]
 
 	if 0 == len(id) {
-		return self.invokeAction("GET", self.CreateUrl().WithQueries(params, "").ToUrl(), nil, 200)
+		return self.InvokeWith("GET", self.CreateUrl().WithQueries(params, "").ToUrl(), nil, 200)
 	}
 
 	delete(params, "id")
-	return self.invokeAction("GET", self.CreateUrl().Concat(id).WithQueries(params, "").ToUrl(), nil, 200)
+	return self.InvokeWith("GET", self.CreateUrl().Concat(id).WithQueries(params, "").ToUrl(), nil, 200)
 }

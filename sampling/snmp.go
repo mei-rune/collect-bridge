@@ -72,6 +72,15 @@ func (self *snmpBase) copyParameter(params MContext, snmp_params map[string]stri
 	}
 	snmp_params["snmp.address"] = address
 	snmp_params["snmp.port"] = params.GetStringWithDefault("snmp.port", "")
+	timeout := params.GetStringWithDefault("snmp.timeout", "")
+	if 0 == len(timeout) {
+		timeout = params.GetStringWithDefault("timeout", "")
+		if 0 != len(timeout) {
+			snmp_params["snmp.timeout"] = timeout
+		}
+	} else {
+		snmp_params["snmp.timeout"] = timeout
+	}
 
 	switch version {
 	case "v3", "V3", "3":
@@ -661,7 +670,15 @@ func (self *snmpWrite) Call(params MContext) commons.Result {
 	if 0 == len(oid) {
 		return commons.ReturnWithBadRequest("'oid' is empty.")
 	}
-	e = self.Write(params, oid, params.Body())
+	body, e := params.Body()
+	if nil != e {
+		return commons.ReturnWithBadRequest("read body failed, " + e.Error())
+	}
+	if nil == body {
+		return commons.ReturnWithBadRequest("'body' is nil.")
+	}
+
+	e = self.Write(params, oid, body)
 	if nil != e {
 		return commons.ReturnWithInternalError(e.Error())
 	}

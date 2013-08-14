@@ -118,7 +118,8 @@ func (self *server) native_invoke(req *restful.Request, resp *restful.Response, 
 		panic("empty_mo is not empty.")
 	}
 
-	params := &context{params: query_params,
+	params := &context{body_reader: req.Request.Body,
+		params:       query_params,
 		managed_type: "unknow_type",
 		managed_id:   "unknow_id",
 		mo:           empty_mo,

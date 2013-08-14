@@ -63,7 +63,7 @@ func (self *Client) SaveBy(target string, params map[string]string,
 }
 
 func (self *Client) CreateJson(url string, msg []byte) (commons.Result, string, commons.RuntimeError) {
-	res := self.Invoke("POST", url, msg, 201)
+	res := self.InvokeWithBytes("POST", url, msg, 201)
 	if res.HasError() {
 		return nil, "", res.Error()
 	}
@@ -106,7 +106,7 @@ func (self *Client) UpdateBy(target string, params map[string]string,
 }
 
 func (self *Client) UpdateJson(url string, msg []byte) (int64, commons.RuntimeError) {
-	res := self.Invoke("PUT", url, msg, 200)
+	res := self.InvokeWithBytes("PUT", url, msg, 200)
 	if res.HasError() {
 		return -1, res.Error()
 	}
@@ -118,13 +118,13 @@ func (self *Client) UpdateJson(url string, msg []byte) (int64, commons.RuntimeEr
 }
 
 func (self *Client) DeleteById(target, id string) commons.RuntimeError {
-	res := self.Invoke("DELETE", self.CreateUrl().Concat(target, id).ToUrl(), nil, 200)
+	res := self.InvokeWithBytes("DELETE", self.CreateUrl().Concat(target, id).ToUrl(), nil, 200)
 	return res.Error()
 }
 
 func (self *Client) DeleteBy(target string, params map[string]string) (int64, commons.RuntimeError) {
 	url := self.CreateUrl().Concat(target).WithQueries(params, "@").ToUrl()
-	res := self.Invoke("DELETE", url, nil, 200)
+	res := self.InvokeWithBytes("DELETE", url, nil, 200)
 	if res.HasError() {
 		return -1, res.Error()
 	}
@@ -137,7 +137,7 @@ func (self *Client) DeleteBy(target string, params map[string]string) (int64, co
 
 func (self *Client) Count(target string, params map[string]string) (int64, commons.RuntimeError) {
 	url := self.CreateUrl().Concat(target, "@count").WithQueries(params, "@").ToUrl()
-	res := self.Invoke("GET", url, nil, 200)
+	res := self.InvokeWithBytes("GET", url, nil, 200)
 	if res.HasError() {
 		return -1, res.Error()
 	}
@@ -225,7 +225,7 @@ func (self *Client) Snapshot(target string, params map[string]string) (map[strin
 	url := self.CreateUrl().
 		Concat(target, "@snapshot").
 		WithQueries(params, "@").ToUrl()
-	raw_results := self.Invoke("GET", url, nil, 200)
+	raw_results := self.InvokeWithBytes("GET", url, nil, 200)
 	if raw_results.HasError() {
 		return nil, raw_results.Error()
 	}
@@ -263,7 +263,7 @@ func (self *Client) FindByWithIncludes(target string, params map[string]string, 
 	if 0 != len(includes) {
 		url.WithQuery("includes", includes)
 	}
-	res := self.Invoke("GET", url.ToUrl(), nil, 200)
+	res := self.InvokeWithBytes("GET", url.ToUrl(), nil, 200)
 	if res.HasError() {
 		return nil, res.Error()
 	}
@@ -280,7 +280,7 @@ func (self *Client) FindByIdWithIncludes(target, id string, includes string) (
 	if 0 != len(includes) {
 		url.WithQuery("includes", includes)
 	}
-	res := self.Invoke("GET", url.ToUrl(), nil, 200)
+	res := self.InvokeWithBytes("GET", url.ToUrl(), nil, 200)
 	if res.HasError() {
 		return nil, res.Error()
 	}
@@ -298,7 +298,7 @@ func (self *Client) Children(parent, parent_id, target string, params map[string
 	url := self.CreateUrl().
 		Concat(parent, parent_id, "children", target).
 		WithQueries(params, "@").ToUrl()
-	res := self.Invoke("GET", url, nil, 200)
+	res := self.InvokeWithBytes("GET", url, nil, 200)
 	if res.HasError() {
 		return nil, res.Error()
 	}
@@ -313,7 +313,7 @@ func (self *Client) Parent(child, child_id, target string) (map[string]interface
 	commons.RuntimeError) {
 	url := self.CreateUrl().
 		Concat(child, child_id, "parent", target).ToUrl()
-	res := self.Invoke("GET", url, nil, 200)
+	res := self.InvokeWithBytes("GET", url, nil, 200)
 	if res.HasError() {
 		return nil, res.Error()
 	}

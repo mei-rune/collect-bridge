@@ -35,16 +35,21 @@ func urlGet(t *testing.T, sampling_url, managed_type, managed_id, target string)
 	self := &commons.HttpClient{Url: sampling_url}
 	url := self.CreateUrl().Concat("metrics", managed_type, managed_id, target).ToUrl()
 	t.Log(url)
-	//fmt.Println(url)
-	return self.Invoke("GET", url, nil, 200)
+	return self.InvokeWithObject("GET", url, nil, 200)
 }
 
 func nativeGet(t *testing.T, sampling_url, ip, target string, params map[string]string) commons.Result {
 	self := &commons.HttpClient{Url: sampling_url}
 	url := self.CreateUrl().Concat("metrics", ip, target).WithQueries(params, "").ToUrl()
 	t.Log(url)
-	//fmt.Println(url)
-	return self.Invoke("GET", url, nil, 200)
+	return self.InvokeWithObject("GET", url, nil, 200)
+}
+
+func nativePut(t *testing.T, sampling_url, ip, target string, params map[string]string, body interface{}) commons.Result {
+	self := &commons.HttpClient{Url: sampling_url}
+	url := self.CreateUrl().Concat("metrics", ip, target).WithQueries(params, "").ToUrl()
+	t.Log(url)
+	return self.InvokeWithObject("PUT", url, body, 200)
 }
 
 func TestGetWithNotFound(t *testing.T) {

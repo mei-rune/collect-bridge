@@ -3,8 +3,11 @@ package sampling
 import (
 	"commons"
 	ds "data_store"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"strings"
 )
 
@@ -17,7 +20,10 @@ func split(exp string) (string, string) {
 }
 
 type context struct {
-	body         interface{}
+	body_reader      io.Reader
+	body_value       interface{}
+	body_unmarshaled bool
+
 	params       map[string]string
 	managed_type string
 	managed_id   string
@@ -29,8 +35,31 @@ type context struct {
 	metrics_cache map[string]interface{}
 }
 
-func (self *context) Body() interface{} {
-	return self.body
+func (self *context) SetBodyClass(value interface{}) {
+	self.body_unmarshaled = false
+	self.body_value = value
+}
+
+func (self *context) Body() (interface{}, error) {
+	if !self.body_unmarshaled {
+		if nil == self.body_reader {
+			return nil, nil
+		}
+
+		if nil != self.body_value {
+			bs, e := ioutil.ReadAll(self.body_reader)
+			if nil != e {
+				return nil, e
+			}
+			self.body_value = bs
+		} else {
+			e := json.NewDecoder(self.body_reader).Decode(&self.body_value)
+			if nil != e {
+				return nil, e
+			}
+		}
+	}
+	return self.body_value, nil
 }
 
 func (self *context) CopyTo(copy map[string]interface{}) {

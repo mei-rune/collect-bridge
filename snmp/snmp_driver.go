@@ -23,9 +23,11 @@ func NewSnmpDriver(timeout time.Duration, drvMgr *commons.DriverManager) *SnmpDr
 }
 
 func getTimeout(params map[string]string, timeout time.Duration) time.Duration {
-	v, ok := params["timeout"]
-	if !ok {
-		return timeout
+	v, ok := params["snmp.timeout"]
+	if !ok || 0 == len(v) {
+		if v, ok = params["timeout"]; !ok || 0 == len(v) {
+			return timeout
+		}
 	}
 
 	ret, err := time.ParseDuration(v)
@@ -137,26 +139,34 @@ func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]str
 	case snmpclient.SNMP_PDU_GETBULK:
 		vbs := req.GetVariableBindings()
 		for _, single_oid := range strings.Split(oid, ",") {
-			fmt.Println(single_oid)
+			//single_oid = strings.TrimSpace(single_oid)
+			if 0 == len(single_oid) {
+				continue
+			}
+
 			err = vbs.Append(single_oid, "")
 			if nil != err {
 				break
 			}
 		}
 	case snmpclient.SNMP_PDU_SET:
-		txt, ok := params["body"]
-		if !ok {
-			err = commons.BodyNotExists
-		} else {
+		if nil == body {
+			err = errors.New("'body' is nil.")
+		} else if bs, ok := body.([]byte); ok {
+			err = req.GetVariableBindings().Append(oid, string(bs))
+		} else if txt, ok := body.(string); ok {
 			err = req.GetVariableBindings().Append(oid, txt)
+		} else {
+			err = fmt.Errorf("'body' is not a string - %T", body)
 		}
 	default:
 		err = fmt.Errorf("unknown pdu type %d", int(action))
 	}
 
 	if nil != err {
-		return internalErrorResult("append vb failed", err)
+		return commons.ReturnWithBadRequest(err.Error())
 	}
+
 	resp, err := client.SendAndRecv(req, getTimeout(params, self.timeout))
 	if nil != err {
 		return internalErrorResult("", err)

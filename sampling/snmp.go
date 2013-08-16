@@ -536,6 +536,37 @@ func (self *interfaceDescr) Call(params MContext) commons.Result {
 		})
 }
 
+type tcpConnection struct {
+	snmpBase
+}
+
+func (self *tcpConnection) Call(params MContext) commons.Result {
+	return self.GetAllResult(params, "1.3.6.1.2.1.6.13.1", "1,2,3,4,5",
+		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
+			new_row := map[string]interface{}{}
+			new_row["tcpConnState"] = GetInt32(params, old_row, "1", -1)
+			new_row["tcpConnLocalAddress"] = GetIPAddress(params, old_row, "2")
+			new_row["tcpConnLocalPort"] = GetInt32(params, old_row, "3", 0)
+			new_row["tcpConnRemAddress"] = GetIPAddress(params, old_row, "4")
+			new_row["tcpConnRemPort"] = GetInt32(params, old_row, "5", 0)
+			return new_row, nil
+		})
+}
+
+type udpListen struct {
+	snmpBase
+}
+
+func (self *udpListen) Call(params MContext) commons.Result {
+	return self.GetAllResult(params, "1.3.6.1.2.1.6.13.1", "1,2,3,4,5",
+		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
+			new_row := map[string]interface{}{}
+			new_row["udpLocalAddress"] = GetIPAddress(params, old_row, "1")
+			new_row["udpLocalPort"] = GetInt32(params, old_row, "2", 0)
+			return new_row, nil
+		})
+}
+
 type systemType struct {
 	snmpBase
 	device2id map[string]int
@@ -837,6 +868,19 @@ func init() {
 			drv := &interfaceScalar{}
 			return drv, drv.Init(params)
 		})
+
+	Methods["tcpConnection"] = newRouteSpec("get", "tcpConnection", "the tcp connection table", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &tcpConnection{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["udpListen"] = newRouteSpec("get", "udpListen", "the udp listen table", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &udpListen{}
+			return drv, drv.Init(params)
+		})
+
 }
 
 // func splitsystemOid(oid string) (uint, string) {

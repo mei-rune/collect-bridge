@@ -184,4 +184,18 @@ func init() {
 			drv := &cpuCiscoSAN{}
 			return drv, drv.Init(params)
 		})
+
+	Methods["h3c_cpu"] = newRouteSpec("get", "cpu", "the generic cpu of h3c", Match().Oid("1.3.6.1.4.1.25506").Build(),
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &cpuH3C{}
+			return drv, drv.Init(params)
+		})
+}
+
+type cpuH3C struct {
+	baseH3C
+}
+
+func (self *cpuH3C) Call(params MContext) commons.Result {
+	return self.smartRead("memory", params, self.readCpuWithNewStyle, self.readCpuWithCompatibleStyle)
 }

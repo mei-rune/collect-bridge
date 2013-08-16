@@ -47,3 +47,24 @@ func TestHostMem(t *testing.T) {
 		}
 	})
 }
+
+func TestH3CMem(t *testing.T) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
+		_, e := client.DeleteBy("network_device", emptyParams)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		res := nativeGet(t, sampling_url, "121.0.0.212", "h3c_mem", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		if res.HasError() {
+			t.Error(res.Error())
+			return
+		}
+
+		if nil == res.InterfaceValue() {
+			t.Error("values is nil")
+		}
+
+		t.Log(res.InterfaceValue())
+	})
+}

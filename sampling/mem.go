@@ -158,127 +158,18 @@ func init() {
 			drv := &memCisco{}
 			return drv, drv.Init(params)
 		})
+
+	Methods["h3c_mem"] = newRouteSpec("get", "mem", "the generic mem of h3c", Match().Oid("1.3.6.1.4.1.25506").Build(),
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &memH3C{}
+			return drv, drv.Init(params)
+		})
 }
 
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.6
-// hh3cEntityExtCpuUsage OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32 (0..100)
-//   MAX-ACCESS	read-only
-//   STATUS	current
-//   DESCRIPTION	"The CPU usage for this entity. Generally, the CPU usage
-//             will calculate the overall CPU usage on the entity, and it
-//             is not sensible with the number of CPU on the entity."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 6 }
+type memH3C struct {
+	baseH3C
+}
 
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.7
-// hh3cEntityExtCpuUsageThreshold OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32 (0..100)
-//   MAX-ACCESS	read-write
-//   STATUS	current
-//   DESCRIPTION	"The threshold for the CPU usage. When the CPU usage exceeds
-//             the threshold, a notification will be sent."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 7 }
-
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.8
-// hh3cEntityExtMemUsage OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32 (0..100)
-//   MAX-ACCESS	read-only
-//   STATUS	current
-//   DESCRIPTION	"The memory usage for the entity. This object indicates what
-//             percent of memory are used."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 8 }
-
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.9
-// hh3cEntityExtMemUsageThreshold OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32 (0..100)
-//   MAX-ACCESS	read-write
-//   STATUS	current
-//   DESCRIPTION	"The threshold for the Memory usage, When the memory usage
-//             exceeds the threshold, a notification will be sent."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 9 }
-
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.10
-// hh3cEntityExtMemSize OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Unsigned32
-//   UNITS	""
-//   MAX-ACCESS	read-only
-//   STATUS	current
-//   DESCRIPTION	"The size of memory for the entity."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 10 }
-
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.11
-// hh3cEntityExtUpTime OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32
-//   UNITS	""
-//   MAX-ACCESS	read-only
-//   STATUS	current
-//   DESCRIPTION	"The uptime for the entity. The meaning of uptime is
-//             when the entity is up, and the value of the object
-//             will add 1 seconds while the entity is running."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 11 }
-
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.12
-// hh3cEntityExtTemperature OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32
-//   MAX-ACCESS	read-only
-//   STATUS	current
-//   DESCRIPTION	"The temperature for the entity."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 12 }
-
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.13
-// hh3cEntityExtTemperatureThreshold OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32
-//   MAX-ACCESS	read-write
-//   STATUS	current
-//   DESCRIPTION	"The threshold for the temperature. When the temperature
-//             exceeds the threshold, a notification will be sent."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 13 }
-
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.14
-// hh3cEntityExtVoltage OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32
-//   MAX-ACCESS	read-only
-//   STATUS	current
-//   DESCRIPTION	"The voltage for the entity."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 14 }
-
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.15
-// hh3cEntityExtVoltageLowThreshold OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32
-//   MAX-ACCESS	read-write
-//   STATUS	current
-//   DESCRIPTION	"The low-threshold for the voltage.
-//             When voltage is lower than low-threshold, a notification will be
-//             sent."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 15 }
-
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.16
-// hh3cEntityExtVoltageHighThreshold OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32
-//   MAX-ACCESS	read-write
-//   STATUS	current
-//   DESCRIPTION	"The high-threshold for the voltage.
-//             When voltage greater than high-threshold, a notification will be
-//             sent."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 16 }
-
-// .1.3.6.1.4.1.25506.2.6.1.1.1.1.17
-// hh3cEntityExtCriticalTemperatureThreshold OBJECT-TYPE
-//   -- FROM	HH3C-ENTITY-EXT-MIB
-//   SYNTAX	Integer32
-//   MAX-ACCESS	read-write
-//   STATUS	current
-//   DESCRIPTION	" The threshold for the critical Temperature. When temperature
-//             exceeds the critical temperature, a notification will be sent."
-// ::= { iso(1) org(3) dod(6) internet(1) private(4) enterprises(1) hh3c(25506) hh3cCommon(2) hh3cEntityExtend(6) hh3cEntityExtObjects(1) hh3cEntityExtState(1) hh3cEntityExtStateTable(1) hh3cEntityExtStateEntry(1) 17 }
+func (self *memH3C) Call(params MContext) commons.Result {
+	return self.smartRead("memory", params, self.readMemoryWithNewStyle, self.readMemoryWithCompatibleStyle)
+}

@@ -3,7 +3,9 @@
 
 
 snmptools 使用方法如下:
- snmptools -target=远程主机名  -community=共体名 -action=指标名
+ snmptools -community=共体名 -action=动作 远程主机名或地址  指标名或oid
+
+ 动作 可以是 get next walk 和 table
 
 指标名暂时只有
 system

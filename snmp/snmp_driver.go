@@ -180,7 +180,7 @@ func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]str
 	results := make(map[string]interface{})
 	for _, vb := range resp.GetVariableBindings().All() {
 		if vb.Value.IsError() && 1 == req.GetVariableBindings().Len() {
-			return internalErrorResult("result is error", nil)
+			return internalErrorResult("result is error -- "+vb.Value.String(), nil)
 		}
 
 		results[vb.Oid.GetString()] = vb.Value

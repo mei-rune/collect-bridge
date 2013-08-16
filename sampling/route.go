@@ -114,6 +114,7 @@ func (self *Routers) Invoke(params MContext) commons.Result {
 		}
 
 		if matched {
+			//fmt.Println("invoke", s.id)
 			res := s.invoke.Call(params)
 			if res.ErrorCode() == commons.ContinueCode {
 				continue

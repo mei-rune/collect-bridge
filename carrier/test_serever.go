@@ -41,10 +41,11 @@ func merge(t *testing.T, tag, drv, url string) (string, error) {
 		}
 	}
 
-	f, e := os.OpenFile(file, os.O_RDWR|os.O_TRUNC, 0)
+	f, e := os.OpenFile(file, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0)
 	if nil != e {
 		return "", e
 	}
+	defer f.Close()
 	e = usageTmpl.Execute(f, map[string]interface{}{"driver": drv, "url": url})
 	if nil != e {
 		return "", e

@@ -45,3 +45,7 @@ interop.old
 tools.old
 run_test.bat
 initialize
+
+carrier/db/dbconf-postgresql.yml
+carrier/db/dbconf-mssql.yml
+carrier/db/dbconf-mysql.yml

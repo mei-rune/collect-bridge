@@ -260,7 +260,7 @@ go build
 @if errorlevel 1 goto failed
 
 :install_sampling
-@if not defined is_install goto test_poller
+@if not defined is_install goto test_carrier
 cd %ENGINE_PATH%\src\sampling\sampling
 copy "sampling.exe"  %PUBLISH_PATH%\bin\tpt_sampling.exe
 @if errorlevel 1 goto failed
@@ -273,27 +273,6 @@ copy "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" %PUBLISH_PATH%\bin\lua5
 copy "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" %PUBLISH_PATH%\bin\cjson_amd64.dll
 @if errorlevel 1 goto failed
 xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\microlight\*" %PUBLISH_PATH%\lib\microlight\
-@if errorlevel 1 goto failed
-
-:test_poller
-@if not defined is_test goto build_poller
-cd %ENGINE_PATH%\src\poller
-go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
-go test -v  %test_data_db_url_mysql% %test_delayed_job_db_url_mysql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
-go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=tpt_delayed_jobs -not_limit=true -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
-@if errorlevel 1 goto failed
-
-:build_poller
-@if not defined is_compile goto install_poller
-cd %ENGINE_PATH%\src\poller\poller
-del "*.exe"
-go build
-@if errorlevel 1 goto failed
-:install_poller
-@if not defined is_install goto test_carrier
-copy "poller.exe" %PUBLISH_PATH%\bin\tpt_poller.exe
-@if errorlevel 1 goto failed
-xcopy /Y /S /E %ENGINE_PATH%\src\poller\templates\*   %PUBLISH_PATH%\lib\alerts\templates\
 @if errorlevel 1 goto failed
 
 :test_carrier
@@ -314,12 +293,34 @@ go build
 @if errorlevel 1 goto failed
 
 :install_carrier
-@if not defined is_install goto build_ok
+@if not defined is_install goto test_poller
 copy "carrier.exe" %PUBLISH_PATH%\bin\tpt_carrier.exe
 @if errorlevel 1 goto failed
 xcopy /Y /S /E %ENGINE_PATH%\src\carrier\db\*   %PUBLISH_PATH%\lib\data-migrations\
 @if errorlevel 1 goto failed
 
+
+
+:test_poller
+@if not defined is_test goto build_poller
+cd %ENGINE_PATH%\src\poller
+go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
+go test -v  %test_data_db_url_mysql% %test_delayed_job_db_url_mysql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
+go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=tpt_delayed_jobs -not_limit=true -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
+@if errorlevel 1 goto failed
+
+:build_poller
+@if not defined is_compile goto install_poller
+cd %ENGINE_PATH%\src\poller\poller
+del "*.exe"
+go build
+@if errorlevel 1 goto failed
+:install_poller
+@if not defined is_install goto build_ok
+copy "poller.exe" %PUBLISH_PATH%\bin\tpt_poller.exe
+@if errorlevel 1 goto failed
+xcopy /Y /S /E %ENGINE_PATH%\src\poller\templates\*   %PUBLISH_PATH%\lib\alerts\templates\
+@if errorlevel 1 goto failed
 
 REM cd %ENGINE_PATH%\src\bridge\discovery_tools
 REM go build

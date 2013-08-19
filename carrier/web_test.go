@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/runner-mei/delayed_job"
 	"io/ioutil"
 	"net/http"
 	"strings"

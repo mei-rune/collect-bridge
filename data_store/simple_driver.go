@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -74,9 +75,9 @@ const (
 	MYSQL       = 5
 )
 
-func IsNumericParams(drv string) bool {
+func IsNumericParams(drv int) bool {
 	switch drv {
-	case "postgres":
+	case POSTGRESQL, ORACLE:
 		return true
 	default:
 		return false
@@ -86,15 +87,29 @@ func GetDBType(drv string) int {
 	switch drv {
 	case "postgres":
 		return POSTGRESQL
-	case "mssql":
+	case "mssql", "sqlerver":
 		return MSSQL
 	case "sqlite":
 		return SQLITE
 	case "oracle":
 		return ORACLE
-	case "mysql":
+	case "mysql", "mymysql":
 		return MYSQL
 	default:
+		if strings.HasPrefix(drv, "odbc_with_") {
+			switch drv[len("odbc_with_"):] {
+			case "postgres":
+				return POSTGRESQL
+			case "mssql", "sqlerver":
+				return MSSQL
+			case "sqlite":
+				return SQLITE
+			case "oracle":
+				return ORACLE
+			case "mysql", "mymysql":
+				return MYSQL
+			}
+		}
 		return GENEERIC_DB
 	}
 }
@@ -134,7 +149,7 @@ func simpleDriver(drvName string, db *sql.DB, hasOnly bool, tables *types.TableD
 		from = " FROM ONLY "
 	}
 	return &simple_driver{tables: tables, drv: drvName, dbType: dbType, db: db,
-		isNumericParams: IsNumericParams(drvName), from: from, hasOnly: hasOnly}
+		isNumericParams: IsNumericParams(dbType), from: from, hasOnly: hasOnly}
 }
 
 func (self *simple_driver) newWhere(idx int,

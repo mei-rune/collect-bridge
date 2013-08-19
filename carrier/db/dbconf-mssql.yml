@@ -1,0 +1,11 @@
+test:
+    driver: mssql
+    open: dsn=tpt;uid=tpt;pwd=extreme
+
+development:
+    driver: mssql
+    open: dsn=tpt;uid=tpt;pwd=extreme
+
+production:
+    driver: mssql
+    open: dsn=tpt;uid=tpt;pwd=extreme

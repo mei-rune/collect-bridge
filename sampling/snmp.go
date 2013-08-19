@@ -540,11 +540,34 @@ type tcpConnection struct {
 	snmpBase
 }
 
+var tcpConnectionState = []string{
+	"closed",
+	"listen",
+	"synSent",
+	"synReceived",
+	"established",
+	"finWait1",
+	"finWait2",
+	"closeWait",
+	"lastAck",
+	"closing",
+	"timeWait",
+	"deleteTCB"}
+
+func tcpConnectionStateString(i int32) string {
+	if i < 1 || i > 12 {
+		return "unknow status"
+	}
+
+	return tcpConnectionState[i-1]
+}
+
 func (self *tcpConnection) Call(params MContext) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.2.1.6.13.1", "1,2,3,4,5",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
 			new_row["tcpConnState"] = GetInt32(params, old_row, "1", -1)
+			new_row["tcpConnStateString"] = tcpConnectionStateString(GetInt32(params, old_row, "1", -1))
 			new_row["tcpConnLocalAddress"] = GetIPAddress(params, old_row, "2")
 			new_row["tcpConnLocalPort"] = GetInt32(params, old_row, "3", 0)
 			new_row["tcpConnRemAddress"] = GetIPAddress(params, old_row, "4")

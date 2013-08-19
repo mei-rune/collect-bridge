@@ -1,23 +1,94 @@
 package carrier
 
 import (
+	"bitbucket.org/runner_mei/goose"
 	"database/sql"
 	"fmt"
+	"github.com/runner-mei/delayed_job"
 	"math"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"text/template"
 	"time"
 )
 
+var usageTmpl = template.Must(template.New("config").Parse(
+	`test:
+    driver: {{.driver}}
+    open: {{.url}}
+
+development:
+    driver: {{.driver}}
+    open: {{.url}}
+
+production:
+    driver: {{.driver}}
+    open: {{.url}}
+`))
+
+func merge(t *testing.T, tag, drv, url string) (string, error) {
+	file := filepath.Join("db", "dbconf-"+tag+".yml")
+	files := []string{file,
+		filepath.Join("..", "db", "dbconf-"+tag+".yml"),
+		filepath.Join("carrier", "db", "dbconf-"+tag+".yml"),
+		filepath.Join("..", "carrier", "db", "dbconf-"+tag+".yml")}
+	for _, s := range files {
+		if st, e := os.Stat(s); nil == e && !st.IsDir() {
+			file = s
+		}
+	}
+
+	f, e := os.OpenFile(file, os.O_RDWR|os.O_TRUNC, 0)
+	if nil != e {
+		return "", e
+	}
+	e = usageTmpl.Execute(f, map[string]interface{}{"driver": drv, "url": url})
+	if nil != e {
+		return "", e
+	}
+	return filepath.Dir(file), nil
+}
+
 func SimpleTest(t *testing.T, cb func(db *sql.DB)) {
-	db, e := sql.Open(*db_drv, *db_url)
+	var e error
+	var path string
+	var tag string = *db_drv
+	switch *db_drv {
+	case "mysql":
+		path, e = merge(t, tag, "mysql", *db_url)
+	case "mymysql":
+		tag = "mysql"
+		path, e = merge(t, tag, "mysql", *db_url)
+	case "postgres":
+		tag = "postgresql"
+		path, e = merge(t, tag, "postgres", *db_url)
+	case "odbc_with_mssql":
+		tag = "mssql"
+		path, e = merge(t, tag, "mssql", *db_url)
+	default:
+		t.Error("unsupported driver -- " + *db_drv)
+		return
+	}
+	if nil != e {
+		t.Error("create config failed,", e)
+		return
+	}
+
+	goose.Run("-path="+path, "-tag="+tag, "reset")
+
+	drv := *db_drv
+	if strings.HasPrefix(drv, "odbc_with_") {
+		drv = "odbc"
+	}
+
+	db, e := sql.Open(drv, *db_url)
 	if nil != e {
 		t.Error("connect to db failed,", e)
 		return
 	}
-	mode := *run_mode
-	*run_mode = "reset_db"
-	defer func() { *run_mode = mode }()
 
 	e = Main(true)
 	if nil != e {
@@ -25,13 +96,7 @@ func SimpleTest(t *testing.T, cb func(db *sql.DB)) {
 		return
 	}
 
-	*run_mode = mode
-	e = Main(true)
-	if nil != e {
-		t.Error(e)
-		return
-	}
-
+	delayed_job.SetDbUrl(*db_drv, *db_url)
 	cb(db)
 }
 

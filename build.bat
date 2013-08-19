@@ -53,8 +53,24 @@ echo "PUBLISH_PATH=%PUBLISH_PATH%"
   @set test_data_db_url=-data_db.url="host=127.0.0.1 dbname=tpt_data_test user=tpt password=extreme sslmode=disable"
 )
 
+@if not defined test_data_db_url_mysql (
+  @set test_data_db_url_mysql=-data_db.driver=mysql -data_db.url="tpt:extreme@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true"
+)
+
+@if not defined test_data_db_url_mssql (
+  @set test_delayed_job_db_url_mssql=-data_db.driver=odbc_with_mssql -data_db.url="dsn=tpt;uid=tpt;pwd=extreme"
+)
+
 @if not defined test_delayed_job_db_url (
   @set test_delayed_job_db_url=-db_url="host=127.0.0.1 dbname=tpt_data_test user=tpt password=extreme sslmode=disable"
+)
+
+@if not defined test_delayed_job_db_url_mysql (
+  @set test_delayed_job_db_url_mysql=-db_drv=mysql -db_url="tpt:extreme@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true"
+)
+
+@if not defined test_delayed_job_db_url_mssql (
+  @set test_delayed_job_db_url_mssql=-db_drv=odbc_with_mssql -db_url="dsn=tpt;uid=tpt;pwd=extreme"
 )
 
 
@@ -82,12 +98,30 @@ go get github.com/runner-mei/daemontools
 go get github.com/runner-mei/delayed_job
 go get github.com/garyburd/redigo/redis
 go get github.com/grsmv/inflect
-go get github.com/ziutek/mymysql
-go get github.com/lib/pq
-go get github.com/mattn/go-sqlite3
 go get code.google.com/p/mahonia
 go get code.google.com/p/winsvc
-go get bitbucket.org/liamstask/goose
+
+go get bitbucket.org/runner_mei/goose
+go get bitbucket.org/runner_mei/goose/goose
+go get bitbucket.org/phiggins/go-db2-cli
+go get bitbucket.org/rj/odbc3-go
+go get bitbucket.org/miquella/mgodbc
+go get code.google.com/p/odbc
+go get github.com/LukeMauldin/lodbc
+go get github.com/weigj/go-odbc
+go get github.com/ziutek/mymysql/mysql
+go get github.com/ziutek/mymysql/native
+go get github.com/ziutek/mymysql/godrv
+go get github.com/go-sql-driver/mysql
+go get github.com/lib/pq
+go get github.com/mattn/go-sqlite3
+go get github.com/mattn/go-oci8
+go get github.com/mattn/go-adodb
+go get github.com/wendal/go-oci8
+go get github.com/tgulacsi/goracle/oracle
+go get github.com/tgulacsi/goracle/godrv
+
+
 
 :build_install_directory
 @if not defined is_install goto build_3td_library
@@ -98,10 +132,12 @@ go get bitbucket.org/liamstask/goose
 @if NOT exist %PUBLISH_PATH%\lib\alerts\templates mkdir %PUBLISH_PATH%\lib\alerts\templates
 @if NOT exist %PUBLISH_PATH%\conf mkdir %PUBLISH_PATH%\conf
 @if NOT exist %PUBLISH_PATH%\tools mkdir %PUBLISH_PATH%\tools
+@if NOT exist %PUBLISH_PATH%\lib\data-migrations mkdir %PUBLISH_PATH%\lib\data-migrations
 
 :build_3td_library
 @if not defined is_compile goto build_3td_library_ok
 for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
+  copy "%%a\bin\goose.exe"  "%PUBLISH_PATH%\tpt_goose.exe"
 
   cd "%%a\src\github.com\runner-mei\daemontools\daemontools"
   del "*.exe"
@@ -243,6 +279,8 @@ xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\microlight\*" %PUBLISH_PATH%\lib\m
 @if not defined is_test goto build_poller
 cd %ENGINE_PATH%\src\poller
 go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
+go test -v  %test_data_db_url_mysql% %test_delayed_job_db_url_mysql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
+go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=tpt_delayed_jobs -not_limit=true -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
 @if errorlevel 1 goto failed
 
 :build_poller
@@ -261,7 +299,11 @@ xcopy /Y /S /E %ENGINE_PATH%\src\poller\templates\*   %PUBLISH_PATH%\lib\alerts\
 :test_carrier
 @if not defined is_test goto build_carrier
 cd %ENGINE_PATH%\src\carrier
-go test -v  %test_data_db_url% %test_delayed_job_db_url%  -redis=127.0.0.1:9456
+go test -v  %test_data_db_url% %test_delayed_job_db_url% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456
+go test -v  %test_data_db_url_mysql% %test_delayed_job_db_url_mysql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456
+go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456
+
+
 @if errorlevel 1 goto failed
 
 :build_carrier
@@ -274,6 +316,8 @@ go build
 :install_carrier
 @if not defined is_install goto build_ok
 copy "carrier.exe" %PUBLISH_PATH%\bin\tpt_carrier.exe
+@if errorlevel 1 goto failed
+xcopy /Y /S /E %ENGINE_PATH%\src\carrier\db\*   %PUBLISH_PATH%\lib\data-migrations\
 @if errorlevel 1 goto failed
 
 

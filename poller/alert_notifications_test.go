@@ -264,8 +264,8 @@ var notifications = []map[string]interface{}{redis_test_attributes,
 func TestNotificationsForRedis(t *testing.T) {
 	redisTest(t, func(redis_channel chan []string, c redis.Conn) {
 		srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
-			delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
-				carrier.SrvTest(t, func(db *sql.DB, url string) {
+			carrier.SrvTest(t, func(db *sql.DB, url string) {
+				delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
 					is_test = true
 					*foreignUrl = url
 					Runforever()
@@ -350,19 +350,40 @@ func assertCount(t *testing.T, db *sql.DB, sql string, excepted int64) {
 	}
 }
 
+func dbTest(db_drv string, db *sql.DB) error {
+
+	if "odbc_with_mssql" == db_drv {
+		script := `
+if object_id('dbo.tpt_test_for_handler', 'U') is not null BEGIN DROP TABLE tpt_test_for_handler; END
+
+if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_test_for_handler (
+  id                INT IDENTITY(1,1)   PRIMARY KEY,
+  priority          int DEFAULT 0,
+  queue             varchar(200)
+); END`
+		_, e := db.Exec(script)
+		return e
+	} else {
+		for _, s := range []string{`DROP TABLE IF EXISTS tpt_test_for_handler;`,
+			`CREATE TABLE IF NOT EXISTS tpt_test_for_handler (
+  id                SERIAL  PRIMARY KEY,
+  priority          int DEFAULT 0,
+  queue             varchar(200)
+);`} {
+			_, e := db.Exec(s)
+			if nil != e {
+				return e
+			}
+		}
+		return nil
+	}
+}
+
 func TestNotificationsForDb(t *testing.T) {
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
-		delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
-			carrier.SrvTest2(t, func(db *sql.DB, db_drv, db_url, url string) {
-				_, e := db.Exec(`
-					DROP TABLE IF EXISTS tpt_test_for_handler;
-
-					CREATE TABLE IF NOT EXISTS tpt_test_for_handler (
-					  id                BIGSERIAL  PRIMARY KEY,
-					  priority          int DEFAULT 0,
-					  queue             varchar(200)
-					);`)
-
+		carrier.SrvTest2(t, func(db *sql.DB, db_drv, db_url, url string) {
+			delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
+				e := dbTest(db_drv, db)
 				if nil != e {
 					t.Error(e)
 					return
@@ -440,21 +461,8 @@ func TestNotificationsForDb(t *testing.T) {
 
 func TestNotificationsForExec(t *testing.T) {
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
-		delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
-			carrier.SrvTest(t, func(db *sql.DB, url string) {
-				_, e := db.Exec(`
-					DROP TABLE IF EXISTS tpt_test_for_handler;
-
-					CREATE TABLE IF NOT EXISTS tpt_test_for_handler (
-					  id                BIGSERIAL  PRIMARY KEY,
-					  priority          int DEFAULT 0,
-					  queue             varchar(200)
-					);`)
-
-				if nil != e {
-					t.Error(e)
-					return
-				}
+		carrier.SrvTest(t, func(db *sql.DB, url string) {
+			delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
 
 				is_test = true
 				*foreignUrl = url
@@ -555,8 +563,8 @@ func TestNotificationsForSyslog(t *testing.T) {
 	syslogTest(t, func(client net.PacketConn, port string, c chan string) {
 		notifications[3]["to_address"] = "127.0.0.1:" + port
 		srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
-			delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
-				carrier.SrvTest(t, func(db *sql.DB, url string) {
+			carrier.SrvTest(t, func(db *sql.DB, url string) {
+				delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
 					is_test = true
 					*foreignUrl = url
 					Runforever()
@@ -643,8 +651,8 @@ func TestNotificationsForMail(t *testing.T) {
 
 	mail_test_attributes["to_address"] = *test_mail_to
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
-		delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
-			carrier.SrvTest(t, func(db *sql.DB, url string) {
+		carrier.SrvTest(t, func(db *sql.DB, url string) {
+			delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
 				is_test = true
 				*foreignUrl = url
 				Runforever()

@@ -1,0 +1,11 @@
+test:
+    driver: postgres
+    open: host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable
+
+development:
+    driver: postgres
+    open: host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable
+
+production:
+    driver: postgres
+    open: host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable

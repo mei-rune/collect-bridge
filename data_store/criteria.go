@@ -681,17 +681,18 @@ func newWhere(drv string, table *types.TableDefinition, idx int) *whereBuilder {
 		operators_for_field: nil,
 		add_argument:        (*whereBuilder).appendNumericArguments}
 
-	if IsNumericParams(drv) {
-		builder.add_argument = (*whereBuilder).appendNumericArguments
-	} else {
-		builder.add_argument = (*whereBuilder).appendSimpleArguments
-	}
-
-	switch GetDBType(drv) {
+	db_type := GetDBType(drv)
+	switch db_type {
 	case POSTGRESQL:
 		builder.limit_and_offset = (*whereBuilder).limit_and_offset_postgres
 	default:
 		builder.limit_and_offset = (*whereBuilder).limit_and_offset_generic
+	}
+
+	if IsNumericParams(db_type) {
+		builder.add_argument = (*whereBuilder).appendNumericArguments
+	} else {
+		builder.add_argument = (*whereBuilder).appendSimpleArguments
 	}
 
 	// POSTGRESQL  = 1

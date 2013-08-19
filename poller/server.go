@@ -122,41 +122,55 @@ func (s *server) stopJob(id string) {
 	log.Println("stop trigger with id was '" + id + "'")
 }
 
+func (s *server) queryCookies(client *commons.Client, id2results map[int]map[string]interface{}, query map[string]string) (int, error) {
+	res := client.Get(query)
+	if res.HasError() {
+		return 0, errors.New("load cookies failed, " + res.ErrorMessage())
+	}
+
+	cookies, e := res.Value().AsObjects()
+	if nil != e {
+		return 0, errors.New("load cookies failed, results is not a []map[string]interface{}, " + e.Error())
+	}
+
+	if nil == cookies {
+		return 0, nil
+	}
+
+	for _, attributes := range cookies {
+		action_id := commons.GetIntWithDefault(attributes, "id", 0)
+		if _, ok := id2results[action_id]; ok {
+			attributes["last_status"] = attributes["status"]
+			attributes["previous_status"] = attributes["previous_status"]
+			attributes["event_id"] = attributes["event_id"]
+			attributes["sequence_id"] = attributes["sequence_id"]
+		} else {
+			id := fmt.Sprint(attributes["id"])
+			dres := client.Delete(map[string]string{"id": id})
+			if dres.HasError() {
+				log.Println("delete alert cookies with id was " + id + " is failed, " + dres.ErrorMessage())
+			}
+		}
+	}
+	return len(cookies), nil
+}
+
 func (s *server) loadCookies(id2results map[int]map[string]interface{}) error {
 	client := commons.NewClient(*foreignUrl, "alert_cookies")
 
-	for offset := 0; ; offset += 100 {
-		res := client.Get(map[string]string{"limit": "100", "offset": strconv.FormatInt(int64(offset), 10)})
-		if res.HasError() {
-			return errors.New("load cookies failed, " + res.ErrorMessage())
-		}
-
-		cookies, e := res.Value().AsObjects()
-		if nil != e {
-			return errors.New("load cookies failed, results is not a []map[string]interface{}, " + e.Error())
-		}
-
-		if nil == cookies {
-			break
-		}
-		for _, attributes := range cookies {
-			action_id := commons.GetIntWithDefault(attributes, "id", 0)
-			if _, ok := id2results[action_id]; ok {
-				attributes["last_status"] = attributes["status"]
-				attributes["previous_status"] = attributes["previous_status"]
-				attributes["event_id"] = attributes["event_id"]
-				attributes["sequence_id"] = attributes["sequence_id"]
-			} else {
-				id := fmt.Sprint(attributes["id"])
-				dres := client.Delete(map[string]string{"id": id})
-				if dres.HasError() {
-					log.Println("delete alert cookies with id was " + id + " is failed, " + dres.ErrorMessage())
-				}
+	if *not_limit {
+		_, e := s.queryCookies(client, id2results, map[string]string{})
+		return e
+	} else {
+		for offset := 0; ; offset += 100 {
+			count, e := s.queryCookies(client, id2results, map[string]string{"limit": "100", "offset": strconv.FormatInt(int64(offset), 10)})
+			if nil != e {
+				return e
 			}
-		}
 
-		if 100 != len(cookies) {
-			break
+			if 100 != count {
+				break
+			}
 		}
 	}
 	return nil

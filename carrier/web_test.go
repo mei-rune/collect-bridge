@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/runner-mei/delayed_job"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -298,12 +299,17 @@ func TestFind(t *testing.T) {
 			{tname: "tpt_alert_histories", uname: "alerts"},
 			{tname: "tpt_histories", uname: "histories"}} {
 
+			now_func := "now()"
+			if "odbc_with_mssql" == *db_drv {
+				now_func = "GETDATE()"
+			}
+
 			for i := 0; i < 10; i++ {
 				var e error
 				if strings.HasPrefix(test.tname, "tpt_alert") {
-					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', now())", test.tname, i, i%2))
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
 				} else {
-					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, now())", test.tname, i, i%2))
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, "+now_func+")", test.tname, i, i%2))
 				}
 				if nil != e {
 					t.Error(e)
@@ -354,12 +360,17 @@ func TestCount(t *testing.T) {
 			{tname: "tpt_alert_histories", uname: "alerts"},
 			{tname: "tpt_histories", uname: "histories"}} {
 
+			now_func := "now()"
+			if "odbc_with_mssql" == *db_drv {
+				now_func = "GETDATE()"
+			}
+
 			for i := 0; i < 10; i++ {
 				var e error
 				if strings.HasPrefix(test.tname, "tpt_alert") {
-					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', now())", test.tname, i, i%2))
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
 				} else {
-					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, now())", test.tname, i, i%2))
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, "+now_func+")", test.tname, i, i%2))
 				}
 				if nil != e {
 					t.Error(e)
@@ -409,12 +420,17 @@ func TestRemove(t *testing.T) {
 			{tname: "tpt_alert_histories", uname: "alerts"},
 			{tname: "tpt_histories", uname: "histories"}} {
 
+			now_func := "now()"
+			if "odbc_with_mssql" == *db_drv {
+				now_func = "GETDATE()"
+			}
+
 			for i := 0; i < 10; i++ {
 				var e error
 				if strings.HasPrefix(test.tname, "tpt_alert") {
-					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', now())", test.tname, i, i%2))
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
 				} else {
-					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, now())", test.tname, i, i%2))
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, "+now_func+")", test.tname, i, i%2))
 				}
 				if nil != e {
 					t.Error(e)

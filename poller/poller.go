@@ -23,6 +23,7 @@ var (
 	refresh       = flag.Duration("refresh", 5*time.Second, "the refresh interval of cache")
 	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:7074", "the url of foreign db")
 	load_cookies  = flag.Bool("load_cookies", true, "load cookies is enabled while value is true")
+	not_limit     = flag.Bool("not_limit", false, "not limit")
 
 	trigger_exporter                    = &Exporter{}
 	Container        *restful.Container = restful.DefaultContainer

@@ -253,6 +253,7 @@ func TestNotifications(t *testing.T) {
 
 	t.Log(js)
 
+	delayed_job.SetDbUrl(*db_drv, *db_url)
 	delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
 		SrvTest(t, func(db *sql.DB, url string) {
 			_, e := httpInvoke("PUT", url+"/alerts", js, 200)

@@ -10,8 +10,9 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
-	"io/ioutil"
+	_ "github.com/ziutek/mymysql/godrv"
 	"log"
 	"net/http"
 	"net/http/pprof"
@@ -28,12 +29,10 @@ var (
 	db_url                 = flag.String("data_db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
 	db_drv                 = flag.String("data_db.driver", "postgres", "the db driver")
 	goroutines             = flag.Int("data_db.connections", 10, "the db connection number")
-	run_mode               = flag.String("run_mode", "server", "clean_db, reset_db, init_db or server")
-	delayed_job_table_name = flag.String("delayed_job_table_name", "delayed_jobs", "the table name of delayed job")
+	delayed_job_table_name = flag.String("delayed_job_table_name", "tpt_delayed_jobs", "the table name of delayed job")
 
-	delayed_job_table         = ""
-	isNumericParams           = true
-	server_instance   *server = nil
+	isNumericParams         = true
+	server_instance *server = nil
 )
 
 var (
@@ -150,9 +149,10 @@ type server struct {
 }
 
 type context struct {
-	db  *sql.DB
-	drv string
-	url string
+	db      *sql.DB
+	dialect Dialect
+	drv     string
+	url     string
 }
 
 func (self *server) Close() {
@@ -642,45 +642,16 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 
 	for _, entity := range entities {
 		if 0 == entity.Status {
-			_, e := tx.Exec("DELETE FROM tpt_alert_cookies WHERE action_id = $1", entity.ActionId)
+			e := ctx.dialect.removeAlertCookies(tx, &entity)
 			if nil != e && sql.ErrNoRows != e {
 				response.WriteHeader(http.StatusInternalServerError)
 				response.Write([]byte(e.Error()))
 				return
 			}
 		} else {
-			var id int64
 			var e error
 
-			if isNumericParams {
-				e = tx.QueryRow("SELECT id FROM tpt_alert_cookies WHERE action_id = $1", entity.ActionId).Scan(&id)
-			} else {
-				e = tx.QueryRow("SELECT id FROM tpt_alert_cookies WHERE action_id = ?", entity.ActionId).Scan(&id)
-			}
-			if nil != e {
-				if sql.ErrNoRows != e {
-					response.WriteHeader(http.StatusInternalServerError)
-					response.Write([]byte(e.Error()))
-					return
-				}
-
-				if isNumericParams {
-					_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-						entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt)
-				} else {
-					_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-						entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt)
-				}
-			} else {
-
-				if isNumericParams {
-					_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = $1, previous_status = $2, event_id = $3, sequence_id = $4, content = $5, current_value = $6, triggered_at = $7  WHERE id = $8`,
-						entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt, id)
-				} else {
-					_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = ?, previous_status = ?, event_id = ?, sequence_id = ?, content = ?, current_value = ?, triggered_at = ?  WHERE id = ?`,
-						entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt, id)
-				}
-			}
+			e = ctx.dialect.saveAlertCookies(tx, &entity)
 			if nil != e {
 				response.WriteHeader(http.StatusInternalServerError)
 				response.Write([]byte(e.Error()))
@@ -688,15 +659,7 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 			}
 		}
 
-		if isNumericParams {
-			_, e = tx.Exec("INSERT INTO tpt_alert_histories_"+strconv.Itoa(entity.TriggeredAt.Year())+months[entity.TriggeredAt.Month()]+
-				"(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt)
-		} else {
-			_, e = tx.Exec("INSERT INTO tpt_alert_histories_"+strconv.Itoa(entity.TriggeredAt.Year())+months[entity.TriggeredAt.Month()]+
-				"(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt)
-		}
+		e = ctx.dialect.saveAlertHistory(tx, &entity)
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(e.Error()))
@@ -713,8 +676,7 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 				id = entity.NotificationData.Id
 			}
 
-			_, e = tx.Exec(delayed_job_table,
-				entity.NotificationData.Priority, 0, queue, entity.NotificationData.PayloadObject, id, now, now, now)
+			e = ctx.dialect.saveNotification(tx, queue, id, &entity, now)
 			if nil != e {
 				response.WriteHeader(http.StatusInternalServerError)
 				response.Write([]byte(e.Error()))
@@ -758,16 +720,7 @@ func (self *server) onHistories(ctx *context, response http.ResponseWriter, requ
 	}()
 
 	for _, entity := range entities {
-
-		if isNumericParams {
-			_, e = tx.Exec("INSERT INTO tpt_histories_"+strconv.Itoa(entity.SampledAt.Year())+months[entity.SampledAt.Month()]+
-				"(action_id, managed_type, managed_id, current_value, sampled_at) VALUES ($1, $2, $3, $4, $5)",
-				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.CurrentValue, entity.SampledAt)
-		} else {
-			_, e = tx.Exec("INSERT INTO tpt_histories_"+strconv.Itoa(entity.SampledAt.Year())+months[entity.SampledAt.Month()]+
-				"(action_id, managed_type, managed_id, current_value, sampled_at) VALUES (?, ?, ?, ?, ?)",
-				entity.ActionId, entity.ManagedType, entity.ManagedId, entity.CurrentValue, entity.SampledAt)
-		}
+		e := ctx.dialect.saveHistory(tx, &entity)
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(e.Error()))
@@ -921,99 +874,25 @@ func Main(is_test bool) error {
 		return nil
 	}
 
-	create_histores_table_sql := `SELECT tpt_alert_histories_creation( '2010-01-01', '2028-01-01' );
-																SELECT tpt_histories_creation( '2010-01-01', '2028-01-01' );`
-	if is_test {
-		now := time.Now()
-		create_histores_table_sql = fmt.Sprintf(`SELECT tpt_alert_histories_creation( '%v-%v-01', '%v-%v-01' );
-																SELECT tpt_histories_creation( '%v-%v-01', '%v-%v-01' );`,
-			now.Year(), int(now.Month()),
-			now.Year(), int(now.Month())+2,
-			now.Year(), int(now.Month()),
-			now.Year(), int(now.Month())+2)
-	}
-
-	switch *run_mode {
-	case "clean_db":
-		db, e := sql.Open(*db_drv, *db_url)
-		if nil != e {
-			return errors.New("connect to db failed," + e.Error())
-		}
-		defer db.Close()
-
-		_, e = db.Exec(deletion_sql)
-		if nil != e {
-			return errors.New("create table failed," + e.Error())
-		}
-		return nil
-	case "init_db":
-		db, e := sql.Open(*db_drv, *db_url)
-		if nil != e {
-			return errors.New("connect to db failed," + e.Error())
-		}
-		defer db.Close()
-
-		sql := sql_string
-		bs, e := ioutil.ReadFile("tpt_data.sql")
-		if nil != e {
-			fmt.Println("[warn] read 'tpt_data.sql' failed")
-		} else {
-			sql = string(bs)
-		}
-
-		_, e = db.Exec(sql)
-		if nil != e {
-			return errors.New("create table failed," + e.Error())
-		}
-
-		_, e = db.Exec(create_histores_table_sql)
-		if nil != e {
-			return errors.New("create histories table failed," + e.Error())
-		}
-
-		return nil
-	case "reset_db":
-		db, e := sql.Open(*db_drv, *db_url)
-		if nil != e {
-			return errors.New("connect to db failed," + e.Error())
-		}
-		defer db.Close()
-
-		_, e = db.Exec(deletion_sql)
-		if nil != e {
-			return errors.New("delete table failed," + e.Error())
-		}
-
-		sql := sql_string
-		bs, e := ioutil.ReadFile("tpt_data.sql")
-		if nil != e {
-			fmt.Println("[warn] read 'tpt_data.sql' failed")
-		} else {
-			sql = string(bs)
-		}
-
-		_, e = db.Exec(sql)
-		if nil != e {
-			return errors.New("create table failed," + e.Error())
-		}
-
-		_, e = db.Exec(create_histores_table_sql)
-		if nil != e {
-			return errors.New("create histories table failed," + e.Error())
-		}
-
-		return nil
+	drv := *db_drv
+	if strings.HasPrefix(drv, "odbc_with_") {
+		drv = "odbc"
 	}
 
 	if 0 >= *goroutines {
 		return errors.New("goroutines must is greate 0")
 	}
 
-	isNumericParams = ds.IsNumericParams(*db_drv)
-	if isNumericParams {
-		delayed_job_table = "INSERT INTO " + *delayed_job_table_name + "(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)"
-	} else {
-		delayed_job_table = "INSERT INTO " + *delayed_job_table_name + "(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)"
+	delayed_job_table1 := "INSERT INTO " + *delayed_job_table_name + "(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)"
+	delayed_job_table2 := "INSERT INTO " + *delayed_job_table_name + "(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)"
+	var dialect Dialect = &GenSqlDialect{delayed_job_table: delayed_job_table2}
+	switch *db_drv {
+	case "mysql", "mymysql":
+		dialect = &MySqlDialect{GenSqlDialect: GenSqlDialect{delayed_job_table: delayed_job_table2}}
+	case "postgres":
+		dialect = &PostgresqlDialect{delayed_job_table: delayed_job_table1}
+	case "odbc_with_mssql":
+		dialect = &MsSqlDialect{GenSqlDialect: GenSqlDialect{delayed_job_table: delayed_job_table2}}
 	}
 
 	if "sqlite3" == *db_drv {
@@ -1036,7 +915,7 @@ func Main(is_test bool) error {
 
 	contexts := make([]*context, 0, *goroutines)
 	for i := 0; i < *goroutines; i++ {
-		db, e := sql.Open(*db_drv, *db_url)
+		db, e := sql.Open(drv, *db_url)
 		if nil != e {
 			for _, conn := range contexts {
 				conn.db.Close()
@@ -1044,7 +923,7 @@ func Main(is_test bool) error {
 			return errors.New("connect to db failed," + e.Error())
 		}
 
-		contexts = append(contexts, &context{drv: *db_drv, url: *db_url, db: db})
+		contexts = append(contexts, &context{drv: *db_drv, dialect: dialect, url: *db_url, db: db})
 	}
 
 	for i := 0; i < *goroutines; i++ {

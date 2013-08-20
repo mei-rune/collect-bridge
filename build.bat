@@ -309,7 +309,7 @@ go test -v  %test_data_db_url_mysql% %test_delayed_job_db_url_mysql% -db_table=t
 @if errorlevel 1 goto failed
 go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=tpt_delayed_jobs -not_limit=true -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
 @if errorlevel 1 goto failed
-go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
+go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
 @if errorlevel 1 goto failed
 
 :build_poller

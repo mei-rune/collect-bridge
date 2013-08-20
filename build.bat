@@ -279,10 +279,10 @@ xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\microlight\*" %PUBLISH_PATH%\lib\m
 @if not defined is_test goto build_carrier
 cd %ENGINE_PATH%\src\carrier
 go test -v  %test_data_db_url_mysql% %test_delayed_job_db_url_mysql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456
+@if errorlevel 1 goto failed
 go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456
+@if errorlevel 1 goto failed
 go test -v  %test_data_db_url% %test_delayed_job_db_url% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456
-
-
 @if errorlevel 1 goto failed
 
 :build_carrier
@@ -305,7 +305,9 @@ xcopy /Y /S /E %ENGINE_PATH%\src\carrier\db\*   %PUBLISH_PATH%\lib\data-migratio
 @if not defined is_test goto build_poller
 cd %ENGINE_PATH%\src\poller
 go test -v  %test_data_db_url_mysql% %test_delayed_job_db_url_mysql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
+@if errorlevel 1 goto failed
 go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=tpt_delayed_jobs -not_limit=true -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
+@if errorlevel 1 goto failed
 go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
 @if errorlevel 1 goto failed
 

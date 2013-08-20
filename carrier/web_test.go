@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -294,9 +295,16 @@ func countResult(s string) (int, error) {
 
 func TestFind(t *testing.T) {
 	SrvTest(t, func(db *sql.DB, url string) {
+
+		now := time.Now()
+		nows_str := "_" + strconv.Itoa(now.Year()) + months[now.Month()]
+		if "postgres" != *db_drv {
+			nows_str = ""
+		}
+
 		for _, test := range []struct{ tname, uname string }{{tname: "tpt_alert_cookies", uname: "alert_cookies"},
-			{tname: "tpt_alert_histories", uname: "alerts"},
-			{tname: "tpt_histories", uname: "histories"}} {
+			{tname: "tpt_alert_histories" + nows_str, uname: "alerts"},
+			{tname: "tpt_histories" + nows_str, uname: "histories"}} {
 
 			now_func := "now()"
 			if "odbc_with_mssql" == *db_drv {
@@ -355,9 +363,16 @@ func TestFind(t *testing.T) {
 
 func TestCount(t *testing.T) {
 	SrvTest(t, func(db *sql.DB, url string) {
+
+		now := time.Now()
+		nows_str := "_" + strconv.Itoa(now.Year()) + months[now.Month()]
+		if "postgres" != *db_drv {
+			nows_str = ""
+		}
+
 		for _, test := range []struct{ tname, uname string }{{tname: "tpt_alert_cookies", uname: "alert_cookies"},
-			{tname: "tpt_alert_histories", uname: "alerts"},
-			{tname: "tpt_histories", uname: "histories"}} {
+			{tname: "tpt_alert_histories" + nows_str, uname: "alerts"},
+			{tname: "tpt_histories" + nows_str, uname: "histories"}} {
 
 			now_func := "now()"
 			if "odbc_with_mssql" == *db_drv {
@@ -415,9 +430,16 @@ func TestCount(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	SrvTest(t, func(db *sql.DB, url string) {
+
+		now := time.Now()
+		nows_str := "_" + strconv.Itoa(now.Year()) + months[now.Month()]
+		if "postgres" != *db_drv {
+			nows_str = ""
+		}
+
 		for _, test := range []struct{ tname, uname string }{{tname: "tpt_alert_cookies", uname: "alert_cookies"},
-			{tname: "tpt_alert_histories", uname: "alerts"},
-			{tname: "tpt_histories", uname: "histories"}} {
+			{tname: "tpt_alert_histories" + nows_str, uname: "alerts"},
+			{tname: "tpt_histories" + nows_str, uname: "histories"}} {
 
 			now_func := "now()"
 			if "odbc_with_mssql" == *db_drv {

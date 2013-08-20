@@ -77,11 +77,11 @@ func TestLoadConfigWithNotOverride(t *testing.T) {
 	c := flagSet.String("c", "-1", "for test")
 	da := flagSet.Int("d.a", -1, "for test")
 	dc := flagSet.String("d.c", "-1", "for test")
-	*a = 2
-	*b = false
-	*c = "set"
-	*da = 2
-	*dc = "set2"
+	flagSet.Set("a", "2")
+	flagSet.Set("b", "false")
+	flagSet.Set("c", "set")
+	flagSet.Set("d.a", "2")
+	flagSet.Set("d.c", "set2")
 
 	e := LoadConfig("config_test.txt", &flagSet, false)
 	if nil != e {
@@ -114,11 +114,12 @@ func TestLoadConfigWithOverride(t *testing.T) {
 	c := flagSet.String("c", "-1", "for test")
 	da := flagSet.Int("d.a", -1, "for test")
 	dc := flagSet.String("d.c", "-1", "for test")
-	*a = 2
-	*b = false
-	*c = "set"
-	*da = 2
-	*dc = "set2"
+
+	flagSet.Set("a", "2")
+	flagSet.Set("b", "false")
+	flagSet.Set("c", "set")
+	flagSet.Set("d.a", "2")
+	flagSet.Set("d.c", "set2")
 
 	e := LoadConfig("config_test.txt", &flagSet, true)
 	if nil != e {

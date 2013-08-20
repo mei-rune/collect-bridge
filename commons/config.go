@@ -20,18 +20,28 @@ func LoadConfig(nm string, flagSet *flag.FlagSet, isOverride bool) error {
 		return fmt.Errorf("load config '%s' failed, %v", nm, e)
 	}
 
-	e = assignFlagSet("", res, flagSet, isOverride)
+	actual := map[string]string{}
+	fn := func(f *flag.Flag) {
+		actual[f.Name] = f.Name
+	}
+	if nil == flagSet {
+		flag.Visit(fn)
+	} else {
+		flagSet.Visit(fn)
+	}
+
+	e = assignFlagSet("", res, flagSet, actual, isOverride)
 	if nil != e {
 		return fmt.Errorf("load config '%s' failed, %v", nm, e)
 	}
 	return nil
 }
 
-func assignFlagSet(prefix string, res map[string]interface{}, flagSet *flag.FlagSet, isOverride bool) error {
+func assignFlagSet(prefix string, res map[string]interface{}, flagSet *flag.FlagSet, actual map[string]string, isOverride bool) error {
 	for k, v := range res {
 		switch value := v.(type) {
 		case map[string]interface{}:
-			e := assignFlagSet(combineName(prefix, k), value, flagSet, isOverride)
+			e := assignFlagSet(combineName(prefix, k), value, flagSet, actual, isOverride)
 			if nil != e {
 				return e
 			}
@@ -45,13 +55,23 @@ func assignFlagSet(prefix string, res map[string]interface{}, flagSet *flag.Flag
 		default:
 			return fmt.Errorf("unsupported type for %s - %T", combineName(prefix, k), v)
 		}
+		nm := combineName(prefix, k)
 
-		g := flagSet.Lookup(combineName(prefix, k))
-		if nil == g {
-			log.Printf("flag '%s' is not defined.\n", combineName(prefix, k))
-			continue
+		if !isOverride {
+			if _, ok := actual[nm]; ok {
+				log.Printf("load flag '%s' from config is skipped.\n", nm)
+				continue
+			}
 		}
-		if !isOverride && g.Value.String() != g.DefValue {
+
+		var g *flag.Flag
+		if nil == flagSet {
+			g = flag.Lookup(nm)
+		} else {
+			g = flagSet.Lookup(nm)
+		}
+		if nil == g {
+			log.Printf("flag '%s' is not defined.\n", nm)
 			continue
 		}
 

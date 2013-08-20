@@ -137,7 +137,8 @@ go get github.com/tgulacsi/goracle/godrv
 :build_3td_library
 @if not defined is_compile goto build_3td_library_ok
 for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
-  copy "%%a\bin\goose.exe"  "%PUBLISH_PATH%\tpt_goose.exe"
+  copy "%%a\bin\goose.exe"  "%PUBLISH_PATH%\bin\tpt_goose.exe"
+  @if errorlevel 1 goto failed
 
   cd "%%a\src\github.com\runner-mei\daemontools\daemontools"
   del "*.exe"

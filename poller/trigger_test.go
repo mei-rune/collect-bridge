@@ -47,13 +47,13 @@ func TestTrigger(t *testing.T) {
 		t.Error(e)
 		return
 	}
-	defer tg.Stop()
+	defer tg.Stop(STOP_REASON_NORMAL)
 
 	for c := 0; c < 1000 && 0 == atomic.LoadInt32(&i); c += 1 {
 		time.Sleep(10 * time.Microsecond)
 	}
 
-	tg.Stop()
+	tg.Stop(STOP_REASON_NORMAL)
 
 	if i <= 0 {
 		t.Error("it is not timeout")

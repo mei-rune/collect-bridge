@@ -98,6 +98,7 @@ func SimpleTest(t *testing.T, cb func(db *sql.DB)) {
 	}
 
 	delayed_job.SetDbUrl(*db_drv, *db_url)
+	delayed_job.SetTable(*delayed_job_table_name)
 	cb(db)
 }
 

@@ -26,7 +26,7 @@ func (self *errorJob) Start() error {
 	return nil
 }
 
-func (self *errorJob) Stop() {
+func (self *errorJob) Stop(reason int) {
 }
 
 func (self *errorJob) Id() string {
@@ -112,12 +112,12 @@ func (s *server) loadJob(id string) {
 	s.startJob(attributes)
 }
 
-func (s *server) stopJob(id string) {
+func (s *server) stopJob(id string, reason int) {
 	job, ok := s.jobs[id]
 	if !ok {
 		return
 	}
-	job.Stop()
+	job.Stop(reason)
 	delete(s.jobs, id)
 	log.Println("stop trigger with id was '" + id + "'")
 }
@@ -208,7 +208,7 @@ func (s *server) onStart() error {
 
 func (s *server) onStop() {
 	for _, job := range s.jobs {
-		job.Stop()
+		job.Stop(STOP_REASON_NORMAL)
 	}
 	s.jobs = make(map[string]Job)
 
@@ -239,14 +239,14 @@ func (s *server) onIdle() {
 
 	if nil != updated {
 		for _, id := range updated {
-			s.stopJob(id)
+			s.stopJob(id, STOP_REASON_NORMAL)
 			s.loadJob(id)
 		}
 	}
 
 	if nil != deleted {
 		for _, id := range deleted {
-			s.stopJob(id)
+			s.stopJob(id, STOP_REASON_DELETE)
 		}
 	}
 }

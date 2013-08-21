@@ -88,13 +88,13 @@ func TestJobWithSamplingFailed(t *testing.T) {
 		t.Error(e)
 		return
 	}
-	defer tg.Stop()
+	defer tg.Stop(STOP_REASON_NORMAL)
 
 	for c := 0; c < 1000 && 0 == atomic.LoadInt32(&called); c += 1 {
 		time.Sleep(10 * time.Microsecond)
 	}
 
-	tg.Stop()
+	tg.Stop(STOP_REASON_NORMAL)
 	stop()
 
 	if 0 == called {
@@ -180,13 +180,13 @@ func TestJobFull(t *testing.T) {
 		t.Error(e)
 		return
 	}
-	defer tg.Stop()
+	defer tg.Stop(STOP_REASON_NORMAL)
 
 	for c := 0; c < 1000 && 0 == atomic.LoadInt32(&called); c += 1 {
 		time.Sleep(10 * time.Microsecond)
 	}
 
-	tg.Stop()
+	tg.Stop(STOP_REASON_NORMAL)
 	stop()
 
 	if 0 == called {

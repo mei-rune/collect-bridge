@@ -8,8 +8,16 @@ import (
 	"time"
 )
 
+const (
+	STOP_REASON_NORMAL  = 0
+	STOP_REASON_DELETE  = 1
+	STOP_REASON_DISABLE = 1
+)
+
 type Job interface {
-	commons.Startable
+	Start() error
+	Stop(reason int)
+
 	Id() string
 	Name() string
 	Stats() map[string]interface{}

@@ -90,7 +90,7 @@ func (self *trigger) Start() error {
 	return e
 }
 
-func (self *trigger) Stop() {
+func (self *trigger) Stop(reason int) {
 	if atomic.CompareAndSwapInt32(&self.status, commons.SRV_STARTING, commons.SRV_INIT) {
 		self.DEBUG.Print("it is starting")
 		return

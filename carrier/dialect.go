@@ -48,6 +48,7 @@ func (self *PostgresqlDialect) saveAlertHistory(tx *sql.Tx, entity *AlertEntity)
 }
 
 func (self *PostgresqlDialect) saveNotification(tx *sql.Tx, queue, id interface{}, entity *AlertEntity, now time.Time) error {
+	//fmt.Println(self.delayed_job_table, entity.NotificationData.Priority, 0, queue, entity.NotificationData.PayloadObject, id, now, now, now)
 	_, e := tx.Exec(self.delayed_job_table, entity.NotificationData.Priority, 0, queue, entity.NotificationData.PayloadObject, id, now, now, now)
 	return e
 }

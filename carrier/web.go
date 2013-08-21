@@ -652,9 +652,7 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 				return
 			}
 		} else {
-			var e error
-
-			e = ctx.dialect.saveAlertCookies(tx, &entity)
+			e := ctx.dialect.saveAlertCookies(tx, &entity)
 			if nil != e {
 				response.WriteHeader(http.StatusInternalServerError)
 				io.WriteString(response, "save cookies failed, ")

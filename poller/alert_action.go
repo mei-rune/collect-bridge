@@ -99,7 +99,7 @@ type alertAction struct {
 	cached_data *data_object
 
 	templates       []*template.Template
-	information     string
+	informations    commons.CircularBuffer
 	checker         Checker
 	previous_status int
 	last_status     int
@@ -119,7 +119,7 @@ type alertAction struct {
 	stats_already_send    bool
 	stats_last_event_id   string
 	stats_sequence_id     int
-	stats_information     string
+	stats_informations    []interface{}
 }
 
 func (self *alertAction) Stats() map[string]interface{} {
@@ -127,7 +127,7 @@ func (self *alertAction) Stats() map[string]interface{} {
 		"type":             "alert",
 		"id":               self.id,
 		"name":             self.name,
-		"information":      self.stats_information,
+		"information":      self.stats_informations,
 		"previous_status":  self.stats_previous_status,
 		"last_status":      self.stats_last_status,
 		"repeated":         self.stats_repeated,
@@ -157,7 +157,7 @@ func (self *alertAction) RunAfter() {
 	self.stats_already_send = self.already_send
 	self.stats_last_event_id = self.last_event_id
 	self.stats_sequence_id = self.sequence_id
-	self.stats_information = self.information
+	self.stats_informations = self.informations.All()
 }
 
 func (self *alertAction) Run(t time.Time, value interface{}) error {
@@ -267,7 +267,8 @@ func (self *alertAction) fillNotificationData(current int, evt map[string]interf
 	if nil != err {
 		return errors.New("load notfications failed, " + err.Error())
 	}
-	if nil == rules {
+	if nil == rules || 0 == len(rules) {
+		self.informations.Push("notfications is empty.")
 		return nil
 	}
 
@@ -298,7 +299,7 @@ func (self *alertAction) gen_message(current, previous int, evt map[string]inter
 		if nil == e {
 			return buffer.String()
 		}
-		self.information = "execute template failed, " + e.Error()
+		self.informations.Push("execute template failed, " + e.Error())
 	}
 
 	switch current {
@@ -415,7 +416,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		return nil, e
 	}
 
-	return &alertAction{id: id,
+	action := &alertAction{id: id,
 		name: name,
 		//description: commons.GetString(attributes, "description", ""),
 		already_send:           true,
@@ -432,7 +433,10 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		last_event_id:          commons.GetStringWithDefault(attributes, "event_id", ""),
 		sequence_id:            commons.GetIntWithDefault(attributes, "seqence_id", 0),
 		notification_group_ids: notification_group_ids,
-		notification_groups:    notification_groups}, nil
+		notification_groups:    notification_groups}
+
+	action.informations.Init(make([]interface{}, 10))
+	return action, nil
 }
 
 func makeChecker(attributes, ctx map[string]interface{}) (Checker, error) {

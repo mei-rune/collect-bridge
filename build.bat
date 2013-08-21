@@ -297,7 +297,8 @@ go build
 @if not defined is_install goto test_poller
 copy "carrier.exe" %PUBLISH_PATH%\bin\tpt_carrier.exe
 @if errorlevel 1 goto failed
-xcopy /Y /S /E %ENGINE_PATH%\src\carrier\db\migrations*   %PUBLISH_PATH%\lib\data-migrations\
+xcopy /Y /S /E /EXCLUDE:.yml %ENGINE_PATH%\src\carrier\db   %PUBLISH_PATH%\lib\data-migrations\
+
 @if errorlevel 1 goto failed
 
 

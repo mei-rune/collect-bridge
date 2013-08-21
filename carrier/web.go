@@ -13,6 +13,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/ziutek/mymysql/godrv"
+	"io"
 	"log"
 	"net/http"
 	"net/http/pprof"
@@ -620,15 +621,16 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 	e := decoder.Decode(&entities)
 	if nil != e {
 		response.WriteHeader(http.StatusBadRequest)
-		response.Write([]byte("it is not a valid json string, "))
-		response.Write([]byte(e.Error()))
+		io.WriteString(response, "it is not a valid json string, ")
+		io.WriteString(response, e.Error())
 		return
 	}
 	isCommited := false
 	tx, e := ctx.db.Begin()
 	if nil != e {
 		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(e.Error()))
+		io.WriteString(response, "start a transcation failed, ")
+		io.WriteString(response, e.Error())
 		return
 	}
 
@@ -645,7 +647,8 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 			e := ctx.dialect.removeAlertCookies(tx, &entity)
 			if nil != e && sql.ErrNoRows != e {
 				response.WriteHeader(http.StatusInternalServerError)
-				response.Write([]byte(e.Error()))
+				io.WriteString(response, "remove cookies failed, ")
+				io.WriteString(response, e.Error())
 				return
 			}
 		} else {
@@ -654,7 +657,8 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 			e = ctx.dialect.saveAlertCookies(tx, &entity)
 			if nil != e {
 				response.WriteHeader(http.StatusInternalServerError)
-				response.Write([]byte(e.Error()))
+				io.WriteString(response, "save cookies failed, ")
+				io.WriteString(response, e.Error())
 				return
 			}
 		}
@@ -662,7 +666,8 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 		e = ctx.dialect.saveAlertHistory(tx, &entity)
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)
-			response.Write([]byte(e.Error()))
+			io.WriteString(response, "save alert failed, ")
+			io.WriteString(response, e.Error())
 			return
 		}
 
@@ -679,7 +684,8 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 			e = ctx.dialect.saveNotification(tx, queue, id, &entity, now)
 			if nil != e {
 				response.WriteHeader(http.StatusInternalServerError)
-				response.Write([]byte(e.Error()))
+				io.WriteString(response, "save notification failed, ")
+				io.WriteString(response, e.Error())
 				return
 			}
 		}
@@ -689,7 +695,8 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 	e = tx.Commit()
 	if nil != e && sql.ErrNoRows != e {
 		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(e.Error()))
+		io.WriteString(response, "commit transcation failed, ")
+		io.WriteString(response, e.Error())
 		return
 	}
 	isCommited = true
@@ -702,15 +709,16 @@ func (self *server) onHistories(ctx *context, response http.ResponseWriter, requ
 	e := decoder.Decode(&entities)
 	if nil != e {
 		response.WriteHeader(http.StatusBadRequest)
-		response.Write([]byte("it is not a valid json string, "))
-		response.Write([]byte(e.Error()))
+		io.WriteString(response, "it is not a valid json string, ")
+		io.WriteString(response, e.Error())
 		return
 	}
 	isCommited := false
 	tx, e := ctx.db.Begin()
 	if nil != e {
 		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(e.Error()))
+		io.WriteString(response, "start a transcation failed, ")
+		io.WriteString(response, e.Error())
 		return
 	}
 	defer func() {
@@ -723,7 +731,8 @@ func (self *server) onHistories(ctx *context, response http.ResponseWriter, requ
 		e := ctx.dialect.saveHistory(tx, &entity)
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)
-			response.Write([]byte(e.Error()))
+			io.WriteString(response, "save history failed")
+			io.WriteString(response, e.Error())
 			return
 		}
 	}
@@ -732,7 +741,8 @@ func (self *server) onHistories(ctx *context, response http.ResponseWriter, requ
 	e = tx.Commit()
 	if nil != e && sql.ErrNoRows != e {
 		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(e.Error()))
+		io.WriteString(response, "commit transcation failed")
+		io.WriteString(response, e.Error())
 		return
 	}
 	isCommited = true

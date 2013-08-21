@@ -98,6 +98,48 @@ func TestAlertsServer(t *testing.T) {
 
 		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
 
+		_, e = httpInvoke("PUT", url+"/alerts", `[{"action_id": 123,
+        "status": 2,
+        "previous_status": 0,
+        "event_id": "123",
+        "sequence_id": 1,
+        "content": "content is alerted",
+        "current_value": "23",
+        "triggered_at": `+string(now)+`,
+        "managed_type": "mo",
+        "managed_id": 123}]`, 200)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		entities, e = SelectAlertHistories(db)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if nil == entities || 2 != len(entities) {
+			t.Error("nil == entities || 2 != len(entities)")
+			return
+		}
+
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[1], 123, 2, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
+
+		entities, e = SelectAlertCookies(db)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if nil == entities || 1 != len(entities) {
+			t.Error("nil == entities || 1 != len(entities)")
+			return
+		}
+
+		AssertAlerts(t, entities[0], 123, 2, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
+
 	})
 }
 

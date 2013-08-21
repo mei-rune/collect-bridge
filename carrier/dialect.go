@@ -34,7 +34,7 @@ func (self *PostgresqlDialect) saveAlertCookies(tx *sql.Tx, entity *AlertEntity)
 			entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt)
 		return e
 	} else {
-		_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = ?, previous_status = ?, event_id = ?, sequence_id = ?, content = ?, current_value = ?, triggered_at = ?  WHERE id = ?`,
+		_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = $1, previous_status = $2, event_id = $3, sequence_id = $4, content = $5, current_value = $6, triggered_at = $7  WHERE id = $8`,
 			entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt, id)
 		return e
 	}

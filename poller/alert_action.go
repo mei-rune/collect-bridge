@@ -141,6 +141,8 @@ func (self *alertAction) Stats() map[string]interface{} {
 
 	if nil != self.notification_groups {
 		stats["notification_group_ids"] = self.notification_group_ids
+	} else {
+		stats["notification_group_ids"] = ""
 	}
 	return stats
 }

@@ -1,49 +1,49 @@
 package sampling
 
-import (
-	"commons"
-	"sync"
-	"time"
-)
+// import (
+// 	"commons"
+// 	"sync"
+// 	"time"
+// )
 
-type baseWorker struct {
-	id        string
-	timestamp int64
-	l         sync.Mutex
+// type baseWorker struct {
+// 	id        string
+// 	timestamp int64
+// 	l         sync.Mutex
 
-	bw          *backgroundWorker
-	results     circularBuffer
-	dispatcher  *dispatcher
-	metric_name string
-	ctx         *context
-	invoke_cb   invoke_func
-}
+// 	bw          *backgroundWorker
+// 	results     circularBuffer
+// 	dispatcher  *dispatcher
+// 	metric_name string
+// 	ctx         *context
+// 	invoke_cb   invoke_func
+// }
 
-func (self *baseWorker) isTimeout(now int64, default_interval time.Duration) bool {
-	self.l.Lock()
-	defer self.l.Unlock()
-	return (self.timestamp + int64(default_interval.Seconds())) <= now
-}
+// func (self *baseWorker) isTimeout(now int64, default_interval time.Duration) bool {
+// 	self.l.Lock()
+// 	defer self.l.Unlock()
+// 	return (self.timestamp + int64(default_interval.Seconds())) <= now
+// }
 
-func (self *baseWorker) invoke() error {
-	self.l.Lock()
-	defer self.l.Unlock()
+// func (self *baseWorker) invoke() error {
+// 	self.l.Lock()
+// 	defer self.l.Unlock()
 
-	res := self.invoke_cb(self.dispatcher, self.metric_name, self.ctx)
-	self.results.push(res)
-	if res.HasError() {
-		return res.Error()
-	}
-	return nil
-}
+// 	res := self.invoke_cb(self.dispatcher, self.metric_name, self.ctx)
+// 	self.results.push(res)
+// 	if res.HasError() {
+// 		return res.Error()
+// 	}
+// 	return nil
+// }
 
-func (self *baseWorker) close() {
-	self.bw.remove(self.id)
-}
+// func (self *baseWorker) close() {
+// 	self.bw.remove(self.id)
+// }
 
-func (self *baseWorker) stats() interface{} {
-	return nil
-}
+// func (self *baseWorker) stats() interface{} {
+// 	return nil
+// }
 
 // func (self *baseWorker) get() bool {
 // 	res := self.invoke(self.dispatcher, self.metric_name, self.ctx)
@@ -57,18 +57,18 @@ func (self *baseWorker) stats() interface{} {
 // func (self *flux_worker) get() (interface{}, error) {
 // }
 
-type interface_flux_create struct {
-	bw *backgroundWorker
-}
+// type interface_flux_create struct {
+// 	bw *backgroundWorker
+// }
 
-func (self *interface_flux_create) Call(ctx MContext) commons.Result {
-	params := ctx.GetStringWithDefault("metric-params", "")
-	if 0 == len(params) {
-		return commons.ReturnError(commons.BadRequestCode, "metric-params is missing.")
-	}
+// func (self *interface_flux_create) Call(ctx MContext) commons.Result {
+// 	params := ctx.GetStringWithDefault("metric-params", "")
+// 	if 0 == len(params) {
+// 		return commons.ReturnError(commons.BadRequestCode, "metric-params is missing.")
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // func init() {
 // 	bw := &backgroundWorker{name: "default",

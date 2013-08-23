@@ -214,14 +214,14 @@ func ToFilters(matcher Matchers) []Filter {
 	return nil
 }
 
-func (self Matchers) Match(params commons.Map, debugging bool) (bool, error) {
-	if nil == self || 0 == len(self) {
+func (self Matchers) Match(skipped int, params commons.Map, debugging bool) (bool, error) {
+	if nil == self || skipped >= len(self) {
 		return true, nil
 	}
 
 	if debugging {
 		error := make([]string, 0)
-		for _, m := range self {
+		for _, m := range self[skipped:] {
 			value := params.GetStringWithDefault("$"+m.Attribute, "")
 			if 0 == len(value) {
 				error = append(error, commons.IsRequired(m.Attribute).Error())
@@ -233,7 +233,7 @@ func (self Matchers) Match(params commons.Map, debugging bool) (bool, error) {
 			return false, errors.New("match failed:\n" + strings.Join(error, "\n"))
 		}
 	} else {
-		for _, m := range self {
+		for _, m := range self[skipped:] {
 			value := params.GetStringWithDefault("$"+m.Attribute, "")
 			if 0 == len(value) {
 				return false, commons.IsRequired(m.Attribute)

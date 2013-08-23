@@ -4,6 +4,7 @@ import (
 	"commons"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Route struct {
@@ -80,193 +81,168 @@ func NewRoute(rd *RouteDefinition) (*Route, error) {
 }
 
 type Routers struct {
-	routes []*Route
+	byOid          RouteSetByOid
+	routes         []*Route
+	default_routes []*Route
 }
 
 func (self *Routers) register(rs *Route) error {
+	if nil == rs.matchers || 0 == len(rs.matchers) {
+		self.default_routes = append(self.default_routes, rs)
+		return nil
+	}
+
+	match := rs.matchers[0]
+	if "start_with" == match.Method &&
+		"sys.oid" == match.Attribute {
+		if nil == self.byOid {
+			self.byOid = RouteSetByOid{}
+		}
+		self.byOid.register(match.Arguments[0], rs)
+		return nil
+	}
+
 	self.routes = append(self.routes, rs)
 	return nil
 }
 
 func (self *Routers) unregister(id string) {
-	for i, s := range self.routes {
-		if nil == s {
+	if nil != self.byOid {
+		self.byOid.unregister(id)
+	}
+
+	for _, routes := range [][]*Route{self.routes, self.default_routes} {
+		if nil == routes || 0 == len(routes) {
 			continue
 		}
 
-		if s.id == id {
-			copy(self.routes[i:], self.routes[i+1:])
-			self.routes = self.routes[:len(self.routes)-1]
-			break
+		for i, rs := range routes {
+			if nil == rs {
+				continue
+			}
+
+			if rs.id == id {
+				copy(routes[i:], routes[i+1:])
+				routes = routes[:len(routes)-1]
+				break
+			}
 		}
 	}
 }
 
 func (self *Routers) clear() {
-	self.routes = self.routes[0:0]
+	self.byOid = nil
+	self.routes = nil
+	self.default_routes = nil
 }
 
 func (self *Routers) Invoke(params MContext) commons.Result {
-	for _, s := range self.routes {
-		matched, e := s.matchers.Match(params, false)
+	if nil != self.byOid {
+		oid := params.GetStringWithDefault("$sys.oid", "")
+		if 0 == len(oid) {
+			return commons.ReturnWithIsRequired("sys.oid")
+		}
+		route, e := self.byOid.find(oid, params, false)
 		if nil != e {
 			return commons.ReturnWithInternalError(e.Error())
 		}
 
-		if matched {
-			//fmt.Println("invoke", s.id)
-			res := s.invoke.Call(params)
-			if res.ErrorCode() == commons.ContinueCode {
+		if nil != route {
+			return route.invoke.Call(params)
+		}
+	}
+
+	if nil != self.routes {
+		for _, rs := range self.routes {
+			matched, e := rs.matchers.Match(0, params, false)
+			if nil != e {
+				return commons.ReturnWithInternalError(e.Error())
+			}
+
+			if matched {
+				return rs.invoke.Call(params)
+			}
+		}
+	}
+
+	if nil != self.default_routes {
+		var res commons.Result
+		for _, rs := range self.default_routes {
+			res = rs.invoke.Call(params)
+			if res.HasError() {
 				continue
 			}
+			return res
+		}
+		if nil != res {
 			return res
 		}
 	}
 	return commons.ReturnWithNotAcceptable("not match")
 }
 
-// type DispatchFunc func(params map[string]string) (map[string]interface{}, commons.RuntimeError)
+type RouteSetByOid map[string][]*Route
 
-// var emptyResult = make(map[string]interface{})
+func normalizeSystemOid(oid string) string {
+	if '.' == oid[0] {
+		oid = oid[1:]
+	}
 
-// type dispatcherBase struct {
-// 	SnmpBase
-// 	get, set    DispatchFunc
-// 	get_methods map[uint]map[string]DispatchFunc
-// 	set_methods map[uint]map[string]DispatchFunc
-// }
+	if !strings.HasPrefix(oid, "1.3.6.1.4.1.") {
+		return "@" + oid
+	}
 
-// func splitsystemOid(oid string) (uint, string) {
-// 	if !strings.HasPrefix(oid, "1.3.6.1.4.1.") {
-// 		return 0, oid
-// 	}
-// 	oid = oid[12:]
-// 	idx := strings.IndexRune(oid, '.')
-// 	if -1 == idx {
-// 		u, e := strconv.ParseUint(oid, 10, 0)
-// 		if nil != e {
-// 			panic(e.Error())
-// 		}
-// 		return uint(u), ""
-// 	}
+	return oid[12:]
+}
 
-// 	u, e := strconv.ParseUint(oid[:idx], 10, 0)
-// 	if nil != e {
-// 		panic(e.Error())
-// 	}
-// 	return uint(u), oid[idx+1:]
-// }
+func splitOid(oid string) (res []int) {
+	for i, c := range oid {
+		if '.' == c {
+			res = append(res, i)
+		}
+	}
+	return
+}
 
-// func (self *dispatcherBase) RegisterGetFunc(oids []string, get DispatchFunc) {
-// 	for _, oid := range oids {
-// 		main, sub := splitsystemOid(oid)
-// 		methods := self.get_methods[main]
-// 		if nil == methods {
-// 			methods = map[string]DispatchFunc{}
-// 			self.get_methods[main] = methods
-// 		}
-// 		methods[sub] = get
-// 	}
-// }
+func (self RouteSetByOid) register(oid string, route *Route) {
+	oid = normalizeSystemOid(oid)
+	if routes, ok := self[oid]; ok {
+		self[oid] = append(routes, route)
+	} else {
+		self[oid] = []*Route{route}
+	}
+}
 
-// func (self *dispatcherBase) RegisterSetFunc(oids []string, set DispatchFunc) {
-// 	for _, oid := range oids {
-// 		main, sub := splitsystemOid(oid)
-// 		methods := self.set_methods[main]
-// 		if nil == methods {
-// 			methods = map[string]DispatchFunc{}
-// 			self.set_methods[main] = methods
-// 		}
-// 		methods[sub] = set
-// 	}
-// }
+func (self RouteSetByOid) unregister(id string) {
+	for k, routes := range self {
+		for i, rs := range routes {
+			if rs.id == id {
+				copy(routes[i:], routes[i+1:])
+				self[k] = routes[:len(routes)-1]
+				return
+			}
+		}
+	}
+}
 
-// func findFunc(oid string, funcs map[uint]map[string]DispatchFunc) DispatchFunc {
-// 	main, sub := splitsystemOid(oid)
-// 	methods := funcs[main]
-// 	if nil == methods {
-// 		return nil
-// 	}
-// 	get := methods[sub]
-// 	if nil != get {
-// 		return get
-// 	}
-// 	if "" == sub {
-// 		return nil
-// 	}
-// 	return methods[""]
-// }
+func (self RouteSetByOid) find(oid string, params commons.Map, debugging bool) (*Route, error) {
+	oid = normalizeSystemOid(oid)
+	positions := splitOid(oid)
+	for _, p := range positions {
+		routes := self[oid[:p]]
+		if nil == routes {
+			continue
+		}
 
-// func (self *dispatcherBase) FindGetFunc(oid string) DispatchFunc {
-// 	return findFunc(oid, self.get_methods)
-// }
-
-// func (self *dispatcherBase) FindSetFunc(oid string) DispatchFunc {
-// 	return findFunc(oid, self.set_methods)
-// }
-
-// func findDefaultFunc(oid string, funcs map[uint]map[string]DispatchFunc) DispatchFunc {
-// 	main, sub := splitsystemOid(oid)
-// 	methods := funcs[main]
-// 	if nil == methods {
-// 		return nil
-// 	}
-// 	if "" == sub {
-// 		return nil
-// 	}
-// 	return methods[""]
-// }
-
-// func (self *dispatcherBase) FindDefaultGetFunc(oid string) DispatchFunc {
-// 	return findDefaultFunc(oid, self.get_methods)
-// }
-
-// func (self *dispatcherBase) FindDefaultSetFunc(oid string) DispatchFunc {
-// 	return findDefaultFunc(oid, self.set_methods)
-// }
-
-// func (self *dispatcherBase) Init(params map[string]interface{}, drvName string) commons.RuntimeError {
-// 	self.get_methods = make(map[uint]map[string]DispatchFunc, 5000)
-// 	self.set_methods = make(map[uint]map[string]DispatchFunc, 5000)
-// 	return self.SnmpBase.Init(params, drvName)
-// }
-
-// func (self *dispatcherBase) invoke(params map[string]string, funcs map[uint]map[string]DispatchFunc) (map[string]interface{}, commons.RuntimeError) {
-// 	oid, e := self.GetStringMetric(params, "sys.oid")
-// 	if nil != e {
-// 		return nil, commons.NewRuntimeError(e.Code(), "get system oid failed, "+e.Error())
-// 	}
-// 	f := findFunc(oid, funcs)
-// 	if nil != f {
-// 		res, e := f(params)
-// 		if nil == e {
-// 			return res, e
-// 		}
-// 		if commons.ContinueCode != e.Code() {
-// 			return res, e
-// 		}
-
-// 		f = findDefaultFunc(oid, funcs)
-// 		if nil != f {
-// 			res, e := f(params)
-// 			if nil == e {
-// 				return res, e
-// 			}
-// 			if commons.ContinueCode != e.Code() {
-// 				return res, e
-// 			}
-// 		}
-// 	}
-// 	if nil != self.get {
-// 		return self.get(params)
-// 	}
-// 	return nil, errutils.NotAcceptable("Unsupported device - " + oid)
-// }
-
-// func (self *dispatcherBase) Get(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
-// 	return self.invoke(params, self.get_methods)
-// }
-
-// func (self *dispatcherBase) Put(params map[string]string) (map[string]interface{}, commons.RuntimeError) {
-// 	return self.invoke(params, self.set_methods)
-// }
+		for _, rs := range routes {
+			matched, e := rs.matchers.Match(1, params, debugging)
+			if nil != e {
+				return nil, errors.New("match '" + rs.id + "' failed, " + e.Error())
+			}
+			if matched {
+				return rs, nil
+			}
+		}
+	}
+	return nil, nil
+}

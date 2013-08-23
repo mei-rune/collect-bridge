@@ -115,7 +115,7 @@ func TestMatchs(t *testing.T) {
 			mo:           empty_mo,
 			alias:        map[string]string{}}
 
-		ok, e := matchers.Match(params, data.debuging)
+		ok, e := matchers.Match(0, params, data.debuging)
 		if ok != data.matchResult {
 			t.Errorf("match '%d' failed, excepted is %v, actual is %v", i, data.matchResult, ok)
 		}

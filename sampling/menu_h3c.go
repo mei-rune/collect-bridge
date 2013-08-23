@@ -3,7 +3,6 @@ package sampling
 import (
 	"commons"
 	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -266,7 +265,6 @@ func (self *baseH3C) readMemoryWithStyle(size_oid, usage_oid string, params MCon
 		var memSize int32
 		var memUsage int32
 
-		fmt.Println(size_oid + id)
 		memSize, e = self.GetInt32(params, size_oid+id)
 		if nil != e {
 			return nil, e

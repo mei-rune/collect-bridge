@@ -143,13 +143,13 @@ func init() {
 			return drv, drv.Init(params)
 		})
 
-	Methods["cisco_cpu"] = newRouteSpec("get", "cpu", "default cpu", Match().Oid("1.3.6.1.4.1.9").Build(),
+	Methods["cisco_cpu"] = newRouteSpec("get", "cpu", "cisco cpu", Match().Oid("1.3.6.1.4.1.9").Build(),
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &cpuCisco{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["cisco_host_cpu"] = newRouteSpec("get", "cpu", "default cpu", Match().Oid("1.3.6.1.4.1.9.1.746").Build(),
+	Methods["cisco_host_cpu"] = newRouteSpec("get", "cpu", "cisco host cpu", Match().Oid("1.3.6.1.4.1.9.1.746").Build(),
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &cpuWindows{}
 			return drv, drv.Init(params)

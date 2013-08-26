@@ -236,7 +236,7 @@ type SimpleResult struct {
 	Ecreated_at     time.Time              `json:"created_at,omitempty"`
 	Erepresentation string                 `json:"representation,omitempty"`
 
-	value    AnyValue
+	value    AnyData
 	effected int64
 }
 
@@ -412,65 +412,65 @@ func (self *SimpleResult) ToMap() map[string]interface{} {
 	return res
 }
 
-type AnyValue struct {
+type AnyData struct {
 	Value interface{}
 }
 
-func (self *AnyValue) IsNil() bool {
+func (self *AnyData) IsNil() bool {
 	return nil == self.Value
 }
 
-func (self *AnyValue) AsInterface() interface{} {
+func (self *AnyData) AsInterface() interface{} {
 	return self.Value
 }
 
-func (self *AnyValue) AsBool() (bool, error) {
+func (self *AnyData) AsBool() (bool, error) {
 	return AsBool(self.Value)
 }
 
-func (self *AnyValue) AsInt() (int, error) {
+func (self *AnyData) AsInt() (int, error) {
 	return AsInt(self.Value)
 }
 
-func (self *AnyValue) AsInt32() (int32, error) {
+func (self *AnyData) AsInt32() (int32, error) {
 	return AsInt32(self.Value)
 }
 
-func (self *AnyValue) AsInt64() (int64, error) {
+func (self *AnyData) AsInt64() (int64, error) {
 	return AsInt64(self.Value)
 }
 
-func (self *AnyValue) AsUint() (uint, error) {
+func (self *AnyData) AsUint() (uint, error) {
 	return AsUint(self.Value)
 }
 
-func (self *AnyValue) AsUint32() (uint32, error) {
+func (self *AnyData) AsUint32() (uint32, error) {
 	return AsUint32(self.Value)
 }
 
-func (self *AnyValue) AsUint64() (uint64, error) {
+func (self *AnyData) AsUint64() (uint64, error) {
 	return AsUint64(self.Value)
 }
 
-func (self *AnyValue) AsString() (string, error) {
+func (self *AnyData) AsString() (string, error) {
 	return AsString(self.Value)
 }
 
-func (self *AnyValue) AsArray() ([]interface{}, error) {
+func (self *AnyData) AsArray() ([]interface{}, error) {
 	if m, ok := self.Value.([]interface{}); ok {
 		return m, nil
 	}
 	return nil, IsNotArray
 }
 
-func (self *AnyValue) AsObject() (map[string]interface{}, error) {
+func (self *AnyData) AsObject() (map[string]interface{}, error) {
 	if m, ok := self.Value.(map[string]interface{}); ok {
 		return m, nil
 	}
 	return nil, IsNotMap
 }
 
-func (self *AnyValue) AsObjects() ([]map[string]interface{}, error) {
+func (self *AnyData) AsObjects() ([]map[string]interface{}, error) {
 	if o, ok := self.Value.([]map[string]interface{}); ok {
 		return o, nil
 	}

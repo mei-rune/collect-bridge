@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-type MatchFunc func(matcher *Matcher, params commons.Map, value string) bool
+type MatchFunc func(matcher *Matcher, params MContext, value string) bool
 
 type Matcher struct {
 	Method      string
@@ -158,49 +158,49 @@ func NewMatcher(method string, arguments []string) (*Matcher, error) {
 	return nil, errors.New("Unsupported method - '" + method + "'")
 }
 
-func match_in(self *Matcher, params commons.Map, value string) bool {
+func match_in(self *Matcher, params MContext, value string) bool {
 	_, ok := self.valueMap[value]
 	return ok
 }
 
-func match_equal(self *Matcher, params commons.Map, value string) bool {
+func match_equal(self *Matcher, params MContext, value string) bool {
 	return self.Arguments[0] == value
 }
 
-func match_start_with(self *Matcher, params commons.Map, value string) bool {
+func match_start_with(self *Matcher, params MContext, value string) bool {
 	return strings.HasPrefix(value, self.Arguments[0])
 }
 
-func match_end_with(self *Matcher, params commons.Map, value string) bool {
+func match_end_with(self *Matcher, params MContext, value string) bool {
 	return strings.HasSuffix(value, self.Arguments[0])
 }
 
-func match_contains(self *Matcher, params commons.Map, value string) bool {
+func match_contains(self *Matcher, params MContext, value string) bool {
 	return -1 != strings.Index(value, self.Arguments[0])
 }
 
-func match_in_with_ignore_case(self *Matcher, params commons.Map, value string) bool {
+func match_in_with_ignore_case(self *Matcher, params MContext, value string) bool {
 	_, ok := self.valueMap[strings.ToLower(value)]
 	return ok
 }
 
-func match_equal_with_ignore_case(self *Matcher, params commons.Map, value string) bool {
+func match_equal_with_ignore_case(self *Matcher, params MContext, value string) bool {
 	return self.Arguments[0] == strings.ToLower(value)
 }
 
-func match_start_with_and_ignore_case(self *Matcher, params commons.Map, value string) bool {
+func match_start_with_and_ignore_case(self *Matcher, params MContext, value string) bool {
 	return strings.HasPrefix(strings.ToLower(value), self.Arguments[0])
 }
 
-func match_end_with_and_ignore_case(self *Matcher, params commons.Map, value string) bool {
+func match_end_with_and_ignore_case(self *Matcher, params MContext, value string) bool {
 	return strings.HasSuffix(strings.ToLower(value), self.Arguments[0])
 }
 
-func match_contains_with_ignore_case(self *Matcher, params commons.Map, value string) bool {
+func match_contains_with_ignore_case(self *Matcher, params MContext, value string) bool {
 	return -1 != strings.Index(strings.ToLower(value), self.Arguments[0])
 }
 
-func match_regex(self *Matcher, params commons.Map, value string) bool {
+func match_regex(self *Matcher, params MContext, value string) bool {
 	return self.re.MatchString(value)
 }
 
@@ -214,7 +214,7 @@ func ToFilters(matcher Matchers) []Filter {
 	return nil
 }
 
-func (self Matchers) Match(skipped int, params commons.Map, debugging bool) (bool, error) {
+func (self Matchers) Match(skipped int, params MContext, debugging bool) (bool, error) {
 	if nil == self || skipped >= len(self) {
 		return true, nil
 	}

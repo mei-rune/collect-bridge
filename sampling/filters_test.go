@@ -112,7 +112,7 @@ func TestMatchs(t *testing.T) {
 		params := &context{params: data.params,
 			managed_type: "unknow_type",
 			managed_id:   "unknow_id",
-			mo:           empty_mo,
+			mo:           map[string]interface{}{},
 			alias:        map[string]string{}}
 
 		ok, e := matchers.Match(0, params, data.debuging)

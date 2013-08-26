@@ -444,6 +444,40 @@ func (self *systemInfo) Call(params MContext) commons.Result {
 		})
 }
 
+type portAll struct {
+	snmpBase
+}
+
+func (self *portAll) Call(params MContext) commons.Result {
+	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22",
+		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
+			new_row := map[string]interface{}{}
+			new_row["ifIndex"] = GetInt32(params, old_row, "1", -1)
+			new_row["ifDescr"] = GetString(params, old_row, "2")
+			new_row["ifType"] = GetInt32(params, old_row, "3", -1)
+			new_row["ifMtu"] = GetInt32(params, old_row, "4", -1)
+			new_row["ifSpeed"] = GetUint64(params, old_row, "5", 0)
+			new_row["ifPhysAddress"] = GetHardwareAddress(params, old_row, "6")
+			new_row["ifAdminStatus"] = GetInt32(params, old_row, "7", -1)
+			new_row["ifOpStatus"] = GetInt32(params, old_row, "8", -1)
+			new_row["ifLastChange"] = GetInt32(params, old_row, "9", -1)
+			new_row["ifInOctets"] = GetUint64(params, old_row, "10", 0)
+			new_row["ifInUcastPkts"] = GetUint64(params, old_row, "11", 0)
+			new_row["ifInNUcastPkts"] = GetUint64(params, old_row, "12", 0)
+			new_row["ifInDiscards"] = GetUint64(params, old_row, "13", 0)
+			new_row["ifInErrors"] = GetUint64(params, old_row, "14", 0)
+			new_row["ifInUnknownProtos"] = GetUint64(params, old_row, "15", 0)
+			new_row["ifOutOctets"] = GetUint64(params, old_row, "16", 0)
+			new_row["ifOutUcastPkts"] = GetUint64(params, old_row, "17", 0)
+			new_row["ifOutNUcastPkts"] = GetUint64(params, old_row, "18", 0)
+			new_row["ifOutDiscards"] = GetUint64(params, old_row, "19", 0)
+			new_row["ifOutErrors"] = GetUint64(params, old_row, "20", 0)
+			new_row["ifOutQLen"] = GetUint64(params, old_row, "21", 0)
+			new_row["ifSpecific"] = GetOid(params, old_row, "22")
+			return new_row, nil
+		})
+}
+
 type interfaceAll struct {
 	snmpBase
 }
@@ -746,11 +780,12 @@ func (self *snmpWrite) Call(params MContext) commons.Result {
 		return commons.ReturnWithBadRequest("'snmp.oid' is empty.")
 	}
 
-	body, e := params.Body()
+	var body string
+	e = params.Body(&body)
 	if nil != e {
 		return commons.ReturnWithBadRequest("read body failed, " + e.Error())
 	}
-	if nil == body {
+	if 0 == len(body) {
 		return commons.ReturnWithBadRequest("'body' is nil.")
 	}
 
@@ -866,6 +901,12 @@ func init() {
 	Methods["sys"] = newRouteSpec("get", "sys", "the system info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &systemInfo{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["port_interface"] = newRouteSpecWithPaths("get", "interface", "the interface info", []P{P{"port", "ifIndex"}}, nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &portAll{}
 			return drv, drv.Init(params)
 		})
 

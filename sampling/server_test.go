@@ -33,22 +33,22 @@ func createMockSnmpParams(t *testing.T, client *ds.Client, id, body map[string]i
 
 func urlGet(t *testing.T, sampling_url, managed_type, managed_id, target string) commons.Result {
 	self := &commons.HttpClient{Url: sampling_url}
-	url := self.CreateUrl().Concat("metrics", managed_type, managed_id, target).ToUrl()
-	t.Log(url)
+	url := self.CreateUrl().Concat(managed_type, managed_id, target).ToUrl()
+	//t.Log(url)
 	return self.InvokeWithObject("GET", url, nil, 200)
 }
 
 func nativeGet(t *testing.T, sampling_url, ip, target string, params map[string]string) commons.Result {
 	self := &commons.HttpClient{Url: sampling_url}
-	url := self.CreateUrl().Concat("metrics", ip, target).WithQueries(params, "").ToUrl()
-	t.Log(url)
+	url := self.CreateUrl().Concat(ip, target).WithQueries(params, "").ToUrl()
+	//t.Log(url)
 	return self.InvokeWithObject("GET", url, nil, 200)
 }
 
 func nativePut(t *testing.T, sampling_url, ip, target string, params map[string]string, body interface{}) commons.Result {
 	self := &commons.HttpClient{Url: sampling_url}
-	url := self.CreateUrl().Concat("metrics", ip, target).WithQueries(params, "").ToUrl()
-	t.Log(url)
+	url := self.CreateUrl().Concat(ip, target).WithQueries(params, "").ToUrl()
+	//t.Log(url)
 	return self.InvokeWithObject("PUT", url, body, 200)
 }
 

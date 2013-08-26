@@ -9,6 +9,32 @@ import (
 	"testing"
 )
 
+func TestInterface(t *testing.T) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
+		_, e := client.DeleteBy("network_device", emptyParams)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		res := nativeGet(t, sampling_url, "127.0.0.1", "port/1/interface", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		if res.HasError() {
+			t.Error(res.Error())
+			return
+		}
+
+		if nil == res.InterfaceValue() {
+			t.Error("values is nil")
+		}
+		_, err := res.Value().AsObject()
+		if nil != err {
+			t.Error(err)
+			return
+		}
+
+		t.Log(res.InterfaceValue())
+	})
+}
+
 func TestSnmpRead(t *testing.T) {
 	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		for idx, test := range []struct {
@@ -20,7 +46,7 @@ func TestSnmpRead(t *testing.T) {
 		}{{action: "snmp_get", oid: "", error_code: commons.BadRequestCode, error_message: "'snmp.oid' is empty."},
 			{action: "snmp_get", oid: "1.3.6.1.2.1.1.5.0", error_code: 0, error_message: ""},
 			{action: "snmp_next", oid: "1.3.6.1.2.1.1.4.0", error_code: 0, error_message: ""},
-			//{action: "snmp_bulk", oid: "1.3.6.1.2.1.1.4.0,1.3.6.1.2.1.1.5.0", error_code: 0, error_message: ""},
+			{action: "snmp_bulk", oid: "1.3.6.1.2.1.1.4.0,1.3.6.1.2.1.1.5.0", error_code: 0, error_message: ""},
 			{action: "snmp_table", oid: "1.3.6.1.2.1.2.2.1", error_code: 0, error_message: ""},
 			{action: "snmp_table", oid: "1.3.6.1.2.1.2.2.1", columns: "1,2,3,4,5,6", error_code: 0, error_message: ""}} {
 
@@ -88,7 +114,6 @@ func TestSnmpRead(t *testing.T) {
 				//t.Logf("test[%v]: result is '%v'", idx, res.Value())
 				fallthrough
 			case "snmp_next":
-
 				m, e := res.Value().AsObject()
 				if nil != e {
 					t.Errorf("test[%v]: excepted is a map, actual is '%v'", idx, res.Value())
@@ -101,7 +126,6 @@ func TestSnmpRead(t *testing.T) {
 					continue
 				}
 			default:
-
 				m, e := res.Value().AsObject()
 				if nil != e {
 					t.Errorf("test[%v]: excepted is a map, actual is '%v'", idx, res.Value())
@@ -117,7 +141,7 @@ func TestSnmpRead(t *testing.T) {
 			if !strings.HasPrefix(s, "[octets]") {
 				t.Errorf("test[%v]: excepted is '[octets]', actual is '%v'", idx, res.Value())
 			}
-			t.Logf("test[%v]: result is '%v'", idx, res.Value())
+			//t.Logf("test[%v]: result is '%v'", idx, res.Value())
 		}
 	})
 }

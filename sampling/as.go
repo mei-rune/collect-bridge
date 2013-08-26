@@ -18,7 +18,7 @@ func nilString(b []byte) string {
 	return string(b[0:i])
 }
 
-func bytesToString(params commons.Map, input []byte) string {
+func bytesToString(params MContext, input []byte) string {
 	if nil == input || 0 == len(input) {
 		return ""
 	}
@@ -54,7 +54,7 @@ func bytesToString(params commons.Map, input []byte) string {
 	return buffer.String()
 }
 
-func GetInt32(params commons.Map, values map[string]interface{}, idx string, defaultValue int32) int32 {
+func GetInt32(params MContext, values map[string]interface{}, idx string, defaultValue int32) int32 {
 	i, e := TryGetInt32(params, values, idx, defaultValue)
 	if nil != e {
 		panic(e.Error())
@@ -62,7 +62,7 @@ func GetInt32(params commons.Map, values map[string]interface{}, idx string, def
 	return i
 }
 
-func TryGetInt32(params commons.Map, values map[string]interface{}, idx string, defaultValue int32) (int32, error) {
+func TryGetInt32(params MContext, values map[string]interface{}, idx string, defaultValue int32) (int32, error) {
 	value, ok := values[idx]
 	if !ok {
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
@@ -97,7 +97,7 @@ func TryGetInt32(params commons.Map, values map[string]interface{}, idx string, 
 	return defaultValue, fmt.Errorf("row with key is '%s' cann`t convert to int32, value is `%v`.", idx, value)
 }
 
-func GetUint32(params commons.Map, values map[string]interface{}, idx string, defaultValue uint32) uint32 {
+func GetUint32(params MContext, values map[string]interface{}, idx string, defaultValue uint32) uint32 {
 	i, e := TryGetUint32(params, values, idx, defaultValue)
 	if nil != e {
 		panic(e.Error())
@@ -105,7 +105,7 @@ func GetUint32(params commons.Map, values map[string]interface{}, idx string, de
 	return i
 }
 
-func TryGetUint32(params commons.Map, values map[string]interface{}, idx string, defaultValue uint32) (uint32, error) {
+func TryGetUint32(params MContext, values map[string]interface{}, idx string, defaultValue uint32) (uint32, error) {
 	value, ok := values[idx]
 	if !ok {
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
@@ -140,7 +140,7 @@ func TryGetUint32(params commons.Map, values map[string]interface{}, idx string,
 	return defaultValue, fmt.Errorf("row with key is '%s' cann`t convert to uint32, value is `%v`.", idx, value)
 }
 
-func GetInt64(params commons.Map, values map[string]interface{}, idx string, defaultValue int64) int64 {
+func GetInt64(params MContext, values map[string]interface{}, idx string, defaultValue int64) int64 {
 	i, e := TryGetInt64(params, values, idx, defaultValue)
 	if nil != e {
 		panic(e.Error())
@@ -148,7 +148,7 @@ func GetInt64(params commons.Map, values map[string]interface{}, idx string, def
 	return i
 }
 
-func TryGetInt64(params commons.Map, values map[string]interface{}, idx string, defaultValue int64) (int64, error) {
+func TryGetInt64(params MContext, values map[string]interface{}, idx string, defaultValue int64) (int64, error) {
 	value, ok := values[idx]
 	if !ok {
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
@@ -183,7 +183,7 @@ func TryGetInt64(params commons.Map, values map[string]interface{}, idx string, 
 	return defaultValue, fmt.Errorf("row with key is '%s' cann`t convert to int64, value is `%v`.", idx, value)
 }
 
-func GetUint64(params commons.Map, values map[string]interface{}, idx string, defaultValue uint64) uint64 {
+func GetUint64(params MContext, values map[string]interface{}, idx string, defaultValue uint64) uint64 {
 	i, e := TryGetUint64(params, values, idx, defaultValue)
 	if nil != e {
 		panic(e.Error())
@@ -191,7 +191,7 @@ func GetUint64(params commons.Map, values map[string]interface{}, idx string, de
 	return i
 }
 
-func TryGetUint64(params commons.Map, values map[string]interface{}, idx string, defaultValue uint64) (uint64, error) {
+func TryGetUint64(params MContext, values map[string]interface{}, idx string, defaultValue uint64) (uint64, error) {
 	value, ok := values[idx]
 	if !ok {
 		return defaultValue, nil //errors.New("row with key is '" + idx + "' is not found")
@@ -226,7 +226,7 @@ func TryGetUint64(params commons.Map, values map[string]interface{}, idx string,
 	return defaultValue, fmt.Errorf("row with key is '%s' cann`t convert to uint64, value is `%v`.", idx, value)
 }
 
-func GetOid(params commons.Map, values map[string]interface{}, idx string) string {
+func GetOid(params MContext, values map[string]interface{}, idx string) string {
 	s, e := TryGetOid(params, values, idx)
 	if nil != e {
 		panic(e.Error())
@@ -234,7 +234,7 @@ func GetOid(params commons.Map, values map[string]interface{}, idx string) strin
 	return s
 }
 
-func TryGetOid(params commons.Map, values map[string]interface{}, idx string) (string, error) {
+func TryGetOid(params MContext, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
@@ -253,7 +253,7 @@ func TryGetOid(params commons.Map, values map[string]interface{}, idx string) (s
 	panic(fmt.Sprintf("row with key is '%s' cann`t convert to oid, value is `%v`.", idx, value))
 }
 
-func GetString(params commons.Map, values map[string]interface{}, idx string) string {
+func GetString(params MContext, values map[string]interface{}, idx string) string {
 	s, e := TryGetString(params, values, idx)
 	if nil != e {
 		panic(e.Error())
@@ -261,7 +261,7 @@ func GetString(params commons.Map, values map[string]interface{}, idx string) st
 	return s
 }
 
-func TryGetString(params commons.Map, values map[string]interface{}, idx string) (string, error) {
+func TryGetString(params MContext, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
@@ -290,7 +290,7 @@ func TryGetString(params commons.Map, values map[string]interface{}, idx string)
 	return "", fmt.Errorf("row with key is '%s' cann`t convert to string, value is `%v`.", idx, value)
 }
 
-func GetHardwareAddress(params commons.Map, values map[string]interface{}, idx string) string {
+func GetHardwareAddress(params MContext, values map[string]interface{}, idx string) string {
 	s, e := TryGetHardwareAddress(params, values, idx)
 	if nil != e {
 		panic(e.Error())
@@ -315,7 +315,7 @@ func parseMAC(s string) (string, error) {
 	}
 	return "", errors.New("'" + s + "' is invalid hardware address")
 }
-func TryGetHardwareAddress(params commons.Map, values map[string]interface{}, idx string) (string, error) {
+func TryGetHardwareAddress(params MContext, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")
@@ -335,7 +335,7 @@ func TryGetHardwareAddress(params commons.Map, values map[string]interface{}, id
 	return "", fmt.Errorf("row with key is '%s' cann`t convert to hardwareAddress, value is `%v`.", idx, value)
 }
 
-func GetIPAddress(params commons.Map, values map[string]interface{}, idx string) string {
+func GetIPAddress(params MContext, values map[string]interface{}, idx string) string {
 	s, e := TryGetIPAddress(params, values, idx)
 	if nil != e {
 		panic(e.Error())
@@ -343,7 +343,7 @@ func GetIPAddress(params commons.Map, values map[string]interface{}, idx string)
 	return s
 }
 
-func TryGetIPAddress(params commons.Map, values map[string]interface{}, idx string) (string, error) {
+func TryGetIPAddress(params MContext, values map[string]interface{}, idx string) (string, error) {
 	value, ok := values[idx]
 	if !ok {
 		return "", nil //errors.New("row with key is '" + idx + "' is not found")

@@ -3,84 +3,286 @@ package sampling
 import (
 	"commons"
 	ds "data_store"
+	"encoding/json"
 	"errors"
+	"expvar"
 	"fmt"
-	"github.com/emicklei/go-restful"
+	"io"
+	"net/http"
 	"net/http/httptest"
+	"strings"
 	"time"
 
 	"commons/types"
+	"net/http/pprof"
 	"testing"
 )
 
 var (
-	empty_mo    = map[string]interface{}{}
 	alias_names = map[string]string{"snmp": "snmp_param"}
 )
 
+func expvarHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintf(w, "{\n")
+	first := true
+	expvar.Do(func(kv expvar.KeyValue) {
+		if !first {
+			fmt.Fprintf(w, ",\n")
+		}
+		first = false
+		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+	})
+	fmt.Fprintf(w, "\n}\n")
+}
+
 type server struct {
-	caches     *ds.Caches
-	mo_cache   *ds.Cache
-	dispatcher *dispatcher
+	caches   *ds.Caches
+	mo_cache *ds.Cache
+
+	routes_for_get    map[string]*Routers
+	routes_for_put    map[string]*Routers
+	routes_for_create map[string]*Routers
+	routes_for_delete map[string]*Routers
+
+	route_for_get    map[string]*Route
+	route_for_put    map[string]*Route
+	route_for_create map[string]*Route
+	route_for_delete map[string]*Route
 }
 
 func newServer(ds_url string, refresh time.Duration, params map[string]interface{}) (*server, error) {
-	dispatch, e := newDispatcher(params)
-	if nil != e {
-		return nil, errors.New("new dispatcher failed, " + e.Error())
-	}
 	client := ds.NewClient(ds_url)
 	caches := ds.NewCaches(refresh, client, "*", map[string]string{"snmp": "snmp_param"})
 	mo_cache := ds.NewCacheWithIncludes(refresh, client, "managed_object", "*")
 
-	return &server{caches: caches, mo_cache: mo_cache,
-		dispatcher: dispatch}, nil
+	srv := &server{caches: caches, mo_cache: mo_cache,
+		routes_for_get:    make(map[string]*Routers),
+		routes_for_put:    make(map[string]*Routers),
+		routes_for_create: make(map[string]*Routers),
+		routes_for_delete: make(map[string]*Routers),
+		route_for_get:     make(map[string]*Route),
+		route_for_put:     make(map[string]*Route),
+		route_for_create:  make(map[string]*Route),
+		route_for_delete:  make(map[string]*Route)}
+
+	for k, rs := range Methods {
+		r, e := newRouteWithSpec(k, rs, params)
+		if nil != e {
+			return nil, errors.New("init '" + k + "' failed, " + e.Error())
+		}
+
+		e = srv.register(r)
+		if nil != e {
+			return nil, errors.New("register '" + k + "' failed, " + e.Error())
+		}
+	}
+
+	return srv, nil
 }
 
-func (self *server) returnResult(resp *restful.Response, res commons.Result) {
+func (self *server) register(rs *Route) error {
+	switch rs.definition.Method {
+	case "get", "Get", "GET":
+		if _, ok := self.route_for_get[rs.id]; ok {
+			return errors.New("route that id is  '" + rs.id + "' is already exists.")
+		}
+		self.route_for_get[rs.id] = rs
+
+		route, _ := self.routes_for_get[rs.name]
+		if nil == route {
+			route = &Routers{}
+			self.routes_for_get[rs.name] = route
+		}
+
+		return route.register(rs)
+	case "put", "Put", "PUT":
+		if _, ok := self.route_for_put[rs.id]; ok {
+			return errors.New("route that id is  '" + rs.id + "' is already exists.")
+		}
+		self.route_for_put[rs.id] = rs
+
+		route, _ := self.routes_for_put[rs.name]
+		if nil == route {
+			route = &Routers{}
+			self.routes_for_put[rs.name] = route
+		}
+
+		return route.register(rs)
+	case "create", "Create", "CREATE":
+		if _, ok := self.route_for_create[rs.id]; ok {
+			return errors.New("route that id is  '" + rs.id + "' is already exists.")
+		}
+		self.route_for_create[rs.id] = rs
+
+		route, _ := self.routes_for_create[rs.name]
+		if nil == route {
+			route = &Routers{}
+			self.routes_for_create[rs.name] = route
+		}
+
+		return route.register(rs)
+	case "delete", "Delete", "DELETE":
+		if _, ok := self.route_for_delete[rs.id]; ok {
+			return errors.New("route that id is  '" + rs.id + "' is already exists.")
+		}
+		self.route_for_delete[rs.id] = rs
+
+		route, _ := self.routes_for_delete[rs.name]
+		if nil == route {
+			route = &Routers{}
+			self.routes_for_delete[rs.name] = route
+		}
+
+		return route.register(rs)
+	default:
+		return errors.New("Unsupported method - " + rs.definition.Method)
+	}
+}
+
+func (self *server) unregister(name, id string) {
+	for _, instances := range []map[string]*Routers{self.routes_for_get,
+		self.routes_for_put, self.routes_for_create, self.routes_for_delete} {
+		if "" == name {
+			for _, route := range instances {
+				route.unregister(id)
+			}
+		} else {
+			route, _ := instances[name]
+			if nil == route {
+				return
+			}
+			route.unregister(id)
+		}
+	}
+}
+
+func (self *server) clear() {
+	self.routes_for_get = make(map[string]*Routers)
+	self.routes_for_put = make(map[string]*Routers)
+	self.routes_for_create = make(map[string]*Routers)
+	self.routes_for_delete = make(map[string]*Routers)
+
+	self.route_for_get = make(map[string]*Route)
+	self.route_for_put = make(map[string]*Route)
+	self.route_for_create = make(map[string]*Route)
+	self.route_for_delete = make(map[string]*Route)
+}
+
+func notAcceptable(metric_name string) commons.Result {
+	return commons.ReturnWithNotAcceptable("'" + metric_name + "' is not acceptable.")
+}
+
+func (self *server) returnResult(resp http.ResponseWriter, res commons.Result) {
 	if res.HasError() {
-		resp.WriteErrorString(res.ErrorCode(), res.ErrorMessage())
+		resp.WriteHeader(res.ErrorCode())
+		io.WriteString(resp, res.ErrorMessage())
 	} else {
 		if -1 != res.LastInsertId() {
 			resp.WriteHeader(commons.CreatedCode)
 		}
-		resp.WriteEntity(res)
+		e := json.NewEncoder(resp).Encode(res)
+		if nil != e {
+			resp.WriteHeader(http.StatusInternalServerError)
+			io.WriteString(resp, e.Error())
+		}
 	}
 }
 
-type invoke_func func(self *dispatcher, name string, params MContext) commons.Result
+func to2DArray(ss []string) []P {
+	params := make([]P, 0, len(ss)/2)
+	for i := 0; i < len(ss); i += 2 {
+		params = append(params, P{ss[i], ss[i+1]})
+	}
+	return params
+}
 
-func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker invoke_func) {
-	managed_type := req.PathParameter("type")
-	if 0 == len(managed_type) {
-		self.returnResult(resp, commons.ReturnWithIsRequired("type"))
+func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/debug/") {
+		switch r.URL.Path {
+		case "/debug/vars":
+			expvarHandler(w, r)
+		case "/debug/pprof/":
+			pprof.Index(w, r)
+		case "/debug/pprof/cmdline":
+			pprof.Cmdline(w, r)
+		case "/debug/pprof/profile":
+			pprof.Profile(w, r)
+		case "/debug/pprof/symbol":
+			pprof.Symbol(w, r)
+		default:
+			http.NotFound(w, r)
+		}
 		return
 	}
-	managed_id := req.PathParameter("id")
-	if 0 == len(managed_id) {
-		self.returnResult(resp, commons.ReturnWithIsRequired("id"))
-		return
-	}
-	metric_name := req.PathParameter("metric-name")
-	if 0 == len(metric_name) {
-		self.returnResult(resp, commons.ReturnWithIsRequired("metric-name"))
-		return
+	url := r.URL.Path
+	if '/' == url[0] {
+		url = url[1:]
 	}
 
-	query_params := make(map[string]string)
-	query_params["metric_name"] = metric_name
-	for k, v := range req.Request.URL.Query() {
-		query_params[k] = v[len(v)-1]
-	}
-
-	mo, e := self.mo_cache.Get(managed_id)
-	if nil != e {
-		self.returnResult(resp, commons.ReturnWithInternalError(e.Error()))
+	paths := strings.Split(url, "/")
+	if 2 > len(paths) {
+		http.NotFound(w, r)
 		return
 	}
 
-	if nil == mo {
-		self.returnResult(resp, commons.ReturnWithNotFound(managed_type, managed_id))
+	var managed_type, managed_id, metric_name string
+	var mo map[string]interface{}
+	var query_paths []P
+	query_params := map[string]string{}
+	if 0 == len(paths)%2 {
+		metric_name = paths[len(paths)-1]
+		managed_type = "unknow_type"
+		managed_id = "unknow_id"
+		query_params["@address"] = paths[0]
+		query_params["metric-name"] = metric_name
+		query_paths = to2DArray(paths[1 : len(paths)-1])
+
+		mo = map[string]interface{}{}
+	} else {
+		metric_name = paths[len(paths)-1]
+		managed_type = paths[0]
+		managed_id = paths[1]
+		query_params["type"] = managed_type
+		query_params["id"] = managed_id
+		query_params["metric-name"] = metric_name
+		query_paths = to2DArray(paths[2 : len(paths)-1])
+
+		var e error
+		mo, e = self.mo_cache.Get(managed_id)
+		if nil != e {
+			self.returnResult(w, commons.ReturnWithInternalError(e.Error()))
+			return
+		}
+		if nil == mo {
+			self.returnResult(w, commons.ReturnWithNotFound(managed_type, managed_id))
+			return
+		}
+	}
+
+	for k, values := range r.URL.Query() {
+		query_params[k] = values[len(values)-1]
+	}
+
+	var route_by_id map[string]*Route
+	var routes_by_name map[string]*Routers
+
+	switch r.Method {
+	case "GET":
+		route_by_id = self.route_for_get
+		routes_by_name = self.routes_for_get
+	case "PUT":
+		route_by_id = self.route_for_put
+		routes_by_name = self.routes_for_put
+	case "POST":
+		route_by_id = self.route_for_create
+		routes_by_name = self.routes_for_create
+	case "DELETE":
+		route_by_id = self.route_for_delete
+		routes_by_name = self.routes_for_delete
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "method '"+r.Method+"' is unsupported.")
 		return
 	}
 
@@ -90,101 +292,62 @@ func (self *server) invoke(req *restful.Request, resp *restful.Response, invoker
 		mo:           mo,
 		local:        make(map[string]map[string]interface{}),
 		alias:        alias_names,
-		pry:          &proxy{dispatcher: self.dispatcher}}
+		pry:          &proxy{srv: self},
+		body_reader:  r.Body}
 
-	self.returnResult(resp, invoker(self.dispatcher, metric_name, params))
-}
-
-func (self *server) native_invoke(req *restful.Request, resp *restful.Response, invoker invoke_func) {
-	ip := req.PathParameter("ip")
-	if 0 == len(ip) {
-		self.returnResult(resp, commons.ReturnWithIsRequired("ip"))
-		return
-	}
-	metric_name := req.PathParameter("metric-name")
-	if 0 == len(metric_name) {
-		self.returnResult(resp, commons.ReturnWithIsRequired("metric-name"))
+	route := route_by_id[metric_name]
+	if nil != route {
+		self.returnResult(w, route.Invoke(query_paths, params))
 		return
 	}
 
-	query_params := make(map[string]string)
-	query_params["@address"] = ip
-	query_params["metric-name"] = metric_name
-	for k, v := range req.Request.URL.Query() {
-		query_params[k] = v[len(v)-1]
+	routes := routes_by_name[metric_name]
+	if nil == routes {
+		self.returnResult(w, notAcceptable(metric_name))
+		return
 	}
 
-	if 0 != len(empty_mo) {
-		panic("empty_mo is not empty.")
+	self.returnResult(w, routes.Invoke(query_paths, params))
+}
+
+func invoke(route_by_id map[string]*Route, routes_by_name map[string]*Routers,
+	metric_name string, paths []P, params MContext) commons.Result {
+	route := route_by_id[metric_name]
+	if nil != route {
+		return route.Invoke(paths, params)
 	}
 
-	params := &context{body_reader: req.Request.Body,
-		params:       query_params,
-		managed_type: "unknow_type",
-		managed_id:   "unknow_id",
-		mo:           empty_mo,
-		local:        make(map[string]map[string]interface{}),
-		alias:        alias_names,
-		pry:          &proxy{dispatcher: self.dispatcher}}
+	routes := routes_by_name[metric_name]
+	if nil == routes {
+		return notAcceptable(metric_name)
+	}
 
-	self.returnResult(resp, invoker(self.dispatcher, metric_name, params))
+	return routes.Invoke(paths, params)
 }
 
-func (self *server) Get(req *restful.Request, resp *restful.Response) {
-	//fmt.Println("Get")
-	self.invoke(req, resp, (*dispatcher).Get)
+func (self *server) Get(metric_name string, paths []P, params MContext) commons.Result {
+	return invoke(self.route_for_get, self.routes_for_get, metric_name, paths, params)
 }
 
-func (self *server) Put(req *restful.Request, resp *restful.Response) {
-	//fmt.Println("Put")
-	self.invoke(req, resp, (*dispatcher).Put)
+func (self *server) Put(metric_name string, paths []P, params MContext) commons.Result {
+	return invoke(self.route_for_put, self.routes_for_put, metric_name, paths, params)
 }
 
-func (self *server) Create(req *restful.Request, resp *restful.Response) {
-	//fmt.Println("Create")
-	self.invoke(req, resp, (*dispatcher).Create)
+func (self *server) Create(metric_name string, paths []P, params MContext) commons.Result {
+	return invoke(self.route_for_create, self.routes_for_create, metric_name, paths, params)
 }
 
-func (self *server) Delete(req *restful.Request, resp *restful.Response) {
-	//fmt.Println("Delete")
-	self.invoke(req, resp, (*dispatcher).Delete)
-}
-
-func (self *server) NativeGet(req *restful.Request, resp *restful.Response) {
-	//fmt.Println("NativeGet")
-	self.native_invoke(req, resp, (*dispatcher).Get)
-}
-
-func (self *server) NativePut(req *restful.Request, resp *restful.Response) {
-	//fmt.Println("NativePut")
-	self.native_invoke(req, resp, (*dispatcher).Put)
-}
-
-func (self *server) NativeCreate(req *restful.Request, resp *restful.Response) {
-	//fmt.Println("NativeCreate")
-	self.native_invoke(req, resp, (*dispatcher).Create)
-}
-
-func (self *server) NativeDelete(req *restful.Request, resp *restful.Response) {
-	//fmt.Println("NativeDelete")
-	self.native_invoke(req, resp, (*dispatcher).Delete)
+func (self *server) Delete(metric_name string, paths []P, params MContext) commons.Result {
+	return invoke(self.route_for_delete, self.routes_for_delete, metric_name, paths, params)
 }
 
 func SrvTest(t *testing.T, file string, cb func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions)) {
 	ds.SrvTest(t, file, func(client *ds.Client, definitions *types.TableDefinitions) {
 		*ds_url = client.Url
 		is_test = true
-		Container = restful.NewContainer()
 		Main()
 
-		// for _, ws := range Container.RegisteredWebServices() {
-		// 	fmt.Println(ws.RootPath())
-		// 	for _, r := range ws.Routes() {
-		// 		fmt.Println(r.Path)
-		// 	}
-		// }
-
-		hsrv := httptest.NewServer(Container)
+		hsrv := httptest.NewServer(srv_instance)
 		fmt.Println("[sampling-test] serving at '" + hsrv.URL + "'")
 		defer hsrv.Close()
 
@@ -193,6 +356,5 @@ func SrvTest(t *testing.T, file string, cb func(client *ds.Client, sampling_url 
 		if nil != srv_instance {
 			srv_instance = nil
 		}
-
 	})
 }

@@ -376,3 +376,102 @@ func AsTime(v interface{}) (time.Time, error) {
 	}
 	return time.Time{}, ErrNotTimeString
 }
+
+func BoolWithDefault(v interface{}, defaultValue bool) bool {
+	b, e := AsBool(v)
+	if nil != e {
+		return defaultValue
+	}
+	return b
+}
+
+func IntWithDefault(v interface{}, defaultValue int) int {
+	i, e := AsInt(v)
+	if nil != e {
+		return defaultValue
+	}
+	return i
+}
+
+func Int32WithDefault(v interface{}, defaultValue int32) int32 {
+	i32, e := AsInt32(v)
+	if nil != e {
+		return defaultValue
+	}
+	return i32
+}
+
+func Int64WithDefault(v interface{}, defaultValue int64) int64 {
+	i64, e := AsInt64(v)
+	if nil != e {
+		return defaultValue
+	}
+	return i64
+}
+
+func UintWithDefault(v interface{}, defaultValue uint) uint {
+	u, e := AsUint(v)
+	if nil != e {
+		return defaultValue
+	}
+	return u
+}
+
+func Uint32WithDefault(v interface{}, defaultValue uint32) uint32 {
+	u32, e := AsUint32(v)
+	if nil != e {
+		return defaultValue
+	}
+	return u32
+}
+
+func Uint64WithDefault(v interface{}, defaultValue uint64) uint64 {
+	u64, e := AsUint64(v)
+	if nil != e {
+		return defaultValue
+	}
+	return u64
+}
+
+func StringWithDefault(v interface{}, defaultValue string) string {
+	s, e := AsString(v)
+	if nil != e {
+		return defaultValue
+	}
+	return s
+}
+
+func ArrayWithDefault(v interface{}, defaultValue []interface{}) []interface{} {
+	if m, ok := v.([]interface{}); ok {
+		return m
+	}
+	return defaultValue
+}
+
+func ObjectWithDefault(v interface{}, defaultValue map[string]interface{}) map[string]interface{} {
+	if m, ok := v.(map[string]interface{}); ok {
+		return m
+	}
+	return defaultValue
+}
+
+func ObjectsWithDefault(v interface{}, defaultValue []map[string]interface{}) []map[string]interface{} {
+	if o, ok := v.([]map[string]interface{}); ok {
+		return o
+	}
+
+	a, ok := v.([]interface{})
+	if !ok {
+		return defaultValue
+	}
+
+	res := make([]map[string]interface{}, 0, len(a))
+	for _, value := range a {
+		m, ok := value.(map[string]interface{})
+		if !ok {
+			return defaultValue
+		}
+		res = append(res, m)
+	}
+	return res
+}

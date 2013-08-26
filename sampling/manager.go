@@ -10,7 +10,7 @@ import (
 
 type MetricManager struct {
 	js         string
-	dispatcher *dispatcher
+	dispatcher *server
 }
 
 func (self *MetricManager) clear() {

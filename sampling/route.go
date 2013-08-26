@@ -14,7 +14,36 @@ type Route struct {
 	invoke     Method
 }
 
-func (self *Route) Invoke(params MContext) commons.Result {
+func (self *Route) Match(skipped int, paths []P, params MContext) (bool, error) {
+	if nil == self.definition.Paths || 0 == len(self.definition.Paths) {
+		if nil != paths && 0 != len(paths) {
+			return false, nil
+		}
+	}
+
+	if len(paths) != len(self.definition.Paths) {
+		return false, nil
+	}
+
+	for i := 0; i < len(paths); i++ {
+		if paths[i] != self.definition.Paths[i] {
+			return false, nil
+		}
+	}
+
+	return self.matchers.Match(skipped, params, false)
+}
+
+func (self *Route) Invoke(paths []P, params MContext) commons.Result {
+	if nil == self.definition.Paths || 0 == len(self.definition.Paths) {
+		for _, ss := range self.definition.Paths {
+			if 0 == len(ss[1]) {
+				params.Set(ss[0], paths[1])
+			} else {
+				params.Set(ss[1], paths[1])
+			}
+		}
+	}
 	return self.invoke.Call(params)
 }
 
@@ -26,6 +55,19 @@ func newRouteSpec(method, name, descr string, match Matchers, call func(rs *Rout
 		License:     "tpt license",
 		Level:       []string{"system", "12"},
 		Categories:  []string{"default", "safe"},
+		Match:       match,
+		Call:        call}
+}
+
+func newRouteSpecWithPaths(method, name, descr string, paths []P, match Matchers, call func(rs *RouteSpec, params map[string]interface{}) (Method, error)) *RouteSpec {
+	return &RouteSpec{Method: method,
+		Name:        name,
+		Description: descr,
+		Author:      "mfk",
+		License:     "tpt license",
+		Level:       []string{"system", "12"},
+		Categories:  []string{"default", "safe"},
+		Paths:       paths,
 		Match:       match,
 		Call:        call}
 }
@@ -136,31 +178,34 @@ func (self *Routers) clear() {
 	self.default_routes = nil
 }
 
-func (self *Routers) Invoke(params MContext) commons.Result {
+func (self *Routers) Invoke(paths []P, params MContext) commons.Result {
 	if nil != self.byOid {
-		oid := params.GetStringWithDefault("$sys.oid", "")
+		oid, e := params.GetString("$sys.oid")
+		if nil != e {
+			return commons.ReturnWithBadRequest("read 'sys.oid' failed, " + e.Error())
+		}
 		if 0 == len(oid) {
 			return commons.ReturnWithIsRequired("sys.oid")
 		}
-		route, e := self.byOid.find(oid, params, false)
+		route, e := self.byOid.find(oid, paths, params)
 		if nil != e {
 			return commons.ReturnWithInternalError(e.Error())
 		}
 
 		if nil != route {
-			return route.invoke.Call(params)
+			return route.Invoke(paths, params)
 		}
 	}
 
 	if nil != self.routes {
 		for _, rs := range self.routes {
-			matched, e := rs.matchers.Match(0, params, false)
+			matched, e := rs.Match(0, paths, params)
 			if nil != e {
 				return commons.ReturnWithInternalError(e.Error())
 			}
 
 			if matched {
-				return rs.invoke.Call(params)
+				return rs.Invoke(paths, params)
 			}
 		}
 	}
@@ -168,7 +213,11 @@ func (self *Routers) Invoke(params MContext) commons.Result {
 	if nil != self.default_routes {
 		var res commons.Result
 		for _, rs := range self.default_routes {
-			res = rs.invoke.Call(params)
+			if matched, _ := rs.Match(0, paths, params); !matched {
+				continue
+			}
+
+			res = rs.Invoke(paths, params)
 			if res.HasError() {
 				continue
 			}
@@ -225,7 +274,7 @@ func (self RouteSetByOid) unregister(id string) {
 	}
 }
 
-func (self RouteSetByOid) find(oid string, params commons.Map, debugging bool) (*Route, error) {
+func (self RouteSetByOid) find(oid string, paths []P, params MContext) (*Route, error) {
 	oid = normalizeSystemOid(oid)
 	positions := splitOid(oid)
 	for _, p := range positions {
@@ -235,7 +284,7 @@ func (self RouteSetByOid) find(oid string, params commons.Map, debugging bool) (
 		}
 
 		for _, rs := range routes {
-			matched, e := rs.matchers.Match(1, params, debugging)
+			matched, e := rs.Match(1, paths, params)
 			if nil != e {
 				return nil, errors.New("match '" + rs.id + "' failed, " + e.Error())
 			}

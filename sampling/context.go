@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	//"io/ioutil"
 	"strings"
 )
 
@@ -20,9 +20,7 @@ func split(exp string) (string, string) {
 }
 
 type context struct {
-	body_reader      io.Reader
-	body_value       interface{}
-	body_unmarshaled bool
+	body_reader io.Reader
 
 	params       map[string]string
 	managed_type string
@@ -35,31 +33,39 @@ type context struct {
 	metrics_cache map[string]interface{}
 }
 
-func (self *context) SetBodyClass(value interface{}) {
-	self.body_unmarshaled = false
-	self.body_value = value
+// func (self *context) SetBodyClass(value interface{}) {
+// 	self.body_unmarshaled = false
+// 	self.body_value = value
+// }
+
+// func (self *context) Body() (interface{}, error) {
+// 	if !self.body_unmarshaled {
+// 		if nil == self.body_reader {
+// 			return nil, nil
+// 		}
+
+// 		if nil != self.body_value {
+// 			bs, e := ioutil.ReadAll(self.body_reader)
+// 			if nil != e {
+// 				return nil, e
+// 			}
+// 			self.body_value = bs
+// 		} else {
+// 			e := json.NewDecoder(self.body_reader).Decode(&self.body_value)
+// 			if nil != e {
+// 				return nil, e
+// 			}
+// 		}
+// 	}
+// 	return self.body_value, nil
+// }
+
+func (self *context) Body(v interface{}) error {
+	return json.NewDecoder(self.body_reader).Decode(v)
 }
 
-func (self *context) Body() (interface{}, error) {
-	if !self.body_unmarshaled {
-		if nil == self.body_reader {
-			return nil, nil
-		}
-
-		if nil != self.body_value {
-			bs, e := ioutil.ReadAll(self.body_reader)
-			if nil != e {
-				return nil, e
-			}
-			self.body_value = bs
-		} else {
-			e := json.NewDecoder(self.body_reader).Decode(&self.body_value)
-			if nil != e {
-				return nil, e
-			}
-		}
-	}
-	return self.body_value, nil
+func (self *context) Read() Sampling {
+	return self.pry
 }
 
 func (self *context) CopyTo(copy map[string]interface{}) {
@@ -209,41 +215,7 @@ func (self *context) Get(key string) (interface{}, error) {
 			return nil, commons.NotExists
 		}
 
-		v, e := self.pry.Get(new_key, self)
-		if nil == e {
-			if nil == self.metrics_cache {
-				self.metrics_cache = make(map[string]interface{})
-			}
-			self.metrics_cache[new_key] = v
-		}
-		return v, e
-	case '&':
-		new_key := key[1:]
-		if nil != self.metrics_cache {
-			if v, ok := self.metrics_cache[new_key]; ok {
-				return v, nil
-			}
-		}
-
-		if nil == self.pry {
-			return nil, commons.NotExists
-		}
-
-		v, e := self.pry.Get(new_key, self)
-		if nil == e {
-			if nil == self.metrics_cache {
-				self.metrics_cache = make(map[string]interface{})
-			}
-			self.metrics_cache[new_key] = v
-		}
-		return v, nil
-	case '!':
-		if nil == self.pry {
-			return nil, commons.NotExists
-		}
-
-		new_key := key[1:]
-		v, e := self.pry.Get(new_key, self)
+		v, e := self.pry.Get(new_key, nil, self)
 		if nil == e {
 			if nil == self.metrics_cache {
 				self.metrics_cache = make(map[string]interface{})

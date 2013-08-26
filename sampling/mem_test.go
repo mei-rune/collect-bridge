@@ -55,7 +55,7 @@ func TestH3CMem(t *testing.T) {
 			t.Error(e)
 			return
 		}
-		res := nativeGet(t, sampling_url, "121.0.0.212", "mem", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		res := nativeGet(t, sampling_url, "121.0.0.21", "mem", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
 		if res.HasError() {
 			t.Error(res.Error())
 			return

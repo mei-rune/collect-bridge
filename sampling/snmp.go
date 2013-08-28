@@ -140,6 +140,16 @@ func (self *snmpBase) Read(params MContext, action, oid string) (map[string]inte
 	if nil != e {
 		return nil, e
 	}
+	if "bulk" == action {
+		if num, e := params.GetString("snmp.max_repetitions"); nil == e {
+			snmp_params["snmp.max_repetitions"] = num
+		}
+
+		if num, e := params.GetString("snmp.non_repeaters"); nil == e {
+			snmp_params["snmp.non_repeaters"] = num
+		}
+	}
+
 	res := self.drv.Get(snmp_params)
 	if res.HasError() {
 		return nil, res.Error()

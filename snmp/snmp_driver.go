@@ -134,9 +134,9 @@ func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]str
 	}
 
 	switch action {
-	case snmpclient.SNMP_PDU_GET, snmpclient.SNMP_PDU_GETNEXT:
+	case snmpclient.SNMP_PDU_GETNEXT:
 		err = req.GetVariableBindings().Append(oid, "")
-	case snmpclient.SNMP_PDU_GETBULK:
+	case snmpclient.SNMP_PDU_GET, snmpclient.SNMP_PDU_GETBULK:
 		vbs := req.GetVariableBindings()
 		for _, single_oid := range strings.Split(oid, ",") {
 			//single_oid = strings.TrimSpace(single_oid)
@@ -173,7 +173,6 @@ func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]str
 	}
 
 	if 0 == resp.GetVariableBindings().Len() {
-		fmt.Println(req.String())
 		return internalErrorResult("snmp result is empty", nil)
 	}
 

@@ -16,7 +16,7 @@ var (
 	ThrowPanic = func(instance interface{}) {
 		panic(fmt.Sprintf("it is not []interface{} or map[string]interface{}, actual is [%T]%v", instance, instance))
 	}
-	TypeError = errors.New("it is not []interface{} or map[string]interface{}")
+	typeError = TypeError("it is not []interface{} or map[string]interface{}")
 )
 
 func Iterator(instance interface{}) ([][2]interface{}, error) {
@@ -31,7 +31,7 @@ func Iterator(instance interface{}) ([][2]interface{}, error) {
 			results = append(results, [2]interface{}{ck, r})
 		}
 	default:
-		return nil, TypeError
+		return nil, typeError
 	}
 	return results, nil
 }

@@ -2,10 +2,11 @@ package sampling
 
 import (
 	"commons"
-	"errors"
 )
 
-var TypeError = errors.New("value isn't the specific type.")
+var TableNotExists = commons.NotFound("table is not exists.")
+var NotFound = commons.NotExists
+var TypeError = commons.TypeError("value isn't the specific type.")
 
 type RouteDefinition struct {
 	Method      string            `json:"method"`

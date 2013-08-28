@@ -33,34 +33,10 @@ type context struct {
 	metrics_cache map[string]interface{}
 }
 
-// func (self *context) SetBodyClass(value interface{}) {
-// 	self.body_unmarshaled = false
-// 	self.body_value = value
-// }
-
-// func (self *context) Body() (interface{}, error) {
-// 	if !self.body_unmarshaled {
-// 		if nil == self.body_reader {
-// 			return nil, nil
-// 		}
-
-// 		if nil != self.body_value {
-// 			bs, e := ioutil.ReadAll(self.body_reader)
-// 			if nil != e {
-// 				return nil, e
-// 			}
-// 			self.body_value = bs
-// 		} else {
-// 			e := json.NewDecoder(self.body_reader).Decode(&self.body_value)
-// 			if nil != e {
-// 				return nil, e
-// 			}
-// 		}
-// 	}
-// 	return self.body_value, nil
-// }
-
 func (self *context) Body(v interface{}) error {
+	if nil == self.body_reader {
+		return errors.New("'body' is nil")
+	}
 	return json.NewDecoder(self.body_reader).Decode(v)
 }
 
@@ -111,7 +87,7 @@ func (self *context) cache(t, field string) (interface{}, error) {
 	n = ds.GetChildrenForm(self.mo["$attributes"],
 		map[string]commons.Matcher{"type": commons.EqualString(t)})
 	if nil == n || 0 == len(n) {
-		return nil, errors.New("table '" + t + "' is not exists.")
+		return nil, TableNotExists
 	}
 
 	m = n[0]
@@ -120,7 +96,7 @@ ok:
 	if v, ok := m[field]; ok {
 		return v, nil
 	}
-	return nil, commons.NotExists
+	return nil, NotFound
 }
 
 func (self *context) Contains(key string) bool {
@@ -183,7 +159,7 @@ func (self *context) Get(key string) (interface{}, error) {
 		if v, ok := self.mo[key[1:]]; ok {
 			return v, nil
 		}
-		return nil, commons.NotExists
+		return nil, NotFound
 	case '$':
 		new_key := key[1:]
 		if s, ok := self.params[new_key]; ok {
@@ -212,7 +188,7 @@ func (self *context) Get(key string) (interface{}, error) {
 		}
 
 		if nil == self.pry {
-			return nil, commons.NotExists
+			return nil, NotFound
 		}
 
 		v, e := self.pry.Get(new_key, nil, self)
@@ -227,7 +203,7 @@ func (self *context) Get(key string) (interface{}, error) {
 
 	t, field := split(key)
 	if 0 == len(t) {
-		return nil, commons.NotExists
+		return nil, NotFound
 	}
 	return self.cache(t, field)
 }

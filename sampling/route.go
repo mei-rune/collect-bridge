@@ -17,30 +17,43 @@ type Route struct {
 func (self *Route) Match(skipped int, paths []P, params MContext) (bool, error) {
 	if nil == self.definition.Paths || 0 == len(self.definition.Paths) {
 		if nil != paths && 0 != len(paths) {
+			//fmt.Println(self.id, "notMatch, is nil", len(paths), paths)
 			return false, nil
 		}
+
+		return self.matchers.Match(skipped, nil, params, false)
 	}
 
 	if len(paths) != len(self.definition.Paths) {
+		//fmt.Println(self.id, "notMatch, count is not match", len(paths), len(self.definition.Paths))
 		return false, nil
 	}
 
 	for i := 0; i < len(paths); i++ {
-		if paths[i] != self.definition.Paths[i] {
+		if paths[i][0] != self.definition.Paths[i][0] {
+			//fmt.Println(self.id, "notMatch, path is not match", paths[i][0], self.definition.Paths[i][0])
 			return false, nil
 		}
 	}
 
-	return self.matchers.Match(skipped, params, false)
+	path_params := map[string]string{}
+	for i, ss := range self.definition.Paths {
+		if 0 == len(ss[1]) {
+			path_params[ss[0]] = paths[i][1]
+		} else {
+			path_params[ss[1]] = paths[i][1]
+		}
+	}
+	return self.matchers.Match(skipped, path_params, params, false)
 }
 
 func (self *Route) Invoke(paths []P, params MContext) commons.Result {
-	if nil == self.definition.Paths || 0 == len(self.definition.Paths) {
-		for _, ss := range self.definition.Paths {
+	if nil != self.definition.Paths && 0 != len(self.definition.Paths) {
+		for i, ss := range self.definition.Paths {
 			if 0 == len(ss[1]) {
-				params.Set(ss[0], paths[1])
+				params.Set(ss[0], paths[i][1])
 			} else {
-				params.Set(ss[1], paths[1])
+				params.Set(ss[1], paths[i][1])
 			}
 		}
 	}
@@ -80,6 +93,7 @@ func newRouteWithSpec(id string, rs *RouteSpec, params map[string]interface{}) (
 		Author:      rs.Author,
 		License:     rs.License,
 		Level:       rs.Level,
+		Paths:       rs.Paths,
 		Match:       ToFilters(rs.Match),
 		Categories:  rs.Categories},
 		id:       id,
@@ -250,6 +264,7 @@ func splitOid(oid string) (res []int) {
 			res = append(res, i)
 		}
 	}
+	res = append(res, len(oid))
 	return
 }
 
@@ -277,8 +292,8 @@ func (self RouteSetByOid) unregister(id string) {
 func (self RouteSetByOid) find(oid string, paths []P, params MContext) (*Route, error) {
 	oid = normalizeSystemOid(oid)
 	positions := splitOid(oid)
-	for _, p := range positions {
-		routes := self[oid[:p]]
+	for i := len(positions) - 1; i >= 0; i-- {
+		routes := self[oid[:positions[i]]]
 		if nil == routes {
 			continue
 		}
@@ -286,7 +301,7 @@ func (self RouteSetByOid) find(oid string, paths []P, params MContext) (*Route, 
 		for _, rs := range routes {
 			matched, e := rs.Match(1, paths, params)
 			if nil != e {
-				return nil, errors.New("match '" + rs.id + "' failed, " + e.Error())
+				return nil, e
 			}
 			if matched {
 				return rs, nil

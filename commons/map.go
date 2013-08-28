@@ -700,7 +700,7 @@ func (self StringMap) GetInt(key string) (int, error) {
 	}
 	i, e := strconv.ParseInt(s, 10, 0)
 	if nil != e {
-		return 0, typeError(e.Error())
+		return 0, TypeError(e.Error())
 	}
 	return int(i), nil
 }
@@ -712,7 +712,7 @@ func (self StringMap) GetInt32(key string) (int32, error) {
 	}
 	i, e := strconv.ParseInt(s, 10, 32)
 	if nil != e {
-		return 0, typeError(e.Error())
+		return 0, TypeError(e.Error())
 	}
 	return int32(i), nil
 }
@@ -724,7 +724,7 @@ func (self StringMap) GetInt64(key string) (int64, error) {
 	}
 	i, e := strconv.ParseInt(s, 10, 64)
 	if nil != e {
-		return 0, typeError(e.Error())
+		return 0, TypeError(e.Error())
 	}
 	return int64(i), nil
 }
@@ -736,7 +736,7 @@ func (self StringMap) GetUint(key string) (uint, error) {
 	}
 	i, e := strconv.ParseUint(s, 10, 0)
 	if nil != e {
-		return 0, typeError(e.Error())
+		return 0, TypeError(e.Error())
 	}
 	return uint(i), nil
 }
@@ -748,7 +748,7 @@ func (self StringMap) GetUint32(key string) (uint32, error) {
 	}
 	i, e := strconv.ParseUint(s, 10, 32)
 	if nil != e {
-		return 0, typeError(e.Error())
+		return 0, TypeError(e.Error())
 	}
 	return uint32(i), nil
 }
@@ -761,7 +761,7 @@ func (self StringMap) GetUint64(key string) (uint64, error) {
 
 	u64, e := strconv.ParseUint(s, 10, 64)
 	if nil != e {
-		return 0, typeError(e.Error())
+		return 0, TypeError(e.Error())
 	}
 	return u64, nil
 }
@@ -774,7 +774,7 @@ func (self StringMap) GetFloat(key string) (float64, error) {
 
 	f64, e := strconv.ParseFloat(s, 64)
 	if nil != e {
-		return 0, typeError(e.Error())
+		return 0, TypeError(e.Error())
 	}
 	return f64, nil
 }
@@ -788,15 +788,15 @@ func (self StringMap) GetString(key string) (string, error) {
 }
 
 func (self StringMap) GetObject(key string) (map[string]interface{}, error) {
-	return nil, typeError("it is a map[string]string, not support GetObject")
+	return nil, TypeError("it is a map[string]string, not support GetObject")
 }
 
 func (self StringMap) GetArray(key string) ([]interface{}, error) {
-	return nil, typeError("it is a map[string]string, not support GetArray")
+	return nil, TypeError("it is a map[string]string, not support GetArray")
 }
 
 func (self StringMap) GetObjects(key string) ([]map[string]interface{}, error) {
-	return nil, typeError("it is a map[string]string, not support GetObjects")
+	return nil, TypeError("it is a map[string]string, not support GetObjects")
 }
 
 type ProxyMap struct {

@@ -27,7 +27,7 @@ func (self *DriverManager) Stop(name string) {
 func (self *DriverManager) Start(name string) error {
 	drv, ok := (*self)[name]
 	if !ok {
-		return NotFound(name)
+		return RecordNotFound(name)
 	}
 
 	startable, ok := drv.(Startable)
@@ -43,7 +43,7 @@ func (self *DriverManager) Start(name string) error {
 func (self *DriverManager) Reset(name string) error {
 	drv, ok := (*self)[name]
 	if !ok {
-		return NotFound(name)
+		return RecordNotFound(name)
 	}
 
 	startable, ok := drv.(Startable)

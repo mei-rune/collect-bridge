@@ -214,32 +214,72 @@ func ToFilters(matcher Matchers) []Filter {
 	return nil
 }
 
-func (self Matchers) Match(skipped int, params MContext, debugging bool) (bool, error) {
+func isNotFoundOrTypeError(e error) bool {
+	if re, ok := e.(commons.RuntimeError); ok {
+		if commons.TypeErrorCode == re.Code() {
+			return true
+		}
+		if commons.NotFoundCode == re.Code() {
+			return true
+		}
+	}
+	return false
+}
+
+func (self Matchers) Match(skipped int, path_params map[string]string, params MContext, debugging bool) (bool, error) {
 	if nil == self || skipped >= len(self) {
 		return true, nil
 	}
 
 	if debugging {
-		error := make([]string, 0)
+		error_messages := make([]string, 0)
 		for _, m := range self[skipped:] {
-			value := params.GetStringWithDefault("$"+m.Attribute, "")
-			if 0 == len(value) {
-				error = append(error, commons.IsRequired(m.Attribute).Error())
+			if nil != path_params {
+				if s, ok := path_params[m.Attribute]; ok {
+					if !m.f(m, params, s) {
+						error_messages = append(error_messages, "'"+m.Attribute+"' is not match - "+m.Description+"!")
+					}
+					continue
+				}
+			}
+			value, e := params.GetString("$" + m.Attribute)
+			if nil != e {
+				error_messages = append(error_messages, "get '"+m.Attribute+"' failed,"+e.Error())
+			} else if 0 == len(value) {
+				error_messages = append(error_messages, commons.IsRequired(m.Attribute).Error())
 			} else if !m.f(m, params, value) {
-				error = append(error, "'"+m.Attribute+"' is not match - "+m.Description+"!")
+				error_messages = append(error_messages, "'"+m.Attribute+"' is not match - "+m.Description+"!")
 			}
 		}
-		if 0 != len(error) {
-			return false, errors.New("match failed:\n" + strings.Join(error, "\n"))
+		if 0 != len(error_messages) {
+			return false, errors.New("match failed:\n" + strings.Join(error_messages, "\n"))
 		}
 	} else {
 		for _, m := range self[skipped:] {
-			value := params.GetStringWithDefault("$"+m.Attribute, "")
+			if nil != path_params {
+				if s, ok := path_params[m.Attribute]; ok {
+					if !m.f(m, params, s) {
+						return false, nil //errors.New("'" + m.Attribute + "' is not match - " + m.Description + "!")
+					}
+					continue
+				}
+			}
+
+			value, e := params.GetString("$" + m.Attribute)
+			if nil != e {
+				if isNotFoundOrTypeError(e) {
+					//fmt.Println("'" + m.Attribute + "' is not found - " + m.Description + "!")
+					return false, nil
+				}
+				return false, errors.New("get '" + m.Attribute + "' failed," + e.Error())
+			}
 			if 0 == len(value) {
-				return false, commons.IsRequired(m.Attribute)
+				//fmt.Println("'" + m.Attribute + "' is empty - " + m.Description + "!")
+				return false, nil
 			}
 
 			if !m.f(m, params, value) {
+				//fmt.Println("'" + m.Attribute + "' is not match - " + m.Description + "!")
 				return false, nil //errors.New("'" + m.Attribute + "' is not match - " + m.Description + "!")
 			}
 		}
@@ -262,6 +302,61 @@ func (self *FilterBuilder) Oid(oid string) *FilterBuilder {
 	}
 	self.matchers = append(self.matchers, m)
 	return self
+}
+
+func (self *FilterBuilder) concat(method string, arguments []string) *FilterBuilder {
+	m, e := NewMatcher(method, arguments)
+	if nil != e {
+		panic(e.Error())
+	}
+	self.matchers = append(self.matchers, m)
+	return self
+}
+
+func (self *FilterBuilder) In(attributeName string, arguments []string) *FilterBuilder {
+	args := make([]string, len(arguments)+1)
+	args[0] = attributeName
+	copy(args[1:], arguments)
+	return self.concat("in", args)
+}
+
+func (self *FilterBuilder) Equals(attributeName, arguments string) *FilterBuilder {
+	return self.concat("equal", []string{attributeName, arguments})
+}
+
+func (self *FilterBuilder) StartWith(attributeName, arguments string) *FilterBuilder {
+	return self.concat("start_with", []string{attributeName, arguments})
+}
+
+func (self *FilterBuilder) EndWith(attributeName, arguments string) *FilterBuilder {
+	return self.concat("end_with", []string{attributeName, arguments})
+}
+
+func (self *FilterBuilder) Contains(attributeName, arguments string) *FilterBuilder {
+	return self.concat("contains", []string{attributeName, arguments})
+}
+
+func (self *FilterBuilder) InIgnoreCase(attributeName string, arguments []string) *FilterBuilder {
+	args := make([]string, len(arguments)+1)
+	args[0] = attributeName
+	copy(args[1:], arguments)
+	return self.concat("in_with_ignore_case", args)
+}
+
+func (self *FilterBuilder) EqualsIgnoreCase(attributeName, arguments string) *FilterBuilder {
+	return self.concat("equal_with_ignore_case", []string{attributeName, arguments})
+}
+
+func (self *FilterBuilder) StartWithIgnoreCase(attributeName, arguments string) *FilterBuilder {
+	return self.concat("start_with_and_ignore_case", []string{attributeName, arguments})
+}
+
+func (self *FilterBuilder) EndWithIgnoreCase(attributeName, arguments string) *FilterBuilder {
+	return self.concat("end_with_and_ignore_case", []string{attributeName, arguments})
+}
+
+func (self *FilterBuilder) ContainsIgnoreCase(attributeName, arguments string) *FilterBuilder {
+	return self.concat("contains_with_ignore_case", []string{attributeName, arguments})
 }
 
 func (self *FilterBuilder) Build() Matchers {

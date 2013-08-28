@@ -29,7 +29,7 @@ func AsObjects(v interface{}) ([]map[string]interface{}, error) {
 		for i, o := range value {
 			r, ok := o.(map[string]interface{})
 			if !ok {
-				return nil, typeError(fmt.Sprintf("v['%s'] is not a map[string]interface{}", i))
+				return nil, TypeError(fmt.Sprintf("v['%s'] is not a map[string]interface{}", i))
 			}
 			results = append(results, r)
 		}
@@ -37,7 +37,7 @@ func AsObjects(v interface{}) ([]map[string]interface{}, error) {
 		for k, o := range value {
 			r, ok := o.(map[string]interface{})
 			if !ok {
-				return nil, typeError(fmt.Sprintf("v['%s'] is not a map[string]interface{}", k))
+				return nil, TypeError(fmt.Sprintf("v['%s'] is not a map[string]interface{}", k))
 			}
 			results = append(results, r)
 		}
@@ -184,14 +184,14 @@ func AsUint64(value interface{}) (uint64, error) {
 		if nil == err {
 			return i64, nil
 		}
-		return i64, typeError(err.Error())
+		return i64, TypeError(err.Error())
 
 	case json.Number:
 		i64, err := strconv.ParseUint(v.String(), 10, 64)
 		if nil == err {
 			return i64, nil
 		}
-		return i64, typeError(err.Error())
+		return i64, TypeError(err.Error())
 	case uint:
 		return uint64(v), nil
 	case uint8:
@@ -275,7 +275,7 @@ func AsFloat64(value interface{}) (float64, error) {
 		if nil == err {
 			return f64, nil
 		}
-		return f64, typeError(err.Error())
+		return f64, TypeError(err.Error())
 	case json.Number:
 		return v.Float64()
 	case float32:

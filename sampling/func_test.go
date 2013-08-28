@@ -14,10 +14,6 @@ type MockContext struct {
 func (self MockContext) SetBodyClass(value interface{}) {
 }
 
-// func (self MockContext) Body() (interface{}, error) {
-// 	return self.GetWithDefault("body", nil), nil
-// }
-
 func (self MockContext) Read() Sampling {
 	return nil
 }

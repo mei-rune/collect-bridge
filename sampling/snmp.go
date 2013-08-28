@@ -1,6 +1,7 @@
 package sampling
 
 import (
+	"bytes"
 	"commons"
 	"errors"
 	"fmt"
@@ -444,38 +445,199 @@ func (self *systemInfo) Call(params MContext) commons.Result {
 		})
 }
 
+func readInterface(params MContext, res map[string]interface{}) map[string]interface{} {
+	new_row := map[string]interface{}{}
+	new_row["ifIndex"] = GetInt32(params, res, "1", -1)
+	new_row["ifDescr"] = GetString(params, res, "2")
+	new_row["ifType"] = GetInt32(params, res, "3", -1)
+	new_row["ifMtu"] = GetInt32(params, res, "4", -1)
+	new_row["ifSpeed"] = GetUint64(params, res, "5", 0)
+	new_row["ifPhysAddress"] = GetHardwareAddress(params, res, "6")
+	new_row["ifAdminStatus"] = GetInt32(params, res, "7", -1)
+	new_row["ifOpStatus"] = GetInt32(params, res, "8", -1)
+	new_row["ifLastChange"] = GetInt32(params, res, "9", -1)
+	new_row["ifInOctets"] = GetUint64(params, res, "10", 0)
+	new_row["ifInUcastPkts"] = GetUint64(params, res, "11", 0)
+	new_row["ifInNUcastPkts"] = GetUint64(params, res, "12", 0)
+	new_row["ifInDiscards"] = GetUint64(params, res, "13", 0)
+	new_row["ifInErrors"] = GetUint64(params, res, "14", 0)
+	new_row["ifInUnknownProtos"] = GetUint64(params, res, "15", 0)
+	new_row["ifOutOctets"] = GetUint64(params, res, "16", 0)
+	new_row["ifOutUcastPkts"] = GetUint64(params, res, "17", 0)
+	new_row["ifOutNUcastPkts"] = GetUint64(params, res, "18", 0)
+	new_row["ifOutDiscards"] = GetUint64(params, res, "19", 0)
+	new_row["ifOutErrors"] = GetUint64(params, res, "20", 0)
+	new_row["ifOutQLen"] = GetUint64(params, res, "21", 0)
+	new_row["ifSpecific"] = GetOid(params, res, "22")
+	return new_row
+}
+
 type portAll struct {
 	snmpBase
 }
 
 func (self *portAll) Call(params MContext) commons.Result {
-	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22",
-		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
-			new_row := map[string]interface{}{}
-			new_row["ifIndex"] = GetInt32(params, old_row, "1", -1)
-			new_row["ifDescr"] = GetString(params, old_row, "2")
-			new_row["ifType"] = GetInt32(params, old_row, "3", -1)
-			new_row["ifMtu"] = GetInt32(params, old_row, "4", -1)
-			new_row["ifSpeed"] = GetUint64(params, old_row, "5", 0)
-			new_row["ifPhysAddress"] = GetHardwareAddress(params, old_row, "6")
-			new_row["ifAdminStatus"] = GetInt32(params, old_row, "7", -1)
-			new_row["ifOpStatus"] = GetInt32(params, old_row, "8", -1)
-			new_row["ifLastChange"] = GetInt32(params, old_row, "9", -1)
-			new_row["ifInOctets"] = GetUint64(params, old_row, "10", 0)
-			new_row["ifInUcastPkts"] = GetUint64(params, old_row, "11", 0)
-			new_row["ifInNUcastPkts"] = GetUint64(params, old_row, "12", 0)
-			new_row["ifInDiscards"] = GetUint64(params, old_row, "13", 0)
-			new_row["ifInErrors"] = GetUint64(params, old_row, "14", 0)
-			new_row["ifInUnknownProtos"] = GetUint64(params, old_row, "15", 0)
-			new_row["ifOutOctets"] = GetUint64(params, old_row, "16", 0)
-			new_row["ifOutUcastPkts"] = GetUint64(params, old_row, "17", 0)
-			new_row["ifOutNUcastPkts"] = GetUint64(params, old_row, "18", 0)
-			new_row["ifOutDiscards"] = GetUint64(params, old_row, "19", 0)
-			new_row["ifOutErrors"] = GetUint64(params, old_row, "20", 0)
-			new_row["ifOutQLen"] = GetUint64(params, old_row, "21", 0)
-			new_row["ifSpecific"] = GetOid(params, old_row, "22")
-			return new_row, nil
-		})
+	ifIndex, e := params.GetString("ifIndex")
+	if nil != e || 0 == len(ifIndex) {
+		return commons.ReturnWithIsRequired("ifIndex")
+	}
+
+	oidBuffer := bytes.NewBuffer(make([]byte, 0, 900))
+	for _, s := range []string{"1.3.6.1.2.1.2.2.1.2.",
+		"1.3.6.1.2.1.2.2.1.3.",
+		"1.3.6.1.2.1.2.2.1.4.",
+		"1.3.6.1.2.1.2.2.1.5.",
+		"1.3.6.1.2.1.2.2.1.6.",
+		"1.3.6.1.2.1.2.2.1.7.",
+		"1.3.6.1.2.1.2.2.1.8.",
+		"1.3.6.1.2.1.2.2.1.9.",
+		"1.3.6.1.2.1.2.2.1.10.",
+		"1.3.6.1.2.1.2.2.1.11.",
+		"1.3.6.1.2.1.2.2.1.12.",
+		"1.3.6.1.2.1.2.2.1.13.",
+		"1.3.6.1.2.1.2.2.1.14.",
+		"1.3.6.1.2.1.2.2.1.15.",
+		"1.3.6.1.2.1.2.2.1.16.",
+		"1.3.6.1.2.1.2.2.1.17.",
+		"1.3.6.1.2.1.2.2.1.18.",
+		"1.3.6.1.2.1.2.2.1.19.",
+		"1.3.6.1.2.1.2.2.1.20.",
+		"1.3.6.1.2.1.2.2.1.21.",
+		"1.3.6.1.2.1.2.2.1.22."} {
+		oidBuffer.WriteString(s)
+		oidBuffer.WriteString(ifIndex)
+		oidBuffer.WriteString(",")
+	}
+	oidBuffer.Truncate(oidBuffer.Len() - 1)
+
+	res, e := self.Get(params, oidBuffer.String())
+	if nil != e {
+		return commons.ReturnWithInternalError(e.Error())
+	}
+
+	return commons.Return(readInterface(params, res))
+}
+
+type portStatus struct {
+	snmpBase
+}
+
+func (self *portStatus) Call(params MContext) commons.Result {
+
+	ifIndex, e := params.GetString("ifIndex")
+	if nil != e || 0 == len(ifIndex) {
+		return commons.ReturnWithIsRequired("ifIndex")
+	}
+
+	oidBuffer := bytes.NewBuffer(make([]byte, 0, 200))
+	for _, s := range []string{
+		"1.3.6.1.2.1.2.2.1.7.",
+		"1.3.6.1.2.1.2.2.1.8."} {
+		oidBuffer.WriteString(s)
+		oidBuffer.WriteString(ifIndex)
+		oidBuffer.WriteString(",")
+	}
+	oidBuffer.Truncate(oidBuffer.Len() - 1)
+
+	res, e := self.Get(params, oidBuffer.String())
+	if nil != e {
+		return commons.ReturnWithInternalError(e.Error())
+	}
+
+	new_row := map[string]interface{}{}
+	new_row["ifIndex"] = ifIndex
+	new_row["ifAdminStatus"] = GetInt32(params, res, "7", -1)
+	new_row["ifOpStatus"] = GetInt32(params, res, "8", -1)
+	return commons.Return(new_row)
+}
+
+type portScalar struct {
+	snmpBase
+}
+
+func (self *portScalar) Call(params MContext) commons.Result {
+	ifIndex, e := params.GetString("ifIndex")
+	if nil != e || 0 == len(ifIndex) {
+		return commons.ReturnWithIsRequired("ifIndex")
+	}
+
+	oidBuffer := bytes.NewBuffer(make([]byte, 0, 900))
+	for _, s := range []string{"1.3.6.1.2.1.2.2.1.10.",
+		"1.3.6.1.2.1.2.2.1.11.",
+		"1.3.6.1.2.1.2.2.1.12.",
+		"1.3.6.1.2.1.2.2.1.13.",
+		"1.3.6.1.2.1.2.2.1.14.",
+		"1.3.6.1.2.1.2.2.1.15.",
+		"1.3.6.1.2.1.2.2.1.16.",
+		"1.3.6.1.2.1.2.2.1.17.",
+		"1.3.6.1.2.1.2.2.1.18.",
+		"1.3.6.1.2.1.2.2.1.19.",
+		"1.3.6.1.2.1.2.2.1.20."} {
+		oidBuffer.WriteString(s)
+		oidBuffer.WriteString(ifIndex)
+		oidBuffer.WriteString(",")
+	}
+	oidBuffer.Truncate(oidBuffer.Len() - 1)
+
+	old_row, e := self.Get(params, oidBuffer.String())
+	if nil != e {
+		return commons.ReturnWithInternalError(e.Error())
+	}
+
+	new_row := map[string]interface{}{}
+	new_row["ifIndex"] = ifIndex
+	new_row["ifInOctets"] = GetUint64(params, old_row, "10", 0)
+	new_row["ifInUcastPkts"] = GetUint64(params, old_row, "11", 0)
+	new_row["ifInNUcastPkts"] = GetUint64(params, old_row, "12", 0)
+	new_row["ifInDiscards"] = GetUint64(params, old_row, "13", 0)
+	new_row["ifInErrors"] = GetUint64(params, old_row, "14", 0)
+	new_row["ifInUnknownProtos"] = GetUint64(params, old_row, "15", 0)
+	new_row["ifOutOctets"] = GetUint64(params, old_row, "16", 0)
+	new_row["ifOutUcastPkts"] = GetUint64(params, old_row, "17", 0)
+	new_row["ifOutNUcastPkts"] = GetUint64(params, old_row, "18", 0)
+	new_row["ifOutDiscards"] = GetUint64(params, old_row, "19", 0)
+	new_row["ifOutErrors"] = GetUint64(params, old_row, "20", 0)
+	return commons.Return(new_row)
+}
+
+type portDescr struct {
+	snmpBase
+}
+
+func (self *portDescr) Call(params MContext) commons.Result {
+
+	ifIndex, e := params.GetString("ifIndex")
+	if nil != e || 0 == len(ifIndex) {
+		return commons.ReturnWithIsRequired("ifIndex")
+	}
+
+	oidBuffer := bytes.NewBuffer(make([]byte, 0, 900))
+	for _, s := range []string{"1.3.6.1.2.1.2.2.1.2.",
+		"1.3.6.1.2.1.2.2.1.3.",
+		"1.3.6.1.2.1.2.2.1.4.",
+		"1.3.6.1.2.1.2.2.1.5.",
+		"1.3.6.1.2.1.2.2.1.6.",
+		"1.3.6.1.2.1.2.2.1.22."} {
+		oidBuffer.WriteString(s)
+		oidBuffer.WriteString(ifIndex)
+		oidBuffer.WriteString(",")
+	}
+	oidBuffer.Truncate(oidBuffer.Len() - 1)
+
+	old_row, e := self.Get(params, oidBuffer.String())
+	if nil != e {
+		return commons.ReturnWithInternalError(e.Error())
+	}
+
+	new_row := map[string]interface{}{}
+	new_row["ifIndex"] = ifIndex
+	new_row["ifDescr"] = GetString(params, old_row, "2")
+	new_row["ifType"] = GetInt32(params, old_row, "3", -1)
+	new_row["ifMtu"] = GetInt32(params, old_row, "4", -1)
+	new_row["ifSpeed"] = GetUint64(params, old_row, "5", 0)
+	new_row["ifPhysAddress"] = GetHardwareAddress(params, old_row, "6")
+	new_row["ifSpecific"] = GetOid(params, old_row, "22")
+	return commons.Return(new_row)
 }
 
 type interfaceAll struct {
@@ -485,29 +647,8 @@ type interfaceAll struct {
 func (self *interfaceAll) Call(params MContext) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
-			new_row := map[string]interface{}{}
+			new_row := readInterface(params, old_row)
 			new_row["ifIndex"] = GetInt32(params, old_row, "1", -1)
-			new_row["ifDescr"] = GetString(params, old_row, "2")
-			new_row["ifType"] = GetInt32(params, old_row, "3", -1)
-			new_row["ifMtu"] = GetInt32(params, old_row, "4", -1)
-			new_row["ifSpeed"] = GetUint64(params, old_row, "5", 0)
-			new_row["ifPhysAddress"] = GetHardwareAddress(params, old_row, "6")
-			new_row["ifAdminStatus"] = GetInt32(params, old_row, "7", -1)
-			new_row["ifOpStatus"] = GetInt32(params, old_row, "8", -1)
-			new_row["ifLastChange"] = GetInt32(params, old_row, "9", -1)
-			new_row["ifInOctets"] = GetUint64(params, old_row, "10", 0)
-			new_row["ifInUcastPkts"] = GetUint64(params, old_row, "11", 0)
-			new_row["ifInNUcastPkts"] = GetUint64(params, old_row, "12", 0)
-			new_row["ifInDiscards"] = GetUint64(params, old_row, "13", 0)
-			new_row["ifInErrors"] = GetUint64(params, old_row, "14", 0)
-			new_row["ifInUnknownProtos"] = GetUint64(params, old_row, "15", 0)
-			new_row["ifOutOctets"] = GetUint64(params, old_row, "16", 0)
-			new_row["ifOutUcastPkts"] = GetUint64(params, old_row, "17", 0)
-			new_row["ifOutNUcastPkts"] = GetUint64(params, old_row, "18", 0)
-			new_row["ifOutDiscards"] = GetUint64(params, old_row, "19", 0)
-			new_row["ifOutErrors"] = GetUint64(params, old_row, "20", 0)
-			new_row["ifOutQLen"] = GetUint64(params, old_row, "21", 0)
-			new_row["ifSpecific"] = GetOid(params, old_row, "22")
 			return new_row, nil
 		})
 }
@@ -910,24 +1051,42 @@ func init() {
 			return drv, drv.Init(params)
 		})
 
-	Methods["interface"] = newRouteSpec("get", "interface", "the interface info", nil,
+	Methods["port_interfaceDescr"] = newRouteSpecWithPaths("get", "interfaceDescr", "the descr part of interface info", []P{P{"port", "ifIndex"}}, nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &portDescr{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["port_interfaceStatus"] = newRouteSpec("get", "interfaceStatus", "the status part of interface info", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &portStatus{}
+			return drv, drv.Init(params)
+		})
+	Methods["port_interfaceScalar"] = newRouteSpec("get", "interfaceScalar", "the scalar part of interface info", nil,
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &portScalar{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["default_interface"] = newRouteSpec("get", "interface", "the interface info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &interfaceAll{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["interfaceDescr"] = newRouteSpec("get", "interfaceDescr", "the descr part of interface info", nil,
+	Methods["default_interfaceDescr"] = newRouteSpec("get", "interfaceDescr", "the descr part of interface info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &interfaceDescr{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["interfaceStatus"] = newRouteSpec("get", "interfaceStatus", "the status part of interface info", nil,
+	Methods["default_interfaceStatus"] = newRouteSpec("get", "interfaceStatus", "the status part of interface info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &interfaceStatus{}
 			return drv, drv.Init(params)
 		})
-	Methods["interfaceScalar"] = newRouteSpec("get", "interfaceScalar", "the scalar part of interface info", nil,
+
+	Methods["default_interfaceScalar"] = newRouteSpec("get", "interfaceScalar", "the scalar part of interface info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &interfaceScalar{}
 			return drv, drv.Init(params)

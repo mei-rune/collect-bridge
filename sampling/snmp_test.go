@@ -25,13 +25,13 @@ func TestInterface(t *testing.T) {
 		if nil == res.InterfaceValue() {
 			t.Error("values is nil")
 		}
+
+		t.Log(res.InterfaceValue())
 		_, err := res.Value().AsObject()
 		if nil != err {
 			t.Error(err)
 			return
 		}
-
-		t.Log(res.InterfaceValue())
 	})
 }
 
@@ -105,14 +105,14 @@ func TestSnmpRead(t *testing.T) {
 					t.Errorf("test[%v]: excepted is a map, actual is '%v'", idx, res.Value())
 					continue
 				}
-				oid := "1.3.6.1.2.1.1.4.0"
-				s, e = commons.GetString(m, oid)
-				if nil != e {
-					t.Errorf("test[%v]: excepted contains '%v', actual is '%v'", idx, oid, res.Value())
-					continue
+				for _, oid := range []string{"1.3.6.1.2.1.1.5.0", "1.3.6.1.2.1.1.6.0"} {
+					s, e = commons.GetString(m, oid)
+					if nil != e {
+						t.Errorf("test[%v]: excepted contains '%v', actual is '%v'", idx, oid, res.Value())
+					}
 				}
 				//t.Logf("test[%v]: result is '%v'", idx, res.Value())
-				fallthrough
+				break
 			case "snmp_next":
 				m, e := res.Value().AsObject()
 				if nil != e {

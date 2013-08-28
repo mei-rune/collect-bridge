@@ -146,44 +146,44 @@ var (
 
 	AlreadyStartedError = errors.New("already started.")
 	ContinueError       = errors.New("continue")
-	NotImplemented      = errors.New("not implemented")
+	NotImplemented      = NewApplicationError(NotImplementedCode, "not implemented")
 	TimeoutErr          = errors.New(timeout_message)
 	DieError            = errors.New("die.")
-	NotExists           = errors.New("not found.")
-	IdNotExists         = errors.New("'id' is required.")
-	BodyNotExists       = errors.New("'body' is required.")
+	NotExists           = NewApplicationError(NotFoundCode, "not found.")
+	IdNotExists         = IsRequired("id")
+	BodyNotExists       = IsRequired("body")
 	BodyIsEmpty         = errors.New("'body' is empty.")
 	ServiceUnavailable  = errors.New("service temporary unavailable, try again later")
 	ValueIsNil          = errors.New("value is nil.")
 	NotIntValue         = errors.New("it is not a int.")
 	InterruptError      = errors.New("interrupt error")
 
-	IsNotMapOrArray = typeError("it is not a map[string]interface{} or a []interface{}.")
-	IsNotMap        = typeError("it is not a map[string]interface{}.")
-	IsNotArray      = typeError("it is not a []interface{}.")
-	IsNotBool       = typeError("it is not a bool.")
-	IsNotInt8       = typeError("it is not a int8.")
-	IsNotInt16      = typeError("it is not a int16.")
-	IsNotInt32      = typeError("it is not a int32.")
-	IsNotInt64      = typeError("it is not a int64.")
-	Int8OutRange    = typeError("it is not a int8, out range")
-	Int16OutRange   = typeError("it is not a int16, out range")
-	Int32OutRange   = typeError("it is not a int32, out range")
-	Int64OutRange   = typeError("it is not a int64, out range")
-	IsNotUint8      = typeError("it is not a uint8.")
-	IsNotUint16     = typeError("it is not a uint16.")
-	IsNotUint32     = typeError("it is not a uint32.")
-	IsNotUint64     = typeError("it is not a uint64.")
-	Uint8OutRange   = typeError("it is not a uint8, out range")
-	Uint16OutRange  = typeError("it is not a uint16, out range")
-	Uint32OutRange  = typeError("it is not a uint32, out range")
-	Uint64OutRange  = typeError("it is not a uint64, out range")
-	IsNotFloat32    = typeError("it is not a float32.")
-	IsNotFloat64    = typeError("it is not a float64.")
-	IsNotString     = typeError("it is not a string.")
+	IsNotMapOrArray = TypeError("it is not a map[string]interface{} or a []interface{}.")
+	IsNotMap        = TypeError("it is not a map[string]interface{}.")
+	IsNotArray      = TypeError("it is not a []interface{}.")
+	IsNotBool       = TypeError("it is not a bool.")
+	IsNotInt8       = TypeError("it is not a int8.")
+	IsNotInt16      = TypeError("it is not a int16.")
+	IsNotInt32      = TypeError("it is not a int32.")
+	IsNotInt64      = TypeError("it is not a int64.")
+	Int8OutRange    = TypeError("it is not a int8, out range")
+	Int16OutRange   = TypeError("it is not a int16, out range")
+	Int32OutRange   = TypeError("it is not a int32, out range")
+	Int64OutRange   = TypeError("it is not a int64, out range")
+	IsNotUint8      = TypeError("it is not a uint8.")
+	IsNotUint16     = TypeError("it is not a uint16.")
+	IsNotUint32     = TypeError("it is not a uint32.")
+	IsNotUint64     = TypeError("it is not a uint64.")
+	Uint8OutRange   = TypeError("it is not a uint8, out range")
+	Uint16OutRange  = TypeError("it is not a uint16, out range")
+	Uint32OutRange  = TypeError("it is not a uint32, out range")
+	Uint64OutRange  = TypeError("it is not a uint64, out range")
+	IsNotFloat32    = TypeError("it is not a float32.")
+	IsNotFloat64    = TypeError("it is not a float64.")
+	IsNotString     = TypeError("it is not a string.")
 
-	ErrNotString     = errors.New("it is not a string")
-	ErrNotTimeString = errors.New("it is not a time string")
+	ErrNotString     = TypeError("it is not a string")
+	ErrNotTimeString = TypeError("it is not a time string")
 
 	ParameterIsNil   = errors.New("parameter is nil.")
 	ParameterIsEmpty = errors.New("parameter is empty.")
@@ -191,20 +191,20 @@ var (
 	MultipleValuesError = errors.New("Multiple values meet the conditions")
 )
 
-func typeError(message string) error {
-	return errors.New("[type_error]" + message)
+func TypeError(message string) RuntimeError {
+	return NewApplicationError(TypeErrorCode, message)
 }
 
 func IsRequired(name string) error {
-	return errors.New("'" + name + "' is required.")
+	return NewApplicationError(NotFoundCode, "'"+name+"' is required.")
 }
 
-func NotFound(id string) error {
-	return errors.New("'" + id + "' is not found.")
+func NotFound(msg string) error {
+	return NewApplicationError(NotFoundCode, msg)
 }
 
 func RecordNotFound(id string) error {
-	return NotFound(id)
+	return NewApplicationError(NotFoundCode, "'"+id+"' is not found.")
 }
 
 func RecordAlreadyExists(id string) error {

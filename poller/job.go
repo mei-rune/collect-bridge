@@ -89,12 +89,7 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		return nil, errors.New("'sampling.url' is required.")
 	}
 
-	client_url := ""
-	if is_test {
-		client_url = commons.NewUrlBuilder(url).Concat("metrics", "managed_object", parentId, metric).ToUrl()
-	} else {
-		client_url = commons.NewUrlBuilder(url).Concat("managed_object", parentId, metric).ToUrl()
-	}
+	client_url := commons.NewUrlBuilder(url).Concat("managed_object", parentId, metric).ToUrl()
 
 	job := &metricJob{metric: metric,
 		params: map[string]string{"managed_type": "managed_object", "managed_id": parentId, "metric": metric, "trigger_id": id},

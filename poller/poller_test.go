@@ -65,6 +65,7 @@ func srvTest(t *testing.T, cb func(client *ds.Client, definitions *types.TableDe
 	sampling.SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, url string, definitions *types.TableDefinitions) {
 		*dsUrl = client.Url
 		*sampling_url = url
+		is_test = true
 		cb(client, definitions)
 	})
 }
@@ -446,11 +447,11 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 
 func getMetric(parentId, metric string) commons.Result {
 	client_url := ""
-	if is_test {
-		client_url = commons.NewUrlBuilder(*sampling_url).Concat("metrics", "managed_object", fmt.Sprint(parentId), metric).ToUrl()
-	} else {
-		client_url = commons.NewUrlBuilder(*sampling_url).Concat("managed_object", fmt.Sprint(parentId), metric).ToUrl()
-	}
+	// if is_test {
+	// 	client_url = commons.NewUrlBuilder(*sampling_url).Concat("metrics", "managed_object", fmt.Sprint(parentId), metric).ToUrl()
+	// } else {
+	client_url = commons.NewUrlBuilder(*sampling_url).Concat("managed_object", fmt.Sprint(parentId), metric).ToUrl()
+	//}
 	metricClient := &commons.HttpClient{Url: *sampling_url}
 	return metricClient.InvokeWith("GET", client_url, nil, 200)
 }

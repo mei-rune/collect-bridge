@@ -2,11 +2,23 @@ package sampling
 
 import (
 	"commons"
+	"time"
 )
 
 var TableNotExists = commons.NotFound("table is not exists.")
 var NotFound = commons.NotExists
 var TypeError = commons.TypeError("value isn't the specific type.")
+
+type BackgroundWorker interface {
+	Stats() interface{}
+	Close() // call close while server is shutdown or worker is expired
+	IsExpired(now int64, default_expired time.Duration) bool
+}
+
+type BackgroundWorkers interface {
+	Add(id string, bw BackgroundWorker)
+	Remove(id string)
+}
 
 type RouteDefinition struct {
 	Method      string            `json:"method"`
@@ -93,7 +105,7 @@ type RouteSpec struct {
 	Paths       []P
 	Match       Matchers
 	Categories  []string
-	Call        func(rs *RouteSpec, params map[string]interface{}) (Method, error)
+	Init        func(rs *RouteSpec, params map[string]interface{}) (Method, error)
 }
 
 var (

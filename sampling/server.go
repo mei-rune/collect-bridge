@@ -37,6 +37,7 @@ func expvarHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type server struct {
+	workers  *backgroundWorkers
 	caches   *ds.Caches
 	mo_cache *ds.Cache
 
@@ -56,7 +57,11 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 	caches := ds.NewCaches(refresh, client, "*", map[string]string{"snmp": "snmp_param"})
 	mo_cache := ds.NewCacheWithIncludes(refresh, client, "managed_object", "*")
 
-	srv := &server{caches: caches, mo_cache: mo_cache,
+	srv := &server{workers: &backgroundWorkers{c: make(chan func()),
+		period_interval:    *period_interval,
+		lifecycle_interval: *lifecycle_interval,
+		workers:            make(map[string]BackgroundWorker)},
+		caches: caches, mo_cache: mo_cache,
 		routes_for_get:    make(map[string]*Routers),
 		routes_for_put:    make(map[string]*Routers),
 		routes_for_create: make(map[string]*Routers),
@@ -65,6 +70,11 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 		route_for_put:     make(map[string]*Route),
 		route_for_create:  make(map[string]*Route),
 		route_for_delete:  make(map[string]*Route)}
+
+	if nil == params {
+		params = map[string]interface{}{}
+	}
+	params["backgroundWorkers"] = srv.workers
 
 	for k, rs := range Methods {
 		r, e := newRouteWithSpec(k, rs, params)
@@ -81,63 +91,51 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 	return srv, nil
 }
 
+func (self *server) close() {
+	self.workers.close()
+}
+
+func (self *server) shutdown() {
+	self.workers.shutdown()
+}
+
+func (self *server) run() {
+	self.workers.run()
+}
+
 func (self *server) register(rs *Route) error {
+	var routes_container map[string]*Routers
+	var route_container map[string]*Route
+
 	switch rs.definition.Method {
 	case "get", "Get", "GET":
-		if _, ok := self.route_for_get[rs.id]; ok {
-			return errors.New("route that id is  '" + rs.id + "' is already exists.")
-		}
-		self.route_for_get[rs.id] = rs
-
-		route, _ := self.routes_for_get[rs.name]
-		if nil == route {
-			route = &Routers{}
-			self.routes_for_get[rs.name] = route
-		}
-
-		return route.register(rs)
+		route_container = self.route_for_get
+		routes_container = self.routes_for_get
 	case "put", "Put", "PUT":
-		if _, ok := self.route_for_put[rs.id]; ok {
-			return errors.New("route that id is  '" + rs.id + "' is already exists.")
-		}
-		self.route_for_put[rs.id] = rs
-
-		route, _ := self.routes_for_put[rs.name]
-		if nil == route {
-			route = &Routers{}
-			self.routes_for_put[rs.name] = route
-		}
-
-		return route.register(rs)
+		route_container = self.route_for_put
+		routes_container = self.routes_for_put
 	case "create", "Create", "CREATE":
-		if _, ok := self.route_for_create[rs.id]; ok {
-			return errors.New("route that id is  '" + rs.id + "' is already exists.")
-		}
-		self.route_for_create[rs.id] = rs
-
-		route, _ := self.routes_for_create[rs.name]
-		if nil == route {
-			route = &Routers{}
-			self.routes_for_create[rs.name] = route
-		}
-
-		return route.register(rs)
+		route_container = self.route_for_create
+		routes_container = self.routes_for_create
 	case "delete", "Delete", "DELETE":
-		if _, ok := self.route_for_delete[rs.id]; ok {
-			return errors.New("route that id is  '" + rs.id + "' is already exists.")
-		}
-		self.route_for_delete[rs.id] = rs
-
-		route, _ := self.routes_for_delete[rs.name]
-		if nil == route {
-			route = &Routers{}
-			self.routes_for_delete[rs.name] = route
-		}
-
-		return route.register(rs)
+		route_container = self.route_for_delete
+		routes_container = self.routes_for_delete
 	default:
 		return errors.New("Unsupported method - " + rs.definition.Method)
 	}
+
+	if _, ok := route_container[rs.id]; ok {
+		return errors.New("route that id is  '" + rs.id + "' is already exists.")
+	}
+	route_container[rs.id] = rs
+
+	route, _ := routes_container[rs.name]
+	if nil == route {
+		route = &Routers{}
+		routes_container[rs.name] = route
+	}
+
+	return route.register(rs)
 }
 
 func (self *server) unregister(name, id string) {
@@ -354,6 +352,7 @@ func SrvTest(t *testing.T, file string, cb func(client *ds.Client, sampling_url 
 		cb(client, hsrv.URL, definitions)
 
 		if nil != srv_instance {
+			srv_instance.close()
 			srv_instance = nil
 		}
 	})

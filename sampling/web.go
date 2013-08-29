@@ -10,10 +10,12 @@ import (
 )
 
 var (
-	address      = flag.String("sampling.listen", ":7072", "the address of http")
-	ds_url       = flag.String("ds.url", "http://127.0.0.1:7071", "the address of http")
-	refresh      = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
-	snmp_timeout = flag.Duration("snmp.timeout", 60*time.Second, "the timeout duration of snmp")
+	address            = flag.String("sampling.listen", ":7072", "the address of http")
+	ds_url             = flag.String("ds.url", "http://127.0.0.1:7071", "the address of http")
+	refresh            = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
+	snmp_timeout       = flag.Duration("snmp.timeout", 60*time.Second, "the timeout duration of snmp")
+	period_interval    = flag.Duration("period", 1*time.Second, "the tick interval of backgroundWorker")
+	lifecycle_interval = flag.Duration("lifecycle", 10*time.Minute, "the default lifecycle time of backgroundWorker")
 
 	is_test              = false
 	srv_instance *server = nil
@@ -44,6 +46,9 @@ func Main() {
 		srv_instance = srv
 		log.Println("[sampling-test] serving at '" + *address + "'")
 	} else {
+		go srv.run()
+		defer func() { srv.close() }()
+
 		log.Println("[sampling] serving at '" + *address + "'")
 		http.ListenAndServe(*address, srv)
 	}

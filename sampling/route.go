@@ -69,7 +69,7 @@ func newRouteSpec(method, name, descr string, match Matchers, call func(rs *Rout
 		Level:       []string{"system", "12"},
 		Categories:  []string{"default", "safe"},
 		Match:       match,
-		Call:        call}
+		Init:        call}
 }
 
 func newRouteSpecWithPaths(method, name, descr string, paths []P, match Matchers, call func(rs *RouteSpec, params map[string]interface{}) (Method, error)) *RouteSpec {
@@ -82,7 +82,7 @@ func newRouteSpecWithPaths(method, name, descr string, paths []P, match Matchers
 		Categories:  []string{"default", "safe"},
 		Paths:       paths,
 		Match:       match,
-		Call:        call}
+		Init:        call}
 }
 
 func newRouteWithSpec(id string, rs *RouteSpec, params map[string]interface{}) (*Route, error) {
@@ -100,11 +100,11 @@ func newRouteWithSpec(id string, rs *RouteSpec, params map[string]interface{}) (
 		name:     rs.Name,
 		matchers: rs.Match}
 
-	if nil == rs.Call {
+	if nil == rs.Init {
 		return nil, errors.New("the call of spec '" + id + "' is nil.")
 	}
 
-	m, e := rs.Call(rs, params)
+	m, e := rs.Init(rs, params)
 	if nil != e {
 		return nil, errors.New("the call of spec '" + id + "' is make failed, " + e.Error())
 	}

@@ -9,34 +9,26 @@ import (
 	"time"
 )
 
-type worker interface {
-	stats() interface{}
-	close()
-	isTimeout(now int64, default_interval time.Duration) bool
+type backgroundWorkers struct {
+	c                  chan func()
+	wait               sync.WaitGroup
+	last_error         string
+	period_interval    time.Duration
+	lifecycle_interval time.Duration
+
+	workers map[string]BackgroundWorker
 }
 
-type backgroundWorker struct {
-	name             string
-	c                chan func()
-	wait             sync.WaitGroup
-	last_error       string
-	period_interval  time.Duration
-	timeout_interval time.Duration
-
-	workers map[string]worker
-}
-
-func (self *backgroundWorker) Close() error {
+func (self *backgroundWorkers) close() {
 	close(self.c)
 	self.wait.Wait()
-	return nil
 }
 
-func (self *backgroundWorker) shutdown() {
+func (self *backgroundWorkers) shutdown() {
 	close(self.c)
 }
 
-func (self *backgroundWorker) run() {
+func (self *backgroundWorkers) run() {
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -77,36 +69,36 @@ func (self *backgroundWorker) run() {
 	}
 }
 
-func (self *backgroundWorker) timeout() {
+func (self *backgroundWorkers) timeout() {
 	now := time.Now().Unix()
 	will_delete_keys := make([]string, 0, len(self.workers))
 	for k, v := range self.workers {
-		if v.isTimeout(now, self.timeout_interval) {
+		if v.IsExpired(now, self.lifecycle_interval) {
 			will_delete_keys = append(will_delete_keys, k)
 		}
 	}
 
 	for _, k := range will_delete_keys {
 		if v, ok := self.workers[k]; ok {
-			v.close()
+			v.Close()
 			delete(self.workers, k)
 		}
 	}
 }
 
-func (self *backgroundWorker) add(id string, bw worker) {
+func (self *backgroundWorkers) Add(id string, bw BackgroundWorker) {
 	self.c <- func() {
 		self.workers[id] = bw
 	}
 }
 
-func (self *backgroundWorker) remove(id string) {
+func (self *backgroundWorkers) Remove(id string) {
 	self.c <- func() {
 		delete(self.workers, id)
 	}
 }
 
-func (self *backgroundWorker) stats() (res interface{}) {
+func (self *backgroundWorkers) stats() (res interface{}) {
 	defer func() {
 		if o := recover(); nil != o {
 			var buffer bytes.Buffer
@@ -126,10 +118,15 @@ func (self *backgroundWorker) stats() (res interface{}) {
 	self.c <- func() {
 		c <- self.stats_impl()
 	}
-	return <-c
+	select {
+	case v := <-c:
+		return v
+	case <-time.After(20 * time.Second):
+		return "stats is time out!"
+	}
 }
 
-func (self *backgroundWorker) stats_impl() (res interface{}) {
+func (self *backgroundWorkers) stats_impl() (res interface{}) {
 	defer func() {
 		if o := recover(); nil != o {
 			var buffer bytes.Buffer
@@ -147,7 +144,7 @@ func (self *backgroundWorker) stats_impl() (res interface{}) {
 
 	var results []interface{}
 	for _, bw := range self.workers {
-		results = append(results, bw.stats())
+		results = append(results, bw.Stats())
 	}
 	return results
 }

@@ -766,7 +766,7 @@ type udpListen struct {
 }
 
 func (self *udpListen) Call(params MContext) commons.Result {
-	return self.GetAllResult(params, "1.3.6.1.2.1.6.13.1", "1,2,3,4,5",
+	return self.GetAllResult(params, "1.3.6.1.2.1.7.5.1", "1,2",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
 			new_row["udpLocalAddress"] = GetIPAddress(params, old_row, "1")

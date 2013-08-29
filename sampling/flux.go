@@ -19,7 +19,7 @@ package sampling
 // 	invoke_cb   invoke_func
 // }
 
-// func (self *baseWorker) isTimeout(now int64, default_interval time.Duration) bool {
+// func (self *baseWorker) IsExpired(now int64, default_interval time.Duration) bool {
 // 	self.l.Lock()
 // 	defer self.l.Unlock()
 // 	return (self.timestamp + int64(default_interval.Seconds())) <= now
@@ -47,7 +47,7 @@ package sampling
 
 // func (self *baseWorker) get() bool {
 // 	res := self.invoke(self.dispatcher, self.metric_name, self.ctx)
-//   return
+// 	return
 // }
 
 // type flux_worker struct {

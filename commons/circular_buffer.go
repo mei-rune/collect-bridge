@@ -49,6 +49,23 @@ func (self *CircularBuffer) Pop() interface{} {
 	return elem
 }
 
+func (self *CircularBuffer) First() interface{} {
+	if self.IsEmpty() {
+		return nil
+	}
+
+	return self.elements[self.start]
+}
+
+func (self *CircularBuffer) Last() interface{} {
+	if self.IsEmpty() {
+		return nil
+	}
+
+	end := (self.start + self.count - 1) % len(self.elements)
+	return self.elements[end]
+}
+
 /* Read all elements.*/
 func (self *CircularBuffer) Size() int {
 	return self.count
@@ -77,24 +94,3 @@ func (self *CircularBuffer) All() []interface{} {
 
 	return res
 }
-
-// int main(int argc, char **argv) {
-//     CircularBuffer cb;
-//     ElemType elem = {0};
-
-//     int testBufferSize = 10; /* arbitrary size */
-//     cbInit(&cb, testBufferSize);
-
-//     /* Fill buffer with test elements 3 times */
-//     for (elem.value = 0; elem.value < 3 * testBufferSize; ++ elem.value)
-//         cbWrite(&cb, &elem);
-
-//     /* Remove and print all elements */
-//     while (!cbIsEmpty(&cb)) {
-//         cbRead(&cb, &elem);
-//         printf("%d\n", elem.value);
-//     }
-
-//     cbFree(&cb);
-//     return 0;
-// }

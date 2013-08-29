@@ -1061,18 +1061,18 @@ func init() {
 			return drv, drv.Init(params)
 		})
 
-	Methods["port_interfaceDescr"] = newRouteSpecWithPaths("get", "interfaceDescr", "the descr part of interface info", []P{P{"port", "ifIndex"}}, nil,
+	Methods["port_interface_descr"] = newRouteSpecWithPaths("get", "interface_descr", "the descr part of interface info", []P{P{"port", "ifIndex"}}, nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &portDescr{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["port_interfaceStatus"] = newRouteSpec("get", "interfaceStatus", "the status part of interface info", nil,
+	Methods["port_interface_status"] = newRouteSpec("get", "interface_status", "the status part of interface info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &portStatus{}
 			return drv, drv.Init(params)
 		})
-	Methods["port_interfaceScalar"] = newRouteSpec("get", "interfaceScalar", "the scalar part of interface info", nil,
+	Methods["port_interface_scalar"] = newRouteSpec("get", "interface_scalar", "the scalar part of interface info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &portScalar{}
 			return drv, drv.Init(params)
@@ -1084,31 +1084,31 @@ func init() {
 			return drv, drv.Init(params)
 		})
 
-	Methods["default_interfaceDescr"] = newRouteSpec("get", "interfaceDescr", "the descr part of interface info", nil,
+	Methods["default_interface_descr"] = newRouteSpec("get", "interface_descr", "the descr part of interface info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &interfaceDescr{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["default_interfaceStatus"] = newRouteSpec("get", "interfaceStatus", "the status part of interface info", nil,
+	Methods["default_interface_status"] = newRouteSpec("get", "interface_status", "the status part of interface info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &interfaceStatus{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["default_interfaceScalar"] = newRouteSpec("get", "interfaceScalar", "the scalar part of interface info", nil,
+	Methods["default_interface_scalar"] = newRouteSpec("get", "interface_scalar", "the scalar part of interface info", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &interfaceScalar{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["tcpConnection"] = newRouteSpec("get", "tcpConnection", "the tcp connection table", nil,
+	Methods["default_tcp_connection"] = newRouteSpec("get", "tcp_connection", "the tcp connection table", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &tcpConnection{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["udpListen"] = newRouteSpec("get", "udpListen", "the udp listen table", nil,
+	Methods["default_udp_listen"] = newRouteSpec("get", "udp_listen", "the udp listen table", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &udpListen{}
 			return drv, drv.Init(params)

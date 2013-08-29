@@ -58,7 +58,7 @@ func (self *arp) Call(params MContext) commons.Result {
 
 func init() {
 
-	Methods["ipAddress"] = newRouteSpec("get", "ipAddress", "the address table", nil,
+	Methods["ip_address"] = newRouteSpec("get", "ipAddress", "the address table", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &ipAddress{}
 			return drv, drv.Init(params)

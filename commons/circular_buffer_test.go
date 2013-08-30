@@ -24,6 +24,12 @@ func TestCircularBuffer(t *testing.T) {
 				}
 			}
 
+			for i := 0; i <= c; i++ {
+				if all[i] != cb.Get(i) {
+					t.Error("all[", i, "] != cb.Get(", i, "), excepted is ", all[i], ", actual is", cb.Get(i))
+				}
+			}
+
 			if c != cb.Last() {
 				t.Error("excepted last is", c, ", actual is", cb.Last())
 			}
@@ -45,6 +51,12 @@ func TestCircularBuffer(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				if all[i] != c-9+i {
 					t.Error("all[", i, "] is error, excepted is", all[i], ", actual is", c-9+i)
+				}
+			}
+
+			for i := 0; i < 10; i++ {
+				if all[i] != cb.Get(i) {
+					t.Error("all[", i, "] != cb.Get(", i, "), excepted is ", all[i], ", actual is", cb.Get(i))
 				}
 			}
 

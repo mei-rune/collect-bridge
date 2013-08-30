@@ -1,6 +1,7 @@
 package sampling
 
 import (
+	"bytes"
 	"commons"
 	ds "data_store"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"time"
 
@@ -58,9 +60,8 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 	mo_cache := ds.NewCacheWithIncludes(refresh, client, "managed_object", "*")
 
 	srv := &server{workers: &backgroundWorkers{c: make(chan func()),
-		period_interval:    *period_interval,
-		lifecycle_interval: *lifecycle_interval,
-		workers:            make(map[string]BackgroundWorker)},
+		period_interval: *period_interval,
+		workers:         nil},
 		caches: caches, mo_cache: mo_cache,
 		routes_for_get:    make(map[string]*Routers),
 		routes_for_put:    make(map[string]*Routers),
@@ -74,7 +75,9 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 	if nil == params {
 		params = map[string]interface{}{}
 	}
-	params["backgroundWorkers"] = srv.workers
+	simpled := &simpleWorkers{workers: make(map[string]*worker)}
+	wrpped := &wrappedWorkers{backend: simpled}
+	params["backgroundWorkers"] = wrpped
 
 	for k, rs := range Methods {
 		r, e := newRouteWithSpec(k, rs, params)
@@ -88,6 +91,8 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 		}
 	}
 
+	srv.workers.workers = simpled.workers
+	wrpped.backend = srv.workers
 	return srv, nil
 }
 
@@ -196,6 +201,23 @@ func to2DArray(ss []string) []P {
 }
 
 func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if e := recover(); nil != e {
+			var buffer bytes.Buffer
+			buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+			for i := 1; ; i += 1 {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+			}
+
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(buffer.Bytes())
+		}
+	}()
+
 	if strings.HasPrefix(r.URL.Path, "/debug/") {
 		switch r.URL.Path {
 		case "/debug/vars":
@@ -228,10 +250,15 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var mo map[string]interface{}
 	var query_paths []P
 	query_params := map[string]string{}
+	for k, values := range r.URL.Query() {
+		query_params[k] = values[len(values)-1]
+	}
+
 	if 0 == len(paths)%2 {
 		metric_name = paths[len(paths)-1]
 		managed_type = "unknow_type"
 		managed_id = "unknow_id"
+		query_params["uid"] = paths[0]
 		query_params["@address"] = paths[0]
 		query_params["metric-name"] = metric_name
 		query_paths = to2DArray(paths[1 : len(paths)-1])
@@ -243,6 +270,7 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		managed_id = paths[1]
 		query_params["type"] = managed_type
 		query_params["id"] = managed_id
+		query_params["uid"] = managed_id
 		query_params["metric-name"] = metric_name
 		query_paths = to2DArray(paths[2 : len(paths)-1])
 
@@ -256,10 +284,6 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			self.returnResult(w, commons.ReturnWithNotFound(managed_type, managed_id))
 			return
 		}
-	}
-
-	for k, values := range r.URL.Query() {
-		query_params[k] = values[len(values)-1]
 	}
 
 	var route_by_id map[string]*Route
@@ -321,6 +345,32 @@ func invoke(route_by_id map[string]*Route, routes_by_name map[string]*Routers,
 	}
 
 	return routes.Invoke(paths, params)
+}
+
+func (self *server) CreateCtx(metric_name string, managed_type, managed_id string) (MContext, error) {
+	query_params := map[string]string{}
+
+	query_params["type"] = managed_type
+	query_params["id"] = managed_id
+	query_params["uid"] = managed_id
+	query_params["metric-name"] = metric_name
+
+	mo, e := self.mo_cache.Get(managed_id)
+	if nil != e {
+		return nil, errors.New(managed_type + " with id was '" + managed_id + "' is not found, " + e.Error())
+	}
+	if nil == mo {
+		return nil, errors.New(managed_type + " with id was '" + managed_id + "' is not found.")
+	}
+
+	return &context{params: query_params,
+		managed_type: managed_type,
+		managed_id:   managed_id,
+		mo:           mo,
+		local:        make(map[string]map[string]interface{}),
+		alias:        alias_names,
+		pry:          &proxy{srv: self},
+		body_reader:  nil}, nil
 }
 
 func (self *server) Get(metric_name string, paths []P, params MContext) commons.Result {

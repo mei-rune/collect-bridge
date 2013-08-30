@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	address            = flag.String("sampling.listen", ":7072", "the address of http")
-	ds_url             = flag.String("ds.url", "http://127.0.0.1:7071", "the address of http")
-	refresh            = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
-	snmp_timeout       = flag.Duration("snmp.timeout", 60*time.Second, "the timeout duration of snmp")
-	period_interval    = flag.Duration("period", 1*time.Second, "the tick interval of backgroundWorker")
-	lifecycle_interval = flag.Duration("lifecycle", 10*time.Minute, "the default lifecycle time of backgroundWorker")
+	address          = flag.String("sampling.listen", ":7072", "the address of http")
+	ds_url           = flag.String("ds.url", "http://127.0.0.1:7071", "the address of http")
+	refresh          = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
+	snmp_timeout     = flag.Duration("snmp.timeout", 60*time.Second, "the timeout duration of snmp")
+	period_interval  = flag.Duration("period", 1*time.Second, "the tick interval of backgroundWorker")
+	flux_buffer_size = flag.Int("flux_buffer_size", 30, "the default buffer size of flux")
 
 	is_test              = false
 	srv_instance *server = nil

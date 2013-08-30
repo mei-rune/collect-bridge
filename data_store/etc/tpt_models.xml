@@ -194,6 +194,20 @@
       </restriction>
     </property>
 
+    <property name="link_type">
+      <restriction base="integer">
+      </restriction>
+    </property>
+
+    <property name="forward">
+      <restriction base="boolean">
+      </restriction>
+    </property>
+    <property name="from_based">
+      <restriction base="boolean">
+      </restriction>
+    </property>
+
     <belongs_to name="from_device" >NetworkDevice</belongs_to>
     <belongs_to name="to_device" >NetworkDevice</belongs_to>
   </class>

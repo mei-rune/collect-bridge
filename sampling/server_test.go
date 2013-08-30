@@ -16,6 +16,18 @@ var (
 		"services":        2,
 		"managed_address": "20.0.8.110"}
 
+	old_link = map[string]interface{}{"name": "dd",
+		"custom_speed_up":   12,
+		"custom_speed_down": 12,
+		"description":       "",
+		"from_device":       0,
+		"from_if_index":     1,
+		"to_device":         0,
+		"to_if_index":       1,
+		"link_type":         12,
+		"forward":           true,
+		"from_based":        true}
+
 	snmp_params = map[string]interface{}{"address": "127.0.0.1",
 		"read_community": "public",
 		"port":           161,
@@ -26,6 +38,20 @@ var (
 		"password": "password1",
 		"type":     "wbem_param"}
 )
+
+func copyFrom(from, addition map[string]interface{}) map[string]interface{} {
+	res := map[string]interface{}{}
+	for k, v := range from {
+		res[k] = v
+	}
+
+	if nil != addition {
+		for k, v := range addition {
+			res[k] = v
+		}
+	}
+	return res
+}
 
 func createMockSnmpParams(t *testing.T, client *ds.Client, id, body map[string]interface{}) string {
 	return ds.CreateItForTest(t, client, "snmp_param", body)

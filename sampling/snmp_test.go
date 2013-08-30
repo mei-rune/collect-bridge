@@ -9,32 +9,6 @@ import (
 	"testing"
 )
 
-func TestInterface(t *testing.T) {
-	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
-		_, e := client.DeleteBy("network_device", emptyParams)
-		if nil != e {
-			t.Error(e)
-			return
-		}
-		res := nativeGet(t, sampling_url, "127.0.0.1", "port/1/interface", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
-		if res.HasError() {
-			t.Error(res.Error())
-			return
-		}
-
-		if nil == res.InterfaceValue() {
-			t.Error("values is nil")
-		}
-
-		t.Log(res.InterfaceValue())
-		_, err := res.Value().AsObject()
-		if nil != err {
-			t.Error(err)
-			return
-		}
-	})
-}
-
 func TestSnmpRead(t *testing.T) {
 	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		for idx, test := range []struct {

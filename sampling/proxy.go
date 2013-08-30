@@ -9,11 +9,16 @@ func type_error(e error) error {
 }
 
 type getter interface {
+	CreateCtx(metric_name string, managed_type, managed_id string) (MContext, error)
 	Get(metric_name string, paths []P, params MContext) commons.Result
 }
 
 type proxy struct {
 	srv getter
+}
+
+func (self *proxy) CreateCtx(metric_name string, managed_type, managed_id string) (MContext, error) {
+	return self.srv.CreateCtx(metric_name, managed_type, managed_id)
 }
 
 func (self *proxy) Get(metric_name string, paths []P, params MContext) (interface{}, error) {

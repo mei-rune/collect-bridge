@@ -17,10 +17,17 @@ func (self *CircularBuffer) Init(elements []interface{}) {
 	self.count = 0
 }
 
+/* clear all elements.*/
+func (self *CircularBuffer) Clear() {
+	self.start = 0
+	self.count = 0
+}
+
 func (self *CircularBuffer) IsFull() bool {
 	return self.count == len(self.elements)
 }
 
+/* return true while size is 0, otherwise return false */
 func (self *CircularBuffer) IsEmpty() bool {
 	return 0 == self.count
 }
@@ -35,6 +42,15 @@ func (self *CircularBuffer) Push(elem interface{}) {
 	} else {
 		self.count++
 	}
+}
+
+func (self *CircularBuffer) Get(idx int) interface{} {
+	if self.IsEmpty() {
+		return nil
+	}
+
+	current := (self.start + idx) % len(self.elements)
+	return self.elements[current]
 }
 
 /* Read oldest element. App must ensure !isEmpty() first. */

@@ -2,7 +2,6 @@ package sampling
 
 import (
 	"commons"
-	"time"
 )
 
 var TableNotExists = commons.NotFound("table is not exists.")
@@ -10,9 +9,9 @@ var NotFound = commons.NotExists
 var TypeError = commons.TypeError("value isn't the specific type.")
 
 type BackgroundWorker interface {
-	Stats() interface{}
-	Close() // call close while server is shutdown or worker is expired
-	IsExpired(now int64, default_expired time.Duration) bool
+	Stats() map[string]interface{}
+	Close() // call close while server is shutdown, but not call while worker is removed
+	OnTick()
 }
 
 type BackgroundWorkers interface {
@@ -42,6 +41,7 @@ type Filter struct {
 type P [2]string
 
 type Sampling interface {
+	CreateCtx(metric_name string, managed_type, managed_id string) (MContext, error)
 	Get(metric_name string, paths []P, params MContext) (interface{}, error)
 	GetBool(metric_name string, paths []P, params MContext) (bool, error)
 	GetInt(metric_name string, paths []P, params MContext) (int, error)

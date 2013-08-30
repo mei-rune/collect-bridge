@@ -9,14 +9,46 @@ import (
 	"time"
 )
 
-type backgroundWorkers struct {
-	c                  chan func()
-	wait               sync.WaitGroup
-	last_error         string
-	period_interval    time.Duration
-	lifecycle_interval time.Duration
+type simpleWorkers struct {
+	l       sync.Mutex
+	workers map[string]*worker
+}
 
-	workers map[string]BackgroundWorker
+func (self *simpleWorkers) Add(id string, bw BackgroundWorker) {
+	self.l.Lock()
+	defer self.l.Unlock()
+	self.workers[id] = &worker{bw, ""}
+}
+
+func (self *simpleWorkers) Remove(id string) {
+	self.l.Lock()
+	defer self.l.Unlock()
+	delete(self.workers, id)
+}
+
+type wrappedWorkers struct {
+	backend BackgroundWorkers
+}
+
+func (self *wrappedWorkers) Add(id string, bw BackgroundWorker) {
+	self.backend.Add(id, bw)
+}
+
+func (self *wrappedWorkers) Remove(id string) {
+	self.backend.Remove(id)
+}
+
+type backgroundWorkers struct {
+	c               chan func()
+	wait            sync.WaitGroup
+	last_error      string
+	period_interval time.Duration
+	workers         map[string]*worker
+}
+
+type worker struct {
+	BackgroundWorker
+	last_error string
 }
 
 func (self *backgroundWorkers) close() {
@@ -70,25 +102,34 @@ func (self *backgroundWorkers) run() {
 }
 
 func (self *backgroundWorkers) timeout() {
-	now := time.Now().Unix()
-	will_delete_keys := make([]string, 0, len(self.workers))
-	for k, v := range self.workers {
-		if v.IsExpired(now, self.lifecycle_interval) {
-			will_delete_keys = append(will_delete_keys, k)
-		}
+	for _, v := range self.workers {
+		self.onTick(v)
 	}
+}
 
-	for _, k := range will_delete_keys {
-		if v, ok := self.workers[k]; ok {
-			v.Close()
-			delete(self.workers, k)
+func (self *backgroundWorkers) onTick(w *worker) {
+	w.last_error = ""
+	defer func() {
+		if o := recover(); nil != o {
+			var buffer bytes.Buffer
+			buffer.WriteString(fmt.Sprintf("[panic]%v", o))
+			for i := 1; ; i += 1 {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+			}
+			w.last_error = buffer.String()
 		}
-	}
+	}()
+
+	w.OnTick()
 }
 
 func (self *backgroundWorkers) Add(id string, bw BackgroundWorker) {
 	self.c <- func() {
-		self.workers[id] = bw
+		self.workers[id] = &worker{bw, ""}
 	}
 }
 
@@ -143,8 +184,15 @@ func (self *backgroundWorkers) stats_impl() (res interface{}) {
 	}()
 
 	var results []interface{}
-	for _, bw := range self.workers {
-		results = append(results, bw.Stats())
+	for k, w := range self.workers {
+		res := w.Stats()
+		if nil == res {
+			res = map[string]interface{}{"id": k}
+		}
+		if 0 != len(w.last_error) {
+			res["error_on_tick"] = w.last_error
+		}
+		results = append(results, res)
 	}
 	return results
 }

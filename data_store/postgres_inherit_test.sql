@@ -88,16 +88,22 @@ CREATE TABLE tpt_network_links (
   from_if_index BIGINT,
   to_device BIGINT NOT NULL,
   to_if_index BIGINT,
+  from_port_id BIGINT,
+  to_port_id BIGINT,
 
   custom_speed_up         integer,
   custom_speed_down       integer,
+  link_type               integer,
+  forward                 BOOLEAN,
+  from_based              BOOLEAN,
 
   CONSTRAINT tpt_network_links_pkey PRIMARY KEY (id),
   FOREIGN KEY(from_device) REFERENCES tpt_network_devices(id),
-  FOREIGN KEY(to_device) REFERENCES tpt_network_devices(id)
+  FOREIGN KEY(to_device) REFERENCES tpt_network_devices(id),
+  FOREIGN KEY(from_port_id) REFERENCES tpt_network_device_ports(id),
+  FOREIGN KEY(to_port_id) REFERENCES tpt_network_device_ports(id)
 
 ) INHERITS (tpt_managed_objects);
-
 
 
 CREATE TABLE tpt_network_addresses (

@@ -10,6 +10,9 @@ import (
 )
 
 type Flux struct {
+	IfInOctetsPercent  uint64 `json:"IfInOctetsPercent"`
+	IfOutOctetsPercent uint64 `json:"IfOutOctetsPercent"`
+
 	IfOctets     uint64 `json:"IfOctets"`
 	IfUcastPkts  uint64 `json:"IfUcastPkts"`
 	IfNUcastPkts uint64 `json:"IfNUcastPkts"`
@@ -31,6 +34,21 @@ type Flux struct {
 	IfIndex           int    `json:"IfIndex"`
 	IfBit             int
 	IfStatus          int `json:"IfStatus"`
+}
+
+func swap(a, b *uint64) {
+	t := *a
+	*a = *b
+	*b = t
+}
+
+func swapInAndOut(flux *Flux) {
+	swap(&flux.IfInOctetsPercent, &flux.IfOutOctetsPercent)
+	swap(&flux.IfInOctets, &flux.IfOutOctets)
+	swap(&flux.IfInUcastPkts, &flux.IfOutUcastPkts)
+	swap(&flux.IfInNUcastPkts, &flux.IfOutNUcastPkts)
+	swap(&flux.IfInDiscards, &flux.IfOutDiscards)
+	swap(&flux.IfInErrors, &flux.IfOutErrors)
 }
 
 func uint64With(row map[string]interface{}, key string) uint64 {
@@ -135,6 +153,15 @@ func calcFlux(res *Flux, buffer *fluxBuffer, interval uint64, last_at int64) err
 		res.IfOutNUcastPkts = 0
 		res.IfOutDiscards = 0
 		res.IfOutErrors = 0
+
+		res.IfInOctetsPercent = 0
+		res.IfOutOctetsPercent = 0
+
+		res.IfOctets = 0
+		res.IfUcastPkts = 0
+		res.IfNUcastPkts = 0
+		res.IfDiscards = 0
+		res.IfErrors = 0
 		return nil
 	}
 
@@ -215,7 +242,6 @@ func calcFlux(res *Flux, buffer *fluxBuffer, interval uint64, last_at int64) err
 	res.IfNUcastPkts = (res.IfInNUcastPkts + res.IfOutNUcastPkts) / time_interval
 	res.IfDiscards = ((res.IfInDiscards + res.IfOutDiscards) * 60) / time_interval
 	res.IfErrors = ((res.IfInErrors + res.IfInUnknownProtos + res.IfOutErrors) * 60) / time_interval
-
 	return nil
 }
 
@@ -268,10 +294,10 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 		return commons.ReturnWithIsRequired("id")
 	}
 
-	// forward, e := ctx.GetBool("@forward")
-	// if nil != e {
-	// 	return commons.ReturnWithIsRequired("forward")
-	// }
+	forward, e := ctx.GetBool("@forward")
+	if nil != e {
+		return commons.ReturnWithIsRequired("forward")
+	}
 	from_based, e := ctx.GetBool("@from_based")
 	if nil != e {
 		return commons.ReturnWithIsRequired("from_based")
@@ -329,6 +355,25 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 		return commons.ReturnWithInternalError(e.Error())
 	}
 	current.SampledAt = sampled_at
+
+	custom_speed_up := ctx.GetUint64WithDefault("custom_speed_up", 0)
+	custom_speed_down := ctx.GetUint64WithDefault("custom_speed_down", 0)
+
+	if forward {
+		if !from_based {
+			swapInAndOut(&current)
+		}
+	} else if from_based {
+		swapInAndOut(&current)
+	}
+
+	if 0 < custom_speed_up {
+		res.IfInOctetsPercent = res.IfInOctets / custom_speed_up
+	}
+	if 0 < custom_speed_down {
+		res.IfOutOctetsPercent = res.IfOutOctets / custom_speed_down
+	}
+
 	return commons.Return(&current)
 }
 

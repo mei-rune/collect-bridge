@@ -393,8 +393,9 @@ func (self *interfaceWorker) Call(ctx MContext) commons.Result {
 	}
 	sampled_at := time.Now().Unix()
 	flux := bucket.BeginPush()
-	flux.IfIndex = int(ifIndex_int)
 	readFluxFormMap(flux, attributes)
+	flux.IfIndex = int(ifIndex_int)
+	flux.SampledAt = sampled_at
 	bucket.CommitPush()
 
 	var current Flux

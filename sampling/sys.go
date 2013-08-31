@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"commons"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -83,8 +82,8 @@ func (self *systemInfo) Call(params MContext) commons.Result {
 			new_row["location"] = GetString(params, old_row, "6")
 			new_row["services"] = services
 
-			params.Set("&sys.oid", oid)
-			params.Set("&sys.services", strconv.Itoa(int(services)))
+			params.Set("$sys.oid", oid)
+			params.Set("$sys.services", strconv.Itoa(int(services)))
 			t, _ := params.Read().GetInt("sys.type", nil, params)
 			new_row["type"] = t
 			return new_row, nil
@@ -147,7 +146,7 @@ func (self *systemType) Init(params map[string]interface{}) error {
 					continue
 				}
 				ss = strings.SplitN(s, "=", 2)
-				key := strings.TrimPrefix(strings.TrimSpace(ss[0]), ".")
+				key := strings.TrimLeft(strings.TrimSpace(ss[0]), ".")
 				value := strings.TrimSpace(ss[1])
 				if 0 == len(key) {
 					continue
@@ -204,7 +203,7 @@ func (self *systemType) Call(params MContext) commons.Result {
 		return commons.Return(t >> 1)
 	}
 SERVICES:
-	services, e := params.GetUint32("&sys.services")
+	services, e := params.GetUint32("$sys.services")
 	if nil != e {
 		return commons.ReturnWithInternalError(e.Error())
 	}

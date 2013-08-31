@@ -37,6 +37,7 @@ func TestInterfaceNative(t *testing.T) {
 }
 
 func TestInterface(t *testing.T) {
+	t.Skip()
 	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {

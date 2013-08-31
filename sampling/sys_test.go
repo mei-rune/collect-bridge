@@ -18,6 +18,12 @@ func TestSystemTypeInit(t *testing.T) {
 		return
 	}
 
+	t.Log("===================")
+	for k, v := range tp.device2id {
+		t.Log(k, "=", v)
+	}
+	t.Log("===================")
+
 	for k, v := range map[string]int{"cc": 5,
 		"1.2.3": 3,
 		"1.2.4": 4,
@@ -70,13 +76,10 @@ func TestSystemTypeNative(t *testing.T) {
 		}
 
 		t.Log(res.InterfaceValue())
-		m, err := res.Value().AsObject()
+		_, err := res.Value().AsInt()
 		if nil != err {
 			t.Error(err)
 			return
-		}
-		if -1 == commons.GetIntWithDefault(m, "ifType", -1) {
-			t.Error("values is error")
 		}
 	})
 }

@@ -3,6 +3,7 @@ package carrier
 import (
 	"bitbucket.org/runner_mei/goose"
 	"database/sql"
+	"flag"
 	"fmt"
 	"github.com/runner-mei/delayed_job"
 	"math"
@@ -14,6 +15,15 @@ import (
 	"text/template"
 	"time"
 )
+
+func isSetUrl() (ret bool) {
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "data_db.url" {
+			ret = true
+		}
+	})
+	return ret
+}
 
 var usageTmpl = template.Must(template.New("config").Parse(
 	`test:
@@ -54,6 +64,10 @@ func merge(t *testing.T, tag, drv, url string) (string, error) {
 }
 
 func SimpleTest(t *testing.T, cb func(db *sql.DB)) {
+	if !isSetUrl() {
+		flag.Set("data_db.url", "host=127.0.0.1 dbname=tpt_data_test user=tpt password=extreme sslmode=disable")
+	}
+
 	var e error
 	var path string
 	var tag string = *db_drv

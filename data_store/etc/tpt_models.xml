@@ -20,7 +20,13 @@
     <has_many foreignKey="managed_object_id" >MetricTrigger</has_many>
   </class>
 
-  <class name="NetworkDevice" base="ManagedObject">
+  <class name="ManagedPart" base="ManagedObject" abstract="true">
+  </class>
+
+  <class name="ManagedElement" base="ManagedObject" abstract="true">
+  </class>
+
+  <class name="NetworkDevice" base="ManagedElement">
     <property name="type">
       <restriction base="string">
         <required />
@@ -96,8 +102,7 @@
   <class name="SwitchRoute" base="NetworkDevice">
   </class>
 
-
-  <class name="NetworkDevicePort" base="ManagedObject">
+  <class name="NetworkDevicePort" base="ManagedPart">
     <property name="if_index">
       <restriction base="integer">
         <required />
@@ -128,7 +133,7 @@
   </class>
 
 
-  <class name="NetworkAddress" base="ManagedObject">
+  <class name="NetworkAddress" base="ManagedPart">
     <property name="address">
       <restriction base="ipAddress">
         <required />
@@ -154,7 +159,7 @@
   </class>
 
 
-  <class name="NetworkLink" base="ManagedObject">
+  <class name="NetworkLink" base="ManagedElement">
     <property name="name">
       <restriction base="string">
         <required />

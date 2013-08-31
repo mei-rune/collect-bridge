@@ -214,12 +214,26 @@ func Main() {
 	}
 }
 
+func isSetUrl() (ret bool) {
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "db.url" {
+			ret = true
+		}
+	})
+	return ret
+}
+
 func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB), cb func(db *Client, definitions *types.TableDefinitions)) {
+	if !isSetUrl() {
+		flag.Set("db.url", "host=127.0.0.1 dbname=tpt_models_test user=tpt password=extreme sslmode=disable")
+	}
+
 	definitions, err := types.LoadTableDefinitions(file)
 	if nil != err {
 		t.Errorf("read file '%s' failed, %s", file, err.Error())
 		return
 	}
+
 	conn, err := sql.Open(*db_drv, *db_url)
 	if err != nil {
 		t.Fatal(err)

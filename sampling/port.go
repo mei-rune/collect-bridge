@@ -341,7 +341,7 @@ func readInterface(params MContext, res map[string]interface{}) map[string]inter
 
 	ifType := GetInt32(params, res, "3", -1)
 	new_row["ifType"] = ifType
-	new_row["ifType-descr"] = interfaceType(ifType)
+	new_row["ifType__descr"] = interfaceType(ifType)
 
 	new_row["ifMtu"] = GetInt32(params, res, "4", -1)
 	new_row["ifSpeed"] = GetUint64(params, res, "5", 0)
@@ -349,11 +349,11 @@ func readInterface(params MContext, res map[string]interface{}) map[string]inter
 	ifAdminStatus := GetInt32(params, res, "7", -1)
 	ifOpStatus := GetInt32(params, res, "8", -1)
 	new_row["ifAdminStatus"] = ifAdminStatus
-	new_row["ifAdminStatus-descr"] = interfaceStatusString(ifAdminStatus)
+	new_row["ifAdminStatus__descr"] = interfaceStatusString(ifAdminStatus)
 	new_row["ifOpStatus"] = ifOpStatus
-	new_row["ifOpStatus-descr"] = interfaceStatusString(ifOpStatus)
+	new_row["ifOpStatus__descr"] = interfaceStatusString(ifOpStatus)
 	new_row["ifStatus"] = calcStatus(ifAdminStatus, ifOpStatus)
-	new_row["ifStatus-descr"] = statusString(ifAdminStatus, ifOpStatus)
+	new_row["ifStatus__descr"] = statusString(ifAdminStatus, ifOpStatus)
 
 	new_row["ifOpStatus"] = GetInt32(params, res, "8", -1)
 	new_row["ifLastChange"] = GetInt32(params, res, "9", -1)
@@ -421,18 +421,18 @@ func (self *portAll) Call(params MContext) commons.Result {
 	new_row["ifDescr"] = GetString(params, res, "1.3.6.1.2.1.2.2.1.2."+ifIndex)
 	ifType := GetInt32(params, res, "1.3.6.1.2.1.2.2.1.3."+ifIndex, -1)
 	new_row["ifType"] = ifType
-	new_row["ifType-descr"] = interfaceType(ifType)
+	new_row["ifType__descr"] = interfaceType(ifType)
 	new_row["ifMtu"] = GetInt32(params, res, "1.3.6.1.2.1.2.2.1.4."+ifIndex, -1)
 	new_row["ifSpeed"] = GetUint64(params, res, "1.3.6.1.2.1.2.2.1.5."+ifIndex, 0)
 
 	ifAdminStatus := GetInt32(params, res, "1.3.6.1.2.1.2.2.1.7."+ifIndex, -1)
 	ifOpStatus := GetInt32(params, res, "1.3.6.1.2.1.2.2.1.8."+ifIndex, -1)
 	new_row["ifAdminStatus"] = ifAdminStatus
-	new_row["ifAdminStatus-descr"] = interfaceStatusString(ifAdminStatus)
+	new_row["ifAdminStatus__descr"] = interfaceStatusString(ifAdminStatus)
 	new_row["ifOpStatus"] = ifOpStatus
-	new_row["ifOpStatus-descr"] = interfaceStatusString(ifOpStatus)
+	new_row["ifOpStatus__descr"] = interfaceStatusString(ifOpStatus)
 	new_row["ifStatus"] = calcStatus(ifAdminStatus, ifOpStatus)
-	new_row["ifStatus-descr"] = statusString(ifAdminStatus, ifOpStatus)
+	new_row["ifStatus__descr"] = statusString(ifAdminStatus, ifOpStatus)
 
 	new_row["ifOpStatus"] = GetInt32(params, res, "1.3.6.1.2.1.2.2.1.8."+ifIndex, -1)
 	new_row["ifLastChange"] = GetInt32(params, res, "1.3.6.1.2.1.2.2.1.9."+ifIndex, -1)
@@ -484,11 +484,11 @@ func (self *portStatus) Call(params MContext) commons.Result {
 	ifAdminStatus := GetInt32(params, res, "7", -1)
 	ifOpStatus := GetInt32(params, res, "8", -1)
 	new_row["ifAdminStatus"] = ifAdminStatus
-	new_row["ifAdminStatus-descr"] = interfaceStatusString(ifAdminStatus)
+	new_row["ifAdminStatus__descr"] = interfaceStatusString(ifAdminStatus)
 	new_row["ifOpStatus"] = ifOpStatus
-	new_row["ifOpStatus-descr"] = interfaceStatusString(ifOpStatus)
+	new_row["ifOpStatus__descr"] = interfaceStatusString(ifOpStatus)
 	new_row["ifStatus"] = calcStatus(ifAdminStatus, ifOpStatus)
-	new_row["ifStatus-descr"] = statusString(ifAdminStatus, ifOpStatus)
+	new_row["ifStatus__descr"] = statusString(ifAdminStatus, ifOpStatus)
 
 	return commons.Return(new_row)
 }
@@ -539,11 +539,11 @@ func (self *portScalar) CallWithIfIndex(params MContext, ifIndex string) commons
 	ifAdminStatus := GetInt32(params, old_row, "7", -1)
 	ifOpStatus := GetInt32(params, old_row, "8", -1)
 	new_row["ifAdminStatus"] = ifAdminStatus
-	new_row["ifAdminStatus-descr"] = interfaceStatusString(ifAdminStatus)
+	new_row["ifAdminStatus__descr"] = interfaceStatusString(ifAdminStatus)
 	new_row["ifOpStatus"] = ifOpStatus
-	new_row["ifOpStatus-descr"] = interfaceStatusString(ifOpStatus)
+	new_row["ifOpStatus__descr"] = interfaceStatusString(ifOpStatus)
 	new_row["ifStatus"] = calcStatus(ifAdminStatus, ifOpStatus)
-	new_row["ifStatus-descr"] = statusString(ifAdminStatus, ifOpStatus)
+	new_row["ifStatus__descr"] = statusString(ifAdminStatus, ifOpStatus)
 
 	new_row["ifInOctets"] = GetUint64(params, old_row, "10", 0)
 	new_row["ifInUcastPkts"] = GetUint64(params, old_row, "11", 0)
@@ -625,11 +625,11 @@ func (self *interfaceStatus) Call(params MContext) commons.Result {
 			ifAdminStatus := GetInt32(params, old_row, "7", -1)
 			ifOpStatus := GetInt32(params, old_row, "8", -1)
 			new_row["ifAdminStatus"] = ifAdminStatus
-			new_row["ifAdminStatus-descr"] = interfaceStatusString(ifAdminStatus)
+			new_row["ifAdminStatus__descr"] = interfaceStatusString(ifAdminStatus)
 			new_row["ifOpStatus"] = ifOpStatus
-			new_row["ifOpStatus-descr"] = interfaceStatusString(ifOpStatus)
+			new_row["ifOpStatus__descr"] = interfaceStatusString(ifOpStatus)
 			new_row["ifStatus"] = calcStatus(ifAdminStatus, ifOpStatus)
-			new_row["ifStatus-descr"] = statusString(ifAdminStatus, ifOpStatus)
+			new_row["ifStatus__descr"] = statusString(ifAdminStatus, ifOpStatus)
 
 			return new_row, nil
 		})
@@ -649,11 +649,11 @@ func (self *interfaceScalar) Call(params MContext) commons.Result {
 			ifAdminStatus := GetInt32(params, old_row, "7", -1)
 			ifOpStatus := GetInt32(params, old_row, "8", -1)
 			new_row["ifAdminStatus"] = ifAdminStatus
-			new_row["ifAdminStatus-descr"] = interfaceStatusString(ifAdminStatus)
+			new_row["ifAdminStatus__descr"] = interfaceStatusString(ifAdminStatus)
 			new_row["ifOpStatus"] = ifOpStatus
-			new_row["ifOpStatus-descr"] = interfaceStatusString(ifOpStatus)
+			new_row["ifOpStatus__descr"] = interfaceStatusString(ifOpStatus)
 			new_row["ifStatus"] = calcStatus(ifAdminStatus, ifOpStatus)
-			new_row["ifStatus-descr"] = statusString(ifAdminStatus, ifOpStatus)
+			new_row["ifStatus__descr"] = statusString(ifAdminStatus, ifOpStatus)
 
 			new_row["ifInOctets"] = GetUint64(params, old_row, "10", 0)
 			new_row["ifInUcastPkts"] = GetUint64(params, old_row, "11", 0)
@@ -682,7 +682,7 @@ func (self *interfaceDescr) Call(params MContext) commons.Result {
 			new_row["ifDescr"] = GetString(params, old_row, "2")
 			ifType := GetInt32(params, old_row, "3", -1)
 			new_row["ifType"] = ifType
-			new_row["ifType-descr"] = interfaceType(ifType)
+			new_row["ifType__descr"] = interfaceType(ifType)
 			new_row["ifMtu"] = GetInt32(params, old_row, "4", -1)
 			new_row["ifSpeed"] = GetUint64(params, old_row, "5", 0)
 			new_row["ifPhysAddress"] = GetHardwareAddress(params, old_row, "6")
@@ -692,7 +692,6 @@ func (self *interfaceDescr) Call(params MContext) commons.Result {
 }
 
 func init() {
-
 	Methods["port_interface"] = newRouteSpecWithPaths("get", "interface", "the interface info", []P{P{"port", "@ifIndex"}}, nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &portAll{}

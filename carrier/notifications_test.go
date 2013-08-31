@@ -3,6 +3,7 @@ package carrier
 import (
 	"database/sql"
 	"encoding/json"
+	"flag"
 	"github.com/runner-mei/delayed_job"
 	"testing"
 	"time"
@@ -202,6 +203,10 @@ var notifications = []map[string]interface{}{map[string]interface{}{"name": "tes
 	"arg1":        "$current_value"}}
 
 func TestNotifications(t *testing.T) {
+	if !isSetUrl() {
+		flag.Set("data_db.url", "host=127.0.0.1 dbname=tpt_data_test user=tpt password=extreme sslmode=disable")
+	}
+
 	bs, e := json.Marshal(notifications)
 	if nil != e {
 		t.Error(e)

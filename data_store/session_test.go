@@ -3,6 +3,7 @@ package data_store
 import (
 	"commons/types"
 	"database/sql"
+	"flag"
 	"fmt"
 	_ "github.com/lib/pq"
 	"reflect"
@@ -46,6 +47,9 @@ func init() {
 }
 
 func simpleTest(t *testing.T, cb func(db *session, definitions *types.TableDefinitions)) {
+	if !isSetUrl() {
+		flag.Set("db.url", "host=127.0.0.1 dbname=tpt_models_test user=tpt password=extreme sslmode=disable")
+	}
 
 	definitions, err := types.LoadTableDefinitions("etc/test1.xml")
 	if nil != err {

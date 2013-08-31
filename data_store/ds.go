@@ -22,7 +22,7 @@ import (
 
 var (
 	models_file = flag.String("ds.models", "etc/tpt_models.xml", "the name of models file")
-	db_url      = flag.String("db.url", "host=127.0.0.1 dbname=tpt_extreme user=tpt password=extreme sslmode=disable", "the db url")
+	db_url      = flag.String("db.url", "host=127.0.0.1 dbname=tpt user=tpt password=extreme sslmode=disable", "the db url")
 	db_drv      = flag.String("db.driver", "postgres", "the db driver")
 	goroutines  = flag.Int("db.connections", 10, "the db connection number")
 	address     = flag.String("ds.listen", ":7071", "the address of http")

@@ -1,9 +1,15 @@
 package sampling
 
 import (
+	"bufio"
 	"commons"
 	"errors"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type systemOid struct {
@@ -79,7 +85,8 @@ func (self *systemInfo) Call(params MContext) commons.Result {
 
 			params.Set("&sys.oid", oid)
 			params.Set("&sys.services", strconv.Itoa(int(services)))
-			new_row["type"] = params.GetUintWithDefault("!sys.type", 0)
+			t, _ := params.Read().GetInt("sys.type", nil, params)
+			new_row["type"] = t
 			return new_row, nil
 		})
 }
@@ -97,46 +104,80 @@ func ErrorIsRestric(msg string, restric bool, log *commons.Logger) error {
 	return errors.New(msg)
 }
 
-// func (self *systemType) Init(params map[string]interface{}, drvName string) error {
-//  e := self.snmpBase.Init(params, drvName)
-//  if nil != e {
-//    return e
-//  }
-//  log, ok := params["log"].(*commons.Logger)
-//  if !ok {
-//    log = commons.Log
-//  }
+func (self *systemType) Init(params map[string]interface{}) error {
+	file := commons.GetStringWithDefault(params, "oid2type", "oid2type.conf")
+	binDir := filepath.Dir(abs(os.Args[0]))
+	files := []string{abs(file),
+		abs(filepath.Join("conf", file)),
+		abs(filepath.Join("etc", file)),
+		abs(filepath.Join("lib", file)),
+		abs(filepath.Join("..", "conf", file)),
+		abs(filepath.Join("..", "etc", file)),
+		abs(filepath.Join("..", "lib", file)),
+		abs(filepath.Join(binDir, file)),
+		abs(filepath.Join(binDir, "..", file)),
+		abs(filepath.Join(binDir, "conf", file)),
+		abs(filepath.Join(binDir, "etc", file)),
+		abs(filepath.Join(binDir, "lib", file)),
+		abs(filepath.Join(binDir, "..", "conf", file)),
+		abs(filepath.Join(binDir, "..", "etc", file)),
+		abs(filepath.Join(binDir, "..", "lib", file))}
 
-//  restric := false
-//  v, ok := params["restric"]
-//  if ok {
-//    restric = commons.AsBoolWithDefaultValue(v, restric)
-//  }
+	found := false
+	for _, nm := range files {
+		if st, e := os.Stat(nm); nil == e && nil != st && !st.IsDir() {
+			file = nm
+			found = true
+			break
+		}
+	}
 
-//  dt := commons.SearchFile("etc/device_types.json")
-//  if "" == dt {
-//    return ErrorIsRestric("'etc/device_types.json' is not exists.", restric, log)
-//  }
+	if found {
+		f, e := os.Open(file)
+		if nil != e {
+			log.Println("[warn] load oid2type config from '"+file+"' failed,", e)
+		} else {
+			self.device2id = map[string]int{}
+			scanner := bufio.NewScanner(f)
+			for scanner.Scan() {
+				ss := strings.SplitN(scanner.Text(), "#", 2)
+				ss = strings.SplitN(ss[0], "//", 2)
+				s := strings.TrimSpace(ss[0])
+				if 0 == len(s) {
+					continue
+				}
+				ss = strings.SplitN(s, "=", 2)
+				key := strings.TrimPrefix(strings.TrimSpace(ss[0]), ".")
+				value := strings.TrimSpace(ss[1])
+				if 0 == len(key) {
+					continue
+				}
+				if 0 == len(value) {
+					continue
+				}
 
-//  f, err := ioutil.ReadFile(dt)
-//  if nil != err {
-//    return ErrorIsRestric(fmt.Sprintf("read file '%s' failed, %s", dt, err.Error()), restric, log)
-//  }
+				t, e := strconv.ParseInt(value, 10, 0)
+				if nil != e {
+					continue
+				}
 
-//  self.device2id = make(map[string]int)
-//  err = json.Unmarshal(f, &self.device2id)
-//  if nil != err {
-//    return ErrorIsRestric(fmt.Sprintf("unmarshal json '%s' failed, %s", dt, err.Error()), restric, log)
-//  }
-
-//  return nil
-// }
+				self.device2id[key] = int(t)
+			}
+		}
+	} else {
+		log.Println("[warn] load oid2type config failed, file is not founc:")
+		for _, nm := range files {
+			log.Println("\t\t", nm)
+		}
+	}
+	return self.snmpBase.Init(params)
+}
 
 func (self *systemType) Call(params MContext) commons.Result {
-	if nil != self.device2id {
-		oid := params.GetStringWithDefault("&sys.oid", "")
+	if nil != self.device2id && 0 != len(self.device2id) {
+		oid := params.GetStringWithDefault("$sys.oid", "")
 		if 0 != len(oid) {
-			if dt, ok := self.device2id[oid]; ok {
+			if dt, ok := self.device2id[strings.TrimPrefix(oid, ".")]; ok {
 				return commons.Return(dt)
 			}
 		}
@@ -168,6 +209,14 @@ SERVICES:
 		return commons.ReturnWithInternalError(e.Error())
 	}
 	return commons.Return((services & 0x7) >> 1)
+}
+
+func abs(pa string) string {
+	s, e := filepath.Abs(pa)
+	if nil != e {
+		panic(e.Error())
+	}
+	return s
 }
 
 func init() {
@@ -211,6 +260,7 @@ func init() {
 	Methods["sys_location"] = newRouteSpec("get", "sys.location", "the location of system", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &systemLocation{}
+
 			return drv, drv.Init(params)
 		})
 

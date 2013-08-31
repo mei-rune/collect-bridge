@@ -307,10 +307,12 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 	sampled_at := time.Now().Unix()
 	flux := bucket.BeginPush()
 	readFluxFormMap(flux, attributes)
+	flux.SampledAt = sampled_at
 	bucket.CommitPush()
 
 	var current Flux
 	if e := calcFlux(&current, &bucket.fluxBuffer, max_interval, last_at); nil != e {
+		fmt.Println(bucket.fluxBuffer.All())
 		return commons.ReturnWithInternalError(e.Error())
 	}
 	current.SampledAt = sampled_at

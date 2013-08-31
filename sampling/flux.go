@@ -10,6 +10,12 @@ import (
 )
 
 type Flux struct {
+	IfOctets     uint64 `json:"IfOctets"`
+	IfUcastPkts  uint64 `json:"IfUcastPkts"`
+	IfNUcastPkts uint64 `json:"IfNUcastPkts"`
+	IfDiscards   uint64 `json:"IfDiscards"`
+	IfErrors     uint64 `json:"IfErrors"`
+
 	IfInOctets        uint64 `json:"IfInOctets"`
 	IfInUcastPkts     uint64 `json:"IfInUcastPkts"`
 	IfInNUcastPkts    uint64 `json:"IfInNUcastPkts"`
@@ -203,6 +209,13 @@ func calcFlux(res *Flux, buffer *fluxBuffer, interval uint64, last_at int64) err
 	res.IfOutNUcastPkts = res.IfOutNUcastPkts / time_interval
 	res.IfOutDiscards = (res.IfOutDiscards * 60) / time_interval
 	res.IfOutErrors = (res.IfOutErrors * 60) / time_interval
+
+	res.IfOctets = (res.IfInOctets + res.IfOutOctets) / time_interval
+	res.IfUcastPkts = (res.IfInUcastPkts + res.IfOutUcastPkts) / time_interval
+	res.IfNUcastPkts = (res.IfInNUcastPkts + res.IfOutNUcastPkts) / time_interval
+	res.IfDiscards = ((res.IfInDiscards + res.IfOutDiscards) * 60) / time_interval
+	res.IfErrors = ((res.IfInErrors + res.IfInUnknownProtos + res.IfOutErrors) * 60) / time_interval
+
 	return nil
 }
 

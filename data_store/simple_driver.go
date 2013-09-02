@@ -197,6 +197,10 @@ func scanOne(row resultScan, columns []*types.ColumnDefinition) ([]interface{}, 
 	for i, column := range columns {
 		v, e := toInternalValue(column, scanResultContainer[i])
 		if nil != e {
+			if e == types.InvalidValueError {
+				continue
+			}
+
 			return nil, fmt.Errorf("convert %v to internal value failed, %v, value is [%T]%v",
 				column.Name, e, scanResultContainer[i], scanResultContainer[i])
 		}
@@ -479,6 +483,9 @@ func (self *simple_driver) insert(table *types.TableDefinition,
 
 			value, e = attribute.Type.ToInternal(v)
 			if nil != e {
+				if e == types.InvalidValueError {
+					continue
+				}
 				return 0, fmt.Errorf("column '%v' is not a '%v', actual value is '%v', %v",
 					attribute.Name, attribute.Type.Name(), v, e)
 			}
@@ -652,7 +659,6 @@ func (self *simple_driver) delete(table *types.TableDefinition,
 }
 
 func (self *simple_driver) deleteById(table *types.TableDefinition, id interface{}) error {
-
 	var buffer bytes.Buffer
 	buffer.WriteString("DELETE ")
 	buffer.WriteString(self.from)
@@ -751,6 +757,10 @@ func (self *simple_driver) forEach(table *types.TableDefinition, params map[stri
 
 		id, e := toInternalValue(table.Id, id_value)
 		if nil != e {
+			if e == types.InvalidValueError {
+				continue
+			}
+
 			return fmt.Errorf("convert %v to internal value failed, %v, value is [%T]%v",
 				table.Id.Name, e, id_value, id_value)
 		}

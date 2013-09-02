@@ -146,6 +146,10 @@ func (q *QueryImpl) rowbySingleTableInheritance(rows resultScan) (map[string]int
 
 		res[column.Name], e = toInternalValue(column, scanResultContainer[i])
 		if nil != e {
+			if e == types.InvalidValueError {
+				continue
+			}
+
 			return nil, fmt.Errorf("convert column '%v' to internal value failed, %v, value is [%T]%v",
 				column.Name, e, scanResultContainer[i], scanResultContainer[i])
 		}
@@ -185,6 +189,10 @@ func (q *QueryImpl) rowbyColumns(row resultScan) (map[string]interface{}, error)
 	for i, column := range q.columns {
 		res[column.Name], e = toInternalValue(column, scanResultContainer[i])
 		if nil != e {
+			if e == types.InvalidValueError {
+				continue
+			}
+
 			return nil, fmt.Errorf("convert %v to internal value failed, %v, value is [%T]%v",
 				column.Name, e, scanResultContainer[i], scanResultContainer[i])
 		}

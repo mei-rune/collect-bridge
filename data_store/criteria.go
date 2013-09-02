@@ -777,6 +777,10 @@ func (self *updateBuilder) buildUpdate(updated_attributes map[string]interface{}
 			}
 			value, e = attribute.Type.ToInternal(v)
 			if nil != e {
+				if e == types.InvalidValueError {
+					continue
+				}
+
 				return fmt.Errorf("column '%v' is not a '%v', actual value is '%v'",
 					attribute.Name, attribute.Type.Name(), v)
 			}

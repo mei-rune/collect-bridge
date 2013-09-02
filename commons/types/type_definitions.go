@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+var InvalidValueError = errors.New("value is invalid.")
+
 type Password string
 type IPAddress string
 type PhysicalAddress string
@@ -129,7 +131,10 @@ func (self *integerType) ToInternal(value interface{}) (interface{}, error) {
 	case *int64:
 		return *v, nil
 	case *sql.NullInt64:
-		return v.Value()
+		if !v.Valid {
+			return nil, InvalidValueError
+		}
+		return v.Int64, nil
 	}
 	return int64(0), errors.New("ToInternal to int64 failed")
 }
@@ -203,7 +208,6 @@ func (self *decimalType) CreateLengthValidator(minLength, maxLength string) (Val
 }
 
 func (self *decimalType) ToInternal(value interface{}) (interface{}, error) {
-
 	switch v := value.(type) {
 	case json.Number:
 		return v.Float64()
@@ -245,7 +249,10 @@ func (self *decimalType) ToInternal(value interface{}) (interface{}, error) {
 	case *float64:
 		return *v, nil
 	case *sql.NullFloat64:
-		return v.Value()
+		if !v.Valid {
+			return nil, InvalidValueError
+		}
+		return v.Float64, nil
 	}
 	return float64(0), errors.New("ToInternal to float64 failed")
 }
@@ -357,7 +364,10 @@ func (self *stringType) ToInternal(value interface{}) (interface{}, error) {
 	case float64:
 		return strconv.FormatFloat(float64(v), 'e', -1, 64), nil
 	case *sql.NullString:
-		return v.Value()
+		if !v.Valid {
+			return nil, InvalidValueError
+		}
+		return v.String, nil
 	}
 
 	s, e := json.Marshal(value)
@@ -400,6 +410,17 @@ func (n *NullTime) Scan(value interface{}) error {
 	}
 
 	n.Time, n.Valid = value.(time.Time)
+	if !n.Valid {
+		if s, ok := value.(string); ok {
+			var e error
+			for _, layout := range []string{time.StampNano, time.StampMicro, time.StampMilli, time.Stamp} {
+				if n.Time, e = time.ParseInLocation(layout, s, time.UTC); nil == e {
+					n.Valid = true
+					break
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -482,7 +503,10 @@ func (self *dateTimeType) ToInternal(v interface{}) (interface{}, error) {
 	case *time.Time:
 		return *value, nil
 	case *NullTime:
-		return value.Value()
+		if !value.Valid {
+			return nil, InvalidValueError
+		}
+		return value.Time, nil
 	}
 
 	return nil, errors.New("syntex error, it is not a datetime")
@@ -596,6 +620,9 @@ func (self *ipAddressType) ToInternal(v interface{}) (interface{}, error) {
 	case *IPAddress:
 		return *value, nil
 	case *NullIPAddress:
+		if !value.Valid {
+			return nil, InvalidValueError
+		}
 		return value.Value()
 	}
 
@@ -732,6 +759,9 @@ func (self *physicalAddressType) ToInternal(v interface{}) (interface{}, error) 
 	case *PhysicalAddress:
 		return *value, nil
 	case *NullPhysicalAddress:
+		if !value.Valid {
+			return nil, InvalidValueError
+		}
 		return value.Value()
 	}
 
@@ -797,6 +827,9 @@ func (self *booleanType) ToInternal(v interface{}) (interface{}, error) {
 	case *bool:
 		return *value, nil
 	case *sql.NullBool:
+		if !value.Valid {
+			return nil, InvalidValueError
+		}
 		return value.Value()
 	}
 
@@ -918,6 +951,9 @@ func (self *SqlIdTypeDefinition) ToInternal(v interface{}) (interface{}, error) 
 	case *int64:
 		return *value, nil
 	case *sql.NullInt64:
+		if !value.Valid {
+			return nil, InvalidValueError
+		}
 		return value.Value()
 	case float64:
 		return int(value), nil
@@ -995,6 +1031,9 @@ func (self *passwordType) ToInternal(v interface{}) (interface{}, error) {
 	case *Password:
 		return *value, nil
 	case *NullPassword:
+		if !value.Valid {
+			return nil, InvalidValueError
+		}
 		return value.Value()
 	}
 

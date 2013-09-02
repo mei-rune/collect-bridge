@@ -1,6 +1,7 @@
 package data_store
 
 import (
+	"commons"
 	"commons/types"
 	"testing"
 )
@@ -57,6 +58,13 @@ func TestLink(t *testing.T) {
 			t.Error("from_based is not exists.")
 		} else if b == false {
 			t.Error("from_based is false.")
+		}
+
+		speed, ok := new_link["custom_speed_up"]
+		if !ok || nil == speed {
+			t.Error("custom_speed_up is not exists.")
+		} else if i, e := commons.AsInt(speed); nil != e || i != 12 {
+			t.Error("custom_speed_up is not equals 12.")
 		}
 	})
 }

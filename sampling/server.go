@@ -284,6 +284,10 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			self.returnResult(w, commons.ReturnWithNotFound(managed_type, managed_id))
 			return
 		}
+		// if "managed_object" == managed_type && "137" == managed_id {
+		// 	bs, _ := json.MarshalIndent(mo, "", "  ")
+		// 	fmt.Println(string(bs))
+		// }
 	}
 
 	var route_by_id map[string]*Route

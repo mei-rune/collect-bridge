@@ -351,7 +351,6 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 
 	var current Flux
 	if e := calcFlux(&current, &bucket.fluxBuffer, max_interval, last_at); nil != e {
-		fmt.Println(bucket.fluxBuffer.All())
 		return commons.ReturnWithInternalError(e.Error())
 	}
 	current.SampledAt = sampled_at
@@ -364,8 +363,8 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 		swapInAndOut(&current)
 	}
 
-	custom_speed_up := ctx.GetUint64WithDefault("custom_speed_up", 0)
-	custom_speed_down := ctx.GetUint64WithDefault("custom_speed_down", 0)
+	custom_speed_up := ctx.GetUint64WithDefault("@custom_speed_up", 0)
+	custom_speed_down := ctx.GetUint64WithDefault("@custom_speed_down", 0)
 	if 0 < custom_speed_up {
 		current.IfInOctetsPercent = current.IfInOctets / custom_speed_up
 	}

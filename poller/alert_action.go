@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -341,6 +342,8 @@ var (
 	ExpressionCodeIsRequired     = commons.IsRequired("expression_code")
 	NotificationChannelIsNil     = errors.New("'alerts_channel' is nil")
 	NotificationChannelTypeError = errors.New("'alerts_channel' is not a chan<- *data_object ")
+
+	empty_cookies = map[string]interface{}{}
 )
 
 func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {
@@ -416,6 +419,26 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		return nil, e
 	}
 
+	var cookies map[string]interface{} = nil
+	if v, ok := ctx["cookies_loader"]; ok {
+		if loader, ok := v.(cookiesLoader); ok {
+			c, e := loader.loadCookiesWithAcitonId(id, ctx)
+			if nil != e {
+				return nil, errors.New("load alert cookies with id was " +
+					strconv.FormatInt(int64(id), 10) +
+					" and name is '" + name + "' failed, " + e.Error())
+			}
+			cookies = c
+		}
+	}
+
+	if nil == cookies {
+		cookies = empty_cookies
+		log.Println("load alert cookies with id was " + strconv.FormatInt(int64(id), 10) + " and name is '" + name + "' is not found")
+	} else {
+		log.Println("load alert cookies with id was " + strconv.FormatInt(int64(id), 10) + " and name is '" + name + "' is ok")
+	}
+
 	action := &alertAction{id: id,
 		name: name,
 		//description: commons.GetString(attributes, "description", ""),
@@ -428,10 +451,10 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		cached_data:            &data_object{c: make(chan error, 2)},
 		checker:                checker,
 		templates:              templates,
-		last_status:            commons.GetIntWithDefault(attributes, "last_status", 0),
-		previous_status:        commons.GetIntWithDefault(attributes, "previous_status", 0),
-		last_event_id:          commons.GetStringWithDefault(attributes, "event_id", ""),
-		sequence_id:            commons.GetIntWithDefault(attributes, "seqence_id", 0),
+		last_status:            commons.GetIntWithDefault(cookies, "status", 0),
+		previous_status:        commons.GetIntWithDefault(cookies, "previous_status", 0),
+		last_event_id:          commons.GetStringWithDefault(cookies, "event_id", ""),
+		sequence_id:            commons.GetIntWithDefault(cookies, "seqence_id", 0),
 		notification_group_ids: notification_group_ids,
 		notification_groups:    notification_groups}
 

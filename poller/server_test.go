@@ -5,9 +5,66 @@ import (
 	"commons/types"
 	ds "data_store"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
+
+func TestLoadCookiesWhileStartServer(t *testing.T) {
+	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+		id := ds.CreateItForTest(t, client, "network_device", mo)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
+		mt_id := ds.CreateItByParentForTest(t, client, "network_device", id, "metric_trigger", metric_trigger_for_cpu)
+		action_id := ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
+			"id":               "123",
+			"name":             "this is a test alert",
+			"delay_times":      0,
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "a",
+				"operator":  ">=",
+				"value":     "0"}})
+
+		carrier.SrvTest(t, func(db *sql.DB, url string) {
+			*foreignUrl = url
+
+			for _, s := range []string{fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'event_id_sss_aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`, action_id),
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (2, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (3, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (4, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`} {
+				_, e := db.Exec(s)
+
+				if nil != e {
+					t.Error(e)
+					return
+				}
+			}
+
+			is_test = true
+			*load_cookies = true
+			Runforever()
+
+			if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+				t.Error("load trigger failed.")
+				return
+			}
+
+			server_test.jobs[mt_id].(*metricJob).callAfter()
+			stats := server_test.jobs[mt_id].Stats()
+			bs, e := json.MarshalIndent(stats, "", "  ")
+			if nil != e {
+				t.Error(e)
+				return
+			}
+			if !strings.Contains(string(bs), "event_id_sss_aa") {
+				t.Error("load cookies failed.")
+				t.Log(string(bs))
+			}
+		})
+	})
+}
 
 func TestCookiesIsClear(t *testing.T) {
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {

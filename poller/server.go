@@ -16,6 +16,38 @@ import (
 	"time"
 )
 
+type cookiesLoader interface {
+	loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error)
+}
+
+type cookiesLoaderImpl struct {
+	cookies map[int64]map[string]interface{}
+}
+
+func (self *cookiesLoaderImpl) loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error) {
+	if c, ok := self.cookies[id]; ok {
+		delete(self.cookies, id)
+		return c, nil
+	}
+	return nil, nil
+}
+
+type cookiesLoaderById struct {
+	client *commons.Client
+}
+
+func (self *cookiesLoaderById) loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error) {
+	res := self.client.Get(map[string]string{"id": strconv.FormatInt(id, 10)})
+	if res.HasError() {
+		if 404 == res.ErrorCode() {
+			return nil, nil
+		}
+		return nil, errors.New(res.ErrorMessage())
+	}
+
+	return res.Value().AsObject()
+}
+
 type errorJob struct {
 	clazz, id, name, e string
 
@@ -109,6 +141,13 @@ func (s *server) loadJob(id string) {
 		return
 	}
 
+	if *load_cookies {
+		s.ctx["cookies_loader"] = &cookiesLoaderById{client: commons.NewClient(*foreignUrl, "alert_cookies")}
+		defer delete(s.ctx, "cookies_loader")
+	} else {
+		delete(s.ctx, "cookies_loader")
+	}
+
 	s.startJob(attributes)
 }
 
@@ -122,7 +161,40 @@ func (s *server) stopJob(id string, reason int) {
 	log.Println("stop trigger with id was '" + id + "'")
 }
 
-func (s *server) queryCookies(client *commons.Client, id2results map[int]map[string]interface{}, query map[string]string) (int, error) {
+// func (s *server) loadCookiesById(client *commons.Client, id string) (map[string]interface{}, error) {
+// 	res := client.Get(map[string]string{"id": id})
+// 	if res.HasError() {
+// 		return nil, errors.New("load cookies with id was '" + id + "' failed, " + res.ErrorMessage())
+// 	}
+
+// 	attributes, e := res.Value().AsObject()
+// 	if nil != e {
+// 		return nil, errors.New("load cookies with id was '" + id + "' failed, results is not a map[string]interface{}, " + e.Error())
+// 	}
+
+// 	if nil == attributes {
+// 		return nil, nil
+// 	}
+
+// 	action_id := commons.GetIntWithDefault(attributes, "id", 0)
+// 	if _, ok := id2results[action_id]; ok {
+// 		attributes["last_status"] = attributes["status"]
+// 		attributes["previous_status"] = attributes["previous_status"]
+// 		attributes["event_id"] = attributes["event_id"]
+// 		attributes["sequence_id"] = attributes["sequence_id"]
+// 	} else {
+// 		id := fmt.Sprint(attributes["id"])
+// 		dres := client.Delete(map[string]string{"id": id})
+// 		if dres.HasError() {
+// 			log.Println("delete alert cookies with id was " + id + " is failed, " + dres.ErrorMessage())
+// 		}
+// 	}
+// 	return len(cookies), nil
+// }
+
+func (s *server) loadCookies(client *commons.Client,
+	id2cookies map[int64]map[string]interface{},
+	query map[string]string) (int, error) {
 	res := client.Get(query)
 	if res.HasError() {
 		return 0, errors.New("load cookies failed, " + res.ErrorMessage())
@@ -133,37 +205,24 @@ func (s *server) queryCookies(client *commons.Client, id2results map[int]map[str
 		return 0, errors.New("load cookies failed, results is not a []map[string]interface{}, " + e.Error())
 	}
 
-	if nil == cookies {
+	if nil == cookies || 0 == len(cookies) {
 		return 0, nil
 	}
 
 	for _, attributes := range cookies {
-		action_id := commons.GetIntWithDefault(attributes, "id", 0)
-		if _, ok := id2results[action_id]; ok {
-			attributes["last_status"] = attributes["status"]
-			attributes["previous_status"] = attributes["previous_status"]
-			attributes["event_id"] = attributes["event_id"]
-			attributes["sequence_id"] = attributes["sequence_id"]
-		} else {
-			id := fmt.Sprint(attributes["id"])
-			dres := client.Delete(map[string]string{"id": id})
-			if dres.HasError() {
-				log.Println("delete alert cookies with id was " + id + " is failed, " + dres.ErrorMessage())
-			}
-		}
+		action_id := commons.GetInt64WithDefault(attributes, "id", 0)
+		id2cookies[action_id] = attributes
 	}
 	return len(cookies), nil
 }
 
-func (s *server) loadCookies(id2results map[int]map[string]interface{}) error {
-	client := commons.NewClient(*foreignUrl, "alert_cookies")
-
+func (s *server) loadAllCookies(client *commons.Client, id2cookies map[int64]map[string]interface{}) error {
 	if *not_limit {
-		_, e := s.queryCookies(client, id2results, map[string]string{})
+		_, e := s.loadCookies(client, id2cookies, map[string]string{})
 		return e
 	} else {
 		for offset := 0; ; offset += 100 {
-			count, e := s.queryCookies(client, id2results, map[string]string{"limit": "100", "offset": strconv.FormatInt(int64(offset), 10)})
+			count, e := s.loadCookies(client, id2cookies, map[string]string{"limit": "100", "offset": strconv.FormatInt(int64(offset), 10)})
 			if nil != e {
 				return e
 			}
@@ -192,15 +251,34 @@ func (s *server) onStart() error {
 		id2results[id] = attributes
 	}
 
+	var client *commons.Client
+	var all_cookies map[int64]map[string]interface{}
 	if *load_cookies {
-		e := s.loadCookies(id2results)
+		client = commons.NewClient(*foreignUrl, "alert_cookies")
+		loader := &cookiesLoaderImpl{cookies: map[int64]map[string]interface{}{}}
+		e := s.loadAllCookies(client, loader.cookies)
 		if nil != e {
 			return e
 		}
+		all_cookies = loader.cookies
+		s.ctx["cookies_loader"] = loader
+	} else {
+		delete(s.ctx, "cookies_loader")
 	}
 
 	for _, attributes := range results {
 		s.startJob(attributes)
+	}
+
+	if nil != all_cookies {
+		for action_id, _ := range all_cookies {
+			action_id_str := strconv.FormatInt(int64(action_id), 10)
+			log.Println("load alert cookies with id was " + action_id_str + " is failed, action is deleted.")
+			dres := client.Delete(map[string]string{"id": action_id_str})
+			if dres.HasError() {
+				log.Println("delete alert cookies with id was " + action_id_str + " is failed, " + dres.ErrorMessage())
+			}
+		}
 	}
 
 	return nil
@@ -240,6 +318,7 @@ func (s *server) onIdle() {
 	if nil != updated {
 		for _, id := range updated {
 			s.stopJob(id, STOP_REASON_NORMAL)
+
 			s.loadJob(id)
 		}
 	}

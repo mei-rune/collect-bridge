@@ -1,1 +1,1 @@
-{{.name}} 已经恢复。
+{{.name}} 已经恢复, 当前值为 {{.current_value}}。

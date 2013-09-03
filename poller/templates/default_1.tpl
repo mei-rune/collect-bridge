@@ -1,1 +1,1 @@
-{{.name}} 发生告警。
+{{.name}} 发生告警, 当前值为 {{.current_value}}。

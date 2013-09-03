@@ -627,6 +627,49 @@ func TestAlertLoadLastStatus(t *testing.T) {
 	}
 }
 
+func TestAlertLoadLastStatusWithBadRequest(t *testing.T) {
+	publish := make(chan []string, 1000)
+	c1 := make(chan *data_object, 10)
+	c := make(chan *data_object, 10)
+
+	defer close(c1)
+	go func() {
+		for v := range c1 {
+			c <- v
+			v.c <- nil
+		}
+	}()
+
+	all_tests := []struct {
+		delay_times int
+	}{{delay_times: 1}}
+
+	for _, test := range all_tests {
+		_, e := newAlertAction(map[string]interface{}{
+			"type":        "alert",
+			"id":          "123",
+			"name":        "this is a test alert",
+			"delay_times": test.delay_times,
+
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "a",
+				"operator":  ">",
+				"value":     "12"}},
+			map[string]interface{}{"managed_id": "1213"},
+			map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish),
+				"cookies_loader": &mockCookiesLoader{e: commons.NewApplicationError(123, "sssssdfsfaaa")}})
+
+		if nil != e {
+			if !strings.Contains(e.Error(), "sssssdfsfaaa") {
+				t.Error(e)
+				return
+			}
+		}
+
+	}
+}
+
 func TestAlertEventId(t *testing.T) {
 	publish := make(chan []string, 1000)
 	c1 := make(chan *data_object, 10)

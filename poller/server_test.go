@@ -122,6 +122,50 @@ func TestLoadCookiesWhileOnTick(t *testing.T) {
 	})
 }
 
+func TestLoadCookiesWhileOnTickWithNotfound(t *testing.T) {
+	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+		carrier.SrvTest(t, func(db *sql.DB, url string) {
+			*foreignUrl = url
+			is_test = true
+			*load_cookies = true
+			Runforever()
+
+			id := ds.CreateItForTest(t, client, "network_device", mo)
+			ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
+			ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
+			mt_id := ds.CreateItByParentForTest(t, client, "network_device", id, "metric_trigger", metric_trigger_for_cpu)
+			ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
+				"id":               "123",
+				"name":             "this is a test alert",
+				"delay_times":      0,
+				"expression_style": "json",
+				"expression_code": map[string]interface{}{
+					"attribute": "a",
+					"operator":  ">=",
+					"value":     "0"}})
+
+			server_test.onIdle()
+
+			if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+				t.Error("load trigger failed.")
+				return
+			}
+
+			server_test.jobs[mt_id].(*metricJob).callAfter()
+			stats := server_test.jobs[mt_id].Stats()
+			bs, e := json.MarshalIndent(stats, "", "  ")
+			if nil != e {
+				t.Error(e)
+				return
+			}
+			if !strings.Contains(string(bs), `event_id": "",`) {
+				t.Error("load cookies failed.")
+				t.Log(string(bs))
+			}
+		})
+	})
+}
+
 func TestCookiesIsClear(t *testing.T) {
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
 		carrier.SrvTest(t, func(db *sql.DB, url string) {

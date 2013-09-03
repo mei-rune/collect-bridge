@@ -2,6 +2,7 @@ package carrier
 
 import (
 	"bytes"
+	"commons"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -17,13 +18,13 @@ func httpInvoke(action, url string, msg string, exceptedCode int) (string, error
 	//fmt.Println(msg)
 	req, err := http.NewRequest(action, url, bytes.NewBufferString(msg))
 	if err != nil {
-		return "", err
+		return "", commons.NewApplicationError(500, err.Error())
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	resp, e := http.DefaultClient.Do(req)
 	if nil != e {
-		return "", e
+		return "", commons.NewApplicationError(500, e.Error())
 	}
 
 	// Install closing the request body (if any)
@@ -36,19 +37,19 @@ func httpInvoke(action, url string, msg string, exceptedCode int) (string, error
 	if resp.StatusCode != exceptedCode {
 		resp_body, e := ioutil.ReadAll(resp.Body)
 		if nil != e {
-			return "", fmt.Errorf("%v: error", resp.StatusCode)
+			return "", commons.NewApplicationError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
 		}
 
 		if nil == resp_body || 0 == len(resp_body) {
-			return "", fmt.Errorf("%v: error", resp.StatusCode)
+			return "", commons.NewApplicationError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
 		}
 
-		return "", fmt.Errorf("%v: %v", resp.StatusCode, string(resp_body))
+		return "", commons.NewApplicationError(resp.StatusCode, fmt.Sprintf("%v: %v", resp.StatusCode, string(resp_body)))
 	}
 
 	resp_body, e := ioutil.ReadAll(resp.Body)
 	if nil != e {
-		return "", fmt.Errorf("%v: read body error", resp.StatusCode)
+		return "", commons.NewApplicationError(resp.StatusCode, fmt.Sprintf("%v: read body error", resp.StatusCode))
 	}
 	return string(resp_body), nil
 }
@@ -335,6 +336,22 @@ func countResult(s string) (int, error) {
 	return 0, fmt.Errorf("it is not a result - %v", s)
 }
 
+func getId(s string) (int, error) {
+	var res map[string]interface{} = nil
+	e := json.Unmarshal([]byte(s), &res)
+	if nil != e {
+		return 0, e
+	}
+	entities := res["value"]
+	if values, ok := entities.([]interface{}); ok && 1 <= len(values) {
+		if m, ok := values[0].(map[string]interface{}); ok {
+			return commons.GetInt(m, "id")
+		}
+		return len(values), nil
+	}
+	return 0, fmt.Errorf("it is not a result - %v", s)
+}
+
 func TestFind(t *testing.T) {
 	SrvTest(t, func(db *sql.DB, url string) {
 
@@ -399,6 +416,103 @@ func TestFind(t *testing.T) {
 				t.Error(`excepted is 1`)
 				t.Error(`actual is`, count, "--", s)
 			}
+		}
+	})
+}
+
+func TestFindById(t *testing.T) {
+	SrvTest(t, func(db *sql.DB, url string) {
+
+		now := time.Now()
+		nows_str := "_" + strconv.Itoa(now.Year()) + months[now.Month()]
+		if "postgres" != *db_drv {
+			nows_str = ""
+		}
+
+		for _, test := range []struct{ tname, uname string }{{tname: "tpt_alert_cookies", uname: "alert_cookies"},
+			{tname: "tpt_alert_histories" + nows_str, uname: "alerts"},
+			{tname: "tpt_histories" + nows_str, uname: "histories"}} {
+
+			now_func := "now()"
+			if "odbc_with_mssql" == *db_drv {
+				now_func = "GETDATE()"
+			}
+
+			var e error
+			if strings.HasPrefix(test.tname, "tpt_alert") {
+				_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'msssssssso', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
+			} else {
+				_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'msssssssso', 1%v, 1, "+now_func+")", test.tname, i, i%2))
+			}
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			s, e := httpInvoke("GET", url+"/"+test.uname, "", 200)
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			id, e := getId(s)
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			s, e = httpInvoke("GET", url+"/"+test.uname+"/"+fmt.Sprint(id), "", 200)
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			if !strings.Contains(s, "msssssssso") {
+				t.Error(`excepted contains 'msssssssso'`)
+				t.Error(`actual is`, count, "--", s)
+			}
+		}
+	})
+}
+
+func TestFindByIdWithNotFound(t *testing.T) {
+	SrvTest(t, func(db *sql.DB, url string) {
+
+		now := time.Now()
+		nows_str := "_" + strconv.Itoa(now.Year()) + months[now.Month()]
+		if "postgres" != *db_drv {
+			nows_str = ""
+		}
+
+		for _, test := range []struct{ tname, uname string }{{tname: "tpt_alert_cookies", uname: "alert_cookies"},
+			{tname: "tpt_alert_histories" + nows_str, uname: "alerts"},
+			{tname: "tpt_histories" + nows_str, uname: "histories"}} {
+
+			s, e := httpInvoke("GET", url+"/"+test.uname+"/123", "", 200)
+			if nil != e {
+				if err, ok := e.(commons.RuntimeError); !ok || err.Code() != 404 {
+					t.Error(e)
+					continue
+				} else {
+					t.Log(e)
+				}
+			} else {
+				t.Error(`excepted contains "code":404`)
+				t.Error(`actual is`, s)
+			}
+
+			s, e = httpInvoke("GET", url+"/"+test.uname+"/123/", "", 200)
+			if nil != e {
+				if err, ok := e.(commons.RuntimeError); !ok || err.Code() != 404 {
+					t.Error(e)
+				} else {
+					t.Log(e)
+				}
+			} else {
+				t.Error(`excepted contains "code":404`)
+				t.Error(`actual is`, s)
+			}
+
 		}
 	})
 }

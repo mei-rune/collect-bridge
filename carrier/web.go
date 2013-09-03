@@ -294,7 +294,11 @@ func (self *server) findById(ctx *context, table *types.TableDefinition, project
 
 	v, e := scan(ctx.db.QueryRow("select " + projection + " from " + table.CollectionName + " where id = " + paths[1]))
 	if nil != e {
-		response.WriteHeader(http.StatusInternalServerError)
+		if e == sql.ErrNoRows {
+			response.WriteHeader(http.StatusNotFound)
+		} else {
+			response.WriteHeader(http.StatusInternalServerError)
+		}
 		response.Write([]byte(e.Error()))
 		return
 	}

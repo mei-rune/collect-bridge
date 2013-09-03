@@ -262,15 +262,12 @@ go build
 
 :install_sampling
 @if not defined is_install goto test_carrier
-cd %ENGINE_PATH%\src\sampling\sampling
 copy "%ENGINE_PATH%\src\sampling\sampling\sampling.exe"  "%PUBLISH_PATH%\bin\tpt_sampling.exe"
 @if errorlevel 1 goto failed
 copy "%ENGINE_PATH%\src\sampling\sampling\oid2type.dat" "%PUBLISH_PATH%\lib\oid2type.dat"
 @if errorlevel 1 goto failed
-cd %ENGINE_PATH%\src\sampling\snmptools
-copy "%ENGINE_PATH%\src\sampling\sampling\snmptools.exe"  %PUBLISH_PATH%\tools\tpt_snmptools.exe
+copy "%ENGINE_PATH%\src\sampling\snmptools\snmptools.exe"  %PUBLISH_PATH%\tools\tpt_snmptools.exe
 @if errorlevel 1 goto failed
-
 copy "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" "%PUBLISH_PATH%\bin\lua52_amd64.dll"
 @if errorlevel 1 goto failed
 copy "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" "%PUBLISH_PATH%\bin\cjson_amd64.dll"

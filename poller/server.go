@@ -48,6 +48,14 @@ func (self *cookiesLoaderById) loadCookiesWithAcitonId(id int64, ctx map[string]
 	return res.Value().AsObject()
 }
 
+type mockCookiesLoader struct {
+	cookies map[string]interface{}
+}
+
+func (self *mockCookiesLoader) loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error) {
+	return self.cookies, nil
+}
+
 type errorJob struct {
 	clazz, id, name, e string
 

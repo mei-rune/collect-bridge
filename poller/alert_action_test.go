@@ -516,7 +516,6 @@ func TestAlertRepectedOverflow2(t *testing.T) {
 }
 
 func TestAlertLoadLastStatus(t *testing.T) {
-	t.Skip("error unit test")
 	publish := make(chan []string, 1000)
 	c1 := make(chan *data_object, 10)
 	c := make(chan *data_object, 10)
@@ -535,18 +534,22 @@ func TestAlertLoadLastStatus(t *testing.T) {
 
 	for _, test := range all_tests {
 		action, e := newAlertAction(map[string]interface{}{
-			"type":             "alert",
-			"id":               "123",
-			"name":             "this is a test alert",
-			"delay_times":      test.delay_times,
-			"last_status":      1,
+			"type":        "alert",
+			"id":          "123",
+			"name":        "this is a test alert",
+			"delay_times": test.delay_times,
+
 			"expression_style": "json",
 			"expression_code": map[string]interface{}{
 				"attribute": "a",
 				"operator":  ">",
 				"value":     "12"}},
 			map[string]interface{}{"managed_id": "1213"},
-			map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)})
+			map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish),
+				"cookies_loader": &mockCookiesLoader{cookies: map[string]interface{}{"status": 1,
+					"previous_status": 0,
+					"event_id":        "event_id_aaaccc",
+					"sequence_id":     12}}})
 
 		if nil != e {
 			t.Error(e)
@@ -578,9 +581,19 @@ func TestAlertLoadLastStatus(t *testing.T) {
 
 			select {
 			case v := <-c:
+				fmt.Println(v)
 				if status != v.attributes["status"] {
 					t.Errorf("status != %v, actual is %v", status, v.attributes["status"])
 				}
+
+				if "event_id_aaaccc" != v.attributes["event_id"] {
+					t.Errorf("event_id != %v, actual is %v", "event_id_aaaccc", v.attributes["event_id"])
+				}
+
+				if 13 != v.attributes["sequence_id"] {
+					t.Errorf("sequence_id != %v, actual is %v", 12, v.attributes["sequence_id"])
+				}
+
 				if "1213" != v.attributes["managed_id"] {
 					t.Errorf("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
 				}

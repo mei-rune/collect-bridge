@@ -454,9 +454,15 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		last_status:            commons.GetIntWithDefault(cookies, "status", 0),
 		previous_status:        commons.GetIntWithDefault(cookies, "previous_status", 0),
 		last_event_id:          commons.GetStringWithDefault(cookies, "event_id", ""),
-		sequence_id:            commons.GetIntWithDefault(cookies, "seqence_id", 0),
+		sequence_id:            commons.GetIntWithDefault(cookies, "sequence_id", 0),
 		notification_group_ids: notification_group_ids,
 		notification_groups:    notification_groups}
+
+	if 0 != action.last_status {
+		action.previous_status = action.last_status
+		action.sequence_id++
+		action.already_send = true
+	}
 
 	action.informations.Init(make([]interface{}, 10))
 	return action, nil

@@ -104,7 +104,7 @@ func ErrorIsRestric(msg string, restric bool, log *commons.Logger) error {
 }
 
 func (self *systemType) Init(params map[string]interface{}) error {
-	file := commons.GetStringWithDefault(params, "oid2type", "oid2type.conf")
+	file := commons.GetStringWithDefault(params, "oid2type", "oid2type.dat")
 	binDir := filepath.Dir(abs(os.Args[0]))
 	files := []string{abs(file),
 		abs(filepath.Join("conf", file)),
@@ -136,6 +136,7 @@ func (self *systemType) Init(params map[string]interface{}) error {
 		if nil != e {
 			log.Println("[warn] load oid2type config from '"+file+"' failed,", e)
 		} else {
+			log.Println("[warn] load oid2type config from '" + file + "'.")
 			self.device2id = map[string]int{}
 			scanner := bufio.NewScanner(f)
 			for scanner.Scan() {

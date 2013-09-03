@@ -228,9 +228,9 @@ go build
 
 :install_data_store
 @if not defined is_install goto test_snmp
-copy "ds.exe"  %PUBLISH_PATH%\bin\tpt_ds.exe
+copy "%ENGINE_PATH%\ds.exe"  "%PUBLISH_PATH%\bin\tpt_ds.exe"
 @if errorlevel 1 goto failed
-xcopy /Y /S /E %ENGINE_PATH%\src\data_store\etc\*   %PUBLISH_PATH%\lib\models\
+xcopy /Y /S /E "%ENGINE_PATH%\src\data_store\etc\*"   %PUBLISH_PATH%\lib\models\
 @if errorlevel 1 goto failed
 
 :test_snmp
@@ -263,15 +263,16 @@ go build
 :install_sampling
 @if not defined is_install goto test_carrier
 cd %ENGINE_PATH%\src\sampling\sampling
-copy "sampling.exe"  %PUBLISH_PATH%\bin\tpt_sampling.exe
+copy "%ENGINE_PATH%\sampling.exe"  "%PUBLISH_PATH%\bin\tpt_sampling.exe"
+copy "%ENGINE_PATH%\oid2type.dat" "%PUBLISH_PATH%\lib\oid2type.dat"
 @if errorlevel 1 goto failed
 cd %ENGINE_PATH%\src\sampling\snmptools
-copy "snmptools.exe"  %PUBLISH_PATH%\tools\tpt_snmptools.exe
+copy "%ENGINE_PATH%\snmptools.exe"  %PUBLISH_PATH%\tools\tpt_snmptools.exe
 @if errorlevel 1 goto failed
 
-copy "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" %PUBLISH_PATH%\bin\lua52_amd64.dll
+copy "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" "%PUBLISH_PATH%\bin\lua52_amd64.dll"
 @if errorlevel 1 goto failed
-copy "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" %PUBLISH_PATH%\bin\cjson_amd64.dll
+copy "%ENGINE_PATH%\src\lua_binding\lib\cjson_amd64.dll" "%PUBLISH_PATH%\bin\cjson_amd64.dll"
 @if errorlevel 1 goto failed
 xcopy /Y /S /E "%ENGINE_PATH%\src\lua_binding\microlight\*" %PUBLISH_PATH%\lib\microlight\
 @if errorlevel 1 goto failed
@@ -295,9 +296,9 @@ go build
 
 :install_carrier
 @if not defined is_install goto test_poller
-copy "carrier.exe" %PUBLISH_PATH%\bin\tpt_carrier.exe
+copy "%ENGINE_PATH%\carrier.exe" "%PUBLISH_PATH%\bin\tpt_carrier.exe"
 @if errorlevel 1 goto failed
-xcopy /Y /S /E /EXCLUDE:%ENGINE_PATH%\src\carrier\db\exclude_file %ENGINE_PATH%\src\carrier\db  %PUBLISH_PATH%\lib\data-migrations\
+xcopy /Y /S /E /EXCLUDE:"%ENGINE_PATH%\src\carrier\db\exclude_file" "%ENGINE_PATH%\src\carrier\db"  %PUBLISH_PATH%\lib\data-migrations\
 @if errorlevel 1 goto failed
 
 
@@ -320,18 +321,14 @@ go build
 @if errorlevel 1 goto failed
 :install_poller
 @if not defined is_install goto build_ok
-copy "poller.exe" %PUBLISH_PATH%\bin\tpt_poller.exe
+copy "%ENGINE_PATH%\poller.exe" "%PUBLISH_PATH%\bin\tpt_poller.exe"
 @if errorlevel 1 goto failed
-xcopy /Y /S /E %ENGINE_PATH%\src\poller\templates\*   %PUBLISH_PATH%\lib\alerts\templates\
+xcopy /Y /S /E "%ENGINE_PATH%\src\poller\templates\*"   %PUBLISH_PATH%\lib\alerts\templates\
 @if errorlevel 1 goto failed
 
-REM cd %ENGINE_PATH%\src\bridge\discovery_tools
-REM go build
-REM @if errorlevel 1 goto failed
-REM copy "%ENGINE_PATH%\src\bridge\discovery_tools\discovery_tools.exe" %~dp0\bin\discovery_tools.exe
-REM @if errorlevel 1 goto failed
 
-copy "%ENGINE_PATH%\src\autostart_engine.conf" %PUBLISH_PATH%\conf\autostart_engine.conf
+copy "%ENGINE_PATH%\src\autostart_engine.conf" "%PUBLISH_PATH%\conf\autostart_engine.conf"
+@if errorlevel 1 goto failed
 
 
 :build_ok

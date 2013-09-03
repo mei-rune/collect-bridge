@@ -264,6 +264,7 @@ go build
 @if not defined is_install goto test_carrier
 cd %ENGINE_PATH%\src\sampling\sampling
 copy "%ENGINE_PATH%\src\sampling\sampling\sampling.exe"  "%PUBLISH_PATH%\bin\tpt_sampling.exe"
+@if errorlevel 1 goto failed
 copy "%ENGINE_PATH%\src\sampling\sampling\oid2type.dat" "%PUBLISH_PATH%\lib\oid2type.dat"
 @if errorlevel 1 goto failed
 cd %ENGINE_PATH%\src\sampling\snmptools

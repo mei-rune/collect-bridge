@@ -1,0 +1,84 @@
+
+
+当告警和历史记录并没有日志，它的信息保存在程序内部，可以通过下面的url获取：
+
+http://127.0.0.1:7073/debug/vars
+
+
+它返回的格式大致如下
+
+{
+"cmdline": ["C:\\Program Files\\hengwei/bin/tpt_poller.exe"],
+"memstats": {"Alloc":11685376,"TotalAlloc":686318928,"Sys":102443064,"Lookups":263526,"Mallocs":6436546,"Frees":6353486,"HeapAlloc":11685376,"HeapSys":24117248,"HeapIdle":9121792,"HeapInuse":14995456,"HeapReleased":2019328,"HeapObjects":83060,"StackInuse":5668864,"StackSys":6291456,"MSpanInuse":384488,"MSpanSys":524288,"MCacheInuse":2024,"MCacheSys":131072,"BuckHashSys":1439992,"NextGC":19026560,"LastGC":1378278335364691900,"PauseTotalNs":998056900,"PauseNs":[0,1000000,1000100],"NumGC":70,"EnableGC":true,"DebugGC":false,"BySize":[{"Size":0,"Mallocs":0,"Frees":0},{"Size":8,"Mallocs":901914,"Frees":888314}}]},
+"redis_gateway": "",
+"trigger": []
+}
+
+
+告警和历史记录的信息保存在 “trigger” 中， 告警的格式大致如下
+
+  {
+    "actions": [
+      {
+        "already_send": false,            
+        "begin_send_at": 0,                        // 最后一次发送告警的开始时间
+        "end_send_at": 0,                          // 最后一次发送告警的结束时间
+        "event_id": "",
+        "id": 447,
+        "error": "xxxxx",                           // 出错信息
+        "information": null,                        // 一些警告信息
+        "last_status": 1,                           // 最后一后运行的状态
+        "name": "[网络线路]__20.0.8.222[LIHAO]",    // 告警规则名
+        "notification_group_ids": "",
+        "previous_status": 0,
+        "repeated": 1,
+        "responsed_at": 0,
+        "sequence_id": 0,
+        "type": "alert",                            // 表示这是一个告警规则
+        "wait_response_at": 0
+      }
+    ],
+    "begin_fired_at": "2013-09-04T15:05:30+08:00",   // 最后运行的开始时间
+    "end_fired_at": "2013-09-04T15:05:30+08:00",     // 最后运行的结束时间
+    "expression": "@every 15s",                      // 轮询间隔
+    "id": "228",
+    "managed_id": "131",
+    "managed_type": "managed_object",
+    "max_used_duration": "0s",
+    "metric": "link_flux",                           // 指标名
+    "name": "Trigger_ManagedObject[131]_metric[link_flux]",
+    "status": "running",                             // 当前状态
+    "trigger_id": "228",
+    "updated_at": "2013-09-04T15:05:14.3Z"
+  },
+
+
+
+历史记录的格式大致如下
+
+{
+    "actions": [
+      {
+        "begin_send_at": 0,                           // 最后一次保存历史记录的开始时间
+        "end_send_at": 0,                             // 最后一次保存历史记录的结束时间
+        "error": "sampling failed, read memory with compatible style failed, result is error -- [error:9]nosuchobject",
+        "id": 441,
+        "name": "[网络设备]__121.0.0.4[jf2-120.0.0.4]__[指标]cpu$cpu",     // 历史记录名称
+        "type": "history",                                                 // 表示这是一个历史记录规则
+        "wait_response_at": 0
+      }
+    ],
+    "begin_fired_at": "2013-09-04T15:01:30+08:00",
+    "end_fired_at": "2013-09-04T15:01:30+08:00",
+    "error": "sampling failed, read memory with compatible style failed, result is error -- [error:9]nosuchobject",
+    "expression": "@every 300s",
+    "id": "222",
+    "managed_id": "50",
+    "managed_type": "managed_object",
+    "max_used_duration": "0s",
+    "metric": "cpu",
+    "name": "Trigger_ManagedObject[50]_metric[cpu]",
+    "status": "running",
+    "trigger_id": "222",
+    "updated_at": "2013-09-04T14:46:26.909Z"
+  },

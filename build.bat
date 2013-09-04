@@ -327,6 +327,9 @@ copy "%ENGINE_PATH%\src\poller\poller\poller.exe" "%PUBLISH_PATH%\bin\tpt_poller
 @if errorlevel 1 goto failed
 xcopy /Y /S /E "%ENGINE_PATH%\src\poller\templates\*"   %PUBLISH_PATH%\lib\alerts\templates\
 @if errorlevel 1 goto failed
+copy "%ENGINE_PATH%\src\poller\poller_debug.txt" "%PUBLISH_PATH%\poller_debug.txt"
+@if errorlevel 1 goto failed
+
 
 
 copy "%ENGINE_PATH%\src\autostart_engine.conf" "%PUBLISH_PATH%\conf\autostart_engine.conf"

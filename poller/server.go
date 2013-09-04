@@ -219,7 +219,7 @@ func (s *server) loadCookies(client *commons.Client,
 	}
 
 	for _, attributes := range cookies {
-		action_id := commons.GetInt64WithDefault(attributes, "id", 0)
+		action_id := commons.GetInt64WithDefault(attributes, "action_id", 0)
 		id2cookies[action_id] = attributes
 	}
 	return len(cookies), nil
@@ -283,7 +283,7 @@ func (s *server) onStart() error {
 		for action_id, _ := range all_cookies {
 			action_id_str := strconv.FormatInt(int64(action_id), 10)
 			log.Println("load alert cookies with id was " + action_id_str + " is failed, action is deleted.")
-			dres := client.Delete(map[string]string{"id": action_id_str})
+			dres := client.Delete(map[string]string{"id": "@" + action_id_str})
 			if dres.HasError() {
 				log.Println("delete alert cookies with id was " + action_id_str + " is failed, " + dres.ErrorMessage())
 			}

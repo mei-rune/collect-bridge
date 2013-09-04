@@ -267,10 +267,10 @@ func TestCookiesLoadStatus(t *testing.T) {
 		carrier.SrvTest(t, func(db *sql.DB, url string) {
 			*foreignUrl = url
 
-			for _, s := range []string{fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`, rule_id),
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (112, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
+			for _, s := range []string{`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (112, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
 				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (113, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (114, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`} {
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (114, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'aaccccaaaaa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`, rule_id)} {
 				_, e := db.Exec(s)
 				if nil != e {
 					t.Error(e)
@@ -297,14 +297,16 @@ func TestCookiesLoadStatus(t *testing.T) {
 				t.Error("job is not found")
 				return
 			}
-			stats := job.Stats()
-			if "1" == fmt.Sprint(stats["last_status"]) {
-				t.Error("last status is not eq 1")
+			action := job.(*metricJob).actions[0]
+			action.RunAfter()
+			stats := action.Stats()
+			if "1" != fmt.Sprint(stats["last_status"]) {
+				t.Error("last status is not eq 1, action is", stats["last_status"])
 			}
-			if "0" == fmt.Sprint(stats["repeated"]) {
-				t.Error("repeated is not eq 1, test is invalid, it is run")
+			if "aaccccaaaaa" != fmt.Sprint(stats["event_id"]) {
+				t.Error("last status is not eq 'aaccccaaaaa', action is", stats["event_id"])
 			}
-
+			t.Log(stats)
 		})
 	})
 }

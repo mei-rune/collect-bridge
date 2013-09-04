@@ -803,3 +803,50 @@ func TestFindByActionIdWithNotFound(t *testing.T) {
 		}
 	})
 }
+
+func TestRemoveById(t *testing.T) {
+	SrvTest(t, func(db *sql.DB, url string) {
+		for _, test := range []struct{ tname, uname string }{{tname: "tpt_alert_cookies", uname: "alert_cookies"}} {
+			//	{tname: "tpt_alert_histories" + nows_str, uname: "alerts"},
+			//	{tname: "tpt_histories" + nows_str, uname: "histories"}} {
+
+			now_func := "now()"
+			if "odbc_with_mssql" == *db_drv {
+				now_func = "GETDATE()"
+			}
+
+			for i := 10; i < 10; i++ {
+				var e error
+				if strings.HasPrefix(test.tname, "tpt_alert") {
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
+				} else {
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, "+now_func+")", test.tname, i, i%2))
+				}
+				if nil != e {
+					t.Error(e)
+					return
+				}
+			}
+
+			for i := 10; i < 10; i++ {
+				_, e := httpInvoke("DELETE", url+"/"+test.uname+"/@"+fmt.Sprint(i), "", 200)
+				if nil != e {
+					t.Error(e)
+					return
+				}
+			}
+
+			count := int64(0)
+			e := db.QueryRow("select count(*) from " + test.tname).Scan(&count)
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			if count != 0 {
+				t.Error("count with managed_id = 11 is not 0 after delete it, actual is ", count)
+			}
+
+		}
+	})
+}

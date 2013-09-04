@@ -614,9 +614,9 @@ func (self *server) removeAlertCookiesBy(ctx *context, response http.ResponseWri
 	id := paths[1]
 
 	if '@' == id[0] {
-		self.removeBySQL(ctx, "DELETE FROM "+tpt_alert_cookies.CollectionName+" WHERE action_id = "+paths[1], tpt_alert_cookies, response, request)
+		self.removeBySQL(ctx, "DELETE FROM "+tpt_alert_cookies.CollectionName+" WHERE action_id = "+id[1:], tpt_alert_cookies, response, request)
 	} else {
-		self.removeBySQL(ctx, "DELETE FROM "+tpt_alert_cookies.CollectionName+" WHERE id = "+paths[1], tpt_alert_cookies, response, request)
+		self.removeBySQL(ctx, "DELETE FROM "+tpt_alert_cookies.CollectionName+" WHERE id = "+id, tpt_alert_cookies, response, request)
 	}
 }
 func (self *server) removeAlertHistoriesBy(ctx *context, response http.ResponseWriter, request *http.Request) {

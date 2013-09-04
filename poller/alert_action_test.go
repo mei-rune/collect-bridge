@@ -257,6 +257,162 @@ func TestAlertSimple2(t *testing.T) {
 	}
 }
 
+func TestAlertReset(t *testing.T) {
+	publish := make(chan []string, 10000)
+	c1 := make(chan *data_object, 10)
+	c := make(chan *data_object, 10)
+
+	defer close(c1)
+	go func() {
+		for v := range c1 {
+			c <- v
+			v.c <- nil
+		}
+	}()
+
+	all_tests := []struct {
+		delay_times int
+	}{{delay_times: 2},
+		{delay_times: 3},
+		{delay_times: 4},
+		{delay_times: 5},
+		{delay_times: 6},
+		{delay_times: 7},
+		{delay_times: 8},
+		{delay_times: 10},
+		{delay_times: 20},
+		{delay_times: 30},
+		{delay_times: 40},
+		{delay_times: 50}}
+
+	for _, test := range all_tests {
+		action, e := newAlertAction(map[string]interface{}{
+			"id":               "123",
+			"name":             "this is a test alert",
+			"delay_times":      test.delay_times,
+			"expression_style": "json",
+			"expression_code": map[string]interface{}{
+				"attribute": "a",
+				"operator":  ">",
+				"value":     "12"}},
+			map[string]interface{}{"managed_id": "1213"},
+			map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)})
+
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		alert := action.(*alertAction)
+
+		sendAndNotRecv := func(a map[string]interface{}) {
+			e := action.Run(time.Now(), commons.Return(a))
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			select {
+			case <-c:
+				t.Error("excepted not recv and actual is recved")
+			default:
+			}
+		}
+
+		sendAndRecv := func(status int, a map[string]interface{}) {
+			e = action.Run(time.Now(), commons.Return(a))
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			select {
+			case v := <-c:
+				if status != v.attributes["status"] {
+					t.Errorf("status != %v, actual is %v", status, v.attributes["status"])
+				}
+				if "1213" != v.attributes["managed_id"] {
+					t.Errorf("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
+				}
+
+				select {
+				case <-publish:
+				case <-time.After(1 * time.Second):
+					t.Error("not recv and last_status is", alert.last_status)
+				}
+
+			default:
+				t.Error("not recv and last_status is", alert.last_status)
+			}
+		}
+
+		resetAndNotRecv := func(reason int) {
+			e = alert.Reset(reason)
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			select {
+			case <-c:
+				t.Error("excepted not recv and actual is recved")
+			default:
+			}
+		}
+
+		resetAndRecv := func(reason int) {
+			e = alert.Reset(reason)
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			select {
+			case v := <-c:
+				if 0 != v.attributes["status"] {
+					t.Errorf("status != %v, actual is %v", 0, v.attributes["status"])
+				}
+				if "1213" != v.attributes["managed_id"] {
+					t.Errorf("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
+				}
+
+				select {
+				case <-publish:
+				case <-time.After(1 * time.Second):
+					t.Error("not recv and last_status is", alert.last_status)
+				}
+
+			default:
+				t.Error("not recv and last_status is", alert.last_status)
+			}
+		}
+
+		//////////////////////////////////////////
+		// send alert
+		for i := 0; i < test.delay_times-1; i++ {
+			sendAndNotRecv(map[string]interface{}{"a": "13"})
+		}
+		resetAndNotRecv(ALERT_REASON_DISABLED)
+
+		for i := 0; i < test.delay_times-1; i++ {
+			sendAndNotRecv(map[string]interface{}{"a": "13"})
+		}
+		sendAndNotRecv(map[string]interface{}{"a": "12"})
+
+		for i := 0; i < test.delay_times-1; i++ {
+			sendAndNotRecv(map[string]interface{}{"a": "13"})
+		}
+
+		sendAndRecv(1, map[string]interface{}{"a": "13"})
+
+		for i := 0; i < test.delay_times; i++ {
+			sendAndNotRecv(map[string]interface{}{"a": "13"})
+		}
+
+		resetAndRecv(ALERT_REASON_DISABLED)
+	}
+}
+
 func TestAlertWithSendFailed(t *testing.T) {
 	publish := make(chan []string, 10000)
 	c1 := make(chan *data_object, 10)
@@ -843,8 +999,8 @@ func TestAlertMessage(t *testing.T) {
 	}()
 
 	all_tests := []struct {
-		rule, ctx                     map[string]interface{}
-		alert_message, resume_message string
+		rule, ctx                                                        map[string]interface{}
+		alert_message, resume_message, disabled_message, deleted_message string
 	}{{rule: map[string]interface{}{
 		"type":             "alert",
 		"id":               "123",
@@ -855,9 +1011,11 @@ func TestAlertMessage(t *testing.T) {
 			"attribute": "a",
 			"operator":  ">",
 			"value":     "12"}},
-		ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)},
-		alert_message:  "this is a test alert is alerted",
-		resume_message: "this is a test alert is resumed"},
+		ctx:              map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)},
+		alert_message:    "this is a test alert is alerted",
+		resume_message:   "this is a test alert is resumed",
+		disabled_message: "this is a test alert is disabled",
+		deleted_message:  "this is a test alert is deleted"},
 		{rule: map[string]interface{}{
 			"type":             "alert",
 			"id":               "123",
@@ -869,9 +1027,11 @@ func TestAlertMessage(t *testing.T) {
 				"attribute": "a",
 				"operator":  ">",
 				"value":     "12"}},
-			ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)},
-			alert_message:  "from template alert this is a test alert 1",
-			resume_message: "from template resume this is a test alert 0"},
+			ctx:              map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)},
+			alert_message:    "from template alert this is a test alert 1",
+			resume_message:   "from template resume this is a test alert 0",
+			disabled_message: "this is a test alert is disabled",
+			deleted_message:  "this is a test alert is deleted"},
 		{rule: map[string]interface{}{
 			"type":             "alert",
 			"id":               "123",
@@ -883,9 +1043,11 @@ func TestAlertMessage(t *testing.T) {
 				"attribute": "a",
 				"operator":  ">",
 				"value":     "12"}},
-			ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)},
-			alert_message:  "form_templates alert this is a test alert 1",
-			resume_message: "form_templates resume this is a test alert 0"},
+			ctx:              map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish)},
+			alert_message:    "form_templates alert this is a test alert 1",
+			resume_message:   "form_templates resume this is a test alert 0",
+			disabled_message: "this is a test alert is disabled",
+			deleted_message:  "this is a test alert is deleted"},
 		{rule: map[string]interface{}{
 			"type":             "alert",
 			"id":               "123",
@@ -896,9 +1058,11 @@ func TestAlertMessage(t *testing.T) {
 				"attribute": "a",
 				"operator":  ">",
 				"value":     "12"}},
-			ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish), "alerts_template_path": "./test_templates/"},
-			alert_message:  "default_template_alert this is a test alert 1",
-			resume_message: "default_template_resume this is a test alert 0"},
+			ctx:              map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish), "alerts_template_path": "./test_templates/"},
+			alert_message:    "default_template_alert this is a test alert 1",
+			resume_message:   "default_template_resume this is a test alert 0",
+			disabled_message: "default_template_disabled this is a test alert 0",
+			deleted_message:  "default_template_deleted this is a test alert 0"},
 		{rule: map[string]interface{}{
 			"type":             "alert",
 			"id":               "123",
@@ -910,9 +1074,11 @@ func TestAlertMessage(t *testing.T) {
 				"attribute": "a",
 				"operator":  ">",
 				"value":     "12"}},
-			ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish), "alerts_template_path": "./test_templates/"},
-			alert_message:  "default_template_alert this is a test alert 1",
-			resume_message: "default_template_resume this is a test alert 0"},
+			ctx:              map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish), "alerts_template_path": "./test_templates/"},
+			alert_message:    "default_template_alert this is a test alert 1",
+			resume_message:   "default_template_resume this is a test alert 0",
+			disabled_message: "default_template_disabled this is a test alert 0",
+			deleted_message:  "default_template_deleted this is a test alert 0"},
 		{rule: map[string]interface{}{
 			"type":             "alert",
 			"id":               "123",
@@ -924,9 +1090,11 @@ func TestAlertMessage(t *testing.T) {
 				"attribute": "a",
 				"operator":  ">",
 				"value":     "12"}},
-			ctx:            map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish), "alerts_template_path": "./test_templates/"},
-			alert_message:  "test_catalog_alert this is a test alert 1",
-			resume_message: "test_catalog_resume this is a test alert 0"}}
+			ctx:              map[string]interface{}{"alerts_channel": forward2(c1), "redis_channel": forward(publish), "alerts_template_path": "./test_templates/"},
+			alert_message:    "test_catalog_alert this is a test alert 1",
+			resume_message:   "test_catalog_resume this is a test alert 0",
+			disabled_message: "test_catalog_disabled this is a test alert 0",
+			deleted_message:  "test_catalog_deleted this is a test alert 0"}}
 
 	for _, test := range all_tests {
 
@@ -963,6 +1131,28 @@ func TestAlertMessage(t *testing.T) {
 			}
 		}
 
+		resetAndRecv := func(message string, reason int) {
+			e = alert.Reset(reason)
+			if nil != e {
+				t.Error(e)
+				return
+			}
+
+			select {
+			case v := <-c:
+				if message != v.attributes["content"] {
+					t.Errorf("message != %v, actual is %v", message, v.attributes["content"])
+				}
+				select {
+				case <-publish:
+				case <-time.After(1 * time.Second):
+					t.Error("not recv and last_status is", alert.last_status)
+				}
+			default:
+				t.Error("not recv and last_status is", alert.last_status)
+			}
+		}
+
 		//////////////////////////////////////////
 		// send alert
 		sendAndRecv(test.alert_message, map[string]interface{}{"a": "13"})
@@ -970,5 +1160,11 @@ func TestAlertMessage(t *testing.T) {
 		//////////////////////////////////////////
 		// send resume
 		sendAndRecv(test.resume_message, map[string]interface{}{"a": "12"})
+
+		sendAndRecv(test.alert_message, map[string]interface{}{"a": "13"})
+		resetAndRecv(test.disabled_message, ALERT_REASON_DISABLED)
+
+		sendAndRecv(test.alert_message, map[string]interface{}{"a": "13"})
+		resetAndRecv(test.deleted_message, ALERT_REASON_DELETED)
 	}
 }

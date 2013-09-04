@@ -1,0 +1,1 @@
+test_catalog_disabled {{.name}} {{.status}}

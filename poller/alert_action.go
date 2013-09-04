@@ -24,6 +24,10 @@ import (
 	"time"
 )
 
+const ALERT_REASON_UNKNOW = 0
+const ALERT_REASON_DISABLED = 1
+const ALERT_REASON_DELETED = 2
+const ALERT_REASON_MAX = 2
 const MAX_REPEATED = 9999990
 
 var (
@@ -32,10 +36,16 @@ var (
 	notification_queue        = flag.String("alert.notification.queue", "", "the default queue name")
 
 	reset_error = errors.New("please reset channel.")
+
+	specific_status_names = make([]string, ALERT_REASON_MAX+1)
 )
 
-var (
+func init() {
+	specific_status_names[ALERT_REASON_DISABLED] = "disabled"
+	specific_status_names[ALERT_REASON_DELETED] = "deleted"
+}
 
+var (
 	// objectIdCounter is atomically incremented when generating a new ObjectId
 	// using NewObjectId() function. It's used as a counter part of an id.
 	objectIdCounter uint32 = 0
@@ -99,15 +109,16 @@ type alertAction struct {
 	channel     chan<- *data_object
 	cached_data *data_object
 
-	templates       []*template.Template
-	informations    commons.CircularBuffer
-	checker         Checker
-	previous_status int
-	last_status     int
-	repeated        int
-	already_send    bool
-	last_event_id   string
-	sequence_id     int
+	templates          []*template.Template
+	specific_templates []*template.Template
+	informations       commons.CircularBuffer
+	checker            Checker
+	previous_status    int
+	last_status        int
+	repeated           int
+	already_send       bool
+	last_event_id      string
+	sequence_id        int
 
 	notification_group_ids []string
 	notification_groups    *ds.Cache
@@ -193,6 +204,26 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 		return nil
 	}
 
+	evt, err := self.create_event(current_value, current, -1, t)
+	if nil != err {
+		return err
+	}
+
+	err = self.send(evt)
+	if nil == err {
+		self.previous_status = current
+		self.sequence_id++
+		self.already_send = true
+		return nil
+	}
+
+	if err == reset_error {
+		self.cached_data = &data_object{c: make(chan error, 2)}
+	}
+	return err
+}
+
+func (self *alertAction) create_event(current_value interface{}, current, reason int, t time.Time) (map[string]interface{}, error) {
 	evt := map[string]interface{}{}
 	for k, v := range self.contex {
 		evt[k] = v
@@ -204,7 +235,7 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	if _, found := evt["current_value"]; !found {
 		bs, err := json.Marshal(current_value)
 		if nil != err {
-			return errors.New("marshal current value failed," + err.Error())
+			return nil, errors.New("marshal current value failed," + err.Error())
 		}
 		if nil != bs {
 			evt["current_value"] = string(bs)
@@ -220,19 +251,35 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	evt["sequence_id"] = self.sequence_id
 	evt["previous_status"] = self.previous_status
 	evt["status"] = current
-	evt["content"] = self.gen_message(current, self.previous_status, evt)
+	evt["content"] = self.gen_message(current, self.previous_status, reason, evt)
 	if nil != self.notification_groups {
 		err := self.fillNotificationData(current, evt)
 		if nil != err {
-			return err
+			return nil, err
 		}
+	}
+
+	return evt, nil
+}
+
+func (self *alertAction) Reset(reason int) error {
+	if 0 == self.previous_status {
+		self.repeated = 0
+		return nil
+	}
+
+	evt, err := self.create_event(0, 0, reason, time.Now())
+	if nil != err {
+		return err
 	}
 
 	err = self.send(evt)
 	if nil == err {
-		self.previous_status = current
+		self.last_status = 0
+		self.previous_status = 0
 		self.sequence_id++
 		self.already_send = true
+		self.repeated = 0
 		return nil
 	}
 
@@ -293,14 +340,34 @@ func (self *alertAction) fillNotificationData(current int, evt map[string]interf
 	return nil
 }
 
-func (self *alertAction) gen_message(current, previous int, evt map[string]interface{}) string {
-	if len(self.templates) > current {
-		var buffer bytes.Buffer
-		e := self.templates[current].Execute(&buffer, evt)
-		if nil == e {
-			return buffer.String()
+func (self *alertAction) gen_message(current, previous, reason int, evt map[string]interface{}) string {
+	if reason >= 0 {
+		if nil != self.specific_templates && len(self.specific_templates) > reason && nil != self.specific_templates[reason] {
+			var buffer bytes.Buffer
+			e := self.specific_templates[reason].Execute(&buffer, evt)
+			if nil == e {
+				return buffer.String()
+			}
+			fmt.Println("execute template failed, " + e.Error())
+			self.informations.Push("execute template failed, " + e.Error())
 		}
-		self.informations.Push("execute template failed, " + e.Error())
+		switch reason {
+		case ALERT_REASON_DELETED:
+			return fmt.Sprintf("%v is deleted", self.name)
+		case ALERT_REASON_DISABLED:
+			return fmt.Sprintf("%v is disabled", self.name)
+		default:
+			return fmt.Sprintf("%v is reset, reason is %v, status is %v", self.name, reason, current)
+		}
+	} else {
+		if nil != self.templates && len(self.templates) > current {
+			var buffer bytes.Buffer
+			e := self.templates[current].Execute(&buffer, evt)
+			if nil == e {
+				return buffer.String()
+			}
+			self.informations.Push("execute template failed, " + e.Error())
+		}
 	}
 
 	switch current {
@@ -414,7 +481,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		}
 	}
 
-	templates, e := loadTemplates(ctx, attributes, "templates")
+	templates, specific_templates, e := loadTemplates(ctx, attributes, "templates")
 	if nil != e {
 		return nil, e
 	}
@@ -451,6 +518,7 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		cached_data:            &data_object{c: make(chan error, 2)},
 		checker:                checker,
 		templates:              templates,
+		specific_templates:     specific_templates,
 		last_status:            commons.GetIntWithDefault(cookies, "status", 0),
 		previous_status:        commons.GetIntWithDefault(cookies, "previous_status", 0),
 		last_event_id:          commons.GetStringWithDefault(cookies, "event_id", ""),
@@ -522,32 +590,47 @@ func get_alerts_template_path() string {
 	return ""
 }
 
-func loadTemplates(ctx, args map[string]interface{}, key string) ([]*template.Template, error) {
-	templates, e := templatesWith(args, key)
+func loadTemplates(ctx, args map[string]interface{}, key string) (templates []*template.Template,
+	specific_templates []*template.Template, e error) {
+	templates, e = templatesWith(args, key)
 	if nil != e {
-		return nil, e
-	}
-	if 0 != len(templates) {
-		return templates, nil
+		return nil, nil, e
 	}
 
 	pa := commons.GetStringWithDefault(ctx, "alerts_template_path", get_alerts_template_path())
 	if 0 == len(pa) {
-		return []*template.Template{}, nil
+		return templates, nil, nil
 	}
 
+	cat_list := make([]string, 0, 2)
 	cat := commons.GetStringWithDefault(args, "catalog", "")
 	if 0 != len(cat) {
-		templates, e = loadTemplatesFromDir(pa, cat)
-		if nil != e {
-			return nil, e
-		}
-		if 0 != len(templates) {
-			return templates, nil
+		cat_list = append(cat_list, cat)
+	}
+	cat_list = append(cat_list, "default")
+
+	if nil == templates || 0 == len(templates) {
+		for _, cat := range cat_list {
+			templates, e = loadTemplatesFromDir(pa, cat)
+			if nil != e {
+				return nil, nil, e
+			}
+
+			if nil != templates && 0 != len(templates) {
+				break
+			}
 		}
 	}
 
-	return loadTemplatesFromDir(pa, "default")
+	specific_templates = make([]*template.Template, len(specific_status_names))
+	for _, cat := range cat_list {
+		e = loadSpecificTemplatesFromDir(pa, cat, specific_templates)
+		if nil != e {
+			return nil, nil, e
+		}
+	}
+
+	return templates, specific_templates, nil
 }
 
 func loadTemplatesFromDir(pa, prefix string) (templates []*template.Template, err error) {
@@ -562,21 +645,36 @@ func loadTemplatesFromDir(pa, prefix string) (templates []*template.Template, er
 		}
 		templates = append(templates, t)
 	}
-	if nil == templates {
-		templates = []*template.Template{}
-	}
 	return
+}
+
+func loadSpecificTemplatesFromDir(pa, prefix string, templates []*template.Template) (err error) {
+	for i, nm := range specific_status_names {
+		if nil != templates[i] {
+			continue
+		}
+		nm := filepath.Clean(filepath.Join(pa, prefix+"_"+nm+".tpl"))
+		if fi, e := os.Stat(nm); nil != e || fi.IsDir() {
+			continue
+		}
+		t, e := template.ParseFiles(nm)
+		if nil != e {
+			return fmt.Errorf("load message templates of alerts failed, parse '%v' failed, %v", nm, e.Error())
+		}
+		templates[i] = t
+	}
+	return nil
 }
 
 func templatesWith(args map[string]interface{}, key string) ([]*template.Template, error) {
 	v, ok := args[key]
 	if !ok {
-		return []*template.Template{}, nil
+		return nil, nil
 	}
 	var e error
 	if s, ok := v.(string); ok {
 		if 0 == len(strings.TrimSpace(s)) {
-			return []*template.Template{}, nil
+			return nil, nil
 		}
 		var ss []string
 		e = json.Unmarshal([]byte(s), &ss)
@@ -584,7 +682,7 @@ func templatesWith(args map[string]interface{}, key string) ([]*template.Templat
 			return nil, fmt.Errorf("load message templates of alerts failed, %v is not a valid json string, %s - `%v`", key, e.Error(), string(s))
 		}
 		if nil == ss || 0 == len(ss) {
-			return []*template.Template{}, nil
+			return nil, nil
 		}
 		tt := make([]*template.Template, len(ss))
 		for i, s := range ss {
@@ -620,5 +718,5 @@ func templatesWith(args map[string]interface{}, key string) ([]*template.Templat
 		}
 		return tt, nil
 	}
-	return []*template.Template{}, nil
+	return nil, nil
 }

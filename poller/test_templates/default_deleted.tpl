@@ -1,0 +1,1 @@
+default_template_deleted {{.name}} {{.status}}

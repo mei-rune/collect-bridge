@@ -1,0 +1,1 @@
+test_catalog_deleted {{.name}} {{.status}}

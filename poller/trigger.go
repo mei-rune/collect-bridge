@@ -181,6 +181,11 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 		if nil != e {
 			return nil, errors.New("create action '" + action_id + ":" + action_name + "' failed, " + e.Error())
 		}
+		if !enabled {
+			if alert, ok := action.(*alertAction); ok {
+				alert.Reset(ALERT_REASON_DISABLED)
+			}
+		}
 		actions = append(actions, &actionWrapper{id: action_id, name: action_name, enabled: enabled, action: action})
 	}
 

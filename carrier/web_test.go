@@ -440,36 +440,47 @@ func TestFindById(t *testing.T) {
 
 			var e error
 			if strings.HasPrefix(test.tname, "tpt_alert") {
-				_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'msssssssso', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
+				_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'msssssssso', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, 2, 2%2))
 			} else {
-				_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'msssssssso', 1%v, 1, "+now_func+")", test.tname, i, i%2))
+				_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'msssssssso', 1%v, 1, "+now_func+")", test.tname, 2, 2%2))
 			}
 			if nil != e {
-				t.Error(e)
+				t.Error("test["+test.tname+"] failed", e)
 				return
 			}
 
 			s, e := httpInvoke("GET", url+"/"+test.uname, "", 200)
 			if nil != e {
-				t.Error(e)
+				t.Error("test["+test.tname+"] failed", e)
 				return
 			}
 
 			id, e := getId(s)
 			if nil != e {
-				t.Error(e)
+				t.Error("test["+test.tname+"] failed", e)
 				return
 			}
 
 			s, e = httpInvoke("GET", url+"/"+test.uname+"/"+fmt.Sprint(id), "", 200)
 			if nil != e {
-				t.Error(e)
+				t.Error("test["+test.tname+"] failed", e)
 				return
 			}
 
 			if !strings.Contains(s, "msssssssso") {
 				t.Error(`excepted contains 'msssssssso'`)
-				t.Error(`actual is`, count, "--", s)
+				t.Error(`actual is`, s)
+			}
+
+			s, e = httpInvoke("GET", url+"/"+test.uname+"/"+fmt.Sprint(id)+"/", "", 200)
+			if nil != e {
+				t.Error("test["+test.tname+"] failed", e)
+				return
+			}
+
+			if !strings.Contains(s, "msssssssso") {
+				t.Error(`excepted contains 'msssssssso'`)
+				t.Error(`actual is`, s)
 			}
 		}
 	})

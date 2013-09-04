@@ -542,7 +542,8 @@ func (self *server) findAlertCookiesBy(ctx *context, response http.ResponseWrite
 		}, response, request)
 }
 func (self *server) findAlertHistoriesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
-	self.findById(ctx, tpt_alert_history, " id, action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, current_value, triggered_at ",
+
+	self.findById(ctx, tpt_alert_history, prejection_sql,
 		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
 			return entity, rows.Scan(

@@ -727,3 +727,79 @@ func TestRemove(t *testing.T) {
 		}
 	})
 }
+
+func TestFindByActionId(t *testing.T) {
+	SrvTest(t, func(db *sql.DB, url string) {
+		for _, test := range []struct{ tname, uname string }{{tname: "tpt_alert_cookies", uname: "alert_cookies"}} {
+
+			now_func := "now()"
+			if "odbc_with_mssql" == *db_drv {
+				now_func = "GETDATE()"
+			}
+
+			for i := 1; i < 12; i++ {
+				_, e := db.Exec(fmt.Sprintf("insert into tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'dd', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", i, 2%2))
+
+				if nil != e {
+					t.Error("test["+test.tname+"] failed", e)
+					return
+				}
+			}
+
+			_, e := db.Exec(fmt.Sprintf("insert into tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'msssssssso', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", 123, 2%2))
+			if nil != e {
+				t.Error("test tpt_alert_cookies by action_id failed", e)
+				return
+			}
+			s, e := httpInvoke("GET", url+"/alert_cookies/@123", "", 200)
+			if nil != e {
+				t.Error("test tpt_alert_cookies by action_id failed", e)
+				return
+			}
+
+			if !strings.Contains(s, "msssssssso") {
+				t.Error(`excepted contains 'msssssssso'`)
+				t.Error(`actual is`, s)
+			}
+
+			s, e = httpInvoke("GET", url+"/alert_cookies/@123/", "", 200)
+			if nil != e {
+				t.Error("test tpt_alert_cookies by action_id failed", e)
+				return
+			}
+
+			if !strings.Contains(s, "msssssssso") {
+				t.Error(`excepted contains 'msssssssso'`)
+				t.Error(`actual is`, s)
+			}
+		}
+	})
+}
+
+func TestFindByActionIdWithNotFound(t *testing.T) {
+	SrvTest(t, func(db *sql.DB, url string) {
+		s, e := httpInvoke("GET", url+"/alert_cookies/@123", "", 200)
+		if nil != e {
+			if err, ok := e.(commons.RuntimeError); !ok || err.Code() != 404 {
+				t.Error(e)
+			} else {
+				t.Log(e)
+			}
+		} else {
+			t.Error(`excepted contains "code":404`)
+			t.Error(`actual is`, s)
+		}
+
+		s, e = httpInvoke("GET", url+"/alert_cookies/@123/", "", 200)
+		if nil != e {
+			if err, ok := e.(commons.RuntimeError); !ok || err.Code() != 404 {
+				t.Error(e)
+			} else {
+				t.Log(e)
+			}
+		} else {
+			t.Error(`excepted contains "code":404`)
+			t.Error(`actual is`, s)
+		}
+	})
+}

@@ -292,7 +292,12 @@ func (self *server) findById(ctx *context, table *types.TableDefinition, project
 		return
 	}
 
-	v, e := scan(ctx.db.QueryRow("select " + projection + " from " + table.CollectionName + " where id = " + paths[1]))
+	self.findOne(ctx, "select "+projection+" from "+table.CollectionName+" where id = "+paths[1], table, projection, scan, response, request)
+}
+
+func (self *server) findOne(ctx *context, sqlString string, table *types.TableDefinition, projection string,
+	scan func(rows resultScan) (interface{}, error), response http.ResponseWriter, request *http.Request) {
+	v, e := scan(ctx.db.QueryRow(sqlString))
 	if nil != e {
 		if e == sql.ErrNoRows {
 			response.WriteHeader(http.StatusNotFound)
@@ -394,7 +399,11 @@ func (self *server) removeById(ctx *context, table *types.TableDefinition, respo
 		return
 	}
 
-	res, e := ctx.db.Exec("DELETE FROM " + table.CollectionName + " WHERE id = " + paths[1])
+	self.removeBySQL(ctx, "DELETE FROM "+table.CollectionName+" WHERE id = "+paths[1], table, response, request)
+}
+
+func (self *server) removeBySQL(ctx *context, sqlString string, table *types.TableDefinition, response http.ResponseWriter, request *http.Request) {
+	res, e := ctx.db.Exec(sqlString)
 	if nil != e {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(e.Error()))
@@ -453,6 +462,7 @@ func (self *server) remove(ctx *context, table *types.TableDefinition, response 
 	response.Write([]byte(strconv.FormatInt(effected, 10)))
 	response.Write([]byte(`}`))
 }
+
 func (self *server) count(ctx *context, table *types.TableDefinition, response http.ResponseWriter, request *http.Request) {
 	query_params := make(map[string]string)
 	for k, v := range request.URL.Query() {
@@ -524,25 +534,38 @@ func (self *server) findAlertHistories(ctx *context, response http.ResponseWrite
 }
 
 func (self *server) findAlertCookiesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
-	self.findById(ctx, tpt_alert_cookies, prejection_sql,
-		func(rows resultScan) (interface{}, error) {
-			entity := &AlertEntity{}
-			return entity, rows.Scan(
-				&entity.Id,             //Id               int64     `json:"id"`
-				&entity.ActionId,       //ActionId         int64     `json:"action_id"`
-				&entity.ManagedType,    //ManagedType      string    `json:"managed_type"`
-				&entity.ManagedId,      //ManagedId        int64     `json:"managed_id"`
-				&entity.Status,         //Status           string    `json:"status"`
-				&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
-				&entity.EventId,        //EventId          string    `json:"event_id"`
-				&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
-				&entity.Content,        //Content          string    `json:"content"`
-				&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
-				&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
-		}, response, request)
+	paths := strings.Split(strings.Trim(request.URL.Path, "/"), "/")
+	if 2 != len(paths) {
+		http.Error(response, "404 page not found, path must is 'alerts' or 'histories', actual path is '"+
+			request.URL.Path+"'", http.StatusNotFound)
+		return
+	}
+	scan := func(rows resultScan) (interface{}, error) {
+		entity := &AlertEntity{}
+		return entity, rows.Scan(
+			&entity.Id,             //Id               int64     `json:"id"`
+			&entity.ActionId,       //ActionId         int64     `json:"action_id"`
+			&entity.ManagedType,    //ManagedType      string    `json:"managed_type"`
+			&entity.ManagedId,      //ManagedId        int64     `json:"managed_id"`
+			&entity.Status,         //Status           string    `json:"status"`
+			&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
+			&entity.EventId,        //EventId          string    `json:"event_id"`
+			&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+			&entity.Content,        //Content          string    `json:"content"`
+			&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
+			&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
+	}
+	id := paths[1]
+
+	if '@' == id[0] {
+		self.findOne(ctx, "select "+prejection_sql+" from "+tpt_alert_cookies.CollectionName+" where action_id = "+id[1:], tpt_alert_cookies, prejection_sql,
+			scan, response, request)
+	} else {
+		self.findOne(ctx, "select "+prejection_sql+" from "+tpt_alert_cookies.CollectionName+" where id = "+id, tpt_alert_cookies, prejection_sql,
+			scan, response, request)
+	}
 }
 func (self *server) findAlertHistoriesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
-
 	self.findById(ctx, tpt_alert_history, prejection_sql,
 		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
@@ -582,7 +605,19 @@ func (self *server) removeHistories(ctx *context, response http.ResponseWriter, 
 }
 
 func (self *server) removeAlertCookiesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
-	self.removeById(ctx, tpt_alert_cookies, response, request)
+	paths := strings.Split(strings.Trim(request.URL.Path, "/"), "/")
+	if 2 != len(paths) {
+		http.Error(response, "404 page not found, path must is 'alerts' or 'histories', actual path is '"+
+			request.URL.Path+"'", http.StatusNotFound)
+		return
+	}
+	id := paths[1]
+
+	if '@' == id[0] {
+		self.removeBySQL(ctx, "DELETE FROM "+tpt_alert_cookies.CollectionName+" WHERE action_id = "+paths[1], tpt_alert_cookies, response, request)
+	} else {
+		self.removeBySQL(ctx, "DELETE FROM "+tpt_alert_cookies.CollectionName+" WHERE id = "+paths[1], tpt_alert_cookies, response, request)
+	}
 }
 func (self *server) removeAlertHistoriesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
 	self.removeById(ctx, tpt_alert_history, response, request)

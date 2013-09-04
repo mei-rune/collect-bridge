@@ -37,7 +37,7 @@ type cookiesLoaderById struct {
 }
 
 func (self *cookiesLoaderById) loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error) {
-	res := self.client.Get(map[string]string{"id": strconv.FormatInt(id, 10)})
+	res := self.client.Get(map[string]string{"id": "@" + strconv.FormatInt(id, 10)})
 	if res.HasError() {
 		if 404 == res.ErrorCode() {
 			return nil, nil

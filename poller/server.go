@@ -327,7 +327,6 @@ func (s *server) onIdle() {
 	if nil != updated {
 		for _, id := range updated {
 			s.stopJob(id, STOP_REASON_NORMAL)
-
 			s.loadJob(id)
 		}
 	}

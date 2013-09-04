@@ -701,6 +701,7 @@ func (self *server) onAlerts(ctx *context, response http.ResponseWriter, request
 			}
 		}
 
+		//fmt.Println("save history with action_id was", entity.ActionId, " and status is", entity.Status)
 		e = ctx.dialect.saveAlertHistory(tx, &entity)
 		if nil != e {
 			response.WriteHeader(http.StatusInternalServerError)

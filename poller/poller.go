@@ -186,6 +186,9 @@ func Runforever() {
 		log.Println("[poller-test] serving at '" + *listenAddress + "'")
 	} else {
 		log.Println("[poller] serving at '" + *listenAddress + "'")
-		http.ListenAndServe(*listenAddress, nil)
+		e := http.ListenAndServe(*listenAddress, nil)
+		if nil != e {
+			log.Println(e)
+		}
 	}
 }

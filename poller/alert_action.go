@@ -24,10 +24,6 @@ import (
 	"time"
 )
 
-const ALERT_REASON_UNKNOW = 0
-const ALERT_REASON_DISABLED = 1
-const ALERT_REASON_DELETED = 2
-const ALERT_REASON_MAX = 2
 const MAX_REPEATED = 9999990
 
 var (
@@ -37,12 +33,12 @@ var (
 
 	reset_error = errors.New("please reset channel.")
 
-	specific_status_names = make([]string, ALERT_REASON_MAX+1)
+	specific_status_names = make([]string, CLOSE_REASON_MAX+1)
 )
 
 func init() {
-	specific_status_names[ALERT_REASON_DISABLED] = "disabled"
-	specific_status_names[ALERT_REASON_DELETED] = "deleted"
+	specific_status_names[CLOSE_REASON_DISABLED] = "disabled"
+	specific_status_names[CLOSE_REASON_DELETED] = "deleted"
 }
 
 var (
@@ -115,6 +111,7 @@ type alertAction struct {
 	checker            Checker
 	previous_status    int
 	last_status        int
+	last_value         interface{}
 	repeated           int
 	already_send       bool
 	last_event_id      string
@@ -125,6 +122,7 @@ type alertAction struct {
 
 	begin_send_at, wait_response_at, responsed_at, end_send_at int64
 
+	stats_last_value      interface{}
 	stats_previous_status int
 	stats_last_status     int
 	stats_repeated        int
@@ -142,6 +140,7 @@ func (self *alertAction) Stats() map[string]interface{} {
 		"information":      self.stats_informations,
 		"previous_status":  self.stats_previous_status,
 		"last_status":      self.stats_last_status,
+		"last_value":       self.stats_last_value,
 		"repeated":         self.stats_repeated,
 		"already_send":     self.stats_already_send,
 		"event_id":         self.stats_last_event_id,
@@ -170,6 +169,7 @@ func (self *alertAction) RunAfter() {
 	self.stats_last_event_id = self.last_event_id
 	self.stats_sequence_id = self.sequence_id
 	self.stats_informations = self.informations.All()
+	self.stats_last_value = self.last_value
 }
 
 func (self *alertAction) Run(t time.Time, value interface{}) error {
@@ -183,6 +183,7 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 	if nil != err {
 		return err
 	}
+	self.last_value = current_value
 
 	if current == self.last_status {
 		self.repeated++
@@ -204,7 +205,7 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 		return nil
 	}
 
-	evt, err := self.create_event(current_value, current, -1, t)
+	evt, err := self.create_event(current_value, current, CLOSE_REASON_NORMAL, t)
 	if nil != err {
 		return err
 	}
@@ -352,9 +353,9 @@ func (self *alertAction) gen_message(current, previous, reason int, evt map[stri
 			self.informations.Push("execute template failed, " + e.Error())
 		}
 		switch reason {
-		case ALERT_REASON_DELETED:
+		case CLOSE_REASON_DELETED:
 			return fmt.Sprintf("%v is deleted", self.name)
-		case ALERT_REASON_DISABLED:
+		case CLOSE_REASON_DISABLED:
 			return fmt.Sprintf("%v is disabled", self.name)
 		default:
 			return fmt.Sprintf("%v is reset, reason is %v, status is %v", self.name, reason, current)

@@ -121,8 +121,16 @@ func TestIntegratedPoller(t *testing.T) {
 		defer func() { *load_cookies = true }()
 		is_test = true
 		Runforever()
+		if nil == server_test {
+			t.Error("load trigger failed.")
+			return
+		}
+		defer func() {
+			server_test.Stop()
+			server_test = nil
+		}()
 
-		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+		if nil == server_test.jobs || 0 == len(server_test.jobs) {
 			t.Error("load trigger failed.")
 			return
 		}
@@ -182,13 +190,21 @@ func TestIntegratedAlert(t *testing.T) {
 		*load_cookies = false
 		defer func() { *load_cookies = true }()
 		Runforever()
+		if nil == server_test {
+			t.Error("load trigger failed.")
+			return
+		}
+		defer func() {
+			server_test.Stop()
+			server_test = nil
+		}()
 
-		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+		if nil == server_test.jobs || 0 == len(server_test.jobs) {
 			t.Error("load trigger failed.")
 			return
 		}
 
-		tr_instance := server_test.jobs[mt_id].(*metricJob)
+		tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 
 		for i := 0; i < 100; i++ {
 			if nil != tr_instance.last_error {
@@ -244,13 +260,21 @@ func TestIntegratedAlert2(t *testing.T) {
 		*load_cookies = false
 		defer func() { *load_cookies = true }()
 		Runforever()
+		if nil == server_test {
+			t.Error("load trigger failed.")
+			return
+		}
+		defer func() {
+			server_test.Stop()
+			server_test = nil
+		}()
 
 		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
 			t.Error("load trigger failed.")
 			return
 		}
 
-		tr_instance := server_test.jobs[mt_id].(*metricJob)
+		tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 
 		for i := 0; i < 100; i++ {
 			if nil != tr_instance.last_error {
@@ -328,13 +352,21 @@ func TestIntegratedHistory(t *testing.T) {
 		*load_cookies = false
 		defer func() { *load_cookies = true }()
 		Runforever()
+		if nil == server_test {
+			t.Error("load trigger failed.")
+			return
+		}
+		defer func() {
+			server_test.Stop()
+			server_test = nil
+		}()
 
 		if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
 			t.Error("load trigger failed.")
 			return
 		}
 
-		tr_instance := server_test.jobs[mt_id].(*metricJob)
+		tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 
 		for i := 0; i < 100; i++ {
 			if nil != tr_instance.last_error {
@@ -368,81 +400,132 @@ func TestIntegratedHistory(t *testing.T) {
 }
 
 func TestIntegratedAlertWithCarrier(t *testing.T) {
-	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
-		mo_id := ds.CreateItForTest(t, client, "network_device", mo)
-		ds.CreateItByParentForTest(t, client, "network_device", mo_id, "wbem_param", wbem_params)
-		ds.CreateItByParentForTest(t, client, "network_device", mo_id, "snmp_param", snmp_params)
-		mt_id := ds.CreateItByParentForTest(t, client, "network_device", mo_id, "metric_trigger", metric_trigger_for_cpu)
-		rule_id := ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
-			"name":             "this is a test alert",
-			"delay_times":      0,
-			"expression_style": "json",
-			"expression_code": map[string]interface{}{
-				"attribute": "services",
-				"operator":  ">=",
-				"value":     "0"}})
+	for _, nm := range []string{"deleted", "disabled", "close"} {
+		srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+			mo_id := ds.CreateItForTest(t, client, "network_device", mo)
+			ds.CreateItByParentForTest(t, client, "network_device", mo_id, "wbem_param", wbem_params)
+			ds.CreateItByParentForTest(t, client, "network_device", mo_id, "snmp_param", snmp_params)
+			mt_id := ds.CreateItByParentForTest(t, client, "network_device", mo_id, "metric_trigger", metric_trigger_for_cpu)
+			rule_id := ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
+				"name":             "this is a test alert",
+				"delay_times":      0,
+				"expression_style": "json",
+				"expression_code": map[string]interface{}{
+					"attribute": "services",
+					"operator":  ">=",
+					"value":     "0"}})
 
-		carrier.SrvTest(t, func(db *sql.DB, url string) {
-			is_test = true
-			*foreignUrl = url
-			Runforever()
+			carrier.SrvTest(t, func(db *sql.DB, url string) {
+				is_test = true
+				*foreignUrl = url
+				Runforever()
+				if nil == server_test {
+					t.Error("test[", nm, "]", "load trigger failed.")
+					return
+				}
+				defer func() {
+					server_test.Stop()
+					server_test = nil
+				}()
 
-			if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
-				t.Error("load trigger failed.")
-				return
-			}
-
-			tr_instance := server_test.jobs[mt_id].(*metricJob)
-
-			for i := 0; i < 100; i++ {
-				if nil != tr_instance.last_error {
-					t.Error(tr_instance.last_error)
+				if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+					t.Error("test[", nm, "]", "load trigger failed.")
 					return
 				}
 
-				tr_instance.l.Lock()
-				e := tr_instance.actions[0].last_error
-				tr_instance.l.Unlock()
+				tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 
-				if nil != e {
-					if !strings.Contains(e.Error(), "not founc") {
+				is_ok := false
+				for i := 0; i < 100; i++ {
+					if nil != tr_instance.last_error {
+						t.Error(tr_instance.last_error)
+						return
+					}
+
+					tr_instance.l.Lock()
+					e := tr_instance.actions[0].last_error
+					tr_instance.l.Unlock()
+
+					if nil != e {
+						if !strings.Contains(e.Error(), "not founc") {
+							t.Error("test[", nm, "]", e)
+						}
+						return
+					}
+
+					entities, e := carrier.SelectAlertCookies(db)
+					if nil != e {
+						t.Error("test[", nm, "]", e)
+						return
+					}
+
+					if nil != entities && 0 != len(entities) {
+						entity := entities[0]
+						rule_id_int, _ := strconv.ParseInt(rule_id, 10, 64)
+						mo_id_int, _ := strconv.ParseInt(mo_id, 10, 64)
+
+						if entity.ActionId != rule_id_int {
+							t.Error("test[", nm, "]", " entity.ActionId != rule_id, excepted is ", rule_id_int, ", actual is ", entity.ActionId)
+						}
+						if entity.Status != 1 {
+							t.Error("test[", nm, "]", " entity.Status != 1, excepted is ", 1, ", actual is ", entity.Status)
+						}
+						if entity.ManagedType != "managed_object" {
+							t.Error("test[", nm, "]", " entity.ManagedType != mo_type, excepted is managed_object, actual is ", entity.ManagedType)
+						}
+						if entity.ManagedId != mo_id_int {
+							t.Error("test[", nm, "]", " entity.ManagedId != mo_id, excepted is ", mo_id_int, ", actual is ", entity.ManagedId)
+						}
+
+						t.Log("cookies is present for " + nm)
+						is_ok = true
+						break
+					}
+
+					time.Sleep(1 * time.Second)
+				}
+
+				if !is_ok {
+					t.Error("not wait for " + nm)
+				}
+
+				switch nm {
+				case "close":
+					server_test.Stop()
+					entities, e := carrier.SelectAlertCookies(db)
+					if nil != e {
 						t.Error(e)
+						return
 					}
-					return
+					if nil != entities && 0 != len(entities) {
+						t.Log("cookies is not delete for " + nm)
+					} else {
+						t.Error("cookies is delete for " + nm)
+					}
+				case "deleted", "disabled":
+					if "deleted" == nm {
+						ds.DeleteItForTest(t, client, "metric_trigger", mt_id)
+					} else {
+						ds.UpdateItForTest(t, client, "alert", rule_id, map[string]interface{}{"enabled": false})
+						ds.UpdateItForTest(t, client, "metric_trigger", mt_id, map[string]interface{}{}) // touch updated_at of trigger
+					}
+					server_test.onIdle()
+					entities, e := carrier.SelectAlertCookies(db)
+					if nil != e {
+						t.Error(e)
+						return
+					}
+					if nil != entities && 0 != len(entities) {
+						t.Error("cookies is not " + nm)
+					} else {
+						t.Log("cookies is " + nm)
+					}
+				default:
+					t.Error("unknow test - ", nm)
 				}
-
-				entities, e := carrier.SelectAlertCookies(db)
-				if nil != e {
-					t.Error(e)
-					return
-				}
-
-				if nil != entities && 0 != len(entities) {
-					entity := entities[0]
-					rule_id_int, _ := strconv.ParseInt(rule_id, 10, 64)
-					mo_id_int, _ := strconv.ParseInt(mo_id, 10, 64)
-
-					if entity.ActionId != rule_id_int {
-						t.Error(" entity.ActionId != rule_id, excepted is ", rule_id_int, ", actual is ", entity.ActionId)
-					}
-					if entity.Status != 1 {
-						t.Error(" entity.Status != 1, excepted is ", 1, ", actual is ", entity.Status)
-					}
-					if entity.ManagedType != "managed_object" {
-						t.Error(" entity.ManagedType != mo_type, excepted is managed_object, actual is ", entity.ManagedType)
-					}
-					if entity.ManagedId != mo_id_int {
-						t.Error(" entity.ManagedId != mo_id, excepted is ", mo_id_int, ", actual is ", entity.ManagedId)
-					}
-					return
-				}
-
-				time.Sleep(1 * time.Second)
-			}
-
-			t.Error("not wait")
+			})
 		})
-	})
+	}
 }
 
 func getMetric(parentId, metric string) commons.Result {
@@ -483,13 +566,21 @@ func TestIntegratedHistoryWithCarrier(t *testing.T) {
 			is_test = true
 			*foreignUrl = url
 			Runforever()
+			if nil == server_test {
+				t.Error("load trigger failed.")
+				return
+			}
+			defer func() {
+				server_test.Stop()
+				server_test = nil
+			}()
 
 			if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
 				t.Error("load trigger failed.")
 				return
 			}
 
-			tr_instance := server_test.jobs[mt_id].(*metricJob)
+			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 
 			for i := 0; i < 100; i++ {
 				if nil != tr_instance.last_error {

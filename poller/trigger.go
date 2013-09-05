@@ -13,52 +13,52 @@ import (
 	"time"
 )
 
+type Trigger interface {
+	Id() string
+	Name() string
+	Version() time.Time
+	Stats() map[string]interface{}
+
+	Close(reason int)
+	CallActions(t time.Time, res interface{})
+}
+
 type triggerFunc func(t time.Time) error
 
-type trigger struct {
+type base_trigger struct {
 	commons.Logger
 	id         string
 	name       string
 	actions    []*actionWrapper
 	callback   triggerFunc
-	status     int32
 	updated_at time.Time
 
-	commands    map[string]func(t *trigger) string
 	expression  string
 	attachment  string
 	description string
 
 	l          sync.Mutex
 	last_error error
-	start      func(t *trigger) error
-	stop       func(t *trigger)
-	stats      func(m map[string]interface{})
 }
 
-func (self *trigger) Id() string {
+func (self *base_trigger) Id() string {
 	return self.id
 }
 
-func (self *trigger) Name() string {
+func (self *base_trigger) Name() string {
 	return self.name
 }
 
-func (self *trigger) Version() time.Time {
+func (self *base_trigger) Version() time.Time {
 	return self.updated_at
 }
 
-func (self *trigger) Stats() map[string]interface{} {
+func (self *base_trigger) Stats() map[string]interface{} {
 	res := map[string]interface{}{
 		"id":         self.Id(),
 		"name":       self.Name(),
 		"updated_at": self.updated_at,
-		"expression": self.expression,
-		"status":     commons.ToStatusString(int(atomic.LoadInt32(&self.status)))}
-
-	if nil != self.stats {
-		self.stats(res)
-	}
+		"expression": self.expression}
 
 	self.l.Lock()
 	defer self.l.Unlock()
@@ -78,33 +78,7 @@ func (self *trigger) Stats() map[string]interface{} {
 	return res
 }
 
-func (self *trigger) Start() error {
-	if !atomic.CompareAndSwapInt32(&self.status, commons.SRV_INIT, commons.SRV_STARTING) {
-		return nil
-	}
-
-	e := self.start(self)
-	if nil != e {
-		atomic.StoreInt32(&self.status, commons.SRV_INIT)
-	}
-	return e
-}
-
-func (self *trigger) Stop(reason int) {
-	if atomic.CompareAndSwapInt32(&self.status, commons.SRV_STARTING, commons.SRV_INIT) {
-		self.DEBUG.Print("it is starting")
-		return
-	}
-
-	if !atomic.CompareAndSwapInt32(&self.status, commons.SRV_RUNNING, commons.SRV_STOPPING) {
-		self.DEBUG.Print("it is not running")
-		return
-	}
-
-	self.stop(self)
-}
-
-func (self *trigger) callActions(t time.Time, res interface{}) {
+func (self *base_trigger) CallActions(t time.Time, res interface{}) {
 	if nil == res {
 		self.WARN.Print("result of '" + self.name + "' is nil")
 		return
@@ -115,26 +89,34 @@ func (self *trigger) callActions(t time.Time, res interface{}) {
 	}
 
 	self.callBefore()
-
 	for _, action := range self.actions {
 		action.Run(t, res)
 	}
-
 	self.callAfter()
 }
 
-func (self *trigger) callBefore() {
+func (self *base_trigger) callBefore() {
 	self.l.Lock()
 	defer self.l.Unlock()
 	for _, action := range self.actions {
 		action.RunBefore()
 	}
 }
-func (self *trigger) callAfter() {
+func (self *base_trigger) callAfter() {
 	self.l.Lock()
 	defer self.l.Unlock()
 	for _, action := range self.actions {
 		action.RunAfter()
+	}
+}
+
+func (self *base_trigger) reset(reason int) {
+	if CLOSE_REASON_NORMAL == reason {
+		return
+	}
+
+	for _, action := range self.actions {
+		action.reset(reason)
 	}
 }
 
@@ -147,7 +129,7 @@ var (
 	CommandIsRequired     = commons.IsRequired("command")
 )
 
-func newTrigger(attributes, options, ctx map[string]interface{}, callback triggerFunc) (*trigger, error) {
+func newTrigger(attributes, options, ctx map[string]interface{}, callback triggerFunc) (Trigger, error) {
 	id := commons.GetStringWithDefault(attributes, "id", "")
 	if "" == id {
 		return nil, IdIsRequired
@@ -182,9 +164,7 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 			return nil, errors.New("create action '" + action_id + ":" + action_name + "' failed, " + e.Error())
 		}
 		if !enabled {
-			if alert, ok := action.(*alertAction); ok {
-				alert.Reset(ALERT_REASON_DISABLED)
-			}
+			reset(action, CLOSE_REASON_DISABLED)
 		}
 		actions = append(actions, &actionWrapper{id: action_id, name: action_name, enabled: enabled, action: action})
 	}
@@ -211,95 +191,54 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 			return nil, errors.New(ExpressionSyntexError.Error() + ", " + err.Error())
 		}
 
-		it := &intervalTrigger{c: make(chan *request),
-			interval: interval}
-
-		t := &trigger{id: id,
+		it := &intervalTrigger{base_trigger: &base_trigger{id: id,
 			name:        name,
 			expression:  expression,
 			attachment:  commons.GetStringWithDefault(attributes, "attachment", ""),
 			description: commons.GetStringWithDefault(attributes, "description", ""),
 			updated_at:  commons.GetTimeWithDefault(attributes, "updated_at", time.Time{}),
-			status:      commons.SRV_INIT,
 			callback:    callback,
-			actions:     actions,
-			stats:       it.onStats,
-			start:       it.start,
-			stop:        it.stop}
-		it.trigger = t
-		t.InitLoggerWith(ctx, "log.")
-		return t, nil
+			actions:     actions},
+			interval: interval}
+		//status:   commons.SRV_INIT}
+		it.base_trigger.InitLoggerWith(ctx, "log.")
+		err = it.Init()
+		if nil != err {
+			return nil, err
+		}
+		return it, nil
 	}
 	return nil, ExpressionSyntexError
 }
 
 type intervalTrigger struct {
-	*trigger
+	*base_trigger
 	interval time.Duration
-	c        chan *request
+	c        chan int
+	wait     sync.WaitGroup
 
+	//status            int32
 	max_used_duration int64
 	begin_fired_at    int64
 	end_fired_at      int64
 }
 
-func (self *intervalTrigger) start(t *trigger) error {
+func (self *intervalTrigger) Init() error {
+	self.c = make(chan int)
 	go self.run()
+	self.wait.Add(1)
 	return nil
 }
 
-func (self *intervalTrigger) stop(t *trigger) {
-	self.send("exit")
-}
-
-func (self *intervalTrigger) command(cmd string) error {
-	if commons.SRV_RUNNING != atomic.LoadInt32(&self.status) {
-		return NotStart
-	}
-	return self.send(cmd)
-}
-
-var (
-	NotSend  = errors.New("send to trigger failed.")
-	NotStart = errors.New("it is not running.")
-)
-
-type request struct {
-	cmd    string
-	c      chan *request
-	result string
-}
-
-func (self *intervalTrigger) send(cmd string) error {
-	req := &request{
-		cmd: cmd,
-		c:   make(chan *request, 1)}
-	defer close(req.c)
-	select {
-	case self.c <- req:
-		select {
-		case res := <-req.c:
-			if "ok" == res.result {
-				return nil
-			}
-			return errors.New(res.result)
-		case <-time.After(5 * time.Second):
-			return commons.TimeoutErr
-		}
-	default: // it is required, becase run() may exited {status != running}
-		return NotSend
-	}
+func (self *intervalTrigger) Close(reason int) {
+	self.c <- 1
+	self.wait.Wait()
+	close(self.c)
+	self.reset(reason)
 }
 
 func (self *intervalTrigger) run() {
-	if !atomic.CompareAndSwapInt32(&self.status, commons.SRV_STARTING, commons.SRV_RUNNING) {
-		self.DEBUG.Print("it is stopping while starting.")
-		return
-	}
-
 	defer func() {
-		atomic.StoreInt32(&self.status, commons.SRV_INIT)
-
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
 			buffer.WriteString(fmt.Sprintf("[panic]%v", e))
@@ -314,6 +253,8 @@ func (self *intervalTrigger) run() {
 		} else {
 			self.DEBUG.Print("exited")
 		}
+
+		self.wait.Done()
 	}()
 
 	ticker := time.NewTicker(self.interval)
@@ -322,29 +263,9 @@ func (self *intervalTrigger) run() {
 	is_running := true
 	for is_running {
 		select {
-		case req := <-self.c:
-			if "exit" == req.cmd {
-				is_running = false
-				req.result = "ok"
-				func() {
-					defer func() {
-						if e := recover(); nil != e {
-							self.WARN.Printf("[panic] %v", e)
-						}
-					}()
-					req.c <- req
-				}()
-
-			} else {
-				self.executeCommand(req)
-			}
+		case <-self.c:
+			is_running = false
 		case t := <-ticker.C:
-			status := atomic.LoadInt32(&self.status)
-			if commons.SRV_RUNNING != status {
-				self.DEBUG.Printf("status is exited, status = %v", status)
-				is_running = false
-				break
-			}
 			self.timeout(t)
 		}
 	}
@@ -352,28 +273,13 @@ func (self *intervalTrigger) run() {
 	self.DEBUG.Print("stopping")
 }
 
-func (self *intervalTrigger) executeCommand(req *request) {
-	defer func() {
-		if e := recover(); nil != e {
-			req.result = "[panic]" + fmt.Sprint(e)
-			req.c <- req
-		}
-	}()
-
-	f := self.commands[req.cmd]
-	if nil != f {
-		req.result = f(self.trigger)
-	} else {
-		req.result = "[error]no such command"
-	}
-
-	req.c <- req
-}
-
-func (self *intervalTrigger) onStats(m map[string]interface{}) {
+func (self *intervalTrigger) Stats() map[string]interface{} {
+	m := self.base_trigger.Stats()
 	m["max_used_duration"] = strconv.FormatInt(atomic.LoadInt64(&self.max_used_duration), 10) + "s"
 	m["begin_fired_at"] = time.Unix(atomic.LoadInt64(&self.begin_fired_at), 0).Format(time.RFC3339Nano)
 	m["end_fired_at"] = time.Unix(atomic.LoadInt64(&self.end_fired_at), 0).Format(time.RFC3339Nano)
+	//m["status"] = commons.ToStatusString(int(atomic.LoadInt32(&self.status)))
+	return m
 }
 
 func (self *intervalTrigger) timeout(t time.Time) {

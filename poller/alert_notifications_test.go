@@ -273,6 +273,10 @@ func TestNotificationsForRedis(t *testing.T) {
 						t.Error("load trigger failed.")
 						return
 					}
+					defer func() {
+						server_test.Stop()
+						server_test = nil
+					}()
 
 					notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
 					ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "redis_command", redis_test_attributes)
@@ -396,6 +400,10 @@ func TestNotificationsForDb(t *testing.T) {
 					t.Error("load trigger failed.")
 					return
 				}
+				defer func() {
+					server_test.Stop()
+					server_test = nil
+				}()
 
 				db_command_test_attributes["drv"] = db_drv
 				db_command_test_attributes["url"] = db_url
@@ -471,6 +479,10 @@ func TestNotificationsForExec(t *testing.T) {
 					t.Error("load trigger failed.")
 					return
 				}
+				defer func() {
+					server_test.Stop()
+					server_test = nil
+				}()
 
 				notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
 				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "exec_command", exec_command_test_attributes)
@@ -572,6 +584,10 @@ func TestNotificationsForSyslog(t *testing.T) {
 						t.Error("load trigger failed.")
 						return
 					}
+					defer func() {
+						server_test.Stop()
+						server_test = nil
+					}()
 
 					notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
 					ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "syslog", syslog_test_attributes)
@@ -660,6 +676,10 @@ func TestNotificationsForMail(t *testing.T) {
 					t.Error("load trigger failed.")
 					return
 				}
+				defer func() {
+					server_test.Stop()
+					server_test = nil
+				}()
 
 				notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
 				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "mail", mail_test_attributes)

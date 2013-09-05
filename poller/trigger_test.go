@@ -34,26 +34,27 @@ func TestTrigger(t *testing.T) {
 		return
 	}
 
-	tg.Logger.InitLoggerWithCallback(func(bs []byte) {
+	trgger := tg.(*intervalTrigger)
+	trgger.Logger.InitLoggerWithCallback(func(bs []byte) {
 		t.Log(string(bs))
 	}, "test trigger", log.LstdFlags)
 
-	if !tg.Logger.DEBUG.IsEnabled() {
-		tg.Logger.DEBUG.Switch()
+	if !trgger.Logger.DEBUG.IsEnabled() {
+		trgger.Logger.DEBUG.Switch()
 	}
 
-	e = tg.Start()
-	if nil != e {
-		t.Error(e)
-		return
-	}
-	defer tg.Stop(STOP_REASON_NORMAL)
+	// e = tg.Start()
+	// if nil != e {
+	// 	t.Error(e)
+	// 	return
+	// }
+	//defer tg.Stop(STOP_REASON_NORMAL)
 
 	for c := 0; c < 1000 && 0 == atomic.LoadInt32(&i); c += 1 {
 		time.Sleep(10 * time.Microsecond)
 	}
 
-	tg.Stop(STOP_REASON_NORMAL)
+	tg.Close(CLOSE_REASON_NORMAL)
 
 	if i <= 0 {
 		t.Error("it is not timeout")

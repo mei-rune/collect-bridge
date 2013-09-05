@@ -45,13 +45,23 @@ func TestLoadCookiesWhileStartServer(t *testing.T) {
 			is_test = true
 			*load_cookies = true
 			Runforever()
+			if nil == server_test {
+				t.Error("load trigger failed.")
+				return
+			}
+			defer func() {
+				server_test.Stop()
+				server_test = nil
+			}()
 
-			if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+			if nil == server_test.jobs || 0 == len(server_test.jobs) {
 				t.Error("load trigger failed.")
 				return
 			}
 
-			server_test.jobs[mt_id].(*metricJob).callAfter()
+			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+			tr_instance.callAfter()
+			//server_test.jobs[mt_id].(*metricJob).callAfter()
 			stats := server_test.jobs[mt_id].Stats()
 			bs, e := json.MarshalIndent(stats, "", "  ")
 			if nil != e {
@@ -73,6 +83,14 @@ func TestLoadCookiesWhileOnTick(t *testing.T) {
 			is_test = true
 			*load_cookies = true
 			Runforever()
+			if nil == server_test {
+				t.Error("load trigger failed.")
+				return
+			}
+			defer func() {
+				server_test.Stop()
+				server_test = nil
+			}()
 
 			id := ds.CreateItForTest(t, client, "network_device", mo)
 			ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
@@ -107,7 +125,9 @@ func TestLoadCookiesWhileOnTick(t *testing.T) {
 				return
 			}
 
-			server_test.jobs[mt_id].(*metricJob).callAfter()
+			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+			tr_instance.callAfter()
+			//server_test.jobs[mt_id].(*metricJob).callAfter()
 			stats := server_test.jobs[mt_id].Stats()
 			bs, e := json.MarshalIndent(stats, "", "  ")
 			if nil != e {
@@ -129,6 +149,14 @@ func TestLoadCookiesWhileOnTickWithNotfound(t *testing.T) {
 			is_test = true
 			*load_cookies = true
 			Runforever()
+			if nil == server_test {
+				t.Error("load trigger failed.")
+				return
+			}
+			defer func() {
+				server_test.Stop()
+				server_test = nil
+			}()
 
 			id := ds.CreateItForTest(t, client, "network_device", mo)
 			ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
@@ -151,7 +179,8 @@ func TestLoadCookiesWhileOnTickWithNotfound(t *testing.T) {
 				return
 			}
 
-			server_test.jobs[mt_id].(*metricJob).callAfter()
+			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+			tr_instance.callAfter()
 			stats := server_test.jobs[mt_id].Stats()
 			bs, e := json.MarshalIndent(stats, "", "  ")
 			if nil != e {
@@ -185,6 +214,15 @@ func TestCookiesIsClear(t *testing.T) {
 
 			is_test = true
 			Runforever()
+			if nil == server_test {
+				t.Error("load trigger failed.")
+				return
+			}
+			defer func() {
+				server_test.Stop()
+				server_test = nil
+			}()
+
 			count := int64(0)
 			e := db.QueryRow(`SELECT count(*) FROM tpt_alert_cookies`).Scan(&count)
 			if nil != e {
@@ -230,6 +268,15 @@ func TestCookiesNotClear(t *testing.T) {
 
 			is_test = true
 			Runforever()
+			if nil == server_test {
+				t.Error("load trigger failed.")
+				return
+			}
+			defer func() {
+				server_test.Stop()
+				server_test = nil
+			}()
+
 			count := int64(0)
 			e := db.QueryRow(`SELECT count(*) FROM tpt_alert_cookies`).Scan(&count)
 			if nil != e {
@@ -280,6 +327,15 @@ func TestCookiesLoadStatus(t *testing.T) {
 
 			is_test = true
 			Runforever()
+			if nil == server_test {
+				t.Error("load trigger failed.")
+				return
+			}
+			defer func() {
+				server_test.Stop()
+				server_test = nil
+			}()
+
 			count := int64(0)
 			e := db.QueryRow(`SELECT count(*) FROM tpt_alert_cookies`).Scan(&count)
 			if nil != e {
@@ -297,7 +353,10 @@ func TestCookiesLoadStatus(t *testing.T) {
 				t.Error("job is not found")
 				return
 			}
-			action := job.(*metricJob).actions[0]
+
+			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+			//tr_instance.callAfter()
+			action := tr_instance.actions[0]
 			action.RunAfter()
 			stats := action.Stats()
 			if "1" != fmt.Sprint(stats["last_status"]) {

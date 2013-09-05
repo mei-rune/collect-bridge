@@ -9,14 +9,15 @@ import (
 )
 
 const (
-	STOP_REASON_NORMAL  = 0
-	STOP_REASON_DELETE  = 1
-	STOP_REASON_DISABLE = 1
+	CLOSE_REASON_NORMAL   = -1
+	CLOSE_REASON_UNKNOW   = 0
+	CLOSE_REASON_DISABLED = 1
+	CLOSE_REASON_DELETED  = 2
+	CLOSE_REASON_MAX      = 2
 )
 
 type Job interface {
-	Start() error
-	Stop(reason int)
+	Close(reason int)
 
 	Id() string
 	Name() string
@@ -34,14 +35,14 @@ func newJob(attributes, ctx map[string]interface{}) (Job, error) {
 }
 
 type metricJob struct {
-	*trigger
+	Trigger
 	metric string
 	params map[string]string
 	client commons.HttpClient
 }
 
 func (self *metricJob) Stats() map[string]interface{} {
-	res := self.trigger.Stats()
+	res := self.Trigger.Stats()
 	if nil != self.params {
 		for k, v := range self.params {
 			res[k] = v
@@ -52,7 +53,7 @@ func (self *metricJob) Stats() map[string]interface{} {
 
 func (self *metricJob) run(t time.Time) error {
 	res := self.client.InvokeWith("GET", self.client.Url, nil, 200)
-	self.callActions(t, res)
+	self.CallActions(t, res)
 	if res.HasError() {
 		return errors.New("sampling failed, " + res.ErrorMessage())
 	}
@@ -95,7 +96,7 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		params: map[string]string{"managed_type": "managed_object", "managed_id": parentId, "metric": metric, "trigger_id": id},
 		client: commons.HttpClient{Url: client_url}}
 
-	job.trigger, e = newTrigger(attributes,
+	job.Trigger, e = newTrigger(attributes,
 		map[string]interface{}{"managed_type": "managed_object", "managed_id": parentId_int64, "metric": metric, "trigger_id": id},
 		ctx,
 		job.run)

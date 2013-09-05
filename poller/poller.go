@@ -149,6 +149,9 @@ func Runforever() {
 	ws := new(restful.WebService)
 	if is_test {
 		ws.Path("jobs")
+		if nil != server_test {
+			panic("server_test instance is already exists")
+		}
 		server_test = srv
 	}
 	ws.Route(ws.GET("/").To(mainHandle))
@@ -191,4 +194,13 @@ func Runforever() {
 			log.Println(e)
 		}
 	}
+}
+
+func init() {
+	go func() {
+		e := http.ListenAndServe(":0", nil)
+		if nil != e {
+			log.Println(e)
+		}
+	}()
 }

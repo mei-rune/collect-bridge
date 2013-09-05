@@ -541,6 +541,27 @@ func createJson(t *testing.T, client *Client, target, msg string) string {
 	return id
 }
 
+func DeleteItForTest(t *testing.T, client *Client, target string, id string) {
+	e := client.DeleteById(target, id)
+	if nil != e {
+		t.Errorf("delete %s failed, %v", target, e)
+		t.FailNow()
+	}
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
+	}
+}
+
+func UpdateItForTest(t *testing.T, client *Client, target string, id string, values map[string]interface{}) {
+	e := client.UpdateById(target, id, values)
+	if nil != e {
+		t.Errorf("delete %s failed, %v", target, e)
+		t.FailNow()
+	}
+	if nil != client.Warnings {
+		t.Error(client.Warnings)
+	}
+}
 func CreateItForTest(t *testing.T, client *Client, target string, values map[string]interface{}) string {
 	id, e := client.Create(target, values)
 	if nil != e {

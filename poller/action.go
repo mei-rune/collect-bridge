@@ -49,6 +49,12 @@ func (self *testAction) Stats() map[string]interface{} {
 	return self.stats
 }
 
+func reset(action ExecuteAction, reason int) {
+	if alert, ok := action.(*alertAction); ok {
+		alert.Reset(reason)
+	}
+}
+
 func newTestAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, error) {
 	return attributes["action"].(ExecuteAction), nil
 }
@@ -71,6 +77,10 @@ func (self *actionWrapper) Stats() map[string]interface{} {
 		stats["enabled"] = self.enabled
 	}
 	return stats
+}
+
+func (self *actionWrapper) reset(reason int) {
+	reset(self.action, reason)
 }
 
 func (self *actionWrapper) RunBefore() {

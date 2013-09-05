@@ -63,11 +63,7 @@ type errorJob struct {
 	updated_at time.Time
 }
 
-func (self *errorJob) Start() error {
-	return nil
-}
-
-func (self *errorJob) Stop(reason int) {
+func (self *errorJob) Close(reason int) {
 }
 
 func (self *errorJob) Id() string {
@@ -126,15 +122,6 @@ func (s *server) startJob(attributes map[string]interface{}) {
 		goto end
 	}
 
-	e = job.Start()
-	if nil != e {
-		updated_at, _ := commons.GetTime(attributes, "updated_at")
-		msg := fmt.Sprintf("start '%v:%v' failed, %v\n", id, name, e)
-		job = &errorJob{clazz: clazz, id: id, name: name, e: msg, updated_at: updated_at}
-		log.Print(msg)
-		goto end
-	}
-
 	log.Printf("load '%v:%v' is ok\n", id, name)
 end:
 	s.jobs[job.Id()] = job
@@ -165,7 +152,7 @@ func (s *server) stopJob(id string, reason int) {
 	if !ok {
 		return
 	}
-	job.Stop(reason)
+	job.Close(reason)
 	delete(s.jobs, id)
 	log.Println("stop trigger with id was '" + id + "'")
 }
@@ -295,7 +282,7 @@ func (s *server) onStart() error {
 
 func (s *server) onStop() {
 	for _, job := range s.jobs {
-		job.Stop(STOP_REASON_NORMAL)
+		job.Close(CLOSE_REASON_NORMAL)
 	}
 	s.jobs = make(map[string]Job)
 
@@ -326,14 +313,14 @@ func (s *server) onIdle() {
 
 	if nil != updated {
 		for _, id := range updated {
-			s.stopJob(id, STOP_REASON_NORMAL)
+			s.stopJob(id, CLOSE_REASON_NORMAL)
 			s.loadJob(id)
 		}
 	}
 
 	if nil != deleted {
 		for _, id := range deleted {
-			s.stopJob(id, STOP_REASON_DELETE)
+			s.stopJob(id, CLOSE_REASON_DELETED)
 		}
 	}
 }

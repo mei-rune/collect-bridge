@@ -392,7 +392,7 @@ func TestAlertReset(t *testing.T) {
 		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
 		}
-		resetAndNotRecv(ALERT_REASON_DISABLED)
+		resetAndNotRecv(CLOSE_REASON_DISABLED)
 
 		for i := 0; i < test.delay_times-1; i++ {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
@@ -409,7 +409,7 @@ func TestAlertReset(t *testing.T) {
 			sendAndNotRecv(map[string]interface{}{"a": "13"})
 		}
 
-		resetAndRecv(ALERT_REASON_DISABLED)
+		resetAndRecv(CLOSE_REASON_DISABLED)
 	}
 }
 
@@ -1162,9 +1162,9 @@ func TestAlertMessage(t *testing.T) {
 		sendAndRecv(test.resume_message, map[string]interface{}{"a": "12"})
 
 		sendAndRecv(test.alert_message, map[string]interface{}{"a": "13"})
-		resetAndRecv(test.disabled_message, ALERT_REASON_DISABLED)
+		resetAndRecv(test.disabled_message, CLOSE_REASON_DISABLED)
 
 		sendAndRecv(test.alert_message, map[string]interface{}{"a": "13"})
-		resetAndRecv(test.deleted_message, ALERT_REASON_DELETED)
+		resetAndRecv(test.deleted_message, CLOSE_REASON_DELETED)
 	}
 }

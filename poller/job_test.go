@@ -21,7 +21,6 @@ func (self httpH) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 }
 
 func TestJobWithSamplingFailed(t *testing.T) {
-
 	l, e := net.Listen("tcp", "127.0.0.1:0")
 	if nil != e {
 		t.Error(e)
@@ -58,7 +57,7 @@ func TestJobWithSamplingFailed(t *testing.T) {
 
 	defer stop()
 
-	ch := make(chan []string, 1)
+	ch := make(chan []string, 1000)
 	tg, e := newJob(map[string]interface{}{
 		"id":                "this is a test trigger id",
 		"name":              "this is a test trigger",
@@ -83,29 +82,30 @@ func TestJobWithSamplingFailed(t *testing.T) {
 		return
 	}
 
-	e = tg.Start()
-	if nil != e {
-		t.Error(e)
-		return
-	}
-	defer tg.Stop(STOP_REASON_NORMAL)
+	// e = tg.Start()
+	// if nil != e {
+	// 	t.Error(e)
+	// 	return
+	// }
+	//defer tg.Close(CLOSE_REASON_NORMAL)
 
 	for c := 0; c < 1000 && 0 == atomic.LoadInt32(&called); c += 1 {
 		time.Sleep(10 * time.Microsecond)
 	}
 
-	tg.Stop(STOP_REASON_NORMAL)
+	tg.Close(CLOSE_REASON_NORMAL)
 	stop()
 
 	if 0 == called {
 		t.Error("not call")
 	}
 
-	if nil == tg.(*metricJob).trigger.last_error {
+	it := tg.(*metricJob).Trigger.(*intervalTrigger)
+	if nil == it.last_error {
 		t.Error("last_error is nil")
-	} else if !strings.Contains(tg.(*metricJob).trigger.last_error.Error(), error_message) {
+	} else if !strings.Contains(it.last_error.Error(), error_message) {
 		t.Error("excepted error is ", error_message)
-		t.Error("actual error is ", tg.(*metricJob).trigger.last_error.Error())
+		t.Error("actual error is ", it.last_error.Error())
 	}
 }
 
@@ -147,7 +147,7 @@ func TestJobFull(t *testing.T) {
 
 	defer stop()
 
-	ch := make(chan []string, 1)
+	ch := make(chan []string, 1000)
 	tg, e := newJob(map[string]interface{}{
 		"id":                "test_id",
 		"name":              "this is a test trigger",
@@ -175,18 +175,17 @@ func TestJobFull(t *testing.T) {
 		return
 	}
 
-	e = tg.Start()
-	if nil != e {
-		t.Error(e)
-		return
-	}
-	defer tg.Stop(STOP_REASON_NORMAL)
+	// e = tg.Start()
+	// if nil != e {
+	// 	t.Error(e)
+	// 	return
+	// }
 
 	for c := 0; c < 1000 && 0 == atomic.LoadInt32(&called); c += 1 {
 		time.Sleep(10 * time.Microsecond)
 	}
 
-	tg.Stop(STOP_REASON_NORMAL)
+	tg.Close(CLOSE_REASON_NORMAL)
 	stop()
 
 	if 0 == called {

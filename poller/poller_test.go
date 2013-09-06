@@ -509,8 +509,8 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 						ds.UpdateItForTest(t, client, "alert", rule_id, map[string]interface{}{"enabled": false})
 						ds.UpdateItForTest(t, client, "metric_trigger", mt_id, map[string]interface{}{}) // touch updated_at of trigger
 					}
-					server_test.onIdle()mfksof
-					entities, e := carrier.SelecmfksfotAlertCookies(db)
+					server_test.onIdle()
+					entities, e := carrier.SelectAlertCookies(db)
 					if nil != e {
 						t.Error(e)
 						return

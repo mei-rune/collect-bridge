@@ -35,7 +35,7 @@ func (self *ICMPDriver) Get(params map[string]string) commons.Result {
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithNotFound("icmp_pinger", id)
+		return commons.ReturnWithRecordNotFound("icmp_pinger", id)
 	}
 
 	values := make([]string, 0, 10)
@@ -59,7 +59,7 @@ func (self *ICMPDriver) Put(params map[string]string, body interface{}) commons.
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithNotFound("icmp_pinger", id)
+		return commons.ReturnWithRecordNotFound("icmp_pinger", id)
 	}
 
 	var ipList []string
@@ -160,7 +160,7 @@ func (self *ICMPDriver) Delete(params map[string]string) commons.Result {
 	}
 	pinger, ok := self.pingers[id]
 	if !ok {
-		return commons.ReturnWithNotFound("icmp_pinger", id)
+		return commons.ReturnWithRecordNotFound("icmp_pinger", id)
 	}
 	delete(self.pingers, id)
 	pinger.Close()

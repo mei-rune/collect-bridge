@@ -169,47 +169,53 @@ func (self *snmpBase) GetResult(params MContext, oid string, rt result_type) com
 	return self.ReadResult(params, "get", oid, rt)
 }
 
+func returnResult(e error) commons.Result {
+	if err, ok := e.(commons.RuntimeError); ok {
+		return commons.ReturnError(err.Code(), err.Error())
+	}
+	return commons.ReturnWithInternalError(e.Error())
+}
 func (self *snmpBase) ReadResult(params MContext, action, oid string, rt result_type) commons.Result {
 	values, e := self.Read(params, action, oid)
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return returnResult(e)
 	}
 
 	switch rt {
 	case RES_STRING:
 		s, e := TryGetString(params, values, oid)
 		if nil != e {
-			return commons.ReturnWithInternalError(e.Error())
+			return returnResult(e)
 		}
 		return commons.Return(s)
 	case RES_OID:
 		s, e := TryGetOid(params, values, oid)
 		if nil != e {
-			return commons.ReturnWithInternalError(e.Error())
+			return returnResult(e)
 		}
 		return commons.Return(s)
 	case RES_INT32:
 		i32, e := TryGetInt32(params, values, oid, 0)
 		if nil != e {
-			return commons.ReturnWithInternalError(e.Error())
+			return returnResult(e)
 		}
 		return commons.Return(i32)
 	case RES_INT64:
 		i64, e := TryGetInt64(params, values, oid, 0)
 		if nil != e {
-			return commons.ReturnWithInternalError(e.Error())
+			return returnResult(e)
 		}
 		return commons.Return(i64)
 	case RES_UINT32:
 		u32, e := TryGetUint32(params, values, oid, 0)
 		if nil != e {
-			return commons.ReturnWithInternalError(e.Error())
+			return returnResult(e)
 		}
 		return commons.Return(u32)
 	case RES_UINT64:
 		u64, e := TryGetInt64(params, values, oid, 0)
 		if nil != e {
-			return commons.ReturnWithInternalError(e.Error())
+			return returnResult(e)
 		}
 		return commons.Return(u64)
 	default:
@@ -471,7 +477,7 @@ func (self *snmpRead) Call(params MContext) commons.Result {
 	default:
 		values, e := self.Read(params, self.action, oid)
 		if nil != e {
-			return commons.ReturnWithInternalError(e.Error())
+			return returnResult(e)
 		}
 		return commons.Return(values)
 	}
@@ -511,7 +517,7 @@ func (self *snmpWrite) Call(params MContext) commons.Result {
 
 	e = self.Write(params, oid, body)
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return returnResult(e)
 	}
 	return commons.Return(true)
 }

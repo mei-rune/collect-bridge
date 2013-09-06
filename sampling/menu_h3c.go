@@ -323,7 +323,6 @@ func (self *baseH3C) readMemoryWithNewStyle(params MContext,
 }
 
 func (self *baseH3C) readCpuWithStyle(usage_oid string, params MContext, id_list map[string]map[string]interface{}) (map[string]interface{}, error) {
-
 	var total int
 	var results []int
 	var detail_results []map[string]interface{}
@@ -422,7 +421,10 @@ restart_read:
 			break
 		}
 		if nil != e {
-			return commons.ReturnWithInternalError("read " + name + " with compatible style failed, " + e.Error())
+			err, ok := e.(commons.RuntimeError)
+			if !ok || commons.NotFoundCode != err.Code() {
+				return commons.ReturnWithInternalError("read " + name + " with compatible style failed, " + e.Error())
+			}
 		}
 		fallthrough
 	case 25506:

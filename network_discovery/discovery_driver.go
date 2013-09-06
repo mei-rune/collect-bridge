@@ -35,7 +35,7 @@ func (self *DiscoveryDriver) Get(params map[string]string) commons.Result {
 	}
 	discoverer, ok := self.discoverers[id]
 	if !ok {
-		return commons.ReturnWithNotFound("discovery", id)
+		return commons.ReturnWithRecordNotFound("discovery", id)
 	}
 
 	dst, ok := params["dst"]
@@ -63,7 +63,7 @@ func (self *DiscoveryDriver) Put(params map[string]string) commons.Result {
 	}
 	discoverer, ok := self.discoverers[id]
 	if !ok {
-		return commons.ReturnWithNotFound("discovery", id)
+		return commons.ReturnWithRecordNotFound("discovery", id)
 	}
 
 	body, ok := params["body"]
@@ -120,7 +120,7 @@ func (self *DiscoveryDriver) Delete(params map[string]string) commons.Result {
 	}
 	discoverer, ok := self.discoverers[id]
 	if !ok {
-		return commons.ReturnWithNotFound("discovery", id)
+		return commons.ReturnWithRecordNotFound("discovery", id)
 	}
 
 	delete(self.discoverers, id)

@@ -179,7 +179,16 @@ func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]str
 	results := make(map[string]interface{})
 	for _, vb := range resp.GetVariableBindings().All() {
 		if vb.Value.IsError() && 1 == req.GetVariableBindings().Len() {
-			return internalErrorResult("result is error -- "+vb.Value.String(), nil)
+			switch vb.Value.GetSyntax() {
+			case snmpclient.SNMP_SYNTAX_NOSUCHOBJECT:
+				return commons.ReturnError(commons.NotFoundCode, "'"+vb.Oid.GetString()+"' is nosuchobject.")
+			case snmpclient.SNMP_SYNTAX_NOSUCHINSTANCE:
+				return commons.ReturnError(commons.NotFoundCode, "'"+vb.Oid.GetString()+"' is nosuchinstance.")
+			case snmpclient.SNMP_SYNTAX_ENDOFMIBVIEW:
+				return commons.ReturnError(commons.NotFoundCode, "'"+vb.Oid.GetString()+"' is endofmibview.")
+			default:
+				return commons.ReturnWithInternalError("result of '" + vb.Oid.GetString() + "' is error -- " + vb.Value.String())
+			}
 		}
 
 		results[vb.Oid.GetString()] = vb.Value

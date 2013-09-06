@@ -281,7 +281,7 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if nil == mo {
-			self.returnResult(w, commons.ReturnWithNotFound(managed_type, managed_id))
+			self.returnResult(w, commons.ReturnWithRecordNotFound(managed_type, managed_id))
 			return
 		}
 		// if "managed_object" == managed_type && "137" == managed_id {

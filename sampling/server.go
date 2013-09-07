@@ -3,6 +3,7 @@ package sampling
 import (
 	"bytes"
 	"commons"
+	"commons/types"
 	ds "data_store"
 	"encoding/json"
 	"errors"
@@ -11,13 +12,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/http/pprof"
 	"runtime"
 	"strings"
-	"time"
-
-	"commons/types"
-	"net/http/pprof"
 	"testing"
+	"time"
 )
 
 var (
@@ -222,7 +221,7 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/debug/vars":
 			expvarHandler(w, r)
-		case "/debug/pprof/":
+		case "/debug/pprof", "/debug/pprof/":
 			pprof.Index(w, r)
 		case "/debug/pprof/cmdline":
 			pprof.Cmdline(w, r)
@@ -231,6 +230,11 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "/debug/pprof/symbol":
 			pprof.Symbol(w, r)
 		default:
+			if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
+				pprof.Index(w, r)
+				return
+			}
+
 			http.NotFound(w, r)
 		}
 		return
@@ -283,6 +287,21 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if nil == mo {
 			self.returnResult(w, commons.ReturnWithRecordNotFound(managed_type, managed_id))
 			return
+		}
+		switch mo["type"] {
+		case "network_device_port":
+			device_id := fmt.Sprint(mo["device_id"])
+			ifIndex := fmt.Sprint(mo["if_index"])
+			mo, e = self.mo_cache.Get(device_id)
+			if nil != e {
+				self.returnResult(w, commons.ReturnWithInternalError(e.Error()))
+				return
+			}
+			if nil == mo {
+				self.returnResult(w, commons.ReturnWithRecordNotFound("device", managed_id))
+				return
+			}
+			query_paths = []P{{"port", ifIndex}}
 		}
 		// if "managed_object" == managed_type && "137" == managed_id {
 		// 	bs, _ := json.MarshalIndent(mo, "", "  ")
@@ -366,6 +385,17 @@ func (self *server) CreateCtx(metric_name string, managed_type, managed_id strin
 	if nil == mo {
 		return nil, errors.New(managed_type + " with id was '" + managed_id + "' is not found.")
 	}
+
+	// switch mo["type"] {
+	// case "network_device_port":
+	// 	mo, e = self.mo_cache.Get(fmt.Sprint(mo["device_id"]))
+	// 	if nil != e {
+	// 		return nil, errors.New("device with id was '" + fmt.Sprint(mo["device_id"]) + "' is not found, " + e.Error())
+	// 	}
+	// 	if nil == mo {
+	// 		return nil, errors.New("device with id was '" + fmt.Sprint(mo["device_id"]) + "' is not found.")
+	// 	}
+	// }
 
 	return &context{params: query_params,
 		managed_type: managed_type,

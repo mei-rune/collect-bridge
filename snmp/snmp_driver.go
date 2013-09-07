@@ -57,8 +57,25 @@ func internalError(msg string, err error) error {
 	if nil == err {
 		return errors.New(msg)
 	}
+
+	if e, ok := err.(snmpclient.SnmpError); ok {
+		switch e.Code() {
+		case snmpclient.SNMP_CODE_SYNTAX_NOSUCHOBJECT, /* exception */
+			snmpclient.SNMP_CODE_SYNTAX_NOSUCHINSTANCE, /* exception */
+			snmpclient.SNMP_CODE_SYNTAX_ENDOFMIBVIEW,   /* exception */
+			snmpclient.SNMP_CODE_ERR_NOSUCHNAME:
+			if 0 == len(msg) {
+				return commons.NotFound(err.Error())
+			}
+			return commons.NotFound(msg + ", " + err.Error())
+		}
+	}
+
 	if 0 == len(msg) {
 		return err
+	}
+	if e, ok := err.(commons.RuntimeError); ok {
+		return commons.NewApplicationError(e.Code(), msg+", "+err.Error())
 	}
 	return errors.New(msg + ", " + err.Error())
 }
@@ -67,8 +84,24 @@ func internalErrorResult(msg string, err error) commons.Result {
 	if nil == err {
 		return commons.ReturnWithInternalError(msg)
 	}
+	if e, ok := err.(snmpclient.SnmpError); ok {
+		switch e.Code() {
+		case snmpclient.SNMP_CODE_SYNTAX_NOSUCHOBJECT, /* exception */
+			snmpclient.SNMP_CODE_SYNTAX_NOSUCHINSTANCE, /* exception */
+			snmpclient.SNMP_CODE_SYNTAX_ENDOFMIBVIEW,   /* exception */
+			snmpclient.SNMP_CODE_ERR_NOSUCHNAME:
+			if 0 == len(msg) {
+				return commons.ReturnWithNotFound(err.Error())
+			}
+			return commons.ReturnWithNotFound(msg + ", " + err.Error())
+		}
+	}
+
 	if 0 == len(msg) {
 		return commons.ReturnWithInternalError(err.Error())
+	}
+	if e, ok := err.(commons.RuntimeError); ok {
+		return commons.ReturnError(e.Code(), msg+", "+err.Error())
 	}
 	return commons.ReturnWithInternalError(msg + ", " + err.Error())
 }

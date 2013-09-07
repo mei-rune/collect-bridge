@@ -200,6 +200,8 @@ func (self *foreignDb) save(objects *bytes.Buffer) (e error) {
 
 		if nil != e {
 			self.last_error.Set(e.Error())
+		} else {
+			self.last_error.Set("")
 		}
 	}()
 

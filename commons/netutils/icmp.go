@@ -30,9 +30,10 @@ const (
 )
 
 type PingResult struct {
-	addr  net.Addr
-	bytes []byte
-	err   error
+	Addr      net.Addr
+	Bytes     []byte
+	Err       error
+	Timestamp int64
 }
 
 type Pinger struct {
@@ -70,7 +71,7 @@ func newPinger(family int, network, laddr string, echo []byte, capacity int) (*P
 		conn:       c,
 		ch:         make(chan *PingResult, capacity),
 		newRequest: newRequest}
-	icmp.Send("127.0.0.1", nil)
+	//icmp.Send("127.0.0.1", nil)
 	go icmp.serve()
 	icmp.wait.Add(1)
 	return icmp, nil
@@ -89,7 +90,7 @@ func NewPinger(netwwork, laddr string, echo []byte, capacity int) (*Pinger, erro
 func (self *Pinger) Close() {
 	self.conn.Close()
 	self.wait.Wait()
-	defer close(self.ch)
+	close(self.ch)
 }
 
 func (self *Pinger) GetChannel() <-chan *PingResult {
@@ -125,7 +126,7 @@ func (self *Pinger) Send(raddr string, echo []byte) error {
 func (self *Pinger) Recv(timeout time.Duration) (net.Addr, []byte, error) {
 	select {
 	case res := <-self.ch:
-		return res.addr, res.bytes, res.err
+		return res.Addr, res.Bytes, res.Err
 	case <-time.After(timeout):
 		return nil, nil, commons.TimeoutErr
 	}
@@ -139,7 +140,7 @@ func (self *Pinger) serve() {
 		reply := make([]byte, 2048)
 		l, ra, err := self.conn.ReadFrom(reply)
 		if err != nil {
-			self.ch <- &PingResult{err: fmt.Errorf("ReadFrom failed: %v", err)}
+			self.ch <- &PingResult{Err: fmt.Errorf("ReadFrom failed: %v", err)}
 			break
 		}
 
@@ -154,7 +155,7 @@ func (self *Pinger) serve() {
 			}
 		}
 		_, _, _, _, bytes := parseICMPEchoReply(reply[:l])
-		self.ch <- &PingResult{addr: ra, bytes: bytes}
+		self.ch <- &PingResult{Addr: ra, Bytes: bytes, Timestamp: time.Now().Unix()}
 	}
 }
 

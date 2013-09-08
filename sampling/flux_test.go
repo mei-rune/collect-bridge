@@ -35,7 +35,7 @@ func TestLinkFlux(t *testing.T) {
 			id := ds.CreateItForTest(t, client, "network_link", link)
 
 			res := urlGet(t, sampling_url, "network_link", id, "link_flux")
-			if res.HasError() && !strings.Contains(res.ErrorMessage(), "sample is pending.") {
+			if res.HasError() && !strings.Contains(res.ErrorMessage(), "sampled is pending.") {
 				t.Error(res.Error())
 				return
 			}
@@ -71,7 +71,7 @@ func TestInterfaceFluxNative(t *testing.T) {
 			return
 		}
 		res := nativeGet(t, sampling_url, "127.0.0.1", "port/"+*flux_port+"/interface_flux", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
-		if res.HasError() && !strings.Contains(res.ErrorMessage(), "sample is pending.") {
+		if res.HasError() && !strings.Contains(res.ErrorMessage(), "sampled is pending.") {
 			t.Error(res.Error())
 			return
 		}
@@ -112,7 +112,7 @@ func TestInterfaceFlux(t *testing.T) {
 			"if_speed": 23})
 
 		res := urlGet(t, sampling_url, "network_device_port", port_id, "interface_flux")
-		if res.HasError() && !strings.Contains(res.ErrorMessage(), "sample is pending.") {
+		if res.HasError() && !strings.Contains(res.ErrorMessage(), "sampled is pending.") {
 			t.Error(res.Error())
 			return
 		}

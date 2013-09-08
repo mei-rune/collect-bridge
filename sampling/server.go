@@ -429,6 +429,11 @@ func SrvTest(t *testing.T, file string, cb func(client *ds.Client, sampling_url 
 		is_test = true
 		Main()
 
+		if nil == srv_instance {
+			t.Error("srv_instance is nil")
+			return
+		}
+
 		hsrv := httptest.NewServer(srv_instance)
 		fmt.Println("[sampling-test] serving at '" + hsrv.URL + "'")
 		defer hsrv.Close()

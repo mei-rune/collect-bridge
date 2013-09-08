@@ -131,7 +131,7 @@ func calc64Bit(ifLast, ifCurrent uint64) uint64 {
 	}
 }
 
-var pendingError = errors.New("sample is pending.")
+var pendingError = errors.New("sampled is pending.")
 
 func calcFlux(res *Flux, buffer *fluxBuffer, interval uint64, last_at int64) error {
 	if 2 > buffer.Size() {

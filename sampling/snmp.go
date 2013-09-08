@@ -20,8 +20,9 @@ const (
 )
 
 var (
-	metricNotExistsError = commons.IsRequired("metric")
-	snmpNotExistsError   = commons.IsRequired("snmp")
+	metricNotExistsError   = commons.IsRequired("metric")
+	snmpNotExistsError     = commons.IsRequired("snmp")
+	snmpv3UnsupportedError = errors.New("snmpv3 is unsupported.")
 )
 
 type snmpBase struct {

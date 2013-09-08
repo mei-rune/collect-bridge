@@ -10,14 +10,21 @@ import (
 )
 
 var (
-	address               = flag.String("sampling.listen", ":7072", "the address of http")
-	ds_url                = flag.String("ds.url", "http://127.0.0.1:7071", "the address of http")
-	refresh               = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
-	snmp_timeout          = flag.Duration("snmp.timeout", 60*time.Second, "the timeout duration of snmp")
-	period_interval       = flag.Duration("period", 1*time.Second, "the tick interval of backgroundWorker")
-	flux_buffer_size      = flag.Int("flux_buffer_size", 30, "the default buffer size of flux")
-	icmp_buffer_size      = flag.Int("icmp_buffer_size", 30, "the default buffer size of icmp")
-	snmp_test_buffer_size = flag.Int("snmp_test_buffer_size", 30, "the default buffer size of snmp test")
+	address            = flag.String("sampling.listen", ":7072", "the address of http")
+	ds_url             = flag.String("ds.url", "http://127.0.0.1:7071", "the address of http")
+	refresh            = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
+	snmp_timeout       = flag.Duration("snmp.timeout", 60*time.Second, "the timeout duration of snmp")
+	period_interval    = flag.Duration("period", 1*time.Second, "the tick interval of backgroundWorker")
+	flux_buffer_size   = flag.Int("flux_buffer_size", 30, "the default buffer size of flux")
+	icmp_buffer_size   = flag.Int("icmp_buffer_size", 30, "the default buffer size of icmp")
+	icmp_poll_interval = flag.Uint64("icmp_poll_interval", 5, "the interval(second) of icmp scan")
+	icmp_timeout       = flag.Int64("icmp_timeout", 5, "the timeout (second) of icmp")
+	icmp_expired       = flag.Int64("icmp_expired", 60*5, "remove it from scan list while address is expired")
+
+	snmp_test_buffer_size   = flag.Int("snmp_test_buffer_size", 30, "the default buffer size of snmp test")
+	snmp_test_poll_interval = flag.Uint64("snmp_test_poll_interval", 5, "the interval(second) of snmp scan")
+	snmp_test_timeout       = flag.Int64("snmp_test_timeout", 5, "the timeout (second) of snmp")
+	snmp_test_expired       = flag.Int64("snmp_test_expired", 60*5, "remove it from scan list while address is expired")
 
 	is_test              = false
 	srv_instance *server = nil

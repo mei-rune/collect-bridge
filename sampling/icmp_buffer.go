@@ -1,9 +1,7 @@
 package sampling
 
 type IcmpResult struct {
-	Result bool   `json:"result"`
-	Ttl    uint64 `json:"ttl"`
-
+	Result    bool  `json:"result"`
 	SampledAt int64 `json:"sampled_at"`
 }
 

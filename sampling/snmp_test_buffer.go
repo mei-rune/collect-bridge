@@ -1,7 +1,7 @@
 package sampling
 
 type SnmpTestResult struct {
-	result    bool  `json:"result"`
+	Result    bool  `json:"result"`
 	SampledAt int64 `json:"sampled_at"`
 }
 

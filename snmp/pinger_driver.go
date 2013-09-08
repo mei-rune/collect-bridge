@@ -124,7 +124,7 @@ func (self *PingerDriver) Put(params map[string]string) commons.Result {
 				}
 
 				for ip_range.HasNext() {
-					e = pinger.Send(net.JoinHostPort(ip_range.Current().String(), port), v, community)
+					e = pinger.Send(0, net.JoinHostPort(ip_range.Current().String(), port), v, community)
 					if nil != e {
 						return commons.ReturnWithInternalError(e.Error())
 					}

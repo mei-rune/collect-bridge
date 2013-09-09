@@ -4,6 +4,7 @@ import (
 	"commons"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"time"
@@ -248,6 +249,11 @@ func calcFlux(res *Flux, buffer *fluxBuffer, interval uint64, last_at int64) err
 type linkBucket struct {
 	l sync.Mutex
 	fluxBuffer
+	updated_at int64
+}
+
+func (self *linkBucket) IsExpired(now int64) bool {
+	return now-self.updated_at > *flux_expired
 }
 
 type linkWorker struct {
@@ -257,6 +263,20 @@ type linkWorker struct {
 }
 
 func (self *linkWorker) OnTick() {
+	self.l.Lock()
+	defer self.l.Unlock()
+	expired := make([]int, 0, 10)
+	now := time.Now().Unix()
+	for k, bucket := range self.fluxBuffers {
+		if bucket.IsExpired(now) {
+			expired = append(expired, k)
+		}
+	}
+
+	for _, k := range expired {
+		delete(self.fluxBuffers, k)
+		log.Println("[link] '" + strconv.FormatInt(int64(k), 10) + "' is expired.")
+	}
 }
 
 func (self *linkWorker) Get(id int) *linkBucket {
@@ -285,7 +305,7 @@ func (self *linkWorker) Stats() map[string]interface{} {
 		stats = append(stats, k)
 	}
 
-	return map[string]interface{}{"name": "linkWorker", "ports": stats}
+	return map[string]interface{}{"name": "linkWorker", "links": stats}
 }
 
 func (self *linkWorker) Call(ctx MContext) commons.Result {
@@ -335,6 +355,9 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 	bucket.l.Lock()
 	defer bucket.l.Unlock()
 
+	sampled_at := time.Now().Unix()
+	bucket.updated_at = sampled_at
+
 	ctx2, e := ctx.Read().CreateCtx("interface", "managed_object", device)
 	if nil != e {
 		return commons.ReturnWithInternalError(e.Error())
@@ -343,7 +366,6 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 	if nil != e {
 		return commons.ReturnWithInternalError(e.Error())
 	}
-	sampled_at := time.Now().Unix()
 	flux := bucket.BeginPush()
 	readFluxFormMap(flux, attributes)
 	flux.SampledAt = sampled_at
@@ -378,6 +400,12 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 type interfaceBucket struct {
 	l sync.Mutex
 	fluxBuffer
+
+	updated_at int64
+}
+
+func (self *interfaceBucket) IsExpired(now int64) bool {
+	return now-self.updated_at > *flux_expired
 }
 
 type interfaceWorker struct {
@@ -387,6 +415,20 @@ type interfaceWorker struct {
 }
 
 func (self *interfaceWorker) OnTick() {
+	self.l.Lock()
+	defer self.l.Unlock()
+	expired := make([]string, 0, 10)
+	now := time.Now().Unix()
+	for k, bucket := range self.fluxBuffers {
+		if bucket.IsExpired(now) {
+			expired = append(expired, k)
+		}
+	}
+
+	for _, k := range expired {
+		delete(self.fluxBuffers, k)
+		log.Println("[port] '" + k + "' is expired.")
+	}
 }
 
 func (self *interfaceWorker) Get(id string) *interfaceBucket {
@@ -443,11 +485,14 @@ func (self *interfaceWorker) Call(ctx MContext) commons.Result {
 	bucket := self.Get(uid + "/" + ifIndex)
 	bucket.l.Lock()
 	defer bucket.l.Unlock()
+
+	sampled_at := time.Now().Unix()
+	bucket.updated_at = sampled_at
+
 	attributes, e := ctx.Read().GetObject("interface", []P{P{"port", ifIndex}}, ctx)
 	if nil != e {
 		return commons.ReturnWithInternalError(e.Error())
 	}
-	sampled_at := time.Now().Unix()
 	flux := bucket.BeginPush()
 	readFluxFormMap(flux, attributes)
 	flux.IfIndex = int(ifIndex_int)

@@ -9,6 +9,46 @@ import (
 	"time"
 )
 
+func TestICMPExpired1(t *testing.T) {
+	drv := &icmpWorker{icmpBuffers: make(map[string]*icmpBucket), c: make(chan string, 10)}
+
+	now := time.Now().Unix()
+	bucket, _ := drv.GetOrCreate("127.0.0.1")
+	bucket.updated_at = now - *snmp_test_expired - 1
+
+	if 1 != len(drv.icmpBuffers) {
+		t.Error("1 != len(drv.icmpBuffers), actual is", len(drv.icmpBuffers))
+		return
+	}
+
+	drv.clearTimeout()
+
+	if 0 != len(drv.icmpBuffers) {
+		t.Error("0 != len(drv.icmpBuffers), actual is", len(drv.icmpBuffers))
+		return
+	}
+}
+
+func TestICMPExpired2(t *testing.T) {
+	drv := &icmpWorker{icmpBuffers: make(map[string]*icmpBucket), c: make(chan string, 10)}
+
+	now := time.Now().Unix()
+	bucket, _ := drv.GetOrCreate("127.0.0.1")
+	bucket.updated_at = now - *snmp_test_expired - 1
+
+	if 1 != len(drv.icmpBuffers) {
+		t.Error("1 != len(drv.icmpBuffers), actual is", len(drv.icmpBuffers))
+		return
+	}
+
+	drv.scan(0)
+
+	if 0 != len(drv.icmpBuffers) {
+		t.Error("0 != len(drv.icmpBuffers), actual is", len(drv.icmpBuffers))
+		return
+	}
+}
+
 func TestICMPNative(t *testing.T) {
 	is_icmp_test = false
 	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {

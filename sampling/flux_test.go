@@ -11,6 +11,45 @@ import (
 
 var flux_port = flag.String("test.port", "1", "port of test flux")
 
+func TestLinkExpired(t *testing.T) {
+	drv := &linkWorker{fluxBuffers: make(map[int]*linkBucket)}
+
+	now := time.Now().Unix()
+	bucket := drv.Get(2)
+	bucket.updated_at = now - *flux_expired - 1
+
+	if 1 != len(drv.fluxBuffers) {
+		t.Error("1 != len(drv.fluxBuffers), actual is", len(drv.fluxBuffers))
+		return
+	}
+
+	drv.OnTick()
+
+	if 0 != len(drv.fluxBuffers) {
+		t.Error("0 != len(drv.fluxBuffers), actual is", len(drv.fluxBuffers))
+		return
+	}
+}
+func TestPortExpired(t *testing.T) {
+	drv := &interfaceWorker{fluxBuffers: make(map[string]*interfaceBucket)}
+
+	now := time.Now().Unix()
+	bucket := drv.Get("2")
+	bucket.updated_at = now - *flux_expired - 1
+
+	if 1 != len(drv.fluxBuffers) {
+		t.Error("1 != len(drv.fluxBuffers), actual is", len(drv.fluxBuffers))
+		return
+	}
+
+	drv.OnTick()
+
+	if 0 != len(drv.fluxBuffers) {
+		t.Error("0 != len(drv.fluxBuffers), actual is", len(drv.fluxBuffers))
+		return
+	}
+}
+
 func TestLinkFlux(t *testing.T) {
 	for _, test := range []struct{ device1, snmp1, device2, snmp2 map[string]interface{} }{
 		{device1: mo, snmp1: snmp_params,

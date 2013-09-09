@@ -15,6 +15,7 @@ var (
 	refresh            = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
 	snmp_timeout       = flag.Duration("snmp.timeout", 60*time.Second, "the timeout duration of snmp")
 	period_interval    = flag.Duration("period", 1*time.Second, "the tick interval of backgroundWorker")
+	flux_expired       = flag.Int64("flux_expired", 60*5, "remove it from scan list while port or link is expired")
 	flux_buffer_size   = flag.Int("flux_buffer_size", 30, "the default buffer size of flux")
 	icmp_buffer_size   = flag.Int("icmp_buffer_size", 30, "the default buffer size of icmp")
 	icmp_poll_interval = flag.Uint64("icmp_poll_interval", 5, "the interval(second) of icmp scan")

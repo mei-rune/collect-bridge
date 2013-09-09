@@ -104,10 +104,11 @@ func (self *icmpWorker) run() {
 			}
 
 			if nil != res.Err {
+				log.Println("[icmp] recv error from pinger,", res.Err)
 				break
 			}
 
-			self.Push(res.Addr.String(), res.Timestamp)
+			self.Push(res)
 		}
 	}
 }
@@ -154,13 +155,13 @@ func (self *icmpWorker) scan(c int) {
 	}
 }
 
-func (self *icmpWorker) Push(address string, timestamp int64) {
-	bucket, _ := self.GetOrCreate(address)
+func (self *icmpWorker) Push(res *netutils.PingResult) {
+	bucket, _ := self.GetOrCreate(res.Addr.String())
 	bucket.l.Lock()
 	defer bucket.l.Unlock()
-	res := bucket.BeginPush()
-	res.SampledAt = timestamp
-	res.Result = true
+	tmp := bucket.BeginPush()
+	tmp.SampledAt = res.Timestamp
+	tmp.Result = true
 	bucket.CommitPush()
 }
 
@@ -206,7 +207,12 @@ func (self *icmpWorker) Call(ctx MContext) commons.Result {
 	now := time.Now().Unix()
 	bucket.updated_at = now
 
-	return commons.Return(map[string]interface{}{"result": bucket.IsTimeout(now), "list": bucket.icmpBuffer.All()})
+	list := bucket.icmpBuffer.All()
+	if nil == list || 0 == len(list) {
+		return commons.ReturnWithInternalError(pendingError.Error())
+	}
+
+	return commons.Return(map[string]interface{}{"result": !bucket.IsTimeout(now), "list": list})
 }
 
 func init() {

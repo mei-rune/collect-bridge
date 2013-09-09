@@ -4,10 +4,51 @@ import (
 	"commons"
 	"commons/types"
 	ds "data_store"
+	"github.com/runner-mei/snmpclient"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestSnmpTestExpired1(t *testing.T) {
+	drv := &snmpWorker{buckets: make(map[string]*bucketByAddress), c: make(chan *snmpBucket, 10)}
+
+	now := time.Now().Unix()
+	bucket, _ := drv.GetOrCreate("127.0.0.1:161", snmpclient.SNMP_V3, "p")
+	bucket.updated_at = now - *snmp_test_expired - 1
+
+	if 1 != len(drv.buckets) {
+		t.Error("1 != len(drv.buckets), actual is", len(drv.buckets))
+		return
+	}
+
+	drv.clearTimeout()
+
+	if 0 != len(drv.buckets) {
+		t.Error("0 != len(drv.buckets), actual is", len(drv.buckets))
+		return
+	}
+}
+
+func TestSnmpTestExpired2(t *testing.T) {
+	drv := &snmpWorker{buckets: make(map[string]*bucketByAddress), c: make(chan *snmpBucket, 10)}
+
+	now := time.Now().Unix()
+	bucket, _ := drv.GetOrCreate("127.0.0.1:161", snmpclient.SNMP_V3, "p")
+	bucket.updated_at = now - *snmp_test_expired - 1
+
+	if 1 != len(drv.buckets) {
+		t.Error("1 != len(drv.buckets), actual is", len(drv.buckets))
+		return
+	}
+
+	drv.scan(0)
+
+	if 0 != len(drv.buckets) {
+		t.Error("0 != len(drv.buckets), actual is", len(drv.buckets))
+		return
+	}
+}
 
 func TestSnmpTestNative(t *testing.T) {
 	is_icmp_test = false

@@ -33,28 +33,6 @@ func (self *snmpBucket) IsTimeout(now int64) bool {
 	return now-last.SampledAt > *snmp_test_timeout
 }
 
-// type pinger interface {
-// 	Close()
-
-// 	GetChannel() <-chan *netutils.PingResult
-// 	Send(raddr string, echo []byte) error
-// }
-
-// type mock_pinger struct {
-// 	send int32
-// }
-
-// func (self *mock_pinger) Close() {
-// }
-
-// func (self *mock_pinger) GetChannel() <-chan *netutils.PingResult {
-// 	return nil
-// }
-
-// func (self *mock_pinger) Send(raddr string, echo []byte) error {
-// 	atomic.AddInt32(&self.send, 1)
-// }
-
 type testingRequst struct {
 	id  int
 	key string
@@ -114,8 +92,8 @@ func (self *snmpWorker) run() {
 				is_running = false
 				break
 			}
-
 			if nil != res.Error {
+				log.Println("[snmp_test] recv error from pinger,", res.Error)
 				break
 			}
 
@@ -125,9 +103,11 @@ func (self *snmpWorker) run() {
 }
 
 func (self *snmpWorker) send(key string, bucket *snmpBucket) {
-	// Send(id int, raddr string, version SnmpVersion, community string) error {
 	bucket.byAddress.next_id++
 	if e := self.v4.Send(bucket.byAddress.next_id, bucket.address, bucket.version, bucket.community); nil != e {
+		log.Println("[snmp_test] send pdu to", bucket.address, "with version is", bucket.version,
+			"and community is", bucket.community, "failed, ", e)
+	} else {
 		bucket.byAddress.pendings = append(bucket.byAddress.pendings, &testingRequst{id: bucket.byAddress.next_id, key: key})
 	}
 }
@@ -149,7 +129,7 @@ func (self *snmpWorker) clearTimeout() {
 
 		for _, k := range expired {
 			delete(byAddress.snmpBuffers, k)
-			log.Println("[snmp] '" + address + "/" + k + "' is expired.")
+			log.Println("[snmp_test] '" + address + "/" + k + "' is expired.")
 		}
 
 		if 0 == len(byAddress.snmpBuffers) {
@@ -159,7 +139,7 @@ func (self *snmpWorker) clearTimeout() {
 
 	for _, address := range deleted {
 		delete(self.buckets, address)
-		log.Println("[snmp] '" + address + "' is expired.")
+		log.Println("[snmp_test] '" + address + "' is expired.")
 	}
 }
 
@@ -174,6 +154,15 @@ func (self *snmpWorker) scan(c int) {
 
 	deleted := make([]string, 0, 10)
 	for address, byAddress := range self.buckets {
+
+		if 0 == c && nil != byAddress.pendings {
+			if cap(byAddress.pendings)-len(byAddress.pendings) > 20 {
+				byAddress.pendings = nil
+			} else {
+				byAddress.pendings = byAddress.pendings[0:0]
+			}
+		}
+
 		expired := make([]string, 0, 10)
 		for k, bucket := range byAddress.snmpBuffers {
 			if bucket.IsExpired(now) {
@@ -187,7 +176,7 @@ func (self *snmpWorker) scan(c int) {
 
 		for _, k := range expired {
 			delete(byAddress.snmpBuffers, k)
-			log.Println("[snmp] '" + address + "/" + k + "' is expired.")
+			log.Println("[snmp_test] '" + address + "/" + k + "' is expired.")
 		}
 
 		if 0 == len(byAddress.snmpBuffers) {
@@ -197,19 +186,15 @@ func (self *snmpWorker) scan(c int) {
 
 	for _, address := range deleted {
 		delete(self.buckets, address)
-		log.Println("[snmp] '" + address + "' is expired.")
+		log.Println("[snmp_test] '" + address + "' is expired.")
 	}
 }
 
 func (self *snmpWorker) Push(res *snmpclient.PingResult) {
 	address := res.Addr.String()
-	idx := strings.IndexRune(address, ':')
-	if -1 != idx {
-		address = address[:idx]
-	}
-
 	byAddress := self.Get(address)
 	if nil == byAddress {
+		log.Println(address, "is not exists.")
 		return
 	}
 
@@ -217,6 +202,7 @@ func (self *snmpWorker) Push(res *snmpclient.PingResult) {
 	defer byAddress.l.Unlock()
 
 	if nil == byAddress.pendings {
+		log.Println(address, "is not pending.")
 		return
 	}
 
@@ -228,11 +214,13 @@ func (self *snmpWorker) Push(res *snmpclient.PingResult) {
 	}
 
 	if nil == testing {
+		log.Println(address, "is not pending.")
 		return
 	}
 
 	bucket, ok := byAddress.snmpBuffers[testing.key]
 	if !ok {
+		log.Println(address, " and ", testing.key, " is not.")
 		return
 	}
 
@@ -253,7 +241,8 @@ func (self *snmpWorker) Get(address string) *bucketByAddress {
 	return byAddress
 }
 
-func (self *snmpWorker) GetOrCreate(address string, version snmpclient.SnmpVersion, community string) (*snmpBucket, bool) {
+func (self *snmpWorker) GetOrCreate(address string, version snmpclient.SnmpVersion,
+	community string) (*snmpBucket, bool) {
 	self.l.Lock()
 	defer self.l.Unlock()
 
@@ -286,7 +275,8 @@ func (self *snmpWorker) Stats() map[string]interface{} {
 	stats := make([]map[string]interface{}, 0, len(self.buckets))
 	for _, byAddress := range self.buckets {
 		for _, bucket := range byAddress.snmpBuffers {
-			stats = append(stats, map[string]interface{}{"address": bucket.address, "version": bucket.version, "community": bucket.community})
+			stats = append(stats, map[string]interface{}{"address": bucket.address,
+				"version": bucket.version, "community": bucket.community})
 		}
 	}
 
@@ -305,6 +295,8 @@ func (self *snmpWorker) Call(ctx MContext) commons.Result {
 		} else {
 			address = address + ":" + port
 		}
+	} else {
+		address = address + ":161"
 	}
 	version := ctx.GetStringWithDefault("snmp.version", "")
 	if 0 == len(version) {
@@ -342,7 +334,12 @@ func (self *snmpWorker) Call(ctx MContext) commons.Result {
 	now := time.Now().Unix()
 	bucket.updated_at = now
 
-	return commons.Return(map[string]interface{}{"result": bucket.IsTimeout(now), "list": bucket.snmpBuffer.All()})
+	list := bucket.snmpBuffer.All()
+	if nil == list || 0 == len(list) {
+		return commons.ReturnWithInternalError(pendingError.Error())
+	}
+
+	return commons.Return(map[string]interface{}{"result": !bucket.IsTimeout(now), "list": list})
 }
 
 func init() {

@@ -11,30 +11,30 @@ import (
 )
 
 type Flux struct {
-	IfInOctetsPercent  uint64 `json:"IfInOctetsPercent"`
-	IfOutOctetsPercent uint64 `json:"IfOutOctetsPercent"`
+	IfInOctetsPercent  uint64 `json:"ifInOctetsPercent"`
+	IfOutOctetsPercent uint64 `json:"ifOutOctetsPercent"`
 
-	IfOctets     uint64 `json:"IfOctets"`
-	IfUcastPkts  uint64 `json:"IfUcastPkts"`
-	IfNUcastPkts uint64 `json:"IfNUcastPkts"`
-	IfDiscards   uint64 `json:"IfDiscards"`
-	IfErrors     uint64 `json:"IfErrors"`
+	IfOctets     uint64 `json:"ifOctets"`
+	IfUcastPkts  uint64 `json:"ifUcastPkts"`
+	IfNUcastPkts uint64 `json:"ifNUcastPkts"`
+	IfDiscards   uint64 `json:"ifDiscards"`
+	IfErrors     uint64 `json:"ifErrors"`
 
-	IfInOctets        uint64 `json:"IfInOctets"`
-	IfInUcastPkts     uint64 `json:"IfInUcastPkts"`
-	IfInNUcastPkts    uint64 `json:"IfInNUcastPkts"`
-	IfInDiscards      uint64 `json:"IfInDiscards"`
-	IfInErrors        uint64 `json:"IfInErrors"`
-	IfInUnknownProtos uint64 `json:"IfInUnknownProtos"`
-	IfOutOctets       uint64 `json:"IfOutOctets"`
-	IfOutUcastPkts    uint64 `json:"IfOutUcastPkts"`
-	IfOutNUcastPkts   uint64 `json:"IfOutNUcastPkts"`
-	IfOutDiscards     uint64 `json:"IfOutDiscards"`
-	IfOutErrors       uint64 `json:"IfOutErrors"`
+	IfInOctets        uint64 `json:"ifInOctets"`
+	IfInUcastPkts     uint64 `json:"ifInUcastPkts"`
+	IfInNUcastPkts    uint64 `json:"ifInNUcastPkts"`
+	IfInDiscards      uint64 `json:"ifInDiscards"`
+	IfInErrors        uint64 `json:"ifInErrors"`
+	IfInUnknownProtos uint64 `json:"ifInUnknownProtos"`
+	IfOutOctets       uint64 `json:"ifOutOctets"`
+	IfOutUcastPkts    uint64 `json:"ifOutUcastPkts"`
+	IfOutNUcastPkts   uint64 `json:"ifOutNUcastPkts"`
+	IfOutDiscards     uint64 `json:"ifOutDiscards"`
+	IfOutErrors       uint64 `json:"ifOutErrors"`
 	SampledAt         int64  `json:"sampled_at"`
-	IfIndex           int    `json:"IfIndex"`
+	IfIndex           int    `json:"ifIndex"`
 	IfBit             int
-	IfStatus          int `json:"IfStatus"`
+	IfStatus          int `json:"ifStatus"`
 }
 
 func swap(a, b *uint64) {

@@ -1,5 +1,28 @@
 package data_store
 
+import (
+	"code.google.com/p/mahonia"
+	"errors"
+)
+
+var (
+	decoder = mahonia.NewDecoder("gb18030")
+)
+
+func I18nError(dbType int, drv string, e error) error {
+	if nil != decoder && ORACLE == dbType && "oci8" == drv {
+		return errors.New(decoder.ConvertString(e.Error()))
+	}
+	return e
+}
+
+func I18nString(dbType int, drv string, e error) string {
+	if nil != decoder && ORACLE == dbType && "oci8" == drv {
+		return decoder.ConvertString(e.Error())
+	}
+	return e.Error()
+}
+
 // import (
 // 	"errors"
 // 	//"github.com/grsmv/inflect"

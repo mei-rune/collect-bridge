@@ -209,7 +209,10 @@ func (self *icmpWorker) Call(ctx MContext) commons.Result {
 
 	list := bucket.icmpBuffer.All()
 	if nil == list || 0 == len(list) {
-		return commons.ReturnWithInternalError(pendingError.Error())
+		if !bucket.IsTimeout(now) {
+			return commons.ReturnWithInternalError(pendingError.Error())
+		}
+		return commons.Return(map[string]interface{}{"result": false, "list": list})
 	}
 
 	return commons.Return(map[string]interface{}{"result": !bucket.IsTimeout(now), "list": list})

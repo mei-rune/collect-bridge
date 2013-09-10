@@ -73,6 +73,22 @@ echo "PUBLISH_PATH=%PUBLISH_PATH%"
   @set test_delayed_job_db_url_mssql=-db_drv=odbc_with_mssql -db_url="dsn=tpt;uid=tpt;pwd=extreme"
 )
 
+@if not defined test_delayed_job_db_url_for_test (
+  @set test_delayed_job_db_url_for_test=-notification_db_drv=postgres -db_url="host=127.0.0.1 dbname=tpt_data_test user=tpt password=extreme sslmode=disable"
+)
+
+@if not defined test_delayed_job_db_url_mysql_for_test (
+  @set test_delayed_job_db_url_mysql_for_test=-notification_db_drv=mysql -notification_db_url="tpt:extreme@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true"
+)
+
+@if not defined test_delayed_job_db_url_mssql_for_test (
+  @set test_delayed_job_db_url_mssql_for_test=-notification_db_drv=odbc_with_mssql -notification_db_url="dsn=tpt;uid=tpt;pwd=extreme"
+)
+
+@if not defined test_delayed_job_db_url_oracle_for_test (
+  @set test_delayed_job_db_url_oracle_for_test=-notification_db_drv=odbc_with_oracle -notification_db_url="DSN=tpt_oracle;UID=system;PWD=123456"
+)
+
 
 @if not defined is_clean goto download_3td_library
 for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
@@ -314,6 +330,30 @@ go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=t
 @if errorlevel 1 goto failed
 go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456
 @if errorlevel 1 goto failed
+
+
+go test -v  %test_data_db_url_mysql% %test_delayed_job_db_url_mysql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456 %test_delayed_job_db_url_oracle_for_test% -test.run=TestNotificationsForDb
+@if errorlevel 1 goto failed
+go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=tpt_delayed_jobs -not_limit=true -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456 %test_delayed_job_db_url_oracle_for_test% -test.run=TestNotificationsForDb
+@if errorlevel 1 goto failed
+go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456 %test_delayed_job_db_url_oracle_for_test% -test.run=TestNotificationsForDb
+@if errorlevel 1 goto failed
+
+go test -v  %test_data_db_url_mysql% %test_delayed_job_db_url_mysql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456 %test_delayed_job_db_url_for_test% -test.run=TestNotificationsForDb
+@if errorlevel 1 goto failed
+go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=tpt_delayed_jobs -not_limit=true -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456  %test_delayed_job_db_url_for_test% -test.run=TestNotificationsForDb
+@if errorlevel 1 goto failed
+
+go test -v  %test_data_db_url_mssql% %test_delayed_job_db_url_mssql% -db_table=tpt_delayed_jobs -not_limit=true -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456 %test_data_db_url_mysql_for_test% -test.run=TestNotificationsForDb
+@if errorlevel 1 goto failed
+go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456 %test_data_db_url_mysql_for_test% -test.run=TestNotificationsForDb
+@if errorlevel 1 goto failed
+
+go test -v  %test_data_db_url_mysql% %test_delayed_job_db_url_mysql% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456 %test_data_db_url_mssql_for_test% -test.run=TestNotificationsForDb
+@if errorlevel 1 goto failed
+go test -v %test_db_url% %test_data_db_url% %test_delayed_job_db_url% -db_table=tpt_delayed_jobs -redis=127.0.0.1:9456 -redis_address=127.0.0.1:9456 %test_data_db_url_mssql_for_test% -test.run=TestNotificationsForDb
+@if errorlevel 1 goto failed
+
 
 :build_poller
 @if not defined is_compile goto install_poller

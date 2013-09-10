@@ -15,7 +15,11 @@ import (
 	"time"
 )
 
-var delayed_job_table_name = flag.String("delayed_job_table_name_test", "delayed_jobs", "the table name of delayed job")
+var (
+	delayed_job_table_name = flag.String("delayed_job_table_name_test", "delayed_jobs", "the table name of delayed job")
+	test_db_url            = flag.String("notification_db_url", "", "the db url for test")
+	test_db_drv            = flag.String("notification_db_drv", "", "the db driver for test")
+)
 
 // <class name="RedisCommand" base="Action">
 //   <property name="command">
@@ -354,9 +358,30 @@ func assertCount(t *testing.T, db *sql.DB, sql string, excepted int64) {
 	}
 }
 
-func dbTest(db_drv string, db *sql.DB) error {
+func dbTest(t *testing.T, default_db_drv, default_db_url string, cb func(db_drv, db_url string, db *sql.DB)) {
+	db_drv := *test_db_drv
+	db_url := *test_db_url
+	if 0 == len(db_drv) {
+		db_drv = default_db_drv
+	}
+	if 0 == len(db_url) {
+		db_url = default_db_url
+	}
+	dbType := ds.GetDBType(db_drv)
 
-	if "odbc_with_mssql" == db_drv {
+	drv := db_drv
+	if strings.HasPrefix(drv, "odbc_with_") {
+		drv = "odbc"
+	}
+
+	db, e := sql.Open(drv, db_url)
+	if nil != e {
+		t.Error("connect to db failed,", ds.I18nString(dbType, db_drv, e))
+		return
+	}
+
+	switch dbType {
+	case ds.MSSQL:
 		script := `
 if object_id('dbo.tpt_test_for_handler', 'U') is not null BEGIN DROP TABLE tpt_test_for_handler; END
 
@@ -366,8 +391,26 @@ if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_tes
   queue             varchar(200)
 ); END`
 		_, e := db.Exec(script)
-		return e
-	} else {
+		if nil != e {
+			t.Error(e)
+			return
+		}
+	case ds.ORACLE:
+		for _, s := range []string{`BEGIN     EXECUTE IMMEDIATE 'DROP TABLE tpt_test_for_handler';     EXCEPTION WHEN OTHERS THEN NULL; END;`,
+			`CREATE TABLE tpt_test_for_handler(priority int, queue varchar(200))`} {
+			t.Log("execute sql:", s)
+			_, e = db.Exec(s)
+			if nil != e {
+				msg := ds.I18nString(dbType, drv, e)
+				if strings.Contains(msg, "ORA-00911") {
+					t.Skip("skip it becase init db failed with error is ORA-00911")
+					return
+				}
+				t.Error(msg)
+				return
+			}
+		}
+	default:
 		for _, s := range []string{`DROP TABLE IF EXISTS tpt_test_for_handler;`,
 			`CREATE TABLE IF NOT EXISTS tpt_test_for_handler (
   id                SERIAL  PRIMARY KEY,
@@ -376,92 +419,90 @@ if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_tes
 );`} {
 			_, e := db.Exec(s)
 			if nil != e {
-				return e
+				t.Error(e)
+				return
 			}
 		}
-		return nil
 	}
+
+	cb(db_drv, db_url, db)
 }
 
 func TestNotificationsForDb(t *testing.T) {
 	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
-		carrier.SrvTest2(t, func(db *sql.DB, db_drv, db_url, url string) {
+		carrier.SrvTest2(t, func(default_db *sql.DB, default_db_drv, default_db_url, url string) {
 			delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
-				e := dbTest(db_drv, db)
-				if nil != e {
-					t.Error(e)
-					return
-				}
+				dbTest(t, default_db_drv, default_db_url, func(db_drv, db_url string, db *sql.DB) {
+					is_test = true
+					*foreignUrl = url
+					Runforever()
+					if nil == server_test {
+						t.Error("load trigger failed.")
+						return
+					}
+					defer func() {
+						server_test.Stop()
+						server_test = nil
+					}()
 
-				is_test = true
-				*foreignUrl = url
-				Runforever()
-				if nil == server_test {
-					t.Error("load trigger failed.")
-					return
-				}
-				defer func() {
-					server_test.Stop()
-					server_test = nil
-				}()
+					db_command_test_attributes["drv"] = db_drv
+					db_command_test_attributes["url"] = db_url
+					notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
+					ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "db_command", db_command_test_attributes)
 
-				db_command_test_attributes["drv"] = db_drv
-				db_command_test_attributes["url"] = db_url
-				notification_group_id := ds.CreateItForTest(t, client, "notification_group", map[string]interface{}{"name": "aaa"})
-				ds.CreateItByParentForTest(t, client, "notification_group", notification_group_id, "db_command", db_command_test_attributes)
+					action, e := newAlertAction(map[string]interface{}{
+						"id":   "123",
+						"name": "this is a test alert",
+						"notification_group_ids": notification_group_id,
+						"delay_times":            0,
+						"expression_style":       "json",
+						"expression_code": map[string]interface{}{
+							"attribute": "a",
+							"operator":  ">",
+							"value":     "12"}},
+						map[string]interface{}{"managed_id": 1213},
+						server_test.ctx)
 
-				action, e := newAlertAction(map[string]interface{}{
-					"id":   "123",
-					"name": "this is a test alert",
-					"notification_group_ids": notification_group_id,
-					"delay_times":            0,
-					"expression_style":       "json",
-					"expression_code": map[string]interface{}{
-						"attribute": "a",
-						"operator":  ">",
-						"value":     "12"}},
-					map[string]interface{}{"managed_id": 1213},
-					server_test.ctx)
-
-				if nil != e {
-					t.Error(e)
-					return
-				}
-
-				//alert := action.(*alertAction)
-				for i := 0; i < 10; i++ {
-					e = action.Run(time.Now(), commons.Return(map[string]interface{}{"a": "13"}))
 					if nil != e {
 						t.Error(e)
 						return
 					}
-				}
 
-				i, j, e := worker.WorkOff(1)
-				if nil != e {
-					t.Error(e)
-					return
-				}
+					//alert := action.(*alertAction)
+					for i := 0; i < 10; i++ {
+						e = action.Run(time.Now(), commons.Return(map[string]interface{}{"a": "13"}))
+						if nil != e {
+							t.Error(e)
+							return
+						}
+					}
 
-				if i != 1 {
-					t.Log("success is", i, "failed is", j)
-					t.Error("excepted job count is 1, excepted is", i)
-					return
-				}
+					i, j, e := worker.WorkOff(1)
+					if nil != e {
+						t.Error(e)
+						return
+					}
 
-				i, j, e = worker.WorkOff(1)
-				if nil != e {
-					t.Error(e)
-					return
-				}
+					if i != 1 {
+						t.Log("success is", i, "failed is", j)
+						t.Error("excepted job count is 1, excepted is", i)
+						return
+					}
 
-				if i != 1 {
-					t.Log("success is", i, "failed is", j)
-					t.Error("excepted job count is 1, excepted is", i)
-					return
-				}
+					i, j, e = worker.WorkOff(1)
+					if nil != e {
+						t.Error(e)
+						return
+					}
 
-				assertCount(t, db, "SELECT count(*) FROM tpt_test_for_handler WHERE priority = 12 and queue like 'aaa 13'", 1)
+					if i != 1 {
+						t.Log("success is", i, "failed is", j)
+						t.Error("excepted job count is 1, excepted is", i)
+						return
+					}
+
+					assertCount(t, db, "SELECT count(*) FROM tpt_test_for_handler WHERE priority = 12 and queue like 'aaa 13'", 1)
+				})
 			})
 		})
 	})

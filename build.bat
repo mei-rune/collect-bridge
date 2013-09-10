@@ -74,7 +74,7 @@ echo "PUBLISH_PATH=%PUBLISH_PATH%"
 )
 
 @if not defined test_delayed_job_db_url_for_test (
-  @set test_delayed_job_db_url_for_test=-notification_db_drv=postgres -db_url="host=127.0.0.1 dbname=tpt_data_test user=tpt password=extreme sslmode=disable"
+  @set test_delayed_job_db_url_for_test=-notification_db_drv=postgres -notification_db_url="host=127.0.0.1 dbname=tpt_data_test user=tpt password=extreme sslmode=disable"
 )
 
 @if not defined test_delayed_job_db_url_mysql_for_test (

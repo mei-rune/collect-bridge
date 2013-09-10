@@ -12,6 +12,7 @@ import (
 
 func TestSnmpTestExpired1(t *testing.T) {
 	drv := &snmpWorker{buckets: make(map[string]*bucketByAddress), c: make(chan *snmpBucket, 10)}
+	defer drv.Close()
 
 	now := time.Now().Unix()
 	bucket, _ := drv.GetOrCreate("127.0.0.1:161", snmpclient.SNMP_V3, "p")
@@ -32,6 +33,7 @@ func TestSnmpTestExpired1(t *testing.T) {
 
 func TestSnmpTestExpired2(t *testing.T) {
 	drv := &snmpWorker{buckets: make(map[string]*bucketByAddress), c: make(chan *snmpBucket, 10)}
+	defer drv.Close()
 
 	now := time.Now().Unix()
 	bucket, _ := drv.GetOrCreate("127.0.0.1:161", snmpclient.SNMP_V3, "p")

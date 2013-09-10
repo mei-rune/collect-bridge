@@ -11,6 +11,7 @@ import (
 
 func TestICMPExpired1(t *testing.T) {
 	drv := &icmpWorker{icmpBuffers: make(map[string]*icmpBucket), c: make(chan string, 10)}
+	defer drv.Close()
 
 	now := time.Now().Unix()
 	bucket, _ := drv.GetOrCreate("127.0.0.1")
@@ -31,6 +32,7 @@ func TestICMPExpired1(t *testing.T) {
 
 func TestICMPExpired2(t *testing.T) {
 	drv := &icmpWorker{icmpBuffers: make(map[string]*icmpBucket), c: make(chan string, 10)}
+	defer drv.Close()
 
 	now := time.Now().Unix()
 	bucket, _ := drv.GetOrCreate("127.0.0.1")

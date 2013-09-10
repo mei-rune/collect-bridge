@@ -52,6 +52,10 @@ type worker struct {
 }
 
 func (self *backgroundWorkers) close() {
+	for _, w := range self.workers {
+		w.Close()
+	}
+
 	close(self.c)
 	self.wait.Wait()
 }

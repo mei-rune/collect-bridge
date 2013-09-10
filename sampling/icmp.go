@@ -75,7 +75,10 @@ func (self *icmpWorker) Init() error {
 
 func (self *icmpWorker) Close() {
 	close(self.c)
-	self.v4.Close()
+	if nil != self.v4 {
+		self.v4.Close()
+	}
+	log.Println("[icmp] server is closed")
 }
 
 func (self *icmpWorker) OnTick() {
@@ -156,13 +159,27 @@ func (self *icmpWorker) scan(c int) {
 }
 
 func (self *icmpWorker) Push(res *netutils.PingResult) {
-	bucket, _ := self.GetOrCreate(res.Addr.String())
+	bucket := self.Get(res.Addr.String())
+	if nil == bucket {
+		return
+	}
+
 	bucket.l.Lock()
 	defer bucket.l.Unlock()
 	tmp := bucket.BeginPush()
 	tmp.SampledAt = res.Timestamp
 	tmp.Result = true
 	bucket.CommitPush()
+}
+
+func (self *icmpWorker) Get(id string) *icmpBucket {
+	self.l.Lock()
+	defer self.l.Unlock()
+
+	if buffer, ok := self.icmpBuffers[id]; ok {
+		return buffer
+	}
+	return nil
 }
 
 func (self *icmpWorker) GetOrCreate(id string) (*icmpBucket, bool) {
@@ -176,6 +193,8 @@ func (self *icmpWorker) GetOrCreate(id string) (*icmpBucket, bool) {
 	w := &icmpBucket{created_at: time.Now().Unix()}
 	w.icmpBuffer.init(make([]IcmpResult, *icmp_buffer_size))
 	self.icmpBuffers[id] = w
+
+	log.Println("[icmp] add '", id, "' to scan list.")
 	return w, true
 }
 

@@ -64,7 +64,10 @@ func (self *snmpWorker) Init() error {
 
 func (self *snmpWorker) Close() {
 	close(self.c)
-	self.v4.Close()
+	if nil != self.v4 {
+		self.v4.Close()
+	}
+	log.Println("[snmp_test] server is closed")
 }
 
 func (self *snmpWorker) OnTick() {
@@ -265,6 +268,7 @@ func (self *snmpWorker) GetOrCreate(address string, version snmpclient.SnmpVersi
 
 	w.snmpBuffer.init(make([]SnmpTestResult, *snmp_test_buffer_size))
 	byAddress.snmpBuffers[id] = w
+	log.Println("[snmp_test] add '", id, "' to scan list.")
 	return w, true
 }
 

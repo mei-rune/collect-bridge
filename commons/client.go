@@ -79,6 +79,7 @@ func (self *HttpClient) InvokeWith(action, url string, body io.Reader, exceptedC
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Connection", "Keep-Alive")
 	resp, e := http.DefaultClient.Do(req)
 	if nil != e {
 		return networkError(e.Error())

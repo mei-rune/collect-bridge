@@ -201,6 +201,12 @@ func to2DArray(ss []string) []P {
 
 func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
+		if nil != r.Body {
+			r.Body.Close()
+		}
+	}()
+
+	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
 			buffer.WriteString(fmt.Sprintf("[panic]%v", e))

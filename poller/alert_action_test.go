@@ -596,10 +596,10 @@ func TestAlertRepectedOverflow(t *testing.T) {
 	select {
 	case v := <-c:
 		if 1 != v.attributes["status"] {
-			t.Error("status != 1, actual is %v", v.attributes["status"])
+			t.Errorf("status != 1, actual is %v", v.attributes["status"])
 		}
 		if "1213" != v.attributes["managed_id"] {
-			t.Error("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
+			t.Errorf("managed_id != '1213', actual is '%v'", v.attributes["managed_id"])
 		}
 	default:
 		t.Error("not recv and last_status is", alert.last_status)

@@ -37,15 +37,15 @@ type driver interface {
 }
 
 var (
-	id_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "id",
+	id_column = &types.ColumnDefinition{AttributeDefinition: types.AttributeDefinition{Name: "id",
 		Type:       types.GetTypeDefinition("objectId"),
 		Collection: types.COLLECTION_UNKNOWN}}
 
-	created_at_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "created_at",
+	created_at_column = &types.ColumnDefinition{AttributeDefinition: types.AttributeDefinition{Name: "created_at",
 		Type:       types.GetTypeDefinition("datetime"),
 		Collection: types.COLLECTION_UNKNOWN}}
 
-	updated_at_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "updated_at",
+	updated_at_column = &types.ColumnDefinition{AttributeDefinition: types.AttributeDefinition{Name: "updated_at",
 		Type:       types.GetTypeDefinition("datetime"),
 		Collection: types.COLLECTION_UNKNOWN}}
 

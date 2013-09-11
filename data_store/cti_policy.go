@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	tablename_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "tablename",
+	tablename_column = &types.ColumnDefinition{AttributeDefinition: types.AttributeDefinition{Name: "tablename",
 		Type:       types.GetTypeDefinition("string"),
 		Collection: types.COLLECTION_UNKNOWN}}
 

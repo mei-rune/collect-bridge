@@ -584,7 +584,7 @@ func TestInitFiles(t *testing.T) {
 	}
 
 	if "test init ok" != s {
-		t.Error("return != 'test init ok', it is %s", s)
+		t.Errorf("return != 'test init ok', it is %s", s)
 		t.FailNow()
 	}
 }

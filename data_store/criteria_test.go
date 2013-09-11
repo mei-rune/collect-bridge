@@ -83,47 +83,47 @@ func TestCriteria(t *testing.T) {
 func TestSplit(t *testing.T) {
 	s1, s2 := split("[eq]12")
 	if "eq" != s1 {
-		t.Error("excepted is '%v', actual is '%v'", "eq", s1)
+		t.Errorf("excepted is '%v', actual is '%v'", "eq", s1)
 	}
 
 	if "12" != s2 {
-		t.Error("excepted is '%v', actual is '%v'", "12", s2)
+		t.Errorf("excepted is '%v', actual is '%v'", "12", s2)
 	}
 
 	s1, s2 = split("[eq]")
 	if "eq" != s1 {
-		t.Error("excepted is '%v', actual is '%v'", "eq", s1)
+		t.Errorf("excepted is '%v', actual is '%v'", "eq", s1)
 	}
 
 	if "" != s2 {
-		t.Error("excepted is '%v', actual is '%v'", "", s2)
+		t.Errorf("excepted is '%v', actual is '%v'", "", s2)
 	}
 
 	s1, s2 = split("[]12")
 	if "" != s1 {
-		t.Error("excepted is '%v', actual is '%v'", "", s1)
+		t.Errorf("excepted is '%v', actual is '%v'", "", s1)
 	}
 
 	if "12" != s2 {
-		t.Error("excepted is '%v', actual is '%v'", "12", s2)
+		t.Errorf("excepted is '%v', actual is '%v'", "12", s2)
 	}
 
 	s1, s2 = split("[12")
 	if "eq" != s1 {
-		t.Error("excepted is '%v', actual is '%v'", "eq", s1)
+		t.Errorf("excepted is '%v', actual is '%v'", "eq", s1)
 	}
 
 	if "[12" != s2 {
-		t.Error("excepted is '%v', actual is '%v'", "[12", s2)
+		t.Errorf("excepted is '%v', actual is '%v'", "[12", s2)
 	}
 
 	s1, s2 = split("]12")
 	if "eq" != s1 {
-		t.Error("excepted is '%v', actual is '%v'", "eq", s1)
+		t.Errorf("excepted is '%v', actual is '%v'", "eq", s1)
 	}
 
 	if "]12" != s2 {
-		t.Error("excepted is '%v', actual is '%v'", "]12", s2)
+		t.Errorf("excepted is '%v', actual is '%v'", "]12", s2)
 	}
 }
 

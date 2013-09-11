@@ -20,9 +20,9 @@ func TestCheckers(t *testing.T) {
 		check, e := makeJsonChecker(test.json)
 		if nil != e {
 			if 0 == len(test.e) {
-				t.Error("make all_checker_tests[%v] failed, %v", i, e)
+				t.Errorf("make all_checker_tests[%v] failed, %v", i, e)
 			} else if test.e != e.Error() {
-				t.Error("make all_checker_tests[%v] failed, excepted is '%v', actual is '%v'", i, test.e, e)
+				t.Errorf("make all_checker_tests[%v] failed, excepted is '%v', actual is '%v'", i, test.e, e)
 			}
 			continue
 		}

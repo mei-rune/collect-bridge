@@ -181,7 +181,6 @@ func toAny(ls *C.lua_State, index C.int) (interface{}, error) {
 	default:
 		return nil, errors.New("not implemented")
 	}
-	return nil, nil
 }
 
 func convertMapToArray(m map[int]interface{}) ([]interface{}, error) {

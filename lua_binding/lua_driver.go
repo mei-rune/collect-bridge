@@ -621,7 +621,6 @@ func (self *LuaDriver) eval(ctx *Continuous) *Continuous {
 			return ctx
 		}
 	}
-	return ctx
 }
 
 func toContinuous(values []interface{}) (ctx *Continuous, err error) {
@@ -700,7 +699,6 @@ func (self *LuaDriver) newContinuous(action string, params map[string]string, bo
 		}
 		return ctx
 	}
-	return ctx
 }
 
 func (driver *LuaDriver) invoke(action string, params map[string]string, body interface{}) (interface{}, error) {

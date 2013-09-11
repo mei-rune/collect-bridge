@@ -62,7 +62,7 @@ func TestSnmpRead(t *testing.T) {
 					continue
 				}
 				if 0 == len(m) {
-					t.Error("test[%v] result is empty", idx)
+					t.Errorf("test[%v] result is empty", idx)
 				}
 
 				if 0 != len(test.columns) {

@@ -49,20 +49,39 @@ func makeJsonChecker(code string) (Checker, error) {
 		return nil, errors.New("'value' is required")
 	}
 
+	if "=" == exp.Operator || "==" == exp.Operator {
+		switch exp.Value {
+		case "true", "True":
+			return boolean_equals(exp.Attribute, true), nil
+		case "false", "False":
+			return boolean_equals(exp.Attribute, false), nil
+		}
+	} else if "!=" == exp.Operator || "<>" == exp.Operator {
+		switch exp.Value {
+		case "true", "True":
+			return boolean_not_equals(exp.Attribute, true), nil
+		case "false", "False":
+			return boolean_not_equals(exp.Attribute, false), nil
+		}
+	}
+
 	if strings.ContainsRune(exp.Value, '.') {
 		if floatf, ok := float_ops[exp.Operator]; ok {
 			f64, e := strconv.ParseFloat(exp.Value, 64)
-			if nil != e {
-				return nil, errors.New("'value' is not a float, " + e.Error())
+			if nil == e {
+				return floatf(exp.Attribute, f64), nil
 			}
-			return floatf(exp.Attribute, f64), nil
+			return nil, errors.New("'value' is not a float, " + e.Error())
 		}
 	} else if intf, ok := int_ops[exp.Operator]; ok {
 		i64, e := strconv.ParseInt(exp.Value, 10, 64)
-		if nil != e {
+		if nil == e {
+			return intf(exp.Attribute, i64), nil
+		}
+
+		if "=" != exp.Operator && "==" != exp.Operator && "!=" != exp.Operator && "<>" != exp.Operator {
 			return nil, errors.New("'value' is not a int64, " + e.Error())
 		}
-		return intf(exp.Attribute, i64), nil
 	}
 
 	if stringf, ok := string_ops[exp.Operator]; ok {
@@ -97,6 +116,33 @@ var (
 		"not_equals":   str_not_equals,
 		"equals":       str_equals}
 )
+
+func get_bool(value interface{}, name string) (bool, error) {
+	m, e := toMap(value)
+	if nil != e {
+		return false, fmt.Errorf("value is not a map, actual is %T", value)
+	}
+	return m.GetBool(name)
+}
+
+func boolean_not_equals(attribute string, operand bool) jsonFunc {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
+		b, e := get_bool(value, attribute)
+		if nil != e {
+			return false, nil, e
+		}
+		return b != operand, b, nil
+	}
+}
+func boolean_equals(attribute string, operand bool) jsonFunc {
+	return func(value interface{}, res map[string]interface{}) (bool, interface{}, error) {
+		b, e := get_bool(value, attribute)
+		if nil != e {
+			return false, nil, e
+		}
+		return b == operand, b, nil
+	}
+}
 
 func get_int64(value interface{}, name string) (int64, error) {
 	m, e := toMap(value)

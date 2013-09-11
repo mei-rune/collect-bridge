@@ -11,7 +11,9 @@ var all_checker_tests = []struct {
 	status int
 	v      interface{}
 }{{json: `{"attribute":"a", "operator":">", "value":"12"}`, value: map[string]interface{}{"a": 13}, status: 1, v: int64(13)},
-	{json: `{"attribute":"a", "operator":">", "value":"12"}`, value: map[string]interface{}{"a": 12}, status: 0, v: int64(12)}}
+	{json: `{"attribute":"a", "operator":">", "value":"12"}`, value: map[string]interface{}{"a": 12}, status: 0, v: int64(12)},
+	{json: `{"attribute":"a", "operator":"=", "value":"true"}`, value: map[string]interface{}{"a": true}, status: 1, v: true},
+	{json: `{"attribute":"a", "operator":"!=", "value":"true"}`, value: map[string]interface{}{"a": true}, status: 0, v: true}}
 
 func TestCheckers(t *testing.T) {
 	for i, test := range all_checker_tests {

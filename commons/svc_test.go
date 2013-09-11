@@ -103,7 +103,6 @@ func (svc *MockSvc) HandleThrowPanic(a int) (resp int, err error) {
 	err = errors.New("zero")
 	resp = a + 10
 	panic(errors.New("throwPanic"))
-	return
 }
 
 func (svc *MockSvc) AddAsync(a int) (resp int, err error) {

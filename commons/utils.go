@@ -54,7 +54,6 @@ func Each(instance interface{}, cb func(k interface{}, v interface{}), default_c
 }
 
 func ConvertToIntList(value, sep string) ([]int, error) {
-
 	ss := strings.Split(value, sep)
 	results := make([]int, 0, len(ss))
 	for _, s := range ss {
@@ -149,7 +148,6 @@ func EnumerateFiles(pa string) ([]string, error) {
 			}
 		}
 	}
-	return paths, nil
 }
 
 func SearchFile(pattern string) string {

@@ -235,7 +235,6 @@ end:
 func (svc *Svc) Send(function interface{}, args ...interface{}) {
 	if !svc.IsAlive() {
 		panic("svc is stopped.")
-		return
 	}
 
 	msg := new(message)
@@ -290,7 +289,6 @@ func (svc *Svc) Call(timeout time.Duration, function interface{}, args ...interf
 func (svc *Svc) innerCall(timeout time.Duration, function interface{}, args []interface{}) (results []interface{}) {
 	if !svc.IsAlive() {
 		panic(errors.New("svc is stopped."))
-		return
 	}
 
 	msg := getCachedChannel()
@@ -349,7 +347,7 @@ func (svc *Svc) innerCall(timeout time.Duration, function interface{}, args []in
 			success = true
 			results = resp.response.results
 		default:
-			panic(fmt.Sprintf("unknown response type:", resp.response.responseType))
+			panic(fmt.Sprintf("unknown response type:%v", resp.response.responseType))
 		}
 	case <-time.After(timeout):
 		panic(timeout_message)

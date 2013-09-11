@@ -325,7 +325,6 @@ func (self *DriverWrapper) invoke(cmd int, params map[string]string, body interf
 	case <-time.After(self.timeout):
 		return ReturnError(GatewayTimeoutCode, TimeoutErr.Error())
 	}
-	return nil
 }
 
 func (self *DriverWrapper) Get(params map[string]string) Result {

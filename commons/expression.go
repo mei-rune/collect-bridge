@@ -44,7 +44,7 @@ func whereOne(value interface{}, expression string) (interface{}, error) {
 		}
 		return nil, IndexOutOfRange
 	}
-	return nil, fmt.Errorf("it is not a slice, actual is &T", value)
+	return nil, fmt.Errorf("it is not a slice, actual is %T", value)
 }
 
 func ToSimpleValue(value interface{}, attribute string) (interface{}, error) {

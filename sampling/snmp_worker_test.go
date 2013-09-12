@@ -67,6 +67,10 @@ func TestSnmpTestNative(t *testing.T) {
 		}
 		time.Sleep(1 * time.Second)
 		res = nativeGet(t, sampling_url, "127.0.0.1", "snmp_test", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
+		if res.HasError() {
+			t.Error(res.Error())
+			return
+		}
 		if nil == res.InterfaceValue() {
 			t.Error("values is nil")
 		}

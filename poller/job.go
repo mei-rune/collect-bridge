@@ -117,3 +117,32 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 // 	urlBuffer.WriteString("/")
 // 	urlBuffer.WriteString(nm)
 // }
+
+type errorJob struct {
+	clazz, id, name, e string
+
+	updated_at time.Time
+}
+
+func (self *errorJob) Close(reason int) {
+}
+
+func (self *errorJob) Id() string {
+	return self.id
+}
+
+func (self *errorJob) Name() string {
+	return self.name
+}
+
+func (self *errorJob) Stats() map[string]interface{} {
+	return map[string]interface{}{
+		"type":  self.clazz,
+		"id":    self.id,
+		"name":  self.name,
+		"error": self.e}
+}
+
+func (self *errorJob) Version() time.Time {
+	return self.updated_at
+}

@@ -116,6 +116,7 @@ type alertAction struct {
 	already_send       bool
 	last_event_id      string
 	sequence_id        int
+	level              int
 
 	notification_group_ids []string
 	notification_groups    *ds.Cache
@@ -248,6 +249,7 @@ func (self *alertAction) create_event(current_value interface{}, current, reason
 		self.last_event_id = generateId()
 	}
 
+	evt["level"] = self.level
 	evt["event_id"] = self.last_event_id
 	evt["sequence_id"] = self.sequence_id
 	evt["previous_status"] = self.previous_status
@@ -505,11 +507,12 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		log.Println("load alert cookies with id was " + strconv.FormatInt(int64(id), 10) + " and name is '" + name + "' is not found")
 	} else {
 		log.Println("load alert cookies with id was " + strconv.FormatInt(int64(id), 10) + " and name is '" + name + "' is ok")
+		fmt.Println(cookies)
 	}
 
 	action := &alertAction{id: id,
-		name: name,
-		//description: commons.GetString(attributes, "description", ""),
+		name:                   name,
+		level:                  commons.GetIntWithDefault(attributes, "level", 1),
 		already_send:           true,
 		options:                options,
 		delay_times:            delay_times,

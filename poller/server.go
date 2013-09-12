@@ -16,76 +16,6 @@ import (
 	"time"
 )
 
-type cookiesLoader interface {
-	loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error)
-}
-
-type cookiesLoaderImpl struct {
-	cookies map[int64]map[string]interface{}
-}
-
-func (self *cookiesLoaderImpl) loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error) {
-	if c, ok := self.cookies[id]; ok {
-		delete(self.cookies, id)
-		return c, nil
-	}
-	return nil, nil
-}
-
-type cookiesLoaderById struct {
-	client *commons.Client
-}
-
-func (self *cookiesLoaderById) loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error) {
-	res := self.client.Get(map[string]string{"id": "@" + strconv.FormatInt(id, 10)})
-	if res.HasError() {
-		if 404 == res.ErrorCode() {
-			return nil, nil
-		}
-		return nil, errors.New(res.ErrorMessage())
-	}
-
-	return res.Value().AsObject()
-}
-
-type mockCookiesLoader struct {
-	e       error
-	cookies map[string]interface{}
-}
-
-func (self *mockCookiesLoader) loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error) {
-	return self.cookies, self.e
-}
-
-type errorJob struct {
-	clazz, id, name, e string
-
-	updated_at time.Time
-}
-
-func (self *errorJob) Close(reason int) {
-}
-
-func (self *errorJob) Id() string {
-	return self.id
-}
-
-func (self *errorJob) Name() string {
-	return self.name
-}
-
-func (self *errorJob) Stats() map[string]interface{} {
-	return map[string]interface{}{
-		"type":  self.clazz,
-		"id":    self.id,
-		"name":  self.name,
-		"error": self.e}
-}
-
-func (self *errorJob) Version() time.Time {
-	return self.updated_at
-}
-
 type server struct {
 	commons.SimpleServer
 
@@ -137,13 +67,6 @@ func (s *server) loadJob(id string) {
 		return
 	}
 
-	if *load_cookies {
-		s.ctx["cookies_loader"] = &cookiesLoaderById{client: commons.NewClient(*foreignUrl, "alert_cookies")}
-		defer delete(s.ctx, "cookies_loader")
-	} else {
-		delete(s.ctx, "cookies_loader")
-	}
-
 	s.startJob(attributes)
 }
 
@@ -155,80 +78,6 @@ func (s *server) stopJob(id string, reason int) {
 	job.Close(reason)
 	delete(s.jobs, id)
 	log.Println("stop trigger with id was '" + id + "'")
-}
-
-// func (s *server) loadCookiesById(client *commons.Client, id string) (map[string]interface{}, error) {
-// 	res := client.Get(map[string]string{"id": id})
-// 	if res.HasError() {
-// 		return nil, errors.New("load cookies with id was '" + id + "' failed, " + res.ErrorMessage())
-// 	}
-
-// 	attributes, e := res.Value().AsObject()
-// 	if nil != e {
-// 		return nil, errors.New("load cookies with id was '" + id + "' failed, results is not a map[string]interface{}, " + e.Error())
-// 	}
-
-// 	if nil == attributes {
-// 		return nil, nil
-// 	}
-
-// 	action_id := commons.GetIntWithDefault(attributes, "id", 0)
-// 	if _, ok := id2results[action_id]; ok {
-// 		attributes["last_status"] = attributes["status"]
-// 		attributes["previous_status"] = attributes["previous_status"]
-// 		attributes["event_id"] = attributes["event_id"]
-// 		attributes["sequence_id"] = attributes["sequence_id"]
-// 	} else {
-// 		id := fmt.Sprint(attributes["id"])
-// 		dres := client.Delete(map[string]string{"id": id})
-// 		if dres.HasError() {
-// 			log.Println("delete alert cookies with id was " + id + " is failed, " + dres.ErrorMessage())
-// 		}
-// 	}
-// 	return len(cookies), nil
-// }
-
-func (s *server) loadCookies(client *commons.Client,
-	id2cookies map[int64]map[string]interface{},
-	query map[string]string) (int, error) {
-	res := client.Get(query)
-	if res.HasError() {
-		return 0, errors.New("load cookies failed, " + res.ErrorMessage())
-	}
-
-	cookies, e := res.Value().AsObjects()
-	if nil != e {
-		return 0, errors.New("load cookies failed, results is not a []map[string]interface{}, " + e.Error())
-	}
-
-	if nil == cookies || 0 == len(cookies) {
-		return 0, nil
-	}
-
-	for _, attributes := range cookies {
-		action_id := commons.GetInt64WithDefault(attributes, "action_id", 0)
-		id2cookies[action_id] = attributes
-	}
-	return len(cookies), nil
-}
-
-func (s *server) loadAllCookies(client *commons.Client, id2cookies map[int64]map[string]interface{}) error {
-	if *not_limit {
-		_, e := s.loadCookies(client, id2cookies, map[string]string{})
-		return e
-	} else {
-		for offset := 0; ; offset += 100 {
-			count, e := s.loadCookies(client, id2cookies, map[string]string{"limit": "100", "offset": strconv.FormatInt(int64(offset), 10)})
-			if nil != e {
-				return e
-			}
-
-			if 100 != count {
-				break
-			}
-		}
-	}
-	return nil
 }
 
 func (s *server) onStart() error {
@@ -251,13 +100,14 @@ func (s *server) onStart() error {
 	var all_cookies map[int64]map[string]interface{}
 	if *load_cookies {
 		client = commons.NewClient(*foreignUrl, "alert_cookies")
-		loader := &cookiesLoaderImpl{cookies: map[int64]map[string]interface{}{}}
-		e := s.loadAllCookies(client, loader.cookies)
-		if nil != e {
+		loader := &cookiesLoaderImpl{client: client}
+
+		if e := loader.init(); nil != e {
 			return e
 		}
-		all_cookies = loader.cookies
+		all_cookies = loader.id2cookies
 		s.ctx["cookies_loader"] = loader
+		defer delete(s.ctx, "cookies_loader")
 	} else {
 		delete(s.ctx, "cookies_loader")
 	}
@@ -294,6 +144,7 @@ func (s *server) onIdle() {
 	new_snapshots, e := s.client.Snapshot("trigger", map[string]string{})
 	if nil != e {
 		s.last_error = e
+		log.Println("[srv] poll failed,", e)
 		return
 	}
 	s.last_error = nil
@@ -305,10 +156,39 @@ func (s *server) onIdle() {
 	}
 
 	newed, updated, deleted := ds.Diff(new_snapshots, old_snapshots)
+
+	if *load_cookies {
+		var should_load []string = nil
+		if nil != newed {
+			should_load = append(should_load, newed...)
+		}
+		if nil != updated {
+			should_load = append(should_load, updated...)
+		}
+
+		if nil != should_load && 0 != len(should_load) {
+			started_at := time.Now()
+			loader := &cookiesLoaderImpl{client: commons.NewClient(*foreignUrl, "alert_cookies")}
+			if e := loader.init(); nil != e {
+				s.last_error = e
+				log.Println("[srv] load cookies failed,", e)
+				return
+			}
+
+			s.ctx["cookies_loader"] = loader
+			defer delete(s.ctx, "cookies_loader")
+
+			log.Println("[srv] load ", len(loader.id2cookies), " cookies of ", len(should_load), " trigger and ", time.Now().Sub(started_at), "is elapsed")
+		}
+	} else {
+		delete(s.ctx, "cookies_loader")
+	}
+
 	if nil != newed {
 		for _, id := range newed {
 			s.loadJob(id)
 		}
+		log.Println("[srv] new triggers with count is", len(newed), "is started.")
 	}
 
 	if nil != updated {
@@ -316,13 +196,17 @@ func (s *server) onIdle() {
 			s.stopJob(id, CLOSE_REASON_NORMAL)
 			s.loadJob(id)
 		}
+		log.Println("[srv] updated triggers with count is", len(updated), "is started.")
 	}
 
 	if nil != deleted {
 		for _, id := range deleted {
 			s.stopJob(id, CLOSE_REASON_DELETED)
 		}
+		log.Println("[srv] deleted triggers with count is", len(deleted), "is started.")
 	}
+
+	log.Println("[srv] poll is ok.")
 }
 
 func (s *server) String() string {

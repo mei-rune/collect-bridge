@@ -30,12 +30,12 @@ func (self *PostgresqlDialect) saveAlertCookies(tx *sql.Tx, entity *AlertEntity)
 		if sql.ErrNoRows != e {
 			return e
 		}
-		_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-			entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt)
+		_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+			entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Level, entity.Content, entity.CurrentValue, entity.TriggeredAt)
 		return e
 	} else {
-		_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = $1, previous_status = $2, event_id = $3, sequence_id = $4, content = $5, current_value = $6, triggered_at = $7  WHERE id = $8`,
-			entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt, id)
+		_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = $1, previous_status = $2, event_id = $3, sequence_id = $4, level = $5, content = $6, current_value = $7, triggered_at = $8  WHERE id = $9`,
+			entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Level, entity.Content, entity.CurrentValue, entity.TriggeredAt, id)
 		return e
 	}
 }
@@ -76,12 +76,12 @@ func (self *GenSqlDialect) saveAlertCookies(tx *sql.Tx, entity *AlertEntity) err
 		if sql.ErrNoRows != e {
 			return e
 		}
-		_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt)
+		_, e = tx.Exec(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			entity.ActionId, entity.ManagedType, entity.ManagedId, entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Level, entity.Content, entity.CurrentValue, entity.TriggeredAt)
 		return e
 	} else {
-		_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = ?, previous_status = ?, event_id = ?, sequence_id = ?, content = ?, current_value = ?, triggered_at = ?  WHERE id = ?`,
-			entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Content, entity.CurrentValue, entity.TriggeredAt, id)
+		_, e = tx.Exec(`UPDATE tpt_alert_cookies SET status = ?, previous_status = ?, event_id = ?, sequence_id = ?, level = ?, content = ?, current_value = ?, triggered_at = ?  WHERE id = ?`,
+			entity.Status, entity.PreviousStatus, entity.EventId, entity.SequenceId, entity.Level, entity.Content, entity.CurrentValue, entity.TriggeredAt, id)
 		return e
 	}
 }

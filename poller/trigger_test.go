@@ -84,12 +84,12 @@ func TestTriggerWithEnabledIsFalse(t *testing.T) {
 	})
 
 	if nil == e {
-		t.Error("excepted error is 'all actions is disable.'")
+		t.Error("excepted error is '" + AllDisabled.Error() + "'")
 		t.Error("actual error is nil")
 	}
 
-	if !strings.Contains(e.Error(), "all actions is disable.") {
-		t.Error("excepted error contains 'all actions is disable.'")
+	if !strings.Contains(e.Error(), AllDisabled.Error()) {
+		t.Error("excepted error contains '" + AllDisabled.Error() + "'")
 		t.Error("actual error is", e)
 		return
 	}

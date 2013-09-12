@@ -30,10 +30,10 @@ func TestLoadCookiesWhileStartServer(t *testing.T) {
 		carrier.SrvTest(t, func(db *sql.DB, url string) {
 			*foreignUrl = url
 
-			for _, s := range []string{fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'event_id_sss_aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`, action_id),
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (2, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (3, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (4, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`} {
+			for _, s := range []string{fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'event_id_sss_aa', 1, 3, 'abc', 'ww', '2013-08-05 12:12:12');`, action_id),
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (2, 'mo', 1, 1, 0, 'aa', 1, 3, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (3, 'mo', 1, 1, 0, 'aa', 1, 3, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (4, 'mo', 1, 1, 0, 'aa', 1, 3, 'abc', 'ww', '2013-08-05 12:12:12');`} {
 				_, e := db.Exec(s)
 
 				if nil != e {
@@ -96,20 +96,27 @@ func TestLoadCookiesWhileOnTick(t *testing.T) {
 			ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
 			ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 			mt_id := ds.CreateItByParentForTest(t, client, "network_device", id, "metric_trigger", metric_trigger_for_cpu)
-			action_id := ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
-				"id":               "123",
-				"name":             "this is a test alert",
-				"delay_times":      0,
-				"expression_style": "json",
-				"expression_code": map[string]interface{}{
-					"attribute": "a",
-					"operator":  ">=",
-					"value":     "0"}})
+			var action_id string
+			for {
+				action_id = ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
+					"id":               "123",
+					"name":             "this is a test alert",
+					"delay_times":      0,
+					"expression_style": "json",
+					"expression_code": map[string]interface{}{
+						"attribute": "a",
+						"operator":  ">=",
+						"value":     "0"}})
+				if mt_id != action_id {
+					break
+				}
+				client.DeleteById("alert", action_id)
+			}
 
-			for _, s := range []string{`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (2, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (3, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (4, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'event_id_sss_aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`, action_id)} {
+			for _, s := range []string{`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (2343, 'mo', 1, 1, 0, 'aa', 1,  3, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (3453, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (4345, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'event_id_sss_aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`, action_id)} {
 				_, e := db.Exec(s)
 
 				if nil != e {
@@ -200,10 +207,10 @@ func TestCookiesIsClear(t *testing.T) {
 		carrier.SrvTest(t, func(db *sql.DB, url string) {
 			*foreignUrl = url
 
-			for _, s := range []string{`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (1, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (2, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (3, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (4, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`} {
+			for _, s := range []string{`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (1, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (2, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (3, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (4, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`} {
 				_, e := db.Exec(s)
 
 				if nil != e {
@@ -255,10 +262,10 @@ func TestCookiesNotClear(t *testing.T) {
 
 		carrier.SrvTest(t, func(db *sql.DB, url string) {
 			*foreignUrl = url
-			for _, s := range []string{fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`, rule_id),
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (112, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (113, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (114, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`} {
+			for _, s := range []string{fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`, rule_id),
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (112, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (113, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (114, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`} {
 				_, e := db.Exec(s)
 				if nil != e {
 					t.Error(e)
@@ -314,10 +321,10 @@ func TestCookiesLoadStatus(t *testing.T) {
 		carrier.SrvTest(t, func(db *sql.DB, url string) {
 			*foreignUrl = url
 
-			for _, s := range []string{`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (112, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (113, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (114, 'mo', 1, 1, 0, 'aa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'aaccccaaaaa', 1, 'abc', 'ww', '2013-08-05 12:12:12');`, rule_id)} {
+			for _, s := range []string{`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (112, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (113, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (114, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+				fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'aaccccaaaaa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`, rule_id)} {
 				_, e := db.Exec(s)
 				if nil != e {
 					t.Error(e)

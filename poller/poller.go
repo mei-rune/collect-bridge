@@ -85,6 +85,10 @@ func forward2(c chan<- *data_object) chan<- *data_object {
 }
 
 func Runforever() {
+	if tran, ok := http.DefaultTransport.(*http.Transport); ok {
+		tran.MaxIdleConnsPerHost = 100
+	}
+
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
@@ -197,10 +201,12 @@ func Runforever() {
 }
 
 func init() {
-	go func() {
-		e := http.ListenAndServe(":0", nil)
-		if nil != e {
-			log.Println(e)
-		}
-	}()
+	if is_test {
+		go func() {
+			e := http.ListenAndServe(":0", nil)
+			if nil != e {
+				log.Println(e)
+			}
+		}()
+	}
 }

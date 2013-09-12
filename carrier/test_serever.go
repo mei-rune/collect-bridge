@@ -146,7 +146,7 @@ func SrvTest2(t *testing.T, cb func(db *sql.DB, db_drv, db_url, url string)) {
 
 func SelectAlertHistories(db *sql.DB) ([]*AlertEntity, error) {
 
-	rows, e := db.Query("select " + prejection_sql + " from tpt_alert_histories")
+	rows, e := db.Query("select " + alert_prejection_sql + " from tpt_alert_histories")
 	if nil != e {
 		return nil, e
 	}
@@ -176,7 +176,7 @@ func SelectAlertHistories(db *sql.DB) ([]*AlertEntity, error) {
 }
 
 func SelectAlertCookies(db *sql.DB) ([]*AlertEntity, error) {
-	rows, e := db.Query("select " + prejection_sql + " from tpt_alert_cookies")
+	rows, e := db.Query("select " + cookies_prejection_sql + " from tpt_alert_cookies")
 	if nil != e {
 		return nil, e
 	}
@@ -193,6 +193,7 @@ func SelectAlertCookies(db *sql.DB) ([]*AlertEntity, error) {
 			&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
 			&entity.EventId,        //EventId          string    `json:"event_id"`
 			&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+			&entity.Level,          //Level            int64     `json:"level"`
 			&entity.Content,        //Content          string    `json:"content"`
 			&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
 			&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
@@ -230,8 +231,7 @@ func SelectHistories(db *sql.DB) ([]*HistoryEntity, error) {
 	return historyEntities, nil
 }
 
-func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status, previousStatus int64, eventId string, sequenceId int64, content, value string, now time.Time, mo_type string, mo_id int64) {
-
+func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status, previousStatus int64, eventId string, sequenceId, level int64, content, value string, now time.Time, mo_type string, mo_id int64) {
 	if entity.ActionId != action_id {
 		t.Error(" entity.ActionId != action_id, excepted is ", action_id, ", actual is", entity.ActionId)
 	}
@@ -246,6 +246,9 @@ func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status, previous
 	}
 	if entity.SequenceId != sequenceId {
 		t.Error(" entity.SequenceId != sequenceId, excepted is ", sequenceId, ", actual is", entity.SequenceId)
+	}
+	if entity.Level != level {
+		t.Error(" entity.Level != level, excepted is ", level, ", actual is", entity.Level)
 	}
 	if entity.Content != content {
 		t.Error(" entity.Content != content, excepted is ", content, ", actual is", entity.Content)
@@ -262,7 +265,6 @@ func AssertAlerts(t *testing.T, entity *AlertEntity, action_id, status, previous
 	if entity.ManagedId != mo_id {
 		t.Error(" entity.ManagedId != mo_id, excepted is ", mo_id, ", actual is ", entity.ManagedId)
 	}
-
 }
 
 func AssertHistories(t *testing.T, entity *HistoryEntity, action_id int64, value float64, now time.Time, mo_type string, mo_id int64) {
@@ -281,5 +283,4 @@ func AssertHistories(t *testing.T, entity *HistoryEntity, action_id int64, value
 	if entity.ManagedId != mo_id {
 		t.Error(" entity.ManagedId != mo_id, excepted is ", mo_id, ", actual is", entity.ManagedId)
 	}
-
 }

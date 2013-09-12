@@ -5,6 +5,7 @@ import (
 	"commons"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -64,6 +65,7 @@ func TestAlertsServer(t *testing.T) {
         "previous_status": 0,
         "event_id": "123",
         "sequence_id": 1,
+        "level": 47,
         "content": "content is alerted",
         "current_value": "23",
         "triggered_at": `+string(now)+`,
@@ -84,7 +86,7 @@ func TestAlertsServer(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, 0, "content is alerted", "23", nowt, "mo", 123)
 
 		entities, e = SelectAlertCookies(db)
 		if nil != e {
@@ -97,13 +99,14 @@ func TestAlertsServer(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, 47, "content is alerted", "23", nowt, "mo", 123)
 
 		_, e = httpInvoke("PUT", url+"/alerts", `[{"action_id": 123,
         "status": 2,
         "previous_status": 0,
         "event_id": "123",
         "sequence_id": 1,
+        "level": 32,
         "content": "content is alerted",
         "current_value": "23",
         "triggered_at": `+string(now)+`,
@@ -125,8 +128,8 @@ func TestAlertsServer(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
-		AssertAlerts(t, entities[1], 123, 2, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, 0, "content is alerted", "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[1], 123, 2, 0, "123", 1, 0, "content is alerted", "23", nowt, "mo", 123)
 
 		entities, e = SelectAlertCookies(db)
 		if nil != e {
@@ -139,7 +142,7 @@ func TestAlertsServer(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 2, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 2, 0, "123", 1, 32, "content is alerted", "23", nowt, "mo", 123)
 
 	})
 }
@@ -160,6 +163,7 @@ func TestAlertsServer2(t *testing.T) {
       "previous_status": 0,
       "event_id": "123",
       "sequence_id": 1,
+      "level": 47,
 			"trigger_id":"1",
 			"triggered_at":`+string(now)+`}]`, 200)
 		if nil != e {
@@ -177,7 +181,7 @@ func TestAlertsServer2(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 1, 1, 0, "123", 1, "content is alerted", "", nowt, "managed_object", 1)
+		AssertAlerts(t, entities[0], 1, 1, 0, "123", 1, 0, "content is alerted", "", nowt, "managed_object", 1)
 
 		entities, e = SelectAlertCookies(db)
 		if nil != e {
@@ -190,7 +194,7 @@ func TestAlertsServer2(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 1, 1, 0, "123", 1, "content is alerted", "", nowt, "managed_object", 1)
+		AssertAlerts(t, entities[0], 1, 1, 0, "123", 1, 47, "content is alerted", "", nowt, "managed_object", 1)
 
 	})
 }
@@ -205,6 +209,7 @@ func TestAlertsCookies(t *testing.T) {
         "previous_status": 0,
         "event_id": "123",
         "sequence_id": 1,
+        "level": 47,
         "content": "content is alerted",
         "current_value": "23",
         "triggered_at": `+string(now)+`,
@@ -225,7 +230,7 @@ func TestAlertsCookies(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, 0, "content is alerted", "23", nowt, "mo", 123)
 
 		entities, e = SelectAlertCookies(db)
 		if nil != e {
@@ -238,13 +243,14 @@ func TestAlertsCookies(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, 47, "content is alerted", "23", nowt, "mo", 123)
 
 		_, e = httpInvoke("PUT", url+"/alerts", `[{"action_id": 123,
         "status": 0,
         "previous_status": 1,
         "event_id": "123",
         "sequence_id": 1,
+        "level": 32,
         "content": "content is alerted",
         "current_value": "65",
         "triggered_at": `+string(now)+`,
@@ -265,8 +271,8 @@ func TestAlertsCookies(t *testing.T) {
 			return
 		}
 
-		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, "content is alerted", "23", nowt, "mo", 123)
-		AssertAlerts(t, entities[1], 123, 0, 1, "123", 1, "content is alerted", "65", nowt, "mo", 123)
+		AssertAlerts(t, entities[0], 123, 1, 0, "123", 1, 0, "content is alerted", "23", nowt, "mo", 123)
+		AssertAlerts(t, entities[1], 123, 0, 1, "123", 1, 0, "content is alerted", "65", nowt, "mo", 123)
 
 		entities, e = SelectAlertCookies(db)
 		if nil != e {
@@ -372,10 +378,15 @@ func TestFind(t *testing.T) {
 
 			for i := 0; i < 10; i++ {
 				var e error
-				if strings.HasPrefix(test.tname, "tpt_alert") {
+				switch test.tname {
+				case "tpt_alert_cookies":
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 47, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
+				case "tpt_alert_histories" + nows_str:
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
-				} else {
+				case "tpt_histories" + nows_str:
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, "+now_func+")", test.tname, i, i%2))
+				default:
+					e = errors.New("not " + test.tname)
 				}
 				if nil != e {
 					t.Error(e)
@@ -439,10 +450,15 @@ func TestFindById(t *testing.T) {
 			}
 
 			var e error
-			if strings.HasPrefix(test.tname, "tpt_alert") {
+			switch test.tname {
+			case "tpt_alert_cookies":
+				_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) values(%v, 'msssssssso', 1%v, 1, 0, '123', 1, 47, 'content is alerted', 'ss', "+now_func+")", test.tname, 2, 2%2))
+			case "tpt_alert_histories" + nows_str:
 				_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'msssssssso', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, 2, 2%2))
-			} else {
+			case "tpt_histories" + nows_str:
 				_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'msssssssso', 1%v, 1, "+now_func+")", test.tname, 2, 2%2))
+			default:
+				e = errors.New("not " + test.tname)
 			}
 			if nil != e {
 				t.Error("test["+test.tname+"] failed", e)
@@ -548,10 +564,16 @@ func TestCount(t *testing.T) {
 
 			for i := 0; i < 10; i++ {
 				var e error
-				if strings.HasPrefix(test.tname, "tpt_alert") {
+
+				switch test.tname {
+				case "tpt_alert_cookies":
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 47, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
+				case "tpt_alert_histories" + nows_str:
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
-				} else {
+				case "tpt_histories" + nows_str:
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, "+now_func+")", test.tname, i, i%2))
+				default:
+					e = errors.New("not " + test.tname)
 				}
 				if nil != e {
 					t.Error(e)
@@ -615,10 +637,16 @@ func TestRemove(t *testing.T) {
 
 			for i := 0; i < 10; i++ {
 				var e error
-				if strings.HasPrefix(test.tname, "tpt_alert") {
+
+				switch test.tname {
+				case "tpt_alert_cookies":
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 47, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
+				case "tpt_alert_histories" + nows_str:
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
-				} else {
+				case "tpt_histories" + nows_str:
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, "+now_func+")", test.tname, i, i%2))
+				default:
+					e = errors.New("not " + test.tname)
 				}
 				if nil != e {
 					t.Error(e)
@@ -738,7 +766,7 @@ func TestFindByActionId(t *testing.T) {
 			}
 
 			for i := 1; i < 12; i++ {
-				_, e := db.Exec(fmt.Sprintf("insert into tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'dd', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", i, 2%2))
+				_, e := db.Exec(fmt.Sprintf("insert into tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) values(%v, 'dd', 1%v, 1, 0, '123', 1, 47, 'content is alerted', 'ss', "+now_func+")", i, 2%2))
 
 				if nil != e {
 					t.Error("test["+test.tname+"] failed", e)
@@ -746,7 +774,7 @@ func TestFindByActionId(t *testing.T) {
 				}
 			}
 
-			_, e := db.Exec(fmt.Sprintf("insert into tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'msssssssso', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", 123, 2%2))
+			_, e := db.Exec(fmt.Sprintf("insert into tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id,  level, content, current_value, triggered_at) values(%v, 'msssssssso', 1%v, 1, 0, '123', 1, 32, 'content is alerted', 'ss', "+now_func+")", 123, 2%2))
 			if nil != e {
 				t.Error("test tpt_alert_cookies by action_id failed", e)
 				return
@@ -817,10 +845,15 @@ func TestRemoveById(t *testing.T) {
 
 			for i := 10; i < 10; i++ {
 				var e error
-				if strings.HasPrefix(test.tname, "tpt_alert") {
+				switch test.tname {
+				case "tpt_alert_cookies":
+					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 47, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
+				case "tpt_alert_histories":
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at) values(%v, 'mo', 1%v, 1, 0, '123', 1, 'content is alerted', 'ss', "+now_func+")", test.tname, i, i%2))
-				} else {
+				case "tpt_histories":
 					_, e = db.Exec(fmt.Sprintf("insert into %v(action_id, managed_type, managed_id, current_value, sampled_at) values(%v, 'mo', 1%v, 1, "+now_func+")", test.tname, i, i%2))
+				default:
+					e = errors.New("not " + test.tname)
 				}
 				if nil != e {
 					t.Error(e)
@@ -847,6 +880,54 @@ func TestRemoveById(t *testing.T) {
 				t.Error("count with managed_id = 11 is not 0 after delete it, actual is ", count)
 			}
 
+		}
+	})
+}
+
+func TestCountByLevel(t *testing.T) {
+	SrvTest(t, func(db *sql.DB, url string) {
+		for _, test := range []struct{ tname, uname string }{{tname: "tpt_alert_cookies", uname: "alert_cookies"}} {
+
+			now_func := "now()"
+			if "odbc_with_mssql" == *db_drv {
+				now_func = "GETDATE()"
+			}
+
+			for i := 1; i < 12; i++ {
+				_, e := db.Exec(fmt.Sprintf("insert into tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) values(%v, 'dd', 1%v, 1, 0, '123', 1, 47, 'content is alerted', 'ss', "+now_func+")", i, 2%2))
+
+				if nil != e {
+					t.Error("test["+test.tname+"] failed", e)
+					return
+				}
+			}
+
+			_, e := db.Exec(fmt.Sprintf("insert into tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id,  level, content, current_value, triggered_at) values(%v, 'msssssssso', 1%v, 1, 0, '123', 1, 32, 'content is alerted', 'ss', "+now_func+")", 123, 2%2))
+			if nil != e {
+				t.Error("test tpt_alert_cookies by action_id failed", e)
+				return
+			}
+			s, e := httpInvoke("GET", url+"/alert_cookies/count?@level=32", "", 200)
+			if nil != e {
+				t.Error("test tpt_alert_cookies by action_id failed", e)
+				return
+			}
+
+			if !strings.Contains(s, "\"value\":1}") {
+				t.Error(`excepted contains '\"value\":1}'`)
+				t.Error(`actual is`, s)
+			}
+
+			s, e = httpInvoke("GET", url+"/alert_cookies/count?@level=47", "", 200)
+			if nil != e {
+				t.Error("test tpt_alert_cookies by action_id failed", e)
+				return
+			}
+
+			if !strings.Contains(s, "\"value\":11}") {
+				t.Error(`excepted contains '\"value\":11}'`)
+				t.Error(`actual is`, s)
+			}
 		}
 	})
 }

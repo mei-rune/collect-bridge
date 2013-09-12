@@ -123,11 +123,26 @@ func (self *base_trigger) reset(reason int) {
 const every = "@every "
 
 var (
+	delay_start           = 0
 	ExpressionSyntexError = errors.New("'expression' is error syntex")
+	AlreadyStarted        = errors.New("It is already started.")
+	AllDisabled           = errors.New("all actions is disabled.")
+	ActionsIsEmpty        = errors.New("actions is empty.")
 	IdIsRequired          = commons.IsRequired("id")
 	NameIsRequired        = commons.IsRequired("name")
 	CommandIsRequired     = commons.IsRequired("command")
 )
+
+func delay_interval() time.Duration {
+	if is_test {
+		return 0
+	}
+
+	// delay start trigger after the specific interval
+	delay := delay_start % (5 * 60 * 1000)
+	delay_start += 11
+	return time.Duration(delay) * time.Millisecond
+}
 
 func newTrigger(attributes, options, ctx map[string]interface{}, callback triggerFunc) (Trigger, error) {
 	id := commons.GetStringWithDefault(attributes, "id", "")
@@ -170,7 +185,7 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 	}
 
 	if 0 == len(actions) {
-		return nil, errors.New("actions is empty.")
+		return nil, ActionsIsEmpty
 	}
 
 	enabled := false
@@ -182,7 +197,7 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 	}
 
 	if !enabled {
-		return nil, errors.New("all actions is disable.")
+		return nil, AllDisabled
 	}
 
 	if strings.HasPrefix(expression, every) {
@@ -199,10 +214,10 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 			updated_at:  commons.GetTimeWithDefault(attributes, "updated_at", time.Time{}),
 			callback:    callback,
 			actions:     actions},
+			closed:   1,
 			interval: interval}
-		//status:   commons.SRV_INIT}
 		it.base_trigger.InitLoggerWith(ctx, "log.")
-		err = it.Init()
+		err = it.init(delay_interval())
 		if nil != err {
 			return nil, err
 		}
@@ -217,23 +232,39 @@ type intervalTrigger struct {
 	c        chan int
 	wait     sync.WaitGroup
 
-	//status            int32
+	closed            int32
 	max_used_duration int64
 	begin_fired_at    int64
 	end_fired_at      int64
 }
 
-func (self *intervalTrigger) Init() error {
+func (self *intervalTrigger) init(delay time.Duration) error {
+	if !atomic.CompareAndSwapInt32(&self.closed, 1, 0) {
+		return AlreadyStarted
+	}
 	self.c = make(chan int)
-	go self.run()
-	self.wait.Add(1)
+
+	sinit := func() {
+		go self.run()
+		self.wait.Add(1)
+	}
+
+	if 0 == delay {
+		sinit()
+	} else {
+		time.AfterFunc(delay, sinit)
+	}
+
 	return nil
 }
 
 func (self *intervalTrigger) Close(reason int) {
-	self.c <- 1
-	self.wait.Wait()
+	if 1 == atomic.LoadInt32(&self.closed) {
+		return
+	}
+
 	close(self.c)
+	self.wait.Wait()
 	self.reset(reason)
 }
 
@@ -254,6 +285,7 @@ func (self *intervalTrigger) run() {
 			self.DEBUG.Print("exited")
 		}
 
+		atomic.StoreInt32(&self.closed, 1)
 		self.wait.Done()
 	}()
 

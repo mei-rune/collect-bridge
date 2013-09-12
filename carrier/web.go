@@ -61,6 +61,10 @@ var (
 		Type:       types.GetTypeDefinition("integer"),
 		Collection: types.COLLECTION_UNKNOWN}}
 
+	level_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "level",
+		Type:       types.GetTypeDefinition("integer"),
+		Collection: types.COLLECTION_UNKNOWN}}
+
 	managed_type_column = &types.ColumnDefinition{types.AttributeDefinition{Name: "managed_type",
 		Type:       types.GetTypeDefinition("string"),
 		Collection: types.COLLECTION_UNKNOWN}}
@@ -107,7 +111,7 @@ var (
 
 func init() {
 
-	attributes := map[string]*types.ColumnDefinition{id_column.Name: id_column,
+	alert_attributes := map[string]*types.ColumnDefinition{id_column.Name: id_column,
 		action_id_column.Name:           action_id_column,           // 	ActionId     int64     `json:"action_id"`
 		status_column.Name:              status_column,              // 	Status       int64     `json:"status"`
 		previous_status_column.Name:     previous_status_column,     //
@@ -119,11 +123,24 @@ func init() {
 		managed_type_column.Name:        managed_type_column,        // 	ManagedType  string    `json:"managed_type"`
 		managed_id_column.Name:          managed_id_column}          // 	ManagedId    int64     `json:"managed_id"`
 
-	tpt_alert_history.OwnAttributes = attributes
-	tpt_alert_history.Attributes = attributes
+	tpt_alert_history.OwnAttributes = alert_attributes
+	tpt_alert_history.Attributes = alert_attributes
 
-	tpt_alert_cookies.OwnAttributes = attributes
-	tpt_alert_cookies.Attributes = attributes
+	cookies_attributes := map[string]*types.ColumnDefinition{id_column.Name: id_column,
+		action_id_column.Name:           action_id_column,       // 	ActionId     int64     `json:"action_id"`
+		status_column.Name:              status_column,          // 	Status       int64     `json:"status"`
+		previous_status_column.Name:     previous_status_column, //
+		event_id_column.Name:            event_id_column,        //
+		sequence_id_column.Name:         sequence_id_column,     //
+		level_column.Name:               level_column,
+		content_column.Name:             content_column,             //
+		alert_current_value_column.Name: alert_current_value_column, // 	CurrentValue string    `json:"current_value"`
+		triggered_at_column.Name:        triggered_at_column,        // 	TriggeredAt  time.Time `json:"triggered_at"`
+		managed_type_column.Name:        managed_type_column,        // 	ManagedType  string    `json:"managed_type"`
+		managed_id_column.Name:          managed_id_column}          // 	ManagedId    int64     `json:"managed_id"`
+
+	tpt_alert_cookies.OwnAttributes = cookies_attributes
+	tpt_alert_cookies.Attributes = cookies_attributes
 
 	history_attributes := map[string]*types.ColumnDefinition{id_column.Name: id_column,
 		action_id_column.Name:             action_id_column,             // 	ActionId       int64     `json:"action_id"`
@@ -260,6 +277,7 @@ type AlertEntity struct {
 	PreviousStatus   int64         `json:"previous_status"`
 	EventId          string        `json:"event_id"`
 	SequenceId       int64         `json:"sequence_id"`
+	Level            int64         `json:"level"`
 	Content          string        `json:"content"`
 	CurrentValue     string        `json:"current_value"`
 	TriggeredAt      time.Time     `json:"triggered_at"`
@@ -494,10 +512,11 @@ func (self *server) count(ctx *context, table *types.TableDefinition, response h
 	response.Write([]byte(`}`))
 }
 
-const prejection_sql = " id, action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at "
+const alert_prejection_sql = " id, action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, content, current_value, triggered_at "
+const cookies_prejection_sql = " id, action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at "
 
 func (self *server) findAlertCookies(ctx *context, response http.ResponseWriter, request *http.Request) {
-	self.find(ctx, tpt_alert_cookies, prejection_sql,
+	self.find(ctx, tpt_alert_cookies, cookies_prejection_sql,
 		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
 			return entity, rows.Scan(
@@ -509,13 +528,14 @@ func (self *server) findAlertCookies(ctx *context, response http.ResponseWriter,
 				&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
 				&entity.EventId,        //EventId          string    `json:"event_id"`
 				&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+				&entity.Level,          //Level            int64     `json:"level"`
 				&entity.Content,        //Content          string    `json:"content"`
 				&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
 				&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
 		}, response, request)
 }
 func (self *server) findAlertHistories(ctx *context, response http.ResponseWriter, request *http.Request) {
-	self.find(ctx, tpt_alert_history, prejection_sql,
+	self.find(ctx, tpt_alert_history, alert_prejection_sql,
 		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
 			return entity, rows.Scan(
@@ -551,6 +571,7 @@ func (self *server) findAlertCookiesBy(ctx *context, response http.ResponseWrite
 			&entity.PreviousStatus, //PreviousStatus   int64     `json:"previous_status"`
 			&entity.EventId,        //EventId          string    `json:"event_id"`
 			&entity.SequenceId,     //SequenceId       int64     `json:"sequence_id"`
+			&entity.Level,          //Level            int64     `json:"level"`
 			&entity.Content,        //Content          string    `json:"content"`
 			&entity.CurrentValue,   //CurrentValue     string    `json:"current_value"`
 			&entity.TriggeredAt)    //TriggeredAt      time.Time `json:"triggered_at"`
@@ -558,15 +579,15 @@ func (self *server) findAlertCookiesBy(ctx *context, response http.ResponseWrite
 	id := paths[1]
 
 	if '@' == id[0] {
-		self.findOne(ctx, "select "+prejection_sql+" from "+tpt_alert_cookies.CollectionName+" where action_id = "+id[1:], tpt_alert_cookies, prejection_sql,
+		self.findOne(ctx, "select "+cookies_prejection_sql+" from "+tpt_alert_cookies.CollectionName+" where action_id = "+id[1:], tpt_alert_cookies, cookies_prejection_sql,
 			scan, response, request)
 	} else {
-		self.findOne(ctx, "select "+prejection_sql+" from "+tpt_alert_cookies.CollectionName+" where id = "+id, tpt_alert_cookies, prejection_sql,
+		self.findOne(ctx, "select "+cookies_prejection_sql+" from "+tpt_alert_cookies.CollectionName+" where id = "+id, tpt_alert_cookies, cookies_prejection_sql,
 			scan, response, request)
 	}
 }
 func (self *server) findAlertHistoriesBy(ctx *context, response http.ResponseWriter, request *http.Request) {
-	self.findById(ctx, tpt_alert_history, prejection_sql,
+	self.findById(ctx, tpt_alert_history, alert_prejection_sql,
 		func(rows resultScan) (interface{}, error) {
 			entity := &AlertEntity{}
 			return entity, rows.Scan(

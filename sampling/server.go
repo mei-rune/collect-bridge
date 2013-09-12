@@ -233,7 +233,7 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pprof.Cmdline(w, r)
 		case "/debug/pprof/profile":
 			pprof.Profile(w, r)
-		case "/debug/pprof/symbol":
+		case "/debug/pprof/symbol", "/debug/pprof/symbol/":
 			pprof.Symbol(w, r)
 		default:
 			if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {

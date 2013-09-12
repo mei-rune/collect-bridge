@@ -10,6 +10,7 @@ BEGIN
     previous_status   int  NOT NULL,
     event_id          varchar(200)  NOT NULL,
     sequence_id       int  NOT NULL,
+    level             int  NOT NULL,
     content           varchar(250)  NOT NULL,
     current_value     varchar(2000)  NOT NULL,
     triggered_at      datetime NOT NULL,

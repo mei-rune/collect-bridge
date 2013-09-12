@@ -410,6 +410,7 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 				"name":             "this is a test alert",
 				"delay_times":      0,
 				"expression_style": "json",
+				"level":            137,
 				"expression_code": map[string]interface{}{
 					"attribute": "services",
 					"operator":  ">=",
@@ -469,6 +470,9 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 						}
 						if entity.Status != 1 {
 							t.Error("test[", nm, "]", " entity.Status != 1, excepted is ", 1, ", actual is ", entity.Status)
+						}
+						if entity.Level != 137 {
+							t.Error("test[", nm, "]", " entity.Level != 137, excepted is ", 137, ", actual is ", entity.Level)
 						}
 						if entity.ManagedType != "managed_object" {
 							t.Error("test[", nm, "]", " entity.ManagedType != mo_type, excepted is managed_object, actual is ", entity.ManagedType)

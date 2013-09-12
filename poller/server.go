@@ -72,6 +72,15 @@ func (s *server) loadJob(id string) {
 	s.startJob(attributes)
 }
 
+func (s *server) interuptJob(id string) {
+	job, ok := s.jobs[id]
+	if !ok {
+		return
+	}
+	job.Interupt()
+	log.Println("interupt trigger with id was '" + id + "'")
+}
+
 func (s *server) stopJob(id string, reason int) {
 	job, ok := s.jobs[id]
 	if !ok {
@@ -169,7 +178,6 @@ func (s *server) onIdle() {
 		}
 
 		if nil != should_load && 0 != len(should_load) {
-
 			started_at := time.Now()
 			loader := &cookiesLoaderImpl{client: commons.NewClient(*foreignUrl, "alert_cookies")}
 			if loadThreshold < len(should_load) {
@@ -178,20 +186,33 @@ func (s *server) onIdle() {
 					log.Println("[srv] load cookies failed,", e)
 					return
 				}
+				log.Println("[srv] loaded ", len(loader.id2cookies), " cookies of ", len(should_load), " trigger and ", time.Now().Sub(started_at), "is elapsed")
 			} else {
 				loader.loadFromWebWhileNotFound = true
 				loader.isPersist = true
+				log.Println("[srv] should load ", len(loader.id2cookies), " cookies of ", len(should_load), " trigger while starting trigger.")
 			}
 
 			s.ctx["cookies_loader"] = loader
 			defer delete(s.ctx, "cookies_loader")
-
-			log.Println("[srv] load ", len(loader.id2cookies), " cookies of ", len(should_load), " trigger and ", time.Now().Sub(started_at), "is elapsed")
 		}
 	} else {
 		delete(s.ctx, "cookies_loader")
 	}
 
+	// 1. interupt all triggers
+	if nil != updated {
+		for _, id := range updated {
+			s.interuptJob(id)
+		}
+	}
+	if nil != deleted {
+		for _, id := range deleted {
+			s.interuptJob(id)
+		}
+	}
+
+	// 2. start all newed triggers
 	if nil != newed {
 		for _, id := range newed {
 			s.loadJob(id)
@@ -199,6 +220,7 @@ func (s *server) onIdle() {
 		log.Println("[srv] new triggers with count is", len(newed), "is started.")
 	}
 
+	// 3. restart all updated triggers
 	if nil != updated {
 		for _, id := range updated {
 			s.stopJob(id, CLOSE_REASON_NORMAL)
@@ -207,6 +229,7 @@ func (s *server) onIdle() {
 		log.Println("[srv] updated triggers with count is", len(updated), "is started.")
 	}
 
+	// 3. stop deleted triggers
 	if nil != deleted {
 		for _, id := range deleted {
 			s.stopJob(id, CLOSE_REASON_DELETED)

@@ -19,6 +19,7 @@ type Trigger interface {
 	Version() time.Time
 	Stats() map[string]interface{}
 
+	Interupt()
 	Close(reason int)
 	CallActions(t time.Time, res interface{})
 }
@@ -242,7 +243,7 @@ func (self *intervalTrigger) init(delay time.Duration) error {
 	if !atomic.CompareAndSwapInt32(&self.closed, 1, 0) {
 		return AlreadyStarted
 	}
-	self.c = make(chan int)
+	self.c = make(chan int, 2)
 
 	sinit := func() {
 		go self.run()
@@ -256,6 +257,14 @@ func (self *intervalTrigger) init(delay time.Duration) error {
 	}
 
 	return nil
+}
+
+func (self *intervalTrigger) Interupt() {
+	if 1 == atomic.LoadInt32(&self.closed) {
+		return
+	}
+
+	self.c <- 0
 }
 
 func (self *intervalTrigger) Close(reason int) {

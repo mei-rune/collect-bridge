@@ -17,6 +17,7 @@ const (
 )
 
 type Job interface {
+	Interupt()
 	Close(reason int)
 
 	Id() string
@@ -122,6 +123,9 @@ type errorJob struct {
 	clazz, id, name, e string
 
 	updated_at time.Time
+}
+
+func (self *errorJob) Interupt() {
 }
 
 func (self *errorJob) Close(reason int) {

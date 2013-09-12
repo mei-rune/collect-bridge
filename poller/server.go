@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+var loadThreshold = 20
+
 type server struct {
 	commons.SimpleServer
 
@@ -167,12 +169,18 @@ func (s *server) onIdle() {
 		}
 
 		if nil != should_load && 0 != len(should_load) {
+
 			started_at := time.Now()
 			loader := &cookiesLoaderImpl{client: commons.NewClient(*foreignUrl, "alert_cookies")}
-			if e := loader.init(); nil != e {
-				s.last_error = e
-				log.Println("[srv] load cookies failed,", e)
-				return
+			if loadThreshold < len(should_load) {
+				if e := loader.init(); nil != e {
+					s.last_error = e
+					log.Println("[srv] load cookies failed,", e)
+					return
+				}
+			} else {
+				loader.loadFromWebWhileNotFound = true
+				loader.isPersist = true
 			}
 
 			s.ctx["cookies_loader"] = loader

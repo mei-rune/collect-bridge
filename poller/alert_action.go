@@ -507,7 +507,6 @@ func newAlertAction(attributes, options, ctx map[string]interface{}) (ExecuteAct
 		log.Println("load alert cookies with id was " + strconv.FormatInt(int64(id), 10) + " and name is '" + name + "' is not found")
 	} else {
 		log.Println("load alert cookies with id was " + strconv.FormatInt(int64(id), 10) + " and name is '" + name + "' is ok")
-		fmt.Println(cookies)
 	}
 
 	action := &alertAction{id: id,

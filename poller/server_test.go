@@ -77,76 +77,79 @@ func TestLoadCookiesWhileStartServer(t *testing.T) {
 }
 
 func TestLoadCookiesWhileOnTick(t *testing.T) {
-	srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
-		carrier.SrvTest(t, func(db *sql.DB, url string) {
-			*foreignUrl = url
-			is_test = true
-			*load_cookies = true
-			Runforever()
-			if nil == server_test {
-				t.Error("load trigger failed.")
-				return
-			}
-			defer func() {
-				server_test.Stop()
-				server_test = nil
-			}()
-
-			id := ds.CreateItForTest(t, client, "network_device", mo)
-			ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
-			ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
-			mt_id := ds.CreateItByParentForTest(t, client, "network_device", id, "metric_trigger", metric_trigger_for_cpu)
-			var action_id string
-			for {
-				action_id = ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
-					"id":               "123",
-					"name":             "this is a test alert",
-					"delay_times":      0,
-					"expression_style": "json",
-					"expression_code": map[string]interface{}{
-						"attribute": "a",
-						"operator":  ">=",
-						"value":     "0"}})
-				if mt_id != action_id {
-					break
+	for _, test := range []int{0, 20} {
+		loadThreshold = test
+		srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+			carrier.SrvTest(t, func(db *sql.DB, url string) {
+				*foreignUrl = url
+				is_test = true
+				*load_cookies = true
+				Runforever()
+				if nil == server_test {
+					t.Error("load trigger failed.")
+					return
 				}
-				client.DeleteById("alert", action_id)
-			}
+				defer func() {
+					server_test.Stop()
+					server_test = nil
+				}()
 
-			for _, s := range []string{`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (2343, 'mo', 1, 1, 0, 'aa', 1,  3, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (3453, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (4345, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
-				fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'event_id_sss_aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`, action_id)} {
-				_, e := db.Exec(s)
+				id := ds.CreateItForTest(t, client, "network_device", mo)
+				ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
+				ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
+				mt_id := ds.CreateItByParentForTest(t, client, "network_device", id, "metric_trigger", metric_trigger_for_cpu)
+				var action_id string
+				for {
+					action_id = ds.CreateItByParentForTest(t, client, "metric_trigger", mt_id, "alert", map[string]interface{}{
+						"id":               "123",
+						"name":             "this is a test alert",
+						"delay_times":      0,
+						"expression_style": "json",
+						"expression_code": map[string]interface{}{
+							"attribute": "a",
+							"operator":  ">=",
+							"value":     "0"}})
+					if mt_id != action_id {
+						break
+					}
+					client.DeleteById("alert", action_id)
+				}
 
+				for _, s := range []string{`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (2343, 'mo', 1, 1, 0, 'aa', 1,  3, 'abc', 'ww', '2013-08-05 12:12:12');`,
+					`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (3453, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+					`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (4345, 'mo', 1, 1, 0, 'aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`,
+					fmt.Sprintf(`INSERT INTO tpt_alert_cookies(action_id, managed_type, managed_id, status, previous_status, event_id, sequence_id, level, content, current_value, triggered_at) VALUES (%v, 'mo', 1, 1, 0, 'event_id_sss_aa', 1, 13, 'abc', 'ww', '2013-08-05 12:12:12');`, action_id)} {
+					_, e := db.Exec(s)
+
+					if nil != e {
+						t.Error(e)
+						return
+					}
+				}
+
+				server_test.onIdle()
+
+				if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
+					t.Error("load trigger failed.")
+					return
+				}
+
+				tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+				tr_instance.callAfter()
+				//server_test.jobs[mt_id].(*metricJob).callAfter()
+				stats := server_test.jobs[mt_id].Stats()
+				bs, e := json.MarshalIndent(stats, "", "  ")
 				if nil != e {
 					t.Error(e)
 					return
 				}
-			}
-
-			server_test.onIdle()
-
-			if nil == server_test || nil == server_test.jobs || 0 == len(server_test.jobs) {
-				t.Error("load trigger failed.")
-				return
-			}
-
-			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
-			tr_instance.callAfter()
-			//server_test.jobs[mt_id].(*metricJob).callAfter()
-			stats := server_test.jobs[mt_id].Stats()
-			bs, e := json.MarshalIndent(stats, "", "  ")
-			if nil != e {
-				t.Error(e)
-				return
-			}
-			if !strings.Contains(string(bs), "event_id_sss_aa") {
-				t.Error("load cookies failed.")
-				t.Log(string(bs))
-			}
+				if !strings.Contains(string(bs), "event_id_sss_aa") {
+					t.Error("load cookies failed.")
+					t.Log(string(bs))
+				}
+			})
 		})
-	})
+	}
 }
 
 func TestLoadCookiesWhileOnTickWithNotfound(t *testing.T) {

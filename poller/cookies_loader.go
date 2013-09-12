@@ -4,19 +4,16 @@ import (
 	"commons"
 	"errors"
 	"strconv"
-	"strings"
 )
 
 type cookiesLoader interface {
-	persistCookiesWithAcitonId(id int64, ctx map[string]interface{}, cookie map[string]interface{}) error
 	loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error)
 }
 
 type cookiesLoaderImpl struct {
-	isPersist                bool
-	loadFromWebWhileNotFound bool
-	client                   *commons.Client
-	id2cookies               map[int64]map[string]interface{}
+	immediateLoadWhileNotFound bool
+	client                     *commons.Client
+	id2cookies                 map[int64]map[string]interface{}
 }
 
 func (self *cookiesLoaderImpl) loadCookiesByAcitonId(id int64) (map[string]interface{}, error) {
@@ -74,45 +71,33 @@ func (self *cookiesLoaderImpl) init() error {
 	return nil
 }
 
-func (self *cookiesLoaderImpl) initWithIds(id_list []string) error {
-	self.id2cookies = map[int64]map[string]interface{}{}
-	offset := 0
-	for ; (offset + 100) < len(id_list); offset += 100 {
-		_, e := self.loadCookies(map[string]string{"@id": "[in]" + strings.Join(id_list[offset:offset+100], ",")})
-		if nil != e {
-			return e
-		}
-	}
+// func (self *cookiesLoaderImpl) initWithIds(id_list []string) error {
+// 	self.id2cookies = map[int64]map[string]interface{}{}
+// 	offset := 0
+// 	for ; (offset + 100) < len(id_list); offset += 100 {
+// 		_, e := self.loadCookies(map[string]string{"@id": "[in]" + strings.Join(id_list[offset:offset+100], ",")})
+// 		if nil != e {
+// 			return e
+// 		}
+// 	}
 
-	_, e := self.loadCookies(map[string]string{"@id": "[in]" + strings.Join(id_list[offset:], ",")})
-	if nil != e {
-		return e
-	}
+// 	_, e := self.loadCookies(map[string]string{"@id": "[in]" + strings.Join(id_list[offset:], ",")})
+// 	if nil != e {
+// 		return e
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func (self *cookiesLoaderImpl) loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error) {
 	if c, ok := self.id2cookies[id]; ok {
 		delete(self.id2cookies, id)
 		return c, nil
 	}
-	if self.loadFromWebWhileNotFound {
+	if self.immediateLoadWhileNotFound {
 		return self.loadCookiesByAcitonId(id)
 	}
 	return nil, nil
-}
-
-func (self *cookiesLoaderImpl) persistCookiesWithAcitonId(id int64, ctx map[string]interface{}, cookie map[string]interface{}) error {
-	if !self.isPersist {
-		return nil
-	}
-
-	if nil == self.id2cookies {
-		self.id2cookies = map[int64]map[string]interface{}{}
-	}
-	self.id2cookies[id] = cookie
-	return nil
 }
 
 type mockCookiesLoader struct {
@@ -122,8 +107,4 @@ type mockCookiesLoader struct {
 
 func (self *mockCookiesLoader) loadCookiesWithAcitonId(id int64, ctx map[string]interface{}) (map[string]interface{}, error) {
 	return self.cookies, self.e
-}
-
-func (self *mockCookiesLoader) persistCookiesWithAcitonId(id int64, ctx map[string]interface{}, cookie map[string]interface{}) error {
-	return nil
 }

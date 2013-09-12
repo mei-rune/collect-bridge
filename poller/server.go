@@ -188,8 +188,7 @@ func (s *server) onIdle() {
 				}
 				log.Println("[srv] loaded ", len(loader.id2cookies), " cookies of ", len(should_load), " trigger and ", time.Now().Sub(started_at), "is elapsed")
 			} else {
-				loader.loadFromWebWhileNotFound = true
-				loader.isPersist = true
+				loader.immediateLoadWhileNotFound = true
 				log.Println("[srv] should load ", len(loader.id2cookies), " cookies of ", len(should_load), " trigger while starting trigger.")
 			}
 

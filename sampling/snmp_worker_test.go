@@ -53,7 +53,6 @@ func TestSnmpTestExpired2(t *testing.T) {
 }
 
 func TestSnmpTestNative(t *testing.T) {
-	is_icmp_test = false
 	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
@@ -87,8 +86,7 @@ func TestSnmpTestNative(t *testing.T) {
 	})
 }
 
-func TestSnmpTest(t *testing.T) {
-	is_icmp_test = false
+func TestSnmpTestBasic(t *testing.T) {
 	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
 		_, e := client.DeleteBy("network_device", emptyParams)
 		if nil != e {
@@ -101,16 +99,20 @@ func TestSnmpTest(t *testing.T) {
 		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
 
 		res := urlGet(t, sampling_url, "network_device", id, "snmp_test")
-		if res.HasError() && !strings.Contains(res.ErrorMessage(), "sampled is pending.") {
+		if res.HasError() && !strings.Contains(res.ErrorMessage(), pendingError.Error()) {
 			t.Error(res.Error())
 			return
 		}
-		time.Sleep(1 * time.Second)
 
-		res = urlGet(t, sampling_url, "network_device", id, "snmp_test")
 		if res.HasError() {
-			t.Error(res.Error())
-			return
+			for i := 0; i < 4; i++ {
+				time.Sleep(1 * time.Second)
+				res = urlGet(t, sampling_url, "network_device", id, "snmp_test")
+				if res.HasError() && !strings.Contains(res.ErrorMessage(), pendingError.Error()) {
+					t.Error(res.Error())
+					return
+				}
+			}
 		}
 
 		if nil == res.InterfaceValue() {

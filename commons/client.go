@@ -102,17 +102,19 @@ func (self *HttpClient) InvokeWith(action, url string, body io.Reader, exceptedC
 		//return httpError(resp.StatusCode, fmt.Sprintf("[%v]%v", resp.StatusCode, string(resp_body)))
 	}
 
-	resp_body := readAllBytes(resp.Body)
-	if nil == resp_body || 0 == len(resp_body) {
-		return httpError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
-	}
+	// resp_body := readAllBytes(resp.Body)
+	// if nil == resp_body || 0 == len(resp_body) {
+	// 	return httpError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
+	// }
+
+	//decoder := json.NewDecoder(bytes.NewBuffer(resp_body))
+	decoder := json.NewDecoder(resp.Body)
+	decoder.UseNumber()
 
 	var result SimpleResult
-	decoder := json.NewDecoder(bytes.NewBuffer(resp_body))
-	decoder.UseNumber()
 	e = decoder.Decode(&result)
 	if nil != e {
-		fmt.Println(string(resp_body))
+		//fmt.Println(string(resp_body))
 		return unmarshalError(e)
 	}
 	return &result

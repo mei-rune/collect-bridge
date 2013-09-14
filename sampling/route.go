@@ -136,13 +136,13 @@ func NewRoute(rd *RouteDefinition) (*Route, error) {
 	return rs, nil
 }
 
-type Routers struct {
+type RouterGroup struct {
 	byOid          RouteSetByOid
 	routes         []*Route
 	default_routes []*Route
 }
 
-func (self *Routers) register(rs *Route) error {
+func (self *RouterGroup) register(rs *Route) error {
 	if nil == rs.matchers || 0 == len(rs.matchers) {
 		self.default_routes = append(self.default_routes, rs)
 		return nil
@@ -162,7 +162,7 @@ func (self *Routers) register(rs *Route) error {
 	return nil
 }
 
-func (self *Routers) unregister(id string) {
+func (self *RouterGroup) unregister(id string) {
 	if nil != self.byOid {
 		self.byOid.unregister(id)
 	}
@@ -186,13 +186,13 @@ func (self *Routers) unregister(id string) {
 	}
 }
 
-func (self *Routers) clear() {
+func (self *RouterGroup) clear() {
 	self.byOid = nil
 	self.routes = nil
 	self.default_routes = nil
 }
 
-func (self *Routers) Invoke(paths []P, params MContext) commons.Result {
+func (self *RouterGroup) Invoke(paths []P, params MContext) commons.Result {
 	if nil != self.byOid {
 		oid, e := params.GetString("$sys.oid")
 		if nil != e {

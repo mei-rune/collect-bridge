@@ -100,6 +100,8 @@ func (self *snmpWorker) run() {
 				break
 			}
 
+			//log.Println(res.Addr.String())
+
 			self.Push(res)
 		}
 	}

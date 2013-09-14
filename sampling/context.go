@@ -20,32 +20,101 @@ func split(exp string) (string, string) {
 }
 
 type context struct {
-	body_reader io.Reader
+	srv              *server
+	alias            map[string]string
+	metric_name      string
+	is_native        bool
+	address          string
+	managed_type     string
+	managed_id       string
+	query_paths      []P
+	query_params     map[string]string
+	body_reader      io.Reader
+	body_instance    interface{}
+	body_error       error
+	body_unmarshaled bool
 
-	params       map[string]string
-	managed_type string
-	managed_id   string
-	mo           map[string]interface{}
-
-	alias         map[string]string
+	mo            map[string]interface{}
 	local         map[string]map[string]interface{}
-	pry           *proxy
 	metrics_cache map[string]interface{}
 }
 
-func (self *context) Body(v interface{}) error {
-	if nil == self.body_reader {
-		return errors.New("'body' is nil")
+func (self *context) init() error {
+	if nil == self.query_params {
+		self.query_params = map[string]string{}
 	}
-	return json.NewDecoder(self.body_reader).Decode(v)
+
+	if self.is_native {
+		self.query_params["uid"] = self.address
+		self.query_params["@address"] = self.address
+		self.query_params["metric-name"] = self.metric_name
+		self.mo = map[string]interface{}{}
+	} else {
+		self.query_params["type"] = self.managed_type
+		self.query_params["id"] = self.managed_id
+		self.query_params["uid"] = self.managed_id
+		self.query_params["metric-name"] = self.metric_name
+
+		var e error
+		self.mo, e = self.srv.GetMOCahce(self.managed_id)
+		if nil != e {
+			return e
+		}
+		if nil == self.mo {
+			return commons.RecordNotFoundWithType(self.managed_type, self.managed_id)
+		}
+		switch self.mo["type"] {
+		case "network_device_port":
+			device_id := fmt.Sprint(self.mo["device_id"])
+			ifIndex := fmt.Sprint(self.mo["if_index"])
+			self.mo, e = self.srv.GetMOCahce(device_id)
+			if nil != e {
+				return e
+			}
+
+			if nil == self.mo {
+				return commons.RecordNotFoundWithType("device", self.managed_id)
+			}
+			self.query_paths = []P{{"port", ifIndex}}
+		}
+		// if "managed_object" == managed_type && "137" == managed_id {
+		// 	bs, _ := json.MarshalIndent(mo, "", "  ")
+		// 	fmt.Println(string(bs))
+		// }
+	}
+
+	return nil
+}
+
+func (self *context) CreateCtx(metric_name string, managed_type, managed_id string) (MContext, error) {
+	ctx := &context{srv: self.srv,
+		alias:        alias_names,
+		is_native:    false,
+		managed_type: managed_type,
+		managed_id:   managed_id}
+	return ctx, ctx.init()
+}
+
+func (self *context) Body() (interface{}, error) {
+	if self.body_unmarshaled {
+		return self.body_instance, self.body_error
+	}
+
+	if nil == self.body_reader {
+		return nil, errors.New("'body' is nil")
+	}
+
+	self.body_error = json.NewDecoder(self.body_reader).Decode(&self.body_instance)
+	self.body_unmarshaled = true
+	return self.body_instance, self.body_error
 }
 
 func (self *context) Read() Sampling {
-	return self.pry
+	return self.srv
 }
 
 func (self *context) CopyTo(copy map[string]interface{}) {
-	for k, v := range self.params {
+	for k, v := range self.query_params {
 		copy[k] = v
 	}
 }
@@ -61,26 +130,32 @@ func (self *context) Set(key string, value interface{}) {
 		self.metrics_cache[key[1:]] = value
 	default:
 		if s, ok := value.(string); ok {
-			self.params[key] = s
+			self.query_params[key] = s
 		} else {
-			self.params[key] = fmt.Sprint(value)
+			self.query_params[key] = fmt.Sprint(value)
 		}
 	}
 }
 
 func (self *context) cache(t, field string) (interface{}, error) {
+	var m map[string]interface{}
 	var n []map[string]interface{}
-	m, ok := self.local[t]
-	if ok {
-		goto ok
+	var ok bool
+
+	if nil != self.local {
+		m, ok = self.local[t]
+		if ok {
+			goto ok
+		}
 	}
 
 	if tn, ok := self.alias[t]; ok {
 		t = tn
 
-		m, ok = self.local[tn]
-		if ok {
-			goto ok
+		if nil != self.local {
+			if m, ok = self.local[tn]; ok {
+				goto ok
+			}
 		}
 	}
 
@@ -91,6 +166,11 @@ func (self *context) cache(t, field string) (interface{}, error) {
 	}
 
 	m = n[0]
+
+	if nil == self.local {
+		self.local = make(map[string]map[string]interface{})
+	}
+
 	self.local[t] = m
 ok:
 	if v, ok := m[field]; ok {
@@ -100,7 +180,7 @@ ok:
 }
 
 func (self *context) Contains(key string) bool {
-	if _, ok := self.params[key]; ok {
+	if _, ok := self.query_params[key]; ok {
 		return ok
 	}
 
@@ -110,10 +190,10 @@ func (self *context) Contains(key string) bool {
 		return ok
 	case '$':
 		new_key := key[1:]
-		if _, ok := self.params[new_key]; ok {
+		if _, ok := self.query_params[new_key]; ok {
 			return true
 		}
-		if _, ok := self.params["@"+new_key]; ok {
+		if _, ok := self.query_params["@"+new_key]; ok {
 			return true
 		}
 
@@ -150,7 +230,7 @@ func (self *context) Contains(key string) bool {
 }
 
 func (self *context) Get(key string) (interface{}, error) {
-	if s, ok := self.params[key]; ok {
+	if s, ok := self.query_params[key]; ok {
 		return s, nil
 	}
 
@@ -162,10 +242,10 @@ func (self *context) Get(key string) (interface{}, error) {
 		return nil, NotFound
 	case '$':
 		new_key := key[1:]
-		if s, ok := self.params[new_key]; ok {
+		if s, ok := self.query_params[new_key]; ok {
 			return s, nil
 		}
-		if s, ok := self.params["@"+new_key]; ok {
+		if s, ok := self.query_params["@"+new_key]; ok {
 			return s, nil
 		}
 
@@ -187,11 +267,7 @@ func (self *context) Get(key string) (interface{}, error) {
 			}
 		}
 
-		if nil == self.pry {
-			return nil, NotFound
-		}
-
-		v, e := self.pry.Get(new_key, nil, self)
+		v, e := self.srv.Get(new_key, nil, self)
 		if nil == e {
 			if nil == self.metrics_cache {
 				self.metrics_cache = make(map[string]interface{})

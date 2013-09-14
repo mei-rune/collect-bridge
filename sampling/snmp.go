@@ -507,11 +507,16 @@ func (self *snmpWrite) Call(params MContext) commons.Result {
 		return commons.ReturnWithBadRequest("'snmp.oid' is empty.")
 	}
 
-	var body string
-	e = params.Body(&body)
+	o, e := params.Body()
 	if nil != e {
 		return commons.ReturnWithBadRequest("read body failed, " + e.Error())
 	}
+
+	body, ok := o.(string)
+	if !ok {
+		return commons.ReturnWithBadRequest("read body failed, it is not a string.")
+	}
+
 	if 0 == len(body) {
 		return commons.ReturnWithBadRequest("'body' is nil.")
 	}

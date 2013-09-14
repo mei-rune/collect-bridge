@@ -59,7 +59,7 @@ func TestDefaultRouteWithPath(t *testing.T) {
 	r3, _ := newRouteWithSpec("id3", newRouteSpecWithPaths("get", "route", "", []P{{"p1", "arg3"}}, Match().Equals("arg3", "aa").Build(), c3), nil)
 	r4, _ := newRouteWithSpec("id4", newRouteSpecWithPaths("get", "route", "", nil, Match().Equals("arg3", "bb").Build(), c4), nil)
 
-	route := &Routers{}
+	route := &RouterGroup{}
 	route.register(r1)
 	route.register(r2)
 	route.register(r3)
@@ -92,7 +92,7 @@ func TestDefaultRouteWithPath(t *testing.T) {
 		t.Error("result is not equals 'P3', actaul is ", res.InterfaceValue())
 	}
 
-	res = route.Invoke([]P{}, &context{params: map[string]string{"arg3": "bb"}, local: map[string]map[string]interface{}{}, alias: alias_names})
+	res = route.Invoke([]P{}, &context{query_params: map[string]string{"arg3": "bb"}, local: map[string]map[string]interface{}{}, alias: alias_names})
 	if res.HasError() {
 		t.Error(res.ErrorMessage())
 	}
@@ -113,7 +113,7 @@ func TestDefaultRouteWithOid(t *testing.T) {
 	tests2 := []struct{ oid, value string }{{oid: "1.3.6.1.4.1.9.1", value: "9"},
 		{oid: "1.3.6.1.4.1.9.1.746.2", value: "9.1.746"}}
 
-	route := &Routers{}
+	route := &RouterGroup{}
 	for idx, test := range tests {
 		r1, _ := newRouteWithSpec("id"+fmt.Sprint(idx), newRouteSpecWithPaths("get", "route", "", nil, Match().Oid(test.oid).Build(),
 			func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
@@ -133,7 +133,7 @@ func TestDefaultRouteWithOid(t *testing.T) {
 	// }
 
 	for idx, test := range tests {
-		res := route.Invoke([]P{}, &context{params: map[string]string{"sys.oid": test.oid}, local: map[string]map[string]interface{}{}, alias: alias_names})
+		res := route.Invoke([]P{}, &context{query_params: map[string]string{"sys.oid": test.oid}, local: map[string]map[string]interface{}{}, alias: alias_names})
 		if res.HasError() {
 			t.Errorf("tests[%v]: %v", idx, res.ErrorMessage())
 		}
@@ -143,7 +143,7 @@ func TestDefaultRouteWithOid(t *testing.T) {
 		}
 	}
 	for idx, test := range tests2 {
-		res := route.Invoke([]P{}, &context{params: map[string]string{"sys.oid": test.oid}, local: map[string]map[string]interface{}{}, alias: alias_names})
+		res := route.Invoke([]P{}, &context{query_params: map[string]string{"sys.oid": test.oid}, local: map[string]map[string]interface{}{}, alias: alias_names})
 		if res.HasError() {
 			t.Errorf("tests2[%v]: %v", idx, res.ErrorMessage())
 		}

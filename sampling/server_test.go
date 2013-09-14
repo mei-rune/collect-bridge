@@ -1,11 +1,18 @@
 package sampling
 
 import (
+	"bytes"
 	"commons"
 	"commons/types"
 	ds "data_store"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 var (
@@ -69,6 +76,64 @@ func nativeGet(t *testing.T, sampling_url, ip, target string, params map[string]
 	url := self.CreateUrl().Concat(ip, target).WithQueries(params, "").ToUrl()
 	//t.Log(url)
 	return self.InvokeWithObject("GET", url, nil, 200)
+}
+
+func batchGet(t *testing.T, url string, requests []*ExchangeRequest) ([]*ExchangeResponse, error) {
+	buffer := bytes.NewBuffer(make([]byte, 0, 1000))
+	e := json.NewEncoder(buffer).Encode(requests)
+	if nil != e {
+		return nil, commons.NewApplicationError(http.StatusBadRequest, e.Error())
+	}
+	req, err := http.NewRequest("POST", url, buffer)
+	if err != nil {
+		return nil, commons.NewApplicationError(http.StatusBadRequest, err.Error())
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Connection", "Keep-Alive")
+	resp, e := http.DefaultClient.Do(req)
+	if nil != e {
+		return nil, errors.New("get failed, " + e.Error())
+	}
+
+	defer func() {
+		if nil != resp.Body {
+			resp.Body.Close()
+		}
+	}()
+
+	if resp.StatusCode != 200 {
+		if http.StatusNoContent == resp.StatusCode {
+			return nil, nil
+		}
+		resp_body, e := ioutil.ReadAll(resp.Body)
+		if nil != e {
+			return nil, e
+		}
+		if nil == resp_body || 0 == len(resp_body) {
+			return nil, commons.NewApplicationError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
+		}
+
+		return nil, commons.NewApplicationError(resp.StatusCode, string(resp_body))
+	}
+
+	resp_body, e := ioutil.ReadAll(resp.Body)
+	if nil != e {
+		return nil, e
+	}
+	if nil == resp_body || 0 == len(resp_body) {
+		return nil, commons.NewApplicationError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
+	}
+
+	var result []*ExchangeResponse
+	decoder := json.NewDecoder(bytes.NewBuffer(resp_body))
+	decoder.UseNumber()
+	e = decoder.Decode(&result)
+	if nil != e {
+		fmt.Println(string(resp_body))
+		return nil, e
+	}
+	return result, nil
 }
 
 func nativePut(t *testing.T, sampling_url, ip, target string, params map[string]string, body interface{}) commons.Result {
@@ -248,6 +313,107 @@ func TestNativeGetTableBasic(t *testing.T) {
 		}
 		if nil == res.InterfaceValue() {
 			t.Error("values is nil")
+		}
+	})
+}
+
+func TestBatchGetTableBasic(t *testing.T) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
+		_, err := client.DeleteBy("network_device", emptyParams)
+		if nil != err {
+			t.Error(err)
+			return
+		}
+
+		res, e := batchGet(t, sampling_url+"/batch", []*ExchangeRequest{&ExchangeRequest{Address: "127.0.0.1", Action: "GET", Name: "sys", Params: map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"}}})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		for i := 0; i < 1000; i++ {
+			res, e = batchGet(t, sampling_url+"/batch", []*ExchangeRequest{})
+			if nil != e {
+				t.Error(e)
+				return
+			}
+			if nil != res && 0 != len(res) {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		if nil == res || 0 == len(res) {
+			t.Error("not result")
+			return
+		}
+
+		if nil == res[0].Evalue {
+			t.Error("values is nil")
+		}
+
+		t.Log(res[0])
+
+		res, e = batchGet(t, sampling_url+"/batch", []*ExchangeRequest{})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		if nil != res && 0 != len(res) {
+			t.Error("repeated result")
+		}
+	})
+}
+
+func TestBatchGetTableTwo(t *testing.T) {
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
+		_, err := client.DeleteBy("network_device", emptyParams)
+		if nil != err {
+			t.Error(err)
+			return
+		}
+
+		res, e := batchGet(t, sampling_url+"/batch", []*ExchangeRequest{&ExchangeRequest{Address: "127.0.0.1", Action: "GET", Name: "sys", Params: map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"}},
+			&ExchangeRequest{Address: "127.0.0.1", Action: "GET", Name: "sys.name", Params: map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"}}})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		var all []*ExchangeResponse
+		for i := 0; i < 1000; i++ {
+			res, e = batchGet(t, sampling_url+"/batch", []*ExchangeRequest{})
+			if nil != e {
+				t.Error(e)
+				return
+			}
+			if nil != res && 0 != len(res) {
+				all = append(all, res...)
+			}
+
+			if 2 == len(all) {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		if 2 != len(all) {
+			t.Error("not result")
+			return
+		}
+
+		if nil == all[0].Evalue {
+			t.Error("values is nil")
+		}
+
+		t.Log(all[0])
+		t.Log(all[1])
+
+		res, e = batchGet(t, sampling_url+"/batch", []*ExchangeRequest{})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		if nil != res && 0 != len(res) {
+			t.Error("repeated result")
 		}
 	})
 }

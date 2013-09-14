@@ -11,14 +11,22 @@ type MockContext struct {
 	commons.StringMap
 }
 
+func (self MockContext) CreateCtx(metric_name string, managed_type, managed_id string) (MContext, error) {
+	return nil, commons.NotImplemented
+}
+
 func (self MockContext) SetBodyClass(value interface{}) {
 }
 
 func (self MockContext) Read() Sampling {
 	return nil
 }
-func (self MockContext) Body(v interface{}) error {
-	return nil
+func (self MockContext) Body() (interface{}, error) {
+	return nil, nil
+}
+
+func (self MockContext) BodyString() (string, error) {
+	return "", nil
 }
 
 func TestSysOid(t *testing.T) {

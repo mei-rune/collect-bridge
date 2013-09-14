@@ -227,6 +227,7 @@ func (self *DefaultDrv) Delete(params map[string]string) Result {
 }
 
 type SimpleResult struct {
+	Eid             interface{}            `json:"request_id,omitempty"`
 	Eerror          *ApplicationError      `json:"error,omitempty"`
 	Ewarnings       interface{}            `json:"warnings,omitempty"`
 	Evalue          interface{}            `json:"value,omitempty"`

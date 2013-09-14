@@ -15,6 +15,7 @@ import (
 	"net/http/pprof"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -22,6 +23,10 @@ import (
 var (
 	alias_names = map[string]string{"snmp": "snmp_param"}
 )
+
+func type_error(e error) error {
+	return TypeError
+}
 
 func expvarHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -37,20 +42,49 @@ func expvarHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "\n}\n")
 }
 
+type ExchangeRequest struct {
+	Id          uint64            `json:"request_id"`
+	Action      string            `json:"action"`
+	Name        string            `json:"metric-name,omitempty"`
+	ManagedType string            `json:"managed_type,omitempty"`
+	ManagedId   string            `json:"managed_id,omitempty"`
+	Address     string            `json:"address,omitempty"`
+	Paths       []P               `json:"paths,omitempty"`
+	Params      map[string]string `json:"params,omitempty"`
+	Body        interface{}       `json:"body,omitempty"`
+}
+
+type ExchangeResponse struct {
+	Id        uint64               `json:"request_id"`
+	CreatedAt time.Time            `json:"created_at"`
+	Error     commons.RuntimeError `json:"error,omitempty"`
+	Evalue    interface{}          `json:"value,omitempty"`
+
+	value commons.AnyData
+}
+
+func (self *ExchangeResponse) Value() commons.Any {
+	self.value.Value = self.Evalue
+	return &self.value
+}
+
 type server struct {
 	workers  *backgroundWorkers
 	caches   *ds.Caches
 	mo_cache *ds.Cache
 
-	routes_for_get    map[string]*Routers
-	routes_for_put    map[string]*Routers
-	routes_for_create map[string]*Routers
-	routes_for_delete map[string]*Routers
+	routes_for_get    map[string]*RouterGroup
+	routes_for_put    map[string]*RouterGroup
+	routes_for_create map[string]*RouterGroup
+	routes_for_delete map[string]*RouterGroup
 
 	route_for_get    map[string]*Route
 	route_for_put    map[string]*Route
 	route_for_create map[string]*Route
 	route_for_delete map[string]*Route
+
+	completions_lock sync.Mutex
+	completions      []*ExchangeResponse
 }
 
 func newServer(ds_url string, refresh time.Duration, params map[string]interface{}) (*server, error) {
@@ -62,10 +96,10 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 		period_interval: *period_interval,
 		workers:         nil},
 		caches: caches, mo_cache: mo_cache,
-		routes_for_get:    make(map[string]*Routers),
-		routes_for_put:    make(map[string]*Routers),
-		routes_for_create: make(map[string]*Routers),
-		routes_for_delete: make(map[string]*Routers),
+		routes_for_get:    make(map[string]*RouterGroup),
+		routes_for_put:    make(map[string]*RouterGroup),
+		routes_for_create: make(map[string]*RouterGroup),
+		routes_for_delete: make(map[string]*RouterGroup),
 		route_for_get:     make(map[string]*Route),
 		route_for_put:     make(map[string]*Route),
 		route_for_create:  make(map[string]*Route),
@@ -108,7 +142,7 @@ func (self *server) run() {
 }
 
 func (self *server) register(rs *Route) error {
-	var routes_container map[string]*Routers
+	var routes_container map[string]*RouterGroup
 	var route_container map[string]*Route
 
 	switch rs.definition.Method {
@@ -135,7 +169,7 @@ func (self *server) register(rs *Route) error {
 
 	route, _ := routes_container[rs.name]
 	if nil == route {
-		route = &Routers{}
+		route = &RouterGroup{}
 		routes_container[rs.name] = route
 	}
 
@@ -143,7 +177,7 @@ func (self *server) register(rs *Route) error {
 }
 
 func (self *server) unregister(name, id string) {
-	for _, instances := range []map[string]*Routers{self.routes_for_get,
+	for _, instances := range []map[string]*RouterGroup{self.routes_for_get,
 		self.routes_for_put, self.routes_for_create, self.routes_for_delete} {
 		if "" == name {
 			for _, route := range instances {
@@ -160,10 +194,10 @@ func (self *server) unregister(name, id string) {
 }
 
 func (self *server) clear() {
-	self.routes_for_get = make(map[string]*Routers)
-	self.routes_for_put = make(map[string]*Routers)
-	self.routes_for_create = make(map[string]*Routers)
-	self.routes_for_delete = make(map[string]*Routers)
+	self.routes_for_get = make(map[string]*RouterGroup)
+	self.routes_for_put = make(map[string]*RouterGroup)
+	self.routes_for_create = make(map[string]*RouterGroup)
+	self.routes_for_delete = make(map[string]*RouterGroup)
 
 	self.route_for_get = make(map[string]*Route)
 	self.route_for_put = make(map[string]*Route)
@@ -197,6 +231,44 @@ func to2DArray(ss []string) []P {
 		params = append(params, P{ss[i], ss[i+1]})
 	}
 	return params
+}
+
+type routeObject interface {
+	Invoke(paths []P, params MContext) commons.Result
+}
+
+func (self *server) route(action, metric_name string) (routeObject, commons.RuntimeError) {
+	var route_by_id map[string]*Route
+	var routes_by_name map[string]*RouterGroup
+
+	switch action {
+	case "GET":
+		route_by_id = self.route_for_get
+		routes_by_name = self.routes_for_get
+	case "PUT":
+		route_by_id = self.route_for_put
+		routes_by_name = self.routes_for_put
+	case "POST":
+		route_by_id = self.route_for_create
+		routes_by_name = self.routes_for_create
+	case "DELETE":
+		route_by_id = self.route_for_delete
+		routes_by_name = self.routes_for_delete
+	default:
+		return nil, commons.NewApplicationError(http.StatusMethodNotAllowed,
+			"method '"+action+"' is unsupported.")
+	}
+
+	if route := route_by_id[metric_name]; nil != route {
+		return route, nil
+	}
+
+	if routes := routes_by_name[metric_name]; nil != routes {
+		return routes, nil
+	}
+
+	return nil, commons.NewApplicationError(http.StatusNotAcceptable,
+		"'"+metric_name+"' is not acceptable.")
 }
 
 func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -245,6 +317,18 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	if r.URL.Path == "/batch" || r.URL.Path == "/batch/" {
+		if "POST" != r.Method {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			io.WriteString(w, "method '"+r.Method+"' is unsupported, must is 'POST'.")
+			return
+		}
+
+		self.batchExchange(w, r)
+		return
+	}
+
 	url := r.URL.Path
 	if '/' == url[0] {
 		url = url[1:]
@@ -256,112 +340,155 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var managed_type, managed_id, metric_name string
-	var mo map[string]interface{}
+	var address, managed_type, managed_id, metric_name string
+	var is_native bool
 	var query_paths []P
-	query_params := map[string]string{}
-	for k, values := range r.URL.Query() {
-		query_params[k] = values[len(values)-1]
-	}
 
 	if 0 == len(paths)%2 {
 		metric_name = paths[len(paths)-1]
 		managed_type = "unknow_type"
 		managed_id = "unknow_id"
-		query_params["uid"] = paths[0]
-		query_params["@address"] = paths[0]
-		query_params["metric-name"] = metric_name
+		is_native = true
+		address = paths[0]
 		query_paths = to2DArray(paths[1 : len(paths)-1])
 
-		mo = map[string]interface{}{}
 	} else {
 		metric_name = paths[len(paths)-1]
 		managed_type = paths[0]
 		managed_id = paths[1]
-		query_params["type"] = managed_type
-		query_params["id"] = managed_id
-		query_params["uid"] = managed_id
-		query_params["metric-name"] = metric_name
+		is_native = false
 		query_paths = to2DArray(paths[2 : len(paths)-1])
-
-		var e error
-		mo, e = self.mo_cache.Get(managed_id)
-		if nil != e {
-			self.returnResult(w, commons.ReturnWithInternalError(e.Error()))
-			return
-		}
-		if nil == mo {
-			self.returnResult(w, commons.ReturnWithRecordNotFound(managed_type, managed_id))
-			return
-		}
-		switch mo["type"] {
-		case "network_device_port":
-			device_id := fmt.Sprint(mo["device_id"])
-			ifIndex := fmt.Sprint(mo["if_index"])
-			mo, e = self.mo_cache.Get(device_id)
-			if nil != e {
-				self.returnResult(w, commons.ReturnWithInternalError(e.Error()))
-				return
-			}
-			if nil == mo {
-				self.returnResult(w, commons.ReturnWithRecordNotFound("device", managed_id))
-				return
-			}
-			query_paths = []P{{"port", ifIndex}}
-		}
-		// if "managed_object" == managed_type && "137" == managed_id {
-		// 	bs, _ := json.MarshalIndent(mo, "", "  ")
-		// 	fmt.Println(string(bs))
-		// }
 	}
 
-	var route_by_id map[string]*Route
-	var routes_by_name map[string]*Routers
-
-	switch r.Method {
-	case "GET":
-		route_by_id = self.route_for_get
-		routes_by_name = self.routes_for_get
-	case "PUT":
-		route_by_id = self.route_for_put
-		routes_by_name = self.routes_for_put
-	case "POST":
-		route_by_id = self.route_for_create
-		routes_by_name = self.routes_for_create
-	case "DELETE":
-		route_by_id = self.route_for_delete
-		routes_by_name = self.routes_for_delete
-	default:
-		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, "method '"+r.Method+"' is unsupported.")
+	route, e := self.route(r.Method, metric_name)
+	if nil != e {
+		w.WriteHeader(e.Code())
+		io.WriteString(w, e.Error())
 		return
 	}
 
-	params := &context{params: query_params,
+	query_params := map[string]string{}
+	for k, values := range r.URL.Query() {
+		query_params[k] = values[len(values)-1]
+	}
+
+	ctx := &context{srv: self,
+		alias:        alias_names,
+		metric_name:  metric_name,
+		is_native:    is_native,
+		address:      address,
 		managed_type: managed_type,
 		managed_id:   managed_id,
-		mo:           mo,
-		local:        make(map[string]map[string]interface{}),
-		alias:        alias_names,
-		pry:          &proxy{srv: self},
+		query_paths:  query_paths,
+		query_params: query_params,
 		body_reader:  r.Body}
 
-	route := route_by_id[metric_name]
-	if nil != route {
-		self.returnResult(w, route.Invoke(query_paths, params))
+	if e := ctx.init(); nil != e {
+		if err := e.(commons.RuntimeError); nil != err {
+			w.WriteHeader(err.Code())
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		io.WriteString(w, e.Error())
 		return
 	}
 
-	routes := routes_by_name[metric_name]
-	if nil == routes {
-		self.returnResult(w, notAcceptable(metric_name))
-		return
-	}
-
-	self.returnResult(w, routes.Invoke(query_paths, params))
+	self.returnResult(w, route.Invoke(ctx.query_paths, ctx))
 }
 
-func invoke(route_by_id map[string]*Route, routes_by_name map[string]*Routers,
+func (self *server) batchExchange(w http.ResponseWriter, r *http.Request) {
+	var requests []*ExchangeRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.UseNumber()
+	if e := decoder.Decode(&requests); nil != e {
+		w.WriteHeader(http.StatusExpectationFailed)
+		io.WriteString(w, e.Error())
+		return
+	}
+
+	if nil != requests && 0 != len(requests) {
+		for _, req := range requests {
+			go self.doRequest(req)
+		}
+	}
+
+	self.sendCompletion(w)
+}
+
+func (self *server) sendCompletion(w http.ResponseWriter) {
+	self.completions_lock.Lock()
+	defer self.completions_lock.Unlock()
+
+	if nil == self.completions || 0 == len(self.completions) {
+		w.WriteHeader(http.StatusNoContent)
+		//io.WriteString(w, "NOCONTENT")
+		return
+	}
+
+	encoder := json.NewEncoder(w)
+	if e := encoder.Encode(self.completions); nil != e {
+		w.WriteHeader(http.StatusInternalServerError)
+		io.WriteString(w, e.Error())
+	} else {
+		if 256 < cap(self.completions) {
+			self.completions = nil
+		} else {
+			self.completions = self.completions[0:0]
+		}
+	}
+}
+
+func (self *server) doRequest(r *ExchangeRequest) {
+	var resp *ExchangeResponse
+	var res commons.Result
+	var ctx *context
+
+	route, err := self.route(r.Action, r.Name)
+	if nil != err {
+		resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), Error: err}
+		goto failed
+	}
+
+	ctx = &context{srv: self,
+		alias:            alias_names,
+		metric_name:      r.Name,
+		is_native:        0 != len(r.Address),
+		address:          r.Address,
+		managed_type:     r.ManagedType,
+		managed_id:       r.ManagedId,
+		query_paths:      r.Paths,
+		query_params:     r.Params,
+		body_unmarshaled: true,
+		body_instance:    r.Body}
+
+	if e := ctx.init(); nil != e {
+		if err := e.(commons.RuntimeError); nil != err {
+			resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), Error: err}
+		} else {
+			resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), Error: commons.NewApplicationError(http.StatusInternalServerError,
+				e.Error())}
+		}
+		goto failed
+	}
+
+	res = route.Invoke(ctx.query_paths, ctx)
+	if res.HasError() {
+		resp = &ExchangeResponse{Id: r.Id, CreatedAt: res.CreatedAt(), Error: res.Error()}
+	} else {
+		resp = &ExchangeResponse{Id: r.Id, CreatedAt: res.CreatedAt(), Evalue: res.InterfaceValue()}
+	}
+
+failed:
+	self.completions_lock.Lock()
+	defer self.completions_lock.Unlock()
+	if nil == resp {
+		resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), Error: commons.NewApplicationError(http.StatusInternalServerError, "unknow error.")}
+	}
+
+	self.completions = append(self.completions, resp)
+}
+
+func invoke(route_by_id map[string]*Route, routes_by_name map[string]*RouterGroup,
 	metric_name string, paths []P, params MContext) commons.Result {
 	route := route_by_id[metric_name]
 	if nil != route {
@@ -376,57 +503,167 @@ func invoke(route_by_id map[string]*Route, routes_by_name map[string]*Routers,
 	return routes.Invoke(paths, params)
 }
 
-func (self *server) CreateCtx(metric_name string, managed_type, managed_id string) (MContext, error) {
-	query_params := map[string]string{}
-
-	query_params["type"] = managed_type
-	query_params["id"] = managed_id
-	query_params["uid"] = managed_id
-	query_params["metric-name"] = metric_name
-
-	mo, e := self.mo_cache.Get(managed_id)
-	if nil != e {
-		return nil, errors.New(managed_type + " with id was '" + managed_id + "' is not found, " + e.Error())
-	}
-	if nil == mo {
-		return nil, errors.New(managed_type + " with id was '" + managed_id + "' is not found.")
-	}
-
-	// switch mo["type"] {
-	// case "network_device_port":
-	// 	mo, e = self.mo_cache.Get(fmt.Sprint(mo["device_id"]))
-	// 	if nil != e {
-	// 		return nil, errors.New("device with id was '" + fmt.Sprint(mo["device_id"]) + "' is not found, " + e.Error())
-	// 	}
-	// 	if nil == mo {
-	// 		return nil, errors.New("device with id was '" + fmt.Sprint(mo["device_id"]) + "' is not found.")
-	// 	}
-	// }
-
-	return &context{params: query_params,
-		managed_type: managed_type,
-		managed_id:   managed_id,
-		mo:           mo,
-		local:        make(map[string]map[string]interface{}),
-		alias:        alias_names,
-		pry:          &proxy{srv: self},
-		body_reader:  nil}, nil
-}
-
-func (self *server) Get(metric_name string, paths []P, params MContext) commons.Result {
+func (self *server) InvokeGet(metric_name string, paths []P, params MContext) commons.Result {
 	return invoke(self.route_for_get, self.routes_for_get, metric_name, paths, params)
 }
 
-func (self *server) Put(metric_name string, paths []P, params MContext) commons.Result {
+func (self *server) InvokePut(metric_name string, paths []P, params MContext) commons.Result {
 	return invoke(self.route_for_put, self.routes_for_put, metric_name, paths, params)
 }
 
-func (self *server) Create(metric_name string, paths []P, params MContext) commons.Result {
+func (self *server) InvokeCreate(metric_name string, paths []P, params MContext) commons.Result {
 	return invoke(self.route_for_create, self.routes_for_create, metric_name, paths, params)
 }
 
-func (self *server) Delete(metric_name string, paths []P, params MContext) commons.Result {
+func (self *server) InvokeDelete(metric_name string, paths []P, params MContext) commons.Result {
 	return invoke(self.route_for_delete, self.routes_for_delete, metric_name, paths, params)
+}
+func (self *server) GetMOCahce(id string) (map[string]interface{}, error) {
+	return self.mo_cache.Get(id)
+}
+
+func (self *server) Get(metric_name string, paths []P, params MContext) (interface{}, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return nil, res.Error()
+	}
+	return res.InterfaceValue(), nil
+}
+
+func (self *server) GetBool(metric_name string, paths []P, params MContext) (bool, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return false, res.Error()
+	}
+	b, e := res.Value().AsBool()
+	if nil != e {
+		return false, type_error(e)
+	}
+	return b, nil
+}
+
+func (self *server) GetInt(metric_name string, paths []P, params MContext) (int, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return 0, res.Error()
+	}
+	i, e := res.Value().AsInt()
+	if nil != e {
+		return 0, type_error(e)
+	}
+	return i, nil
+}
+
+func (self *server) GetInt32(metric_name string, paths []P, params MContext) (int32, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return 0, res.Error()
+	}
+	i32, e := res.Value().AsInt32()
+	if nil != e {
+		return 0, type_error(e)
+	}
+	return i32, nil
+}
+
+func (self *server) GetInt64(metric_name string, paths []P, params MContext) (int64, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return 0, res.Error()
+	}
+	i64, e := res.Value().AsInt64()
+	if nil != e {
+		return 0, type_error(e)
+	}
+	return i64, nil
+}
+
+func (self *server) GetUint(metric_name string, paths []P, params MContext) (uint, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return 0, res.Error()
+	}
+	u, e := res.Value().AsUint()
+	if nil != e {
+		return 0, type_error(e)
+	}
+	return u, nil
+}
+
+func (self *server) GetUint32(metric_name string, paths []P, params MContext) (uint32, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return 0, res.Error()
+	}
+	u32, e := res.Value().AsUint32()
+	if nil != e {
+		return 0, type_error(e)
+	}
+	return u32, nil
+}
+
+func (self *server) GetUint64(metric_name string, paths []P, params MContext) (uint64, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return 0, res.Error()
+	}
+	u64, e := res.Value().AsUint64()
+	if nil != e {
+		return 0, type_error(e)
+	}
+	return u64, nil
+}
+
+func (self *server) GetString(metric_name string, paths []P, params MContext) (string, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return "", res.Error()
+	}
+
+	s, e := res.Value().AsString()
+	if nil != e {
+		return "", type_error(e)
+	}
+	return s, nil
+}
+
+func (self *server) GetObject(metric_name string, paths []P, params MContext) (map[string]interface{}, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return nil, res.Error()
+	}
+
+	o, e := res.Value().AsObject()
+	if nil != e {
+		return nil, type_error(e)
+	}
+	return o, nil
+}
+
+func (self *server) GetArray(metric_name string, paths []P, params MContext) ([]interface{}, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return nil, res.Error()
+	}
+
+	a, e := res.Value().AsArray()
+	if nil != e {
+		return nil, type_error(e)
+	}
+	return a, nil
+}
+
+func (self *server) GetObjects(metric_name string, paths []P, params MContext) ([]map[string]interface{}, error) {
+	res := self.InvokeGet(metric_name, paths, params)
+	if res.HasError() {
+		return nil, res.Error()
+	}
+
+	o, e := res.Value().AsObjects()
+	if nil != e {
+		return nil, type_error(e)
+	}
+	return o, nil
 }
 
 func SrvTest(t *testing.T, file string, cb func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions)) {

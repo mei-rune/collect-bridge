@@ -41,7 +41,6 @@ type Filter struct {
 type P [2]string
 
 type Sampling interface {
-	CreateCtx(metric_name string, managed_type, managed_id string) (MContext, error)
 	Get(metric_name string, paths []P, params MContext) (interface{}, error)
 	GetBool(metric_name string, paths []P, params MContext) (bool, error)
 	GetInt(metric_name string, paths []P, params MContext) (int, error)
@@ -86,8 +85,9 @@ type MContext interface {
 	GetObjectWithDefault(key string, defaultValue map[string]interface{}) map[string]interface{}
 	GetObjectsWithDefault(key string, defaultValue []map[string]interface{}) []map[string]interface{}
 
+	CreateCtx(metric_name string, managed_type, managed_id string) (MContext, error)
 	Read() Sampling
-	Body(v interface{}) error
+	Body() (interface{}, error)
 }
 
 type Method interface {

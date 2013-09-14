@@ -109,7 +109,7 @@ func TestMatchs(t *testing.T) {
 			matchers = append(matchers, matcher)
 		}
 
-		params := &context{params: data.params,
+		params := &context{query_params: data.params,
 			managed_type: "unknow_type",
 			managed_id:   "unknow_id",
 			mo:           map[string]interface{}{},

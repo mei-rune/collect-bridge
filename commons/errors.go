@@ -207,6 +207,13 @@ func RecordNotFound(id string) error {
 	return NewApplicationError(NotFoundCode, "'"+id+"' is not found.")
 }
 
+func RecordNotFoundWithType(t, id string) error {
+	if 0 == len(t) {
+		return NewApplicationError(NotFoundCode, "'"+id+"' is not found.")
+	}
+	return NewApplicationError(NotFoundCode, t+" with id was '"+id+"' is not found.")
+}
+
 func RecordAlreadyExists(id string) error {
 	return errors.New("'" + id + "' is already exists.")
 }

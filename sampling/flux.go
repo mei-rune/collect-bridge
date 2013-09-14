@@ -358,7 +358,7 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 	sampled_at := time.Now().Unix()
 	bucket.updated_at = sampled_at
 
-	ctx2, e := ctx.Read().CreateCtx("interface", "managed_object", device)
+	ctx2, e := ctx.CreateCtx("interface", "managed_object", device)
 	if nil != e {
 		return commons.ReturnWithInternalError(e.Error())
 	}

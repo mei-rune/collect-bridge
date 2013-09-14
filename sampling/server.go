@@ -42,32 +42,6 @@ func expvarHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "\n}\n")
 }
 
-type ExchangeRequest struct {
-	Id          uint64            `json:"request_id"`
-	Action      string            `json:"action"`
-	Name        string            `json:"metric-name,omitempty"`
-	ManagedType string            `json:"managed_type,omitempty"`
-	ManagedId   string            `json:"managed_id,omitempty"`
-	Address     string            `json:"address,omitempty"`
-	Paths       []P               `json:"paths,omitempty"`
-	Params      map[string]string `json:"params,omitempty"`
-	Body        interface{}       `json:"body,omitempty"`
-}
-
-type ExchangeResponse struct {
-	Id        uint64               `json:"request_id"`
-	CreatedAt time.Time            `json:"created_at"`
-	Error     commons.RuntimeError `json:"error,omitempty"`
-	Evalue    interface{}          `json:"value,omitempty"`
-
-	value commons.AnyData
-}
-
-func (self *ExchangeResponse) Value() commons.Any {
-	self.value.Value = self.Evalue
-	return &self.value
-}
-
 type server struct {
 	workers  *backgroundWorkers
 	caches   *ds.Caches
@@ -425,6 +399,7 @@ func (self *server) sendCompletion(w http.ResponseWriter) {
 		return
 	}
 
+	w.WriteHeader(http.StatusAccepted)
 	encoder := json.NewEncoder(w)
 	if e := encoder.Encode(self.completions); nil != e {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -445,7 +420,7 @@ func (self *server) doRequest(r *ExchangeRequest) {
 
 	route, err := self.route(r.Action, r.Name)
 	if nil != err {
-		resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), Error: err}
+		resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), ChannelName: r.ChannelName, Error: err}
 		goto failed
 	}
 
@@ -463,26 +438,30 @@ func (self *server) doRequest(r *ExchangeRequest) {
 
 	if e := ctx.init(); nil != e {
 		if err := e.(commons.RuntimeError); nil != err {
-			resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), Error: err}
+			resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), ChannelName: r.ChannelName,
+				Error: err}
 		} else {
-			resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), Error: commons.NewApplicationError(http.StatusInternalServerError,
-				e.Error())}
+			resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), ChannelName: r.ChannelName,
+				Error: commons.NewApplicationError(http.StatusInternalServerError, e.Error())}
 		}
 		goto failed
 	}
 
 	res = route.Invoke(ctx.query_paths, ctx)
 	if res.HasError() {
-		resp = &ExchangeResponse{Id: r.Id, CreatedAt: res.CreatedAt(), Error: res.Error()}
+		resp = &ExchangeResponse{Id: r.Id, CreatedAt: res.CreatedAt(), ChannelName: r.ChannelName,
+			Error: res.Error()}
 	} else {
-		resp = &ExchangeResponse{Id: r.Id, CreatedAt: res.CreatedAt(), Evalue: res.InterfaceValue()}
+		resp = &ExchangeResponse{Id: r.Id, CreatedAt: res.CreatedAt(), ChannelName: r.ChannelName,
+			Evalue: res.InterfaceValue()}
 	}
 
 failed:
 	self.completions_lock.Lock()
 	defer self.completions_lock.Unlock()
 	if nil == resp {
-		resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), Error: commons.NewApplicationError(http.StatusInternalServerError, "unknow error.")}
+		resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), ChannelName: r.ChannelName,
+			Error: commons.NewApplicationError(http.StatusInternalServerError, "unknow error.")}
 	}
 
 	self.completions = append(self.completions, resp)

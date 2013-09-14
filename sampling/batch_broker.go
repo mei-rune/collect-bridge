@@ -12,8 +12,10 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
+	"text/template"
 	"time"
 )
 
@@ -21,13 +23,74 @@ type ExchangeRequest struct {
 	ChannelName string            `json:"channel"`
 	Id          uint64            `json:"request_id"`
 	Action      string            `json:"action"`
-	Name        string            `json:"metric-name,omitempty"`
+	Name        string            `json:"metric-name"`
 	ManagedType string            `json:"managed_type,omitempty"`
 	ManagedId   string            `json:"managed_id,omitempty"`
 	Address     string            `json:"address,omitempty"`
 	Paths       []P               `json:"paths,omitempty"`
 	Params      map[string]string `json:"params,omitempty"`
 	Body        interface{}       `json:"body,omitempty"`
+}
+
+func (self *ExchangeRequest) ToJson(w *bytes.Buffer, id uint64) error {
+	old := w.Len()
+
+	w.WriteString(`{"channel":"`)
+	template.JSEscape(w, []byte(self.ChannelName))
+	w.WriteString(`","request_id":`)
+	w.WriteString(strconv.FormatUint(id, 10))
+	w.WriteString(`,"action":"`)
+	w.WriteString(self.Action)
+	w.WriteString(`","metric-name":"`)
+	w.WriteString(self.Name)
+	if 0 != len(self.ManagedId) {
+		w.WriteString(`","managed_type":"`)
+		w.WriteString(self.ManagedType)
+		w.WriteString(`","managed_id":"`)
+		w.WriteString(self.ManagedId)
+	} else {
+		w.WriteString(`","address":"`)
+		w.WriteString(self.Address)
+	}
+	w.WriteString(`",`)
+
+	if nil != self.Paths && 0 != len(self.Paths) {
+		w.WriteString(`paths":[`)
+		for _, p := range self.Paths {
+			w.WriteByte('"')
+			w.WriteString(p[0])
+			w.WriteString(`","`)
+			w.WriteString(p[1])
+			w.WriteString(`",`)
+		}
+		w.Truncate(w.Len() - 1)
+		w.WriteString(`],`)
+	}
+	if nil != self.Params && 0 != len(self.Params) {
+		w.WriteString(`params":{`)
+		for k, v := range self.Params {
+			w.WriteString(`"`)
+			w.WriteString(k)
+			w.WriteString(`":"`)
+			template.JSEscape(w, []byte(v))
+			w.WriteString(`",`)
+		}
+		w.Truncate(w.Len() - 1)
+		w.WriteString(`},`)
+	}
+
+	if nil != self.Body {
+		w.WriteString(`"body":`)
+		if e := json.NewEncoder(w).Encode(self.Body); nil != e {
+			w.Truncate(old)
+			return e
+		}
+	} else {
+		w.Truncate(w.Len() - 1)
+	}
+
+	w.WriteByte('}')
+	return nil
 }
 
 type ExchangeResponse struct {
@@ -52,11 +115,11 @@ type RequestCtx struct {
 }
 
 type BatchBroker struct {
-	name   string
-	action string
-	url    string
-	ctx_c  chan *RequestCtx
-	chan_c chan *channelRequest
+	name       string
+	action     string
+	url        string
+	exchange_c chan *RequestCtx
+	chan_c     chan *channelRequest
 
 	closed     int32
 	wait       sync.WaitGroup
@@ -139,7 +202,7 @@ func (self *BatchBroker) Close() {
 		return
 	}
 
-	close(self.ctx_c)
+	close(self.exchange_c)
 	self.wait.Wait()
 }
 
@@ -187,7 +250,7 @@ func (self *BatchBroker) run() {
 				break
 			}
 			self.doChannelRequest(chanD)
-		case ctx, ok := <-self.ctx_c:
+		case ctx, ok := <-self.exchange_c:
 			if !ok {
 				is_running = false
 				break
@@ -296,7 +359,7 @@ func (self *BatchBroker) reply(c chan<- interface{}, response *ExchangeResponse)
 }
 
 func (self *BatchBroker) recvObjects(objects []*RequestCtx, max_size int) []*RequestCtx {
-	req, ok := <-self.ctx_c
+	req, ok := <-self.exchange_c
 	if !ok {
 		return objects
 	}
@@ -308,7 +371,7 @@ func (self *BatchBroker) recvObjects(objects []*RequestCtx, max_size int) []*Req
 	objects = append(objects, req)
 	for {
 		select {
-		case req, ok := <-self.ctx_c:
+		case req, ok := <-self.exchange_c:
 			if !ok {
 				return objects
 			}
@@ -413,7 +476,7 @@ func newBatchClient(name, url string) (*BatchBroker, error) {
 	db := &BatchBroker{name: name,
 		action:          "POST",
 		url:             url,
-		ctx_c:           make(chan *RequestCtx, 1000),
+		exchange_c:      make(chan *RequestCtx, 1000),
 		chan_c:          make(chan *channelRequest),
 		closed:          0,
 		last_error:      varString,

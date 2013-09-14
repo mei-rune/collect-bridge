@@ -1,16 +1,35 @@
 package sampling
 
-// import (
-// 	"commons"
-// 	"encoding/json"
-// 	"errors"
-// 	"fmt"
-// 	"time"
-// )
+import (
+	// "commons"
+	// "encoding/json"
+	// "errors"
+	// "fmt"
+	"time"
+)
 
-// type Client struct {
-// 	*commons.HttpClient
-// }
+type Client struct {
+	c       chan *RequestCtx
+	request ExchangeRequest
+	ctx     RequestCtx
+}
+
+func (self *Client) Invoke(timeout time.Duration) (interface{}, error) {
+	c := make(chan interface{}, 1)
+	self.c <- &RequestCtx{CreatedAt: time.Now(), C: c,
+		Request: &self.request}
+
+	select {
+	case res := <-c:
+		return res, nil
+	case <-time.After(timeout):
+		return nil, timeoutError
+	}
+}
+
+func (self *Client) Send() {
+	self.c <- &self.ctx
+}
 
 // func NewClient(url string) *Client {
 // 	return &Client{HttpClient: &commons.HttpClient{Url: url}}

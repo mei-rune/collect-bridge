@@ -8,13 +8,24 @@ import (
 	"time"
 )
 
-type Client struct {
+type ChannelClient interface {
+	Send()
+	Close()
+}
+
+type Client interface {
+	Invoke(timeout time.Duration) (interface{}, error)
+}
+
+type clientImpl struct {
+	id      string
+	broker  *BatchBroker
 	c       chan *RequestCtx
 	request ExchangeRequest
 	ctx     RequestCtx
 }
 
-func (self *Client) Invoke(timeout time.Duration) (interface{}, error) {
+func (self *clientImpl) Invoke(timeout time.Duration) (interface{}, error) {
 	c := make(chan interface{}, 1)
 	self.c <- &RequestCtx{CreatedAt: time.Now(), C: c,
 		Request: &self.request}
@@ -27,7 +38,11 @@ func (self *Client) Invoke(timeout time.Duration) (interface{}, error) {
 	}
 }
 
-func (self *Client) Send() {
+func (self *clientImpl) Send() {
+	self.c <- &self.ctx
+}
+
+func (self *clientImpl) Close() {
 	self.c <- &self.ctx
 }
 

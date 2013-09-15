@@ -13,6 +13,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"text/template"
@@ -128,6 +129,36 @@ type BatchBroker struct {
 	request_id      uint64
 	pendingRequests map[uint64]*RequestCtx
 	channels        map[string]map[string]chan interface{}
+}
+
+func (self *BatchBroker) CreateClient(channelName string, c chan interface{},
+	metric_name, managedType, managedId, pathStr string, params map[string]string) (ChannelClient, error) {
+	pathStr = strings.Trim(pathStr, "/")
+	ss := strings.Split(pathStr, "/")
+	if 0 != len(ss)%2 {
+		return nil, errors.New("paths is style error - `" + pathStr + "`")
+	}
+	paths := make([]P, 0, len(ss)/2)
+	for i := 0; i < len(ss); i++ {
+		paths = append(paths, P{ss[0], ss[1]})
+	}
+
+	cl := &clientImpl{id: commons.GenerateId(),
+		broker: self,
+		c:      self.exchange_c,
+		request: ExchangeRequest{ChannelName: channelName,
+			Action:      "GET",
+			Name:        metric_name,
+			ManagedType: managedType,
+			ManagedId:   managedId,
+			Paths:       paths,
+			Params:      params}}
+	cl.ctx.Request = &cl.request
+
+	if e := self.Subscribe(channelName, cl.id, c); nil != e {
+		return nil, e
+	}
+	return cl, nil
 }
 
 type channelRequest struct {
@@ -288,12 +319,13 @@ func (self *BatchBroker) runOnce(cached_array []*RequestCtx, cached_requests []*
 		return
 	}
 
-	for _, obj := range objects {
+	id_list := make([]uint64, len(objects))
+	for idx, obj := range objects {
 		self.request_id += 1
-		obj.Request.Id = self.request_id
+		id_list[idx] = self.request_id
 		cached_requests = append(cached_requests, obj.Request)
 	}
-	resposes, e := self.exchange(cached_requests)
+	resposes, e := self.exchange(id_list, cached_requests)
 	if nil != e {
 		for _, obj := range objects {
 			if nil == obj.C {
@@ -305,13 +337,13 @@ func (self *BatchBroker) runOnce(cached_array []*RequestCtx, cached_requests []*
 	}
 
 	now := time.Now()
-	for _, obj := range objects {
+	for idx, obj := range objects {
 		if nil == obj.C {
 			continue
 		}
 
 		obj.CreatedAt = now
-		self.pendingRequests[obj.Request.Id] = obj
+		self.pendingRequests[id_list[idx]] = obj
 	}
 
 	failed := make([]string, 0, 10)
@@ -389,12 +421,19 @@ func (self *BatchBroker) recvObjects(objects []*RequestCtx, max_size int) []*Req
 	return objects
 }
 
-func exchangeTo(method, url string, requests []*ExchangeRequest) ([]*ExchangeResponse, commons.RuntimeError) {
+func exchangeTo(method, url string, id_list []uint64, requests []*ExchangeRequest) ([]*ExchangeResponse, commons.RuntimeError) {
 	buffer := bytes.NewBuffer(make([]byte, 0, 1000))
-	e := json.NewEncoder(buffer).Encode(requests)
-	if nil != e {
-		return nil, commons.NewApplicationError(http.StatusBadRequest, e.Error())
+	buffer.WriteByte('[')
+	if nil != requests && 0 != len(requests) {
+		for idx, r := range requests {
+			if e := r.ToJson(buffer, id_list[idx]); nil != e {
+				return nil, commons.NewApplicationError(http.StatusBadRequest, e.Error())
+			}
+			buffer.WriteByte(',')
+		}
+		buffer.Truncate(buffer.Len() - 1)
 	}
+	buffer.WriteByte(']')
 	req, err := http.NewRequest(method, url, buffer)
 	if err != nil {
 		return nil, commons.NewApplicationError(http.StatusBadRequest, err.Error())
@@ -440,7 +479,7 @@ func exchangeTo(method, url string, requests []*ExchangeRequest) ([]*ExchangeRes
 	return result, nil
 }
 
-func (self *BatchBroker) exchange(requests []*ExchangeRequest) (responses []*ExchangeResponse, e commons.RuntimeError) {
+func (self *BatchBroker) exchange(id_list []uint64, requests []*ExchangeRequest) (responses []*ExchangeResponse, e commons.RuntimeError) {
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -457,7 +496,7 @@ func (self *BatchBroker) exchange(requests []*ExchangeRequest) (responses []*Exc
 		}
 	}()
 
-	return exchangeTo(self.action, self.url, requests)
+	return exchangeTo(self.action, self.url, id_list, requests)
 }
 
 func newBatchClient(name, url string) (*BatchBroker, error) {

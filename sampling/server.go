@@ -404,7 +404,9 @@ func (self *server) sendCompletion(w http.ResponseWriter) {
 	if e := encoder.Encode(self.completions); nil != e {
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, e.Error())
+		fmt.Println("----------", self.completions[0])
 	} else {
+		fmt.Println(self.completions[0])
 		if 256 < cap(self.completions) {
 			self.completions = nil
 		} else {
@@ -420,7 +422,8 @@ func (self *server) doRequest(r *ExchangeRequest) {
 
 	route, err := self.route(r.Action, r.Name)
 	if nil != err {
-		resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), ChannelName: r.ChannelName, Error: err}
+		resp = &ExchangeResponse{Id: r.Id, EcreatedAt: time.Now(), ChannelName: r.ChannelName,
+			Eerror: &commons.ApplicationError{Ecode: err.Code(), Emessage: err.Error()}}
 		goto failed
 	}
 
@@ -438,21 +441,21 @@ func (self *server) doRequest(r *ExchangeRequest) {
 
 	if e := ctx.init(); nil != e {
 		if err := e.(commons.RuntimeError); nil != err {
-			resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), ChannelName: r.ChannelName,
-				Error: err}
+			resp = &ExchangeResponse{Id: r.Id, EcreatedAt: time.Now(), ChannelName: r.ChannelName,
+				Eerror: &commons.ApplicationError{Ecode: err.Code(), Emessage: err.Error()}}
 		} else {
-			resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), ChannelName: r.ChannelName,
-				Error: commons.NewApplicationError(http.StatusInternalServerError, e.Error())}
+			resp = &ExchangeResponse{Id: r.Id, EcreatedAt: time.Now(), ChannelName: r.ChannelName,
+				Eerror: &commons.ApplicationError{Ecode: http.StatusInternalServerError, Emessage: e.Error()}}
 		}
 		goto failed
 	}
 
 	res = route.Invoke(ctx.query_paths, ctx)
 	if res.HasError() {
-		resp = &ExchangeResponse{Id: r.Id, CreatedAt: res.CreatedAt(), ChannelName: r.ChannelName,
-			Error: res.Error()}
+		resp = &ExchangeResponse{Id: r.Id, EcreatedAt: res.CreatedAt(), ChannelName: r.ChannelName,
+			Eerror: &commons.ApplicationError{Ecode: res.ErrorCode(), Emessage: res.ErrorMessage()}}
 	} else {
-		resp = &ExchangeResponse{Id: r.Id, CreatedAt: res.CreatedAt(), ChannelName: r.ChannelName,
+		resp = &ExchangeResponse{Id: r.Id, EcreatedAt: res.CreatedAt(), ChannelName: r.ChannelName,
 			Evalue: res.InterfaceValue()}
 	}
 
@@ -460,8 +463,8 @@ failed:
 	self.completions_lock.Lock()
 	defer self.completions_lock.Unlock()
 	if nil == resp {
-		resp = &ExchangeResponse{Id: r.Id, CreatedAt: time.Now(), ChannelName: r.ChannelName,
-			Error: commons.NewApplicationError(http.StatusInternalServerError, "unknow error.")}
+		resp = &ExchangeResponse{Id: r.Id, EcreatedAt: time.Now(), ChannelName: r.ChannelName,
+			Eerror: &commons.ApplicationError{Ecode: http.StatusInternalServerError, Emessage: "unknow error."}}
 	}
 
 	self.completions = append(self.completions, resp)

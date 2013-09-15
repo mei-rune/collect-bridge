@@ -19,7 +19,7 @@ type Client interface {
 
 type clientImpl struct {
 	id      string
-	broker  *BatchBroker
+	broker  *SamplingBroker
 	c       chan *RequestCtx
 	request ExchangeRequest
 	ctx     RequestCtx
@@ -43,7 +43,7 @@ func (self *clientImpl) Send() {
 }
 
 func (self *clientImpl) Close() {
-	self.c <- &self.ctx
+	self.broker.Unsubscribe(self.request.ChannelName, self.id)
 }
 
 // func NewClient(url string) *Client {

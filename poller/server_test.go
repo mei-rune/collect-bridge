@@ -50,7 +50,7 @@ func TestLoadCookiesWhileStartServer(t *testing.T) {
 				return
 			}
 			defer func() {
-				server_test.Stop()
+				server_test.Close()
 				server_test = nil
 			}()
 
@@ -59,6 +59,10 @@ func TestLoadCookiesWhileStartServer(t *testing.T) {
 				return
 			}
 
+			if ej, ok := server_test.jobs[mt_id].(*errorJob); ok {
+				t.Error(ej.e)
+				return
+			}
 			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 			tr_instance.callAfter()
 			//server_test.jobs[mt_id].(*metricJob).callAfter()
@@ -90,7 +94,7 @@ func TestLoadCookiesWhileOnTick(t *testing.T) {
 					return
 				}
 				defer func() {
-					server_test.Stop()
+					server_test.Close()
 					server_test = nil
 				}()
 
@@ -134,6 +138,10 @@ func TestLoadCookiesWhileOnTick(t *testing.T) {
 					return
 				}
 
+				if ej, ok := server_test.jobs[mt_id].(*errorJob); ok {
+					t.Error(ej.e)
+					return
+				}
 				tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 				tr_instance.callAfter()
 				//server_test.jobs[mt_id].(*metricJob).callAfter()
@@ -164,7 +172,7 @@ func TestLoadCookiesWhileOnTickWithNotfound(t *testing.T) {
 				return
 			}
 			defer func() {
-				server_test.Stop()
+				server_test.Close()
 				server_test = nil
 			}()
 
@@ -189,6 +197,10 @@ func TestLoadCookiesWhileOnTickWithNotfound(t *testing.T) {
 				return
 			}
 
+			if ej, ok := server_test.jobs[mt_id].(*errorJob); ok {
+				t.Error(ej.e)
+				return
+			}
 			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 			tr_instance.callAfter()
 			stats := server_test.jobs[mt_id].Stats()
@@ -229,7 +241,7 @@ func TestCookiesIsClear(t *testing.T) {
 				return
 			}
 			defer func() {
-				server_test.Stop()
+				server_test.Close()
 				server_test = nil
 			}()
 
@@ -283,7 +295,7 @@ func TestCookiesNotClear(t *testing.T) {
 				return
 			}
 			defer func() {
-				server_test.Stop()
+				server_test.Close()
 				server_test = nil
 			}()
 
@@ -342,7 +354,7 @@ func TestCookiesLoadStatus(t *testing.T) {
 				return
 			}
 			defer func() {
-				server_test.Stop()
+				server_test.Close()
 				server_test = nil
 			}()
 
@@ -364,6 +376,10 @@ func TestCookiesLoadStatus(t *testing.T) {
 				return
 			}
 
+			if ej, ok := server_test.jobs[mt_id].(*errorJob); ok {
+				t.Error(ej.e)
+				return
+			}
 			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 			//tr_instance.callAfter()
 			action := tr_instance.actions[0]

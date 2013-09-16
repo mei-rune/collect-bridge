@@ -6,6 +6,9 @@ import (
 	ds "data_store"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -98,7 +101,7 @@ func TestJson(t *testing.T) {
 	}
 }
 
-func TestBroker(t *testing.T) {
+func TestBrokerWithSubscribe(t *testing.T) {
 	for test_idx, test := range []struct {
 		metric_name string
 		e           error
@@ -153,7 +156,7 @@ func TestBroker(t *testing.T) {
 						if test.e.Error() != resp.Error().Error() {
 							t.Error("test[", test_idx, "]error message is not excepted")
 							t.Error("test[", test_idx, "]excepted is", test.e)
-							t.Error("test[", test_idx, "]actual is", resp.Error)
+							t.Error("test[", test_idx, "]actual is", resp.Error())
 						}
 					} else {
 						if nil == resp.InterfaceValue() {
@@ -181,18 +184,18 @@ func TestBroker(t *testing.T) {
 							t.Error("test[", test_idx, "]values is nil")
 							break
 						}
-						if nil != test.e && "icmp" != test.metric_name {
-							if nil == resp.Error {
+						if nil != test.e {
+							if nil == resp.Error() && "icmp" != test.metric_name {
 								t.Error("test[", test_idx, "] error message is not excepted, it is nil.")
 								t.Error(resp)
 							} else if test.e.Error() != resp.Error().Error() {
 								t.Error("test[", test_idx, "]error message is not excepted")
 								t.Error("test[", test_idx, "]excepted is", test.e)
-								t.Error("test[", test_idx, "]actual is", resp.Error)
+								t.Error("test[", test_idx, "]actual is", resp.Error())
 							}
 						} else {
 							if nil == resp.InterfaceValue() {
-								t.Error("test[", test_idx, "]values is nil")
+								t.Error("test[", test_idx, "]values is nil,", resp.Error())
 							}
 						}
 					case <-time.After(10 * time.Second):
@@ -209,6 +212,91 @@ func TestBroker(t *testing.T) {
 
 		})
 	}
+}
+
+func TestBrokerWithSubscribeAndError(t *testing.T) {
+	excepted_error := "sdfsdfsdfsdfsdf"
+	hsrv := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		resp.WriteHeader(http.StatusInternalServerError)
+		resp.Write([]byte(excepted_error))
+	}))
+	defer hsrv.Close()
+
+	test_idx := 0
+
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
+		_, err := client.DeleteBy("network_device", emptyParams)
+		if nil != err {
+			t.Error("test[", test_idx, "] "+err.Error())
+			return
+		}
+
+		id := ds.CreateItForTest(t, client, "network_device", mo)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
+
+		broker, e := NewBroker("test", hsrv.URL+"/batch")
+		if nil != e {
+			t.Error("test[", test_idx, "] "+e.Error())
+			return
+		}
+		defer broker.Close()
+
+		c_list := []chan interface{}{make(chan interface{}, 10), make(chan interface{}, 10)}
+		cl_list := []ChannelClient{nil, nil}
+		for i := 0; i < 2; i++ {
+			cl, e := broker.SubscribeClient("aa", c_list[i], "GET", "cpu", "managed_object", id, "", nil, nil)
+			if nil != e {
+				t.Error("test[", test_idx, "] "+e.Error())
+				return
+			}
+			cl_list[i] = cl
+		}
+		defer func() {
+			for _, c := range cl_list {
+				c.Close()
+			}
+		}()
+
+		check := func() {
+			for idx, c := range c_list {
+				if 0 == idx {
+					select {
+					case res := <-c:
+						resp, ok := res.(*ExchangeResponse)
+						if !ok {
+							t.Error("test[", test_idx, "]values is nil")
+							break
+						}
+
+						if !strings.Contains(resp.Error().Error(), excepted_error) {
+							t.Error("test[", test_idx, "]error message is not excepted")
+							t.Error("test[", test_idx, "]excepted is", excepted_error)
+							t.Error("test[", test_idx, "]actual is", resp.Error().Error())
+						}
+
+					case <-time.After(10 * time.Second):
+						t.Error("test[", test_idx, "]timeout")
+					}
+				} else {
+					select {
+					case <-c:
+						t.Error("test[", test_idx, "]error recv")
+					default:
+					}
+				}
+			}
+		}
+
+		cl_list[0].Send()
+		check()
+		for _, cl := range cl_list[1:] {
+			cl.Close()
+		}
+
+		cl_list[0].Send()
+		check()
+	})
 }
 
 func TestBrokerWithInvoke(t *testing.T) {
@@ -257,7 +345,7 @@ func TestBrokerWithInvoke(t *testing.T) {
 				if test.e.Error() != resp.Error().Error() {
 					t.Error("error message is not excepted")
 					t.Error("excepted is", test.e)
-					t.Error("actual is", resp.Error)
+					t.Error("actual is", resp.Error())
 				}
 			} else {
 				if nil == resp.InterfaceValue() {

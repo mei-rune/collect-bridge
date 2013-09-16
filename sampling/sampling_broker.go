@@ -104,6 +104,18 @@ type ExchangeResponse struct {
 	value commons.AnyData
 }
 
+func (self *ExchangeResponse) ToMap() map[string]interface{} {
+	res := map[string]interface{}{}
+	res["created_at"] = self.EcreatedAt
+	if nil != self.Eerror {
+		res["error"] = map[string]interface{}{"code": self.Eerror.Ecode, "message": self.Eerror.Emessage}
+	}
+	if nil != self.Evalue {
+		res["value"] = self.Evalue
+	}
+	return res
+}
+
 func (self *ExchangeResponse) ErrorCode() int {
 	if nil != self.Eerror {
 		return self.Eerror.Ecode
@@ -196,6 +208,7 @@ func (self *SamplingBroker) createClient(channelName string, c chan interface{},
 		if e := self.Subscribe(channelName, cl.id, c); nil != e {
 			return nil, e
 		}
+		cl.ctx.C = c
 	}
 	return cl, nil
 }
@@ -355,6 +368,26 @@ func (self *SamplingBroker) run() {
 	}
 }
 
+func (self *SamplingBroker) recvObjects(objects []*RequestCtx, max_size int) []*RequestCtx {
+	for {
+		select {
+		case req, ok := <-self.exchange_c:
+			if !ok {
+				return objects
+			}
+			if nil != req {
+				objects = append(objects, req)
+				if max_size < len(objects) {
+					return objects
+				}
+			}
+		default:
+			return objects
+		}
+	}
+	return objects
+}
+
 func (self *SamplingBroker) onIdle() {
 	if 0 == len(self.pendingRequests) {
 		return
@@ -391,9 +424,10 @@ func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests 
 	}
 	resposes, e := self.exchange(id_list, cached_requests)
 	if nil != e {
-		fmt.Println(e)
+		//fmt.Println("----", e, len(objects))
 		for _, obj := range objects {
 			if nil == obj.C {
+				//fmt.Println("skip")
 				continue
 			}
 			self.replyError(obj.C, e)
@@ -456,26 +490,6 @@ func (self *SamplingBroker) reply(c chan<- interface{}, response *ExchangeRespon
 	return nil
 }
 
-func (self *SamplingBroker) recvObjects(objects []*RequestCtx, max_size int) []*RequestCtx {
-	for {
-		select {
-		case req, ok := <-self.exchange_c:
-			if !ok {
-				return objects
-			}
-			if nil != req {
-				objects = append(objects, req)
-				if max_size < len(objects) {
-					return objects
-				}
-			}
-		default:
-			return objects
-		}
-	}
-	return objects
-}
-
 func exchangeTo(method, url string, id_list []uint64, requests []*ExchangeRequest) ([]*ExchangeResponse, commons.RuntimeError) {
 	buffer := bytes.NewBuffer(make([]byte, 0, 1000))
 	buffer.WriteByte('[')
@@ -507,7 +521,7 @@ func exchangeTo(method, url string, id_list []uint64, requests []*ExchangeReques
 		}
 	}()
 
-	if resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
 		if http.StatusNoContent == resp.StatusCode {
 			return nil, nil
 		}
@@ -517,7 +531,7 @@ func exchangeTo(method, url string, id_list []uint64, requests []*ExchangeReques
 			return nil, commons.NewApplicationError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
 		}
 
-		return nil, commons.NewApplicationError(resp.StatusCode, string(resp_body))
+		return nil, commons.NewApplicationError(resp.StatusCode, fmt.Sprintf("%v: %v", resp.StatusCode, string(resp_body)))
 	}
 
 	if nil == resp.Body {

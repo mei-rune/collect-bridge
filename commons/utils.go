@@ -19,6 +19,16 @@ var (
 	typeError = TypeError("it is not []interface{} or map[string]interface{}")
 )
 
+type Closeable interface {
+	Close()
+}
+
+func Close(close_list []Closeable) {
+	for _, c := range close_list {
+		c.Close()
+	}
+}
+
 func Iterator(instance interface{}) ([][2]interface{}, error) {
 	results := make([][2]interface{}, 0, 10)
 	switch values := instance.(type) {

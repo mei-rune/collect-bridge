@@ -64,7 +64,7 @@ var (
 func srvTest(t *testing.T, cb func(client *ds.Client, definitions *types.TableDefinitions)) {
 	sampling.SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, url string, definitions *types.TableDefinitions) {
 		*dsUrl = client.Url
-		*sampling_url = url
+		*sampling_url = url + "/batch"
 		is_test = true
 		cb(client, definitions)
 	})
@@ -126,7 +126,7 @@ func TestIntegratedPoller(t *testing.T) {
 			return
 		}
 		defer func() {
-			server_test.Stop()
+			server_test.Close()
 			server_test = nil
 		}()
 
@@ -195,7 +195,7 @@ func TestIntegratedAlert(t *testing.T) {
 			return
 		}
 		defer func() {
-			server_test.Stop()
+			server_test.Close()
 			server_test = nil
 		}()
 
@@ -203,7 +203,15 @@ func TestIntegratedAlert(t *testing.T) {
 			t.Error("load trigger failed.")
 			return
 		}
+		if ej, ok := server_test.jobs[mt_id].(*errorJob); ok {
+			t.Error(ej.e)
+			return
+		}
 
+		if ej, ok := server_test.jobs[mt_id].(*errorJob); ok {
+			t.Error(ej.e)
+			return
+		}
 		tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 
 		for i := 0; i < 100; i++ {
@@ -265,7 +273,7 @@ func TestIntegratedAlert2(t *testing.T) {
 			return
 		}
 		defer func() {
-			server_test.Stop()
+			server_test.Close()
 			server_test = nil
 		}()
 
@@ -274,6 +282,10 @@ func TestIntegratedAlert2(t *testing.T) {
 			return
 		}
 
+		if ej, ok := server_test.jobs[mt_id].(*errorJob); ok {
+			t.Error(ej.e)
+			return
+		}
 		tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 
 		for i := 0; i < 100; i++ {
@@ -357,7 +369,7 @@ func TestIntegratedHistory(t *testing.T) {
 			return
 		}
 		defer func() {
-			server_test.Stop()
+			server_test.Close()
 			server_test = nil
 		}()
 
@@ -366,6 +378,10 @@ func TestIntegratedHistory(t *testing.T) {
 			return
 		}
 
+		if ej, ok := server_test.jobs[mt_id].(*errorJob); ok {
+			t.Error(ej.e)
+			return
+		}
 		tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 
 		for i := 0; i < 100; i++ {
@@ -425,7 +441,7 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 					return
 				}
 				defer func() {
-					server_test.Stop()
+					server_test.Close()
 					server_test = nil
 				}()
 
@@ -433,7 +449,10 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 					t.Error("test[", nm, "]", "load trigger failed.")
 					return
 				}
-
+				if ej, ok := server_test.jobs[mt_id].(*errorJob); ok {
+					t.Error(ej.e)
+					return
+				}
 				tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 
 				is_ok := false
@@ -495,7 +514,7 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 
 				switch nm {
 				case "close":
-					server_test.Stop()
+					server_test.Close()
 					entities, e := carrier.SelectAlertCookies(db)
 					if nil != e {
 						t.Error(e)
@@ -533,12 +552,12 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 }
 
 func getMetric(parentId, metric string) commons.Result {
-	client_url := ""
-	// if is_test {
-	// 	client_url = commons.NewUrlBuilder(*sampling_url).Concat("metrics", "managed_object", fmt.Sprint(parentId), metric).ToUrl()
-	// } else {
-	client_url = commons.NewUrlBuilder(*sampling_url).Concat("managed_object", fmt.Sprint(parentId), metric).ToUrl()
-	//}
+	url := *sampling_url
+	idx := strings.LastIndex(url, "/")
+	if -1 != idx {
+		url = url[0:idx]
+	}
+	client_url := commons.NewUrlBuilder(url).Concat("managed_object", fmt.Sprint(parentId), metric).ToUrl()
 	metricClient := &commons.HttpClient{Url: *sampling_url}
 	return metricClient.InvokeWith("GET", client_url, nil, 200)
 }
@@ -575,7 +594,7 @@ func TestIntegratedHistoryWithCarrier(t *testing.T) {
 				return
 			}
 			defer func() {
-				server_test.Stop()
+				server_test.Close()
 				server_test = nil
 			}()
 
@@ -584,6 +603,10 @@ func TestIntegratedHistoryWithCarrier(t *testing.T) {
 				return
 			}
 
+			if ej, ok := server_test.jobs[mt_id].(*errorJob); ok {
+				t.Error(ej.e)
+				return
+			}
 			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
 
 			for i := 0; i < 100; i++ {

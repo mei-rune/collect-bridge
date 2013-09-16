@@ -4,6 +4,7 @@ import (
 	"commons"
 	"errors"
 	"fmt"
+	"sampling"
 	"strconv"
 	"time"
 )
@@ -39,7 +40,7 @@ type metricJob struct {
 	Trigger
 	metric string
 	params map[string]string
-	client commons.HttpClient
+	client sampling.ChannelClient
 }
 
 func (self *metricJob) Stats() map[string]interface{} {
@@ -53,11 +54,7 @@ func (self *metricJob) Stats() map[string]interface{} {
 }
 
 func (self *metricJob) run(t time.Time) error {
-	res := self.client.InvokeWith("GET", self.client.Url, nil, 200)
-	self.CallActions(t, res)
-	if res.HasError() {
-		return errors.New("sampling failed, " + res.ErrorMessage())
-	}
+	self.client.Send()
 	return nil
 }
 
@@ -83,25 +80,40 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		return nil, errors.New("'managed_object_id' is not a int64, " + e.Error())
 	}
 
-	url, e := commons.GetString(ctx, "sampling.url")
-	if nil != e {
-		return nil, errors.New("'sampling.url' is required, " + e.Error())
+	var broker *sampling.SamplingBroker
+	var ok bool
+
+	sb := ctx["sampling_broker"]
+	if nil == sb {
+		return nil, errors.New("'sampling_broker' is required.")
 	}
-	if 0 == len(url) {
-		return nil, errors.New("'sampling.url' is required.")
+	if broker, ok = sb.(*sampling.SamplingBroker); !ok {
+		return nil, errors.New("'sampling_broker' is not a SamplingBroker in the ctx.")
 	}
 
-	client_url := commons.NewUrlBuilder(url).Concat("managed_object", parentId, metric).ToUrl()
+	//client_url := commons.NewUrlBuilder(url).Concat("managed_object", parentId, metric).ToUrl()
 
 	job := &metricJob{metric: metric,
-		params: map[string]string{"managed_type": "managed_object", "managed_id": parentId, "metric": metric, "trigger_id": id},
-		client: commons.HttpClient{Url: client_url}}
+		params: map[string]string{"managed_type": "managed_object", "managed_id": parentId, "metric": metric, "trigger_id": id}}
+
+	//	client: commons.HttpClient{Url: client_url}}
 
 	job.Trigger, e = newTrigger(attributes,
 		map[string]interface{}{"managed_type": "managed_object", "managed_id": parentId_int64, "metric": metric, "trigger_id": id},
 		ctx,
 		job.run)
-	return job, e
+	if nil != e {
+		return nil, e
+	}
+
+	cname := sampling.MakeChannelName(metric, "managed_object", parentId, "", nil)
+	client, e := broker.SubscribeClient(cname, job.Trigger.GetChannel(), "GET", metric, "managed_object", parentId, "", nil, nil)
+	if nil != e {
+		job.Close(CLOSE_REASON_NORMAL)
+		return nil, e
+	}
+	job.client = client
+	return job, nil
 }
 
 // func createRequest(nm string, attributes, ctx map[string]interface{}) (string, bytes.Buffer, error) {

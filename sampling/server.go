@@ -404,9 +404,9 @@ func (self *server) sendCompletion(w http.ResponseWriter) {
 	if e := encoder.Encode(self.completions); nil != e {
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, e.Error())
-		fmt.Println("----------", self.completions[0])
+		//fmt.Println("----------", self.completions[0])
 	} else {
-		fmt.Println(self.completions[0])
+		//fmt.Println(self.completions[0])
 		if 256 < cap(self.completions) {
 			self.completions = nil
 		} else {

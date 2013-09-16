@@ -278,7 +278,7 @@ func TestNotificationsForRedis(t *testing.T) {
 						return
 					}
 					defer func() {
-						server_test.Stop()
+						server_test.Close()
 						server_test = nil
 					}()
 
@@ -441,7 +441,7 @@ func TestNotificationsForDb(t *testing.T) {
 						return
 					}
 					defer func() {
-						server_test.Stop()
+						server_test.Close()
 						server_test = nil
 					}()
 
@@ -521,7 +521,7 @@ func TestNotificationsForExec(t *testing.T) {
 					return
 				}
 				defer func() {
-					server_test.Stop()
+					server_test.Close()
 					server_test = nil
 				}()
 
@@ -626,7 +626,7 @@ func TestNotificationsForSyslog(t *testing.T) {
 						return
 					}
 					defer func() {
-						server_test.Stop()
+						server_test.Close()
 						server_test = nil
 					}()
 
@@ -718,7 +718,7 @@ func TestNotificationsForMail(t *testing.T) {
 					return
 				}
 				defer func() {
-					server_test.Stop()
+					server_test.Close()
 					server_test = nil
 				}()
 

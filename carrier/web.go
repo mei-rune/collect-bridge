@@ -858,24 +858,30 @@ func (self *server) ServeHTTP(response http.ResponseWriter, request *http.Reques
 			cb = (*server).findHistories
 		case "/histories/count", "/histories/count/":
 			cb = (*server).countHistories
-
-		case "/debug/vars":
-			expvarHandler(response, request)
-			return
-		case "/debug/pprof/":
-			pprof.Index(response, request)
-			return
-		case "/debug/pprof/cmdline":
-			pprof.Cmdline(response, request)
-			return
-		case "/debug/pprof/profile":
-			pprof.Profile(response, request)
-			return
-		case "/debug/pprof/symbol":
-			pprof.Symbol(response, request)
-			return
-
 		default:
+
+			if strings.HasPrefix(request.URL.Path, "/debug/") {
+				switch request.URL.Path {
+				case "/debug/vars":
+					expvarHandler(response, request)
+				case "/debug/pprof", "/debug/pprof/":
+					pprof.Index(response, request)
+				case "/debug/pprof/cmdline":
+					pprof.Cmdline(response, request)
+				case "/debug/pprof/profile":
+					pprof.Profile(response, request)
+				case "/debug/pprof/symbol", "/debug/pprof/symbol/":
+					pprof.Symbol(response, request)
+				default:
+					if strings.HasPrefix(request.URL.Path, "/debug/pprof/") {
+						pprof.Index(response, request)
+						return
+					}
+					http.NotFound(response, request)
+				}
+				return
+			}
+
 			paths := strings.Split(strings.Trim(request.URL.Path, "/"), "/")
 			if 2 != len(paths) {
 				http.Error(response, "404 page not found, path must is 'alerts' or 'histories', actual path is '"+

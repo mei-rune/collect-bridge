@@ -13,31 +13,120 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
 var loadThreshold = 20
 
 type server struct {
-	commons.SimpleServer
-
+	closed     int32
+	interval   time.Duration
+	C          chan func()
+	wait       sync.WaitGroup
 	jobs       map[string]Job
 	client     *ds.Client
 	ctx        map[string]interface{}
 	firedAt    time.Time
 	last_error error
+	close_list []commons.Closeable
 }
 
-func newServer(refresh time.Duration, client *ds.Client, ctx map[string]interface{}) *server {
-	srv := &server{SimpleServer: commons.SimpleServer{Interval: refresh},
-		jobs:   make(map[string]Job),
-		client: client,
-		ctx:    ctx}
+func newServer(refresh time.Duration, client *ds.Client, ctx map[string]interface{}, close_list []commons.Closeable) (*server, error) {
+	srv := &server{closed: 0,
+		interval:   refresh,
+		C:          make(chan func()),
+		jobs:       make(map[string]Job),
+		client:     client,
+		ctx:        ctx,
+		close_list: close_list}
 
-	srv.OnTimeout = srv.onIdle
-	srv.OnStart = srv.onStart
-	srv.OnStop = srv.onStop
-	return srv
+	if e := srv.onStart(); nil != e {
+		return nil, e
+	}
+
+	go srv.serve()
+	srv.wait.Add(1)
+	return srv, nil
+}
+
+func (s *server) Close() {
+	if !atomic.CompareAndSwapInt32(&s.closed, 0, 1) {
+		return
+	}
+	close(s.C)
+	s.wait.Wait()
+	commons.Close(s.close_list)
+}
+
+func (s *server) serve() {
+	defer func() {
+		fmt.Println("close srv2")
+		atomic.StoreInt32(&s.closed, 1)
+		if e := recover(); nil != e {
+			var buffer bytes.Buffer
+			buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+			for i := 1; ; i += 1 {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+			}
+			s.last_error = errors.New(buffer.String())
+			log.Println(s.last_error.Error())
+		}
+		s.wait.Done()
+	}()
+
+	defer s.onStop()
+
+	ticker := time.NewTicker(s.interval)
+	defer ticker.Stop()
+
+	is_running := true
+	for is_running {
+		select {
+		case f, ok := <-s.C:
+			if !ok {
+				is_running = false
+				break
+			}
+			f()
+		case <-ticker.C:
+			s.onIdle()
+		}
+	}
+}
+
+func (s *server) returnString(cb func() string) string {
+	c := make(chan string)
+	s.C <- func() {
+		defer func() {
+			if e := recover(); nil != e {
+				var buffer bytes.Buffer
+				buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+				for i := 1; ; i += 1 {
+					_, file, line, ok := runtime.Caller(i)
+					if !ok {
+						break
+					}
+					buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+				}
+				c <- buffer.String()
+			}
+		}()
+
+		c <- cb()
+	}
+
+	select {
+	case res := <-c:
+		return res
+	case <-time.After(30 * time.Second):
+		return "[panic]time out"
+	}
 }
 
 func (s *server) startJob(attributes map[string]interface{}) {
@@ -142,11 +231,11 @@ func (s *server) onStart() error {
 }
 
 func (s *server) onStop() {
+	log.Println("server is stopping.")
 	for _, job := range s.jobs {
 		job.Close(CLOSE_REASON_NORMAL)
 	}
 	s.jobs = make(map[string]Job)
-
 	log.Println("server is stopped.")
 }
 
@@ -240,7 +329,7 @@ func (s *server) onIdle() {
 }
 
 func (s *server) String() string {
-	return s.ReturnString(func() string {
+	return s.returnString(func() string {
 		messages := make([]interface{}, 0, len(s.jobs))
 		for _, job := range s.jobs {
 			messages = append(messages, job.Stats())
@@ -249,13 +338,11 @@ func (s *server) String() string {
 			messages = append(messages, map[string]string{
 				"name":       "self",
 				"firedAt":    s.firedAt.Format(time.RFC3339Nano),
-				"status":     s.StatusString(),
 				"last_error": s.last_error.Error()})
 		} else {
 			messages = append(messages, map[string]string{
 				"name":    "self",
-				"firedAt": s.firedAt.Format(time.RFC3339Nano),
-				"status":  s.StatusString()})
+				"firedAt": s.firedAt.Format(time.RFC3339Nano)})
 		}
 
 		s, e := json.MarshalIndent(messages, "", "  ")
@@ -268,7 +355,8 @@ func (s *server) String() string {
 }
 
 func (s *server) wrap(req *restful.Request, resp *restful.Response, cb func()) {
-	s.NotReturn(func() {
+	c := make(chan string)
+	s.C <- func() {
 		defer func() {
 			if e := recover(); nil != e {
 				var buffer bytes.Buffer
@@ -282,9 +370,19 @@ func (s *server) wrap(req *restful.Request, resp *restful.Response, cb func()) {
 				}
 				resp.WriteErrorString(http.StatusInternalServerError, buffer.String())
 			}
+			c <- "ok"
 		}()
 		cb()
-	})
+	}
+
+	select {
+	case res := <-c:
+		if "ok" != res {
+			panic(res)
+		}
+	case <-time.After(30 * time.Second):
+		panic("time out")
+	}
 }
 
 func (s *server) Sync(req *restful.Request, resp *restful.Response) {

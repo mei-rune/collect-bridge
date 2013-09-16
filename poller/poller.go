@@ -11,6 +11,7 @@ import (
 	"net/http"
 	pprof "net/http/pprof"
 	"os"
+	"sampling"
 	"time"
 )
 
@@ -18,7 +19,7 @@ var (
 	redisAddress  = flag.String("redis_address", "127.0.0.1:6379", "the address of redis")
 	listenAddress = flag.String("poller.listen", ":7073", "the address of http")
 	dsUrl         = flag.String("ds", "http://127.0.0.1:7071", "the address of ds")
-	sampling_url  = flag.String("sampling", "http://127.0.0.1:7072", "the address of bridge")
+	sampling_url  = flag.String("sampling", "http://127.0.0.1:7072/batch", "the address of bridge")
 	timeout       = flag.Duration("timeout", 1*time.Minute, "the timeout of http")
 	refresh       = flag.Duration("refresh", 5*time.Second, "the refresh interval of cache")
 	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:7074", "the url of foreign db")
@@ -95,54 +96,53 @@ func Runforever() {
 		return
 	}
 
+	close_list := make([]commons.Closeable, 0, 10)
+
 	alert_foreign, err := newForeignDb("alerts", commons.NewUrlBuilder(*foreignUrl).Concat("alerts").ToUrl())
 	if nil != err {
 		fmt.Println("connect to foreign db failed,", err)
 		return
 	}
-
-	if !is_test {
-		defer alert_foreign.Close()
-	}
+	close_list = append(close_list, alert_foreign)
 
 	histories_foreign, err := newForeignDb("histories", commons.NewUrlBuilder(*foreignUrl).Concat("histories").ToUrl())
 	if nil != err {
 		fmt.Println("connect to foreign db failed,", err)
 		return
 	}
-
-	if !is_test {
-		defer histories_foreign.Close()
-	}
+	close_list = append(close_list, histories_foreign)
 
 	redis_client, err := newRedis(*redisAddress)
 	if nil != err {
 		fmt.Println("connect to redis failed,", err)
 		return
 	}
+	close_list = append(close_list, redis_client)
 
-	if !is_test {
-		defer redis_client.Close()
+	broker, err := sampling.NewBroker("sampling_broker", *sampling_url)
+	if nil != err {
+		fmt.Println("connect to broker failed,", err)
+		return
 	}
+	close_list = append(close_list, broker)
 
 	ds_client := ds.NewClient(*dsUrl)
 	notification_groups := ds.NewCacheWithIncludes(*refresh, ds_client, "notification_group", "action")
 
-	ctx := map[string]interface{}{"sampling.url": *sampling_url,
+	ctx := map[string]interface{}{"sampling_broker": broker,
 		"redis_channel":       forward(redis_client.c),
 		"alerts_channel":      forward2(alert_foreign.c),
 		"histories_channel":   forward2(histories_foreign.c),
 		"notification_groups": notification_groups}
 
-	srv := newServer(*refresh, ds_client, ctx)
-	err = srv.Start()
+	srv, err := newServer(*refresh, ds_client, ctx, close_list)
 	if nil != err {
 		fmt.Println(err)
 		return
 	}
 	defer func() {
 		if !is_test {
-			srv.Stop()
+			srv.Close()
 			trigger_exporter.Var = nil
 		}
 	}()

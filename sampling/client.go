@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+func MakeChannelName(metric, managedType, managedId, pathStr string, params map[string]string) string {
+	return metric + "/" + managedType + "/" + managedId + "/" + pathStr
+}
+
 type ChannelClient interface {
 	Send()
 	Close()

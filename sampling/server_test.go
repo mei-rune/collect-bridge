@@ -102,7 +102,7 @@ func batchGet(t *testing.T, url string, requests []*ExchangeRequest) ([]*Exchang
 		}
 	}()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusAccepted {
 		if http.StatusNoContent == resp.StatusCode {
 			return nil, nil
 		}
@@ -130,7 +130,8 @@ func batchGet(t *testing.T, url string, requests []*ExchangeRequest) ([]*Exchang
 	decoder.UseNumber()
 	e = decoder.Decode(&result)
 	if nil != e {
-		fmt.Println(string(resp_body))
+
+		fmt.Println(e, ",", string(resp_body))
 		return nil, e
 	}
 	return result, nil

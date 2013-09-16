@@ -47,13 +47,17 @@ func whereOne(value interface{}, expression string) (interface{}, error) {
 	return nil, fmt.Errorf("it is not a slice, actual is %T", value)
 }
 
+type toValue interface {
+	InterfaceValue() interface{}
+}
+
 func ToSimpleValue(value interface{}, attribute string) (interface{}, error) {
 	if nil == value {
 		return nil, IsNull
 	}
 
 	currentValue := value
-	if current, ok := value.(Result); ok {
+	if current, ok := value.(toValue); ok {
 		currentValue = current.InterfaceValue()
 		if nil == currentValue {
 			return nil, ValueIsNilInResult

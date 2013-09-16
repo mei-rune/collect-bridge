@@ -1,17 +1,15 @@
 package poller
 
 import (
-	//"sync/atomic"
-	"commons"
 	"encoding/json"
-	"net"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"sampling"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
-	//"time"
 )
 
 type httpH func(http.ResponseWriter, *http.Request)
@@ -21,41 +19,42 @@ func (self httpH) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 }
 
 func TestJobWithSamplingFailed(t *testing.T) {
-	l, e := net.Listen("tcp", "127.0.0.1:0")
-	if nil != e {
-		t.Error(e)
+	error_message := "sdfsdfsfasf"
+	called := int32(0)
+	hsrv := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		if nil == req.Body {
+			resp.WriteHeader(http.StatusNoContent)
+			return
+		}
+		var er []*sampling.ExchangeRequest
+		if e := json.NewDecoder(req.Body).Decode(&er); nil != e {
+			resp.WriteHeader(http.StatusInternalServerError)
+			resp.Write([]byte(e.Error()))
+			return
+		}
+		if nil == er {
+			resp.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if er[0].ManagedId == "12" && er[0].Name == "cpu" {
+			atomic.AddInt32(&called, 1)
+			resp.WriteHeader(http.StatusInternalServerError)
+			resp.Write([]byte(error_message))
+			return
+		}
+
+		resp.WriteHeader(http.StatusNoContent)
+	}))
+
+	defer hsrv.Close()
+
+	broker, err := sampling.NewBroker("sampling_broker", hsrv.URL)
+	if nil != err {
+		t.Error("connect to broker failed,", err)
 		return
 	}
 
-	error_message := "sdfsdfsfasf"
-	called := int32(0)
-	var handler httpH = func(resp http.ResponseWriter, req *http.Request) {
-		if strings.Contains(req.URL.String(), "managed_object/12/cpu") {
-			atomic.AddInt32(&called, 1)
-		}
-		resp.WriteHeader(http.StatusInternalServerError)
-		resp.Write([]byte(error_message))
-	}
-
-	c := make(chan string)
-	go func() {
-		if nil != l {
-			http.Serve(l, handler)
-		}
-		c <- "ok"
-	}()
-
-	stop := func() {
-		if nil != l {
-			l.Close()
-			l = nil
-
-			<-c
-			close(c)
-		}
-	}
-
-	defer stop()
+	defer broker.Close()
 
 	ch := make(chan []string, 1000)
 	tg, e := newJob(map[string]interface{}{
@@ -75,26 +74,19 @@ func TestJobWithSamplingFailed(t *testing.T) {
 			"arg2":    "$managed_type",
 			"arg3":    "$managed_id",
 			"arg4":    "$metric"}}},
-		map[string]interface{}{"redis_channel": forward(ch), "sampling.url": "http://" + l.Addr().String()})
+		map[string]interface{}{"redis_channel": forward(ch), "sampling_broker": broker})
 
 	if nil != e {
 		t.Error(e)
 		return
 	}
 
-	// e = tg.Start()
-	// if nil != e {
-	// 	t.Error(e)
-	// 	return
-	// }
-	//defer tg.Close(CLOSE_REASON_NORMAL)
-
 	for c := 0; c < 1000 && 0 == atomic.LoadInt32(&called); c += 1 {
-		time.Sleep(10 * time.Microsecond)
+		time.Sleep(10 * time.Millisecond)
 	}
+	time.Sleep(10 * time.Millisecond)
 
 	tg.Close(CLOSE_REASON_NORMAL)
-	stop()
 
 	if 0 == called {
 		t.Error("not call")
@@ -110,42 +102,48 @@ func TestJobWithSamplingFailed(t *testing.T) {
 }
 
 func TestJobFull(t *testing.T) {
-	l, e := net.Listen("tcp", "127.0.0.1:0")
-	if nil != e {
-		t.Error(e)
+	result := []*sampling.ExchangeResponse{&sampling.ExchangeResponse{Evalue: map[string]interface{}{"name": "this is a name", "a": "b"}}}
+	called := int32(0)
+
+	hsrv := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		if nil == req.Body {
+			resp.WriteHeader(http.StatusNoContent)
+			return
+		}
+		var er []*sampling.ExchangeRequest
+		if e := json.NewDecoder(req.Body).Decode(&er); nil != e {
+			resp.WriteHeader(http.StatusInternalServerError)
+			resp.Write([]byte(e.Error()))
+			return
+		}
+		if nil == er {
+			resp.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if er[0].ManagedId == "12" && er[0].Name == "cpu" {
+			atomic.AddInt32(&called, 1)
+			resp.WriteHeader(http.StatusAccepted)
+			result[0].Id = er[0].Id
+			result[0].ChannelName = er[0].ChannelName
+			if e := json.NewEncoder(resp).Encode(result); nil != e {
+				resp.WriteHeader(http.StatusInternalServerError)
+				resp.Write([]byte(e.Error()))
+			}
+			return
+		}
+
+		resp.WriteHeader(http.StatusNoContent)
+	}))
+
+	defer hsrv.Close()
+
+	broker, err := sampling.NewBroker("sampling_broker", hsrv.URL)
+	if nil != err {
+		t.Error("connect to broker failed,", err)
 		return
 	}
 
-	result := commons.Return(map[string]interface{}{"name": "this is a name", "a": "b"})
-	called := int32(0)
-	var handler httpH = func(resp http.ResponseWriter, req *http.Request) {
-		if strings.Contains(req.URL.String(), "managed_object/12/cpu") {
-			atomic.AddInt32(&called, 1)
-
-			resp.WriteHeader(http.StatusOK)
-			resp.Write([]byte(result.ToJson()))
-		}
-	}
-
-	c := make(chan string)
-	go func() {
-		if nil != l {
-			http.Serve(l, handler)
-		}
-		c <- "ok"
-	}()
-
-	stop := func() {
-		if nil != l {
-			l.Close()
-			l = nil
-
-			<-c
-			close(c)
-		}
-	}
-
-	defer stop()
+	defer broker.Close()
 
 	ch := make(chan []string, 1000)
 	tg, e := newJob(map[string]interface{}{
@@ -168,25 +166,19 @@ func TestJobFull(t *testing.T) {
 			"arg4":    "$managed_type",
 			"arg5":    "$managed_id",
 			"arg6":    "$metric"}}},
-		map[string]interface{}{"redis_channel": forward(ch), "sampling.url": "http://" + l.Addr().String()})
+		map[string]interface{}{"redis_channel": forward(ch), "sampling_broker": broker})
 
 	if nil != e {
 		t.Error(e)
 		return
 	}
 
-	// e = tg.Start()
-	// if nil != e {
-	// 	t.Error(e)
-	// 	return
-	// }
-
 	for c := 0; c < 1000 && 0 == atomic.LoadInt32(&called); c += 1 {
-		time.Sleep(10 * time.Microsecond)
+		time.Sleep(10 * time.Millisecond)
 	}
+	time.Sleep(10 * time.Millisecond)
 
 	tg.Close(CLOSE_REASON_NORMAL)
-	stop()
 
 	if 0 == called {
 		t.Error("not call")
@@ -200,7 +192,7 @@ func TestJobFull(t *testing.T) {
 		return
 	}
 
-	m := result.ToMap()
+	m := result[0].ToMap()
 	m["managed_id"] = 12
 	m["managed_type"] = "managed_object"
 	m["metric"] = "cpu"

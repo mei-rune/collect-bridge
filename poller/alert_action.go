@@ -5,7 +5,6 @@ import (
 	"commons"
 	ds "data_store"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -117,7 +116,7 @@ func (self *alertAction) RunAfter() {
 }
 
 func (self *alertAction) Run(t time.Time, value interface{}) error {
-	if res, ok := value.(commons.Result); ok {
+	if res, ok := value.(ValueResult); ok {
 		if res.HasError() {
 			return errors.New("sampling failed, " + res.ErrorMessage())
 		}

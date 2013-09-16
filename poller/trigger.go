@@ -13,12 +13,14 @@ import (
 	"time"
 )
 
+// TODO:  第一版发布后请立即重构Trigger, 太混乱了。
 type Trigger interface {
 	Id() string
 	Name() string
 	Version() time.Time
 	Stats() map[string]interface{}
 
+	GetChannel() chan interface{}
 	Interupt()
 	Close(reason int)
 	CallActions(t time.Time, res interface{})
@@ -230,7 +232,7 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 type intervalTrigger struct {
 	*base_trigger
 	interval time.Duration
-	c        chan int
+	c        chan interface{}
 	wait     sync.WaitGroup
 
 	closed            int32
@@ -243,7 +245,7 @@ func (self *intervalTrigger) init(delay time.Duration) error {
 	if !atomic.CompareAndSwapInt32(&self.closed, 1, 0) {
 		return AlreadyStarted
 	}
-	self.c = make(chan int, 2)
+	self.c = make(chan interface{}, 10)
 
 	sinit := func() {
 		go self.run()
@@ -267,6 +269,10 @@ func (self *intervalTrigger) Interupt() {
 	self.c <- 0
 }
 
+func (self *intervalTrigger) GetChannel() chan interface{} {
+	return self.c
+}
+
 func (self *intervalTrigger) Close(reason int) {
 	if 1 == atomic.LoadInt32(&self.closed) {
 		return
@@ -275,6 +281,16 @@ func (self *intervalTrigger) Close(reason int) {
 	close(self.c)
 	self.wait.Wait()
 	self.reset(reason)
+}
+
+type ValueResult interface {
+	ErrorCode() int
+	ErrorMessage() string
+	HasError() bool
+	Error() commons.RuntimeError
+	Value() commons.Any
+	InterfaceValue() interface{}
+	CreatedAt() time.Time
 }
 
 func (self *intervalTrigger) run() {
@@ -304,13 +320,28 @@ func (self *intervalTrigger) run() {
 	is_running := true
 	for is_running {
 		select {
-		case <-self.c:
-			is_running = false
+		case o, ok := <-self.c:
+			if !ok || 0 == o {
+				is_running = false
+				break
+			}
+			res, ok := o.(ValueResult)
+			if !ok {
+				//fmt.Println(fmt.Errorf("sampling failed, unsupported type - %T", o))
+				self.set_last_error(fmt.Errorf("sampling failed, unsupported type - %T", o))
+				break
+			}
+			if res.HasError() {
+				//fmt.Println(errors.New("sampling failed, " + res.ErrorMessage()))
+				self.set_last_error(errors.New("sampling failed, " + res.ErrorMessage()))
+				break
+			}
+			self.CallActions(res.CreatedAt(), res)
+			self.set_last_error(nil)
 		case t := <-ticker.C:
 			self.timeout(t)
 		}
 	}
-
 	self.DEBUG.Print("stopping")
 }
 
@@ -325,6 +356,9 @@ func (self *intervalTrigger) Stats() map[string]interface{} {
 
 func (self *intervalTrigger) timeout(t time.Time) {
 	startedAt := t.Unix()
+	if 30 > startedAt-atomic.LoadInt64(&self.begin_fired_at) {
+		return
+	}
 
 	defer func() {
 		if e := recover(); nil != e {
@@ -340,19 +374,20 @@ func (self *intervalTrigger) timeout(t time.Time) {
 			msg := buffer.String()
 			self.set_last_error(errors.New(msg))
 			self.ERROR.Print(msg)
-		}
 
-		now := time.Now().Unix()
-		atomic.StoreInt64(&self.end_fired_at, now)
-		if self.max_used_duration < now-startedAt {
-			atomic.StoreInt64(&self.max_used_duration, now-startedAt)
+			now := time.Now().Unix()
+			atomic.StoreInt64(&self.end_fired_at, now)
+			if self.max_used_duration < now-startedAt {
+				atomic.StoreInt64(&self.max_used_duration, now-startedAt)
+			}
 		}
 	}()
 
 	atomic.StoreInt64(&self.begin_fired_at, startedAt)
-
 	self.DEBUG.Printf("timeout %s - %s", self.name, self.interval)
-	self.set_last_error(self.callback(t))
+	if e := self.callback(t); nil != e {
+		self.set_last_error(e)
+	}
 }
 
 func (self *intervalTrigger) set_last_error(e error) {

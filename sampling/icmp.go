@@ -146,6 +146,7 @@ func (self *icmpWorker) scan(c int) {
 	for k, bucket := range self.icmpBuffers {
 		if bucket.IsExpired(now) {
 			expired = append(expired, k)
+			log.Println("[icmp] '" + k + "' with updated_at waw '" + time.Unix(bucket.updated_at, 0).String() + "' is expired.")
 		} else {
 			if 0 == c || bucket.IsTimeout(now) {
 				self.v4.Send(k, nil)
@@ -155,7 +156,6 @@ func (self *icmpWorker) scan(c int) {
 
 	for _, k := range expired {
 		delete(self.icmpBuffers, k)
-		log.Println("[icmp] '" + k + "' is expired.")
 	}
 }
 
@@ -191,7 +191,9 @@ func (self *icmpWorker) GetOrCreate(id string) (*icmpBucket, bool) {
 		return buffer, false
 	}
 
-	w := &icmpBucket{created_at: time.Now().Unix()}
+	now := time.Now().Unix()
+	w := &icmpBucket{created_at: now,
+		updated_at: now}
 	w.icmpBuffer.init(make([]IcmpResult, *icmp_buffer_size))
 	self.icmpBuffers[id] = w
 

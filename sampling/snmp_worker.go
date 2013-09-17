@@ -130,12 +130,12 @@ func (self *snmpWorker) clearTimeout() {
 		for k, bucket := range byAddress.snmpBuffers {
 			if bucket.IsExpired(now) {
 				expired = append(expired, k)
+				log.Println("[snmp_test] '" + address + "/" + k + "' with updated_at waw '" + time.Unix(bucket.updated_at, 0).String() + "' is expired.")
 			}
 		}
 
 		for _, k := range expired {
 			delete(byAddress.snmpBuffers, k)
-			log.Println("[snmp_test] '" + address + "/" + k + "' is expired.")
 		}
 
 		if 0 == len(byAddress.snmpBuffers) {
@@ -162,12 +162,13 @@ func (self *snmpWorker) scan(c int) {
 	for address, byAddress := range self.buckets {
 
 		if 0 == c && nil != byAddress.pendings {
-			log.Println("[snmp_test] clear pendings(", len(byAddress.pendings), ") for '"+address+"'.")
+			//log.Println("[snmp_test] clear pendings(", len(byAddress.pendings), ") for '"+address+"'.")
 			if cap(byAddress.pendings)-len(byAddress.pendings) > 20 {
 				byAddress.pendings = nil
 			} else {
 				byAddress.pendings = byAddress.pendings[0:0]
 			}
+			log.Println("[snmp_test] clear pendings for '" + address + "'.")
 		}
 
 		expired := make([]string, 0, 10)
@@ -201,15 +202,15 @@ func (self *snmpWorker) Push(res *snmpclient.PingResult) {
 	address := res.Addr.String()
 	byAddress := self.Get(address)
 	if nil == byAddress {
-		log.Println(address, "is not exists.")
+		log.Println("[snmp_test]", address, "is not exists.")
 		return
 	}
 
 	byAddress.l.Lock()
 	defer byAddress.l.Unlock()
 
-	if nil == byAddress.pendings {
-		log.Println(address, "is not pending.")
+	if nil == byAddress.pendings || 0 == len(byAddress.pendings) {
+		log.Println("[snmp_test]", address, "is not pending, pendings is empty.")
 		return
 	}
 
@@ -221,13 +222,13 @@ func (self *snmpWorker) Push(res *snmpclient.PingResult) {
 	}
 
 	if nil == testing {
-		log.Println(address, "is not pending.")
+		log.Println("[snmp_test]", address, "is not pending, it is not in list.")
 		return
 	}
 
 	bucket, ok := byAddress.snmpBuffers[testing.key]
 	if !ok {
-		log.Println(address, " and ", testing.key, " is not pending.")
+		log.Println("[snmp_test]", address, " and ", testing.key, " is not pending, it may expired.")
 		return
 	}
 
@@ -264,8 +265,10 @@ func (self *snmpWorker) GetOrCreate(address string, version snmpclient.SnmpVersi
 		return buffer, false
 	}
 
+	now := time.Now().Unix()
 	w := &snmpBucket{byAddress: byAddress,
-		created_at: time.Now().Unix(),
+		created_at: now,
+		updated_at: now,
 		address:    address,
 		version:    version,
 		community:  community}

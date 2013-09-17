@@ -93,6 +93,7 @@ func (self *icmpWorker) run() {
 	for is_running {
 		select {
 		case <-ticker.C:
+			count += 1
 			self.scan(int(count % *icmp_poll_interval))
 		case s, ok := <-self.c:
 			if !ok {

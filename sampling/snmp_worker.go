@@ -82,6 +82,7 @@ func (self *snmpWorker) run() {
 	for is_running {
 		select {
 		case <-ticker.C:
+			count += 1
 			self.scan(int(count % *snmp_test_poll_interval))
 		case bucket, ok := <-self.c:
 			if !ok {

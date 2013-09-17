@@ -182,7 +182,8 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 			return nil, errors.New("create action '" + action_id + ":" + action_name + "' failed, " + e.Error())
 		}
 		if !enabled {
-			reset(action, CLOSE_REASON_DISABLED)
+			// TODO:  请尽快重构它。
+			go reset(action, CLOSE_REASON_DISABLED)
 		}
 		actions = append(actions, &actionWrapper{id: action_id, name: action_name, enabled: enabled, action: action})
 	}
@@ -331,6 +332,13 @@ func (self *intervalTrigger) run() {
 				self.set_last_error(fmt.Errorf("sampling failed, unsupported type - %T", o))
 				break
 			}
+			now := time.Now().Unix()
+			atomic.StoreInt64(&self.end_fired_at, now)
+			used_duration := now - atomic.LoadInt64(&self.begin_fired_at)
+			if self.max_used_duration < used_duration {
+				atomic.StoreInt64(&self.max_used_duration, used_duration)
+			}
+
 			if res.HasError() {
 				//fmt.Println(errors.New("sampling failed, " + res.ErrorMessage()))
 				self.set_last_error(errors.New("sampling failed, " + res.ErrorMessage()))
@@ -348,15 +356,15 @@ func (self *intervalTrigger) run() {
 func (self *intervalTrigger) Stats() map[string]interface{} {
 	m := self.base_trigger.Stats()
 	m["max_used_duration"] = strconv.FormatInt(atomic.LoadInt64(&self.max_used_duration), 10) + "s"
-	m["begin_fired_at"] = time.Unix(atomic.LoadInt64(&self.begin_fired_at), 0).Format(time.RFC3339Nano)
-	m["end_fired_at"] = time.Unix(atomic.LoadInt64(&self.end_fired_at), 0).Format(time.RFC3339Nano)
+	m["begin_fired_at"] = time.Unix(atomic.LoadInt64(&self.begin_fired_at), 0)
+	m["end_fired_at"] = time.Unix(atomic.LoadInt64(&self.end_fired_at), 0)
 	//m["status"] = commons.ToStatusString(int(atomic.LoadInt32(&self.status)))
 	return m
 }
 
 func (self *intervalTrigger) timeout(t time.Time) {
 	startedAt := t.Unix()
-	if 30 > startedAt-atomic.LoadInt64(&self.begin_fired_at) {
+	if 60 > startedAt-atomic.LoadInt64(&self.begin_fired_at) {
 		return
 	}
 

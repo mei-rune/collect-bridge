@@ -14,15 +14,22 @@ import (
 	"net/http/httptest"
 	"net/http/pprof"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 var (
-	alias_names = map[string]string{"snmp": "snmp_param"}
+	alias_names  = map[string]string{"snmp": "snmp_param"}
+	srv_exporter = &exporter{}
 )
+
+func init() {
+	expvar.Publish("sampling_server", srv_exporter)
+}
 
 func type_error(e error) error {
 	return TypeError
@@ -46,6 +53,7 @@ type server struct {
 	workers  *backgroundWorkers
 	caches   *ds.Caches
 	mo_cache *ds.Cache
+	perf     *PerfServer
 
 	routes_for_get    map[string]*RouterGroup
 	routes_for_put    map[string]*RouterGroup
@@ -59,6 +67,12 @@ type server struct {
 
 	completions_lock sync.Mutex
 	completions      []*ExchangeResponse
+
+	pending_requests   int64
+	last_request_size  int
+	max_request_size   int
+	last_used_duration time.Duration
+	max_used_duration  time.Duration
 }
 
 func newServer(ds_url string, refresh time.Duration, params map[string]interface{}) (*server, error) {
@@ -100,7 +114,22 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 
 	srv.workers.workers = simpled.workers
 	wrpped.backend = srv.workers
+	perf, e := NewPerfServer(*redisAddress)
+	if nil != e {
+		return nil, e
+	}
+	srv.perf = perf
+	srv_exporter.Var = srv
 	return srv, nil
+}
+
+func (self *server) stats() interface{} {
+	return map[string]interface{}{"pending—responses": self.completion_size(),
+		"pending_requests":   atomic.LoadInt64(&self.pending_requests),
+		"last_request_size":  self.last_request_size,
+		"max_request_size":   self.max_request_size,
+		"last_used_duration": self.last_used_duration.String(),
+		"max_used_duration":  self.max_used_duration.String()}
 }
 
 func (self *server) close() {
@@ -371,6 +400,15 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (self *server) batchExchange(w http.ResponseWriter, r *http.Request) {
+
+	begin_at := time.Now()
+	defer func() {
+		self.last_used_duration = time.Now().Sub(begin_at)
+		if self.last_used_duration > self.max_used_duration {
+			self.max_used_duration = self.last_used_duration
+		}
+	}()
+
 	var requests []*ExchangeRequest
 	decoder := json.NewDecoder(r.Body)
 	decoder.UseNumber()
@@ -383,12 +421,25 @@ func (self *server) batchExchange(w http.ResponseWriter, r *http.Request) {
 	if nil != requests && 0 != len(requests) {
 		for _, req := range requests {
 			go self.doRequest(req)
+			atomic.AddInt64(&self.pending_requests, 1)
 		}
+		self.last_request_size = len(requests)
+		if self.last_request_size > self.max_request_size {
+			self.max_request_size = self.last_request_size
+		}
+
+	} else {
+		self.last_request_size = 0
 	}
 
 	self.sendCompletion(w)
 }
 
+func (self *server) completion_size() int {
+	self.completions_lock.Lock()
+	defer self.completions_lock.Unlock()
+	return len(self.completions)
+}
 func (self *server) sendCompletion(w http.ResponseWriter) {
 	self.completions_lock.Lock()
 	defer self.completions_lock.Unlock()
@@ -419,6 +470,15 @@ func (self *server) doRequest(r *ExchangeRequest) {
 	var resp *ExchangeResponse
 	var res commons.Result
 	var ctx *context
+
+	begin_at := time.Now()
+	defer func() {
+		end_at := time.Now()
+		self.perf.C <- []string{"LPUSH", "perf-" + r.ChannelName, `{"begin_at":"` + begin_at.Format(time.RFC3339Nano) + `","end_at":"` + end_at.Format(time.RFC3339Nano) + `","elapsed":"` + end_at.Sub(begin_at).String() + `","elapsed(ns)":` + strconv.FormatInt(int64(end_at.Sub(begin_at)), 10) + `, "error":"` + resp.ErrorMessage() + `"}`}
+		self.perf.C <- []string{"LTRIM", "perf-" + r.ChannelName, "0", "100"}
+
+		atomic.AddInt64(&self.pending_requests, -1)
+	}()
 
 	route, err := self.route(r.Action, r.Name)
 	if nil != err {

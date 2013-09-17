@@ -88,10 +88,10 @@ func (self *alertAction) Stats() map[string]interface{} {
 		"already_send":     self.stats_already_send,
 		"event_id":         self.stats_last_event_id,
 		"sequence_id":      self.stats_sequence_id,
-		"begin_send_at":    atomic.LoadInt64(&self.begin_send_at),
-		"wait_response_at": atomic.LoadInt64(&self.wait_response_at),
-		"responsed_at":     atomic.LoadInt64(&self.responsed_at),
-		"end_send_at":      atomic.LoadInt64(&self.end_send_at)}
+		"begin_send_at":    time.Unix(atomic.LoadInt64(&self.begin_send_at), 0),
+		"wait_response_at": time.Unix(atomic.LoadInt64(&self.wait_response_at), 0),
+		"responsed_at":     time.Unix(atomic.LoadInt64(&self.responsed_at), 0),
+		"end_send_at":      time.Unix(atomic.LoadInt64(&self.end_send_at), 0)}
 
 	if nil != self.notification_groups {
 		stats["notification_group_ids"] = self.notification_group_ids

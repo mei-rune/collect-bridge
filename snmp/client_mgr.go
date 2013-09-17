@@ -1,7 +1,6 @@
 package snmp
 
 import (
-	"bytes"
 	"commons"
 	"errors"
 	"expvar"
@@ -31,14 +30,11 @@ func (svc *ClientManager) Init() {
 		}))
 
 		expvar.Publish(svc.Name+"_requests", expvar.Func(func() interface{} {
-			var buf bytes.Buffer
+			results := map[string]interface{}{"queue_size": svc.Len()}
 			for id, client := range svc.clients {
-				buf.WriteString(id)
-				buf.WriteString(":")
-				buf.WriteString(client.Stats())
-				buf.WriteString("\r\n")
+				results[id] = client.Stats()
 			}
-			return buf.String()
+			return results
 		}))
 
 		go svc.heartbeat()
@@ -48,7 +44,6 @@ func (svc *ClientManager) Init() {
 }
 
 func (svc *ClientManager) Test() error {
-
 	clients := make(map[string]snmpclient.Client)
 	for host, cl := range svc.clients {
 		clients[host] = cl
@@ -176,7 +171,7 @@ func (self *TestClient) Stop() {
 	self.stop = true
 }
 
-func (self *TestClient) Stats() string {
+func (self *TestClient) Stats() interface{} {
 	return "test"
 }
 func (self *TestClient) Test() error {

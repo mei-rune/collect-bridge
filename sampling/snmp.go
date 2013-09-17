@@ -61,6 +61,7 @@ func (self *snmpBase) Init(params map[string]interface{}) error {
 }
 
 func (self *snmpBase) copyParameter(params MContext, snmp_params map[string]string, rw string) error {
+	// if old_params := params.Get("snmp-"+rw) { }
 	version := params.GetStringWithDefault("snmp.version", "")
 	if 0 == len(version) {
 		return snmpNotExistsError

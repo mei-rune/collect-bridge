@@ -10,10 +10,11 @@ import (
 )
 
 var (
+	redisAddress       = flag.String("redis.address", "127.0.0.1:6379", "the address of redis")
 	address            = flag.String("sampling.listen", ":7072", "the address of http")
 	ds_url             = flag.String("ds.url", "http://127.0.0.1:7071", "the address of http")
 	refresh            = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
-	snmp_timeout       = flag.Duration("snmp.timeout", 60*time.Second, "the timeout duration of snmp")
+	snmp_timeout       = flag.Duration("snmp.timeout", 30*time.Second, "the timeout duration of snmp")
 	period_interval    = flag.Duration("period", 1*time.Second, "the tick interval of backgroundWorker")
 	flux_expired       = flag.Int64("flux_expired", 60*5, "remove it from scan list while port or link is expired")
 	flux_buffer_size   = flag.Int("flux_buffer_size", 30, "the default buffer size of flux")

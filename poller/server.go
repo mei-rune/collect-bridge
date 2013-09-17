@@ -256,7 +256,6 @@ func (s *server) onIdle() {
 	}
 
 	newed, updated, deleted := ds.Diff(new_snapshots, old_snapshots)
-
 	if *load_cookies {
 		var should_load []string = nil
 		if nil != newed {

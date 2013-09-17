@@ -158,6 +158,7 @@ type RequestCtx struct {
 	CreatedAt time.Time
 	C         chan interface{}
 	Request   *ExchangeRequest
+	grp       *channelGroup
 }
 
 type SamplingBroker struct {
@@ -173,7 +174,13 @@ type SamplingBroker struct {
 
 	request_id      uint64
 	pendingRequests map[uint64]*RequestCtx
-	channels        map[string]map[string]chan interface{}
+	channelGroups   map[string]*channelGroup
+}
+
+type channelGroup struct {
+	last_begin_at time.Time
+	last_end_at   time.Time
+	channels      map[string]chan interface{}
 }
 
 func (self *SamplingBroker) createClient(channelName string, c chan interface{},
@@ -205,9 +212,11 @@ func (self *SamplingBroker) createClient(channelName string, c chan interface{},
 	cl.ctx.Request = &cl.request
 
 	if nil != c {
-		if e := self.Subscribe(channelName, cl.id, c); nil != e {
+		grp, e := self.Subscribe(channelName, cl.id, c)
+		if nil != e {
 			return nil, e
 		}
+		cl.ctx.grp = grp
 		cl.ctx.C = c
 	}
 	return cl, nil
@@ -233,25 +242,27 @@ func (self *SamplingBroker) SubscribeClient(channelName string, c chan interface
 type channelRequest struct {
 	channelName, id string
 	c               chan interface{}
-	reply           chan error
+	reply           chan *channelRequest
+	e               error
+	grp             *channelGroup
 }
 
 var timeoutError = commons.NewApplicationError(http.StatusGatewayTimeout, "time out")
 var closedError = errors.New("it is already closed.")
 var existsError = errors.New("it is already exists.")
 
-func (self *SamplingBroker) Subscribe(channelName, id string, c chan interface{}) error {
+func (self *SamplingBroker) Subscribe(channelName, id string, c chan interface{}) (*channelGroup, error) {
 	if 1 == atomic.LoadInt32(&self.closed) {
-		return closedError
+		return nil, closedError
 	}
 
-	reply := make(chan error, 1)
+	reply := make(chan *channelRequest, 1)
 	self.chan_c <- &channelRequest{id: id, channelName: channelName, c: c, reply: reply}
 	select {
-	case e := <-reply:
-		return e
+	case r := <-reply:
+		return r.grp, r.e
 	case <-time.After(5 * time.Second):
-		return commons.TimeoutErr
+		return nil, commons.TimeoutErr
 	}
 }
 
@@ -264,32 +275,33 @@ func (self *SamplingBroker) Unsubscribe(channelName, id string) {
 }
 
 func (self *SamplingBroker) doChannelRequest(chanD *channelRequest) {
-	var e error = nil
-	grp, ok := self.channels[chanD.channelName]
+	grp, ok := self.channelGroups[chanD.channelName]
 	if !ok {
 		if nil == chanD.c {
 			goto end
 		}
 
-		grp = make(map[string]chan interface{})
-		self.channels[chanD.channelName] = grp
+		grp = &channelGroup{channels: make(map[string]chan interface{})}
+		self.channelGroups[chanD.channelName] = grp
 	}
 
 	if nil == chanD.c {
-		delete(grp, chanD.id)
-		if 0 == len(grp) {
-			delete(self.channels, chanD.channelName)
+		delete(grp.channels, chanD.id)
+		if 0 == len(grp.channels) {
+			delete(self.channelGroups, chanD.channelName)
 		}
 	} else {
-		if _, ok := grp[chanD.id]; ok {
-			e = existsError
+		if _, ok := grp.channels[chanD.id]; ok {
+			chanD.e = existsError
 			goto end
 		}
-		grp[chanD.id] = chanD.c
+
+		chanD.grp = grp
+		grp.channels[chanD.id] = chanD.c
 	}
 end:
 	if nil != chanD.reply {
-		chanD.reply <- e
+		chanD.reply <- chanD
 	}
 }
 
@@ -347,7 +359,6 @@ func (self *SamplingBroker) run() {
 			if 0 == count%10 {
 				self.onIdle()
 			}
-			self.exchange_c <- nil
 		case chanD, ok := <-self.chan_c:
 			if !ok {
 				is_running = false
@@ -416,7 +427,19 @@ func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests 
 	id_list := empty_id_list
 	if 0 != len(objects) {
 		id_list = make([]uint64, len(objects))
+		now := time.Now()
 		for idx, obj := range objects {
+			if nil != obj.grp {
+				if now.Sub(obj.grp.last_begin_at).Seconds() < 15 {
+					continue
+				}
+
+				if now.Sub(obj.grp.last_end_at).Seconds() < 15 {
+					continue
+				}
+
+				obj.grp.last_begin_at = now
+			}
 			self.request_id += 1
 			id_list[idx] = self.request_id
 			cached_requests = append(cached_requests, obj.Request)
@@ -446,6 +469,7 @@ func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests 
 		self.pendingRequests[id_list[idx]] = obj
 	}
 
+	grp_failed := make([]string, 0, 10)
 	failed := make([]string, 0, 10)
 	for _, res := range resposes {
 		if pending, ok := self.pendingRequests[res.Id]; ok {
@@ -453,16 +477,28 @@ func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests 
 			self.reply(pending.C, res)
 		}
 
-		if c_array, ok := self.channels[res.ChannelName]; ok {
+		if grp, ok := self.channelGroups[res.ChannelName]; ok {
+			grp.last_end_at = now
+
 			failed = failed[0:0]
-			for k, c := range c_array {
+			for k, c := range grp.channels {
 				if e := self.reply(c, res); nil != e {
 					failed = append(failed, k)
 				}
 			}
 			for _, k := range failed {
-				delete(c_array, k)
+				delete(grp.channels, k)
 			}
+
+			if 0 == len(grp.channels) {
+				grp_failed = append(grp_failed, res.ChannelName)
+			}
+		}
+	}
+
+	if 0 != len(grp_failed) {
+		for _, k := range grp_failed {
+			delete(self.channelGroups, k)
 		}
 	}
 }
@@ -590,8 +626,17 @@ func NewBroker(name, url string) (*SamplingBroker, error) {
 		last_error:      varString,
 		request_id:      0,
 		pendingRequests: make(map[uint64]*RequestCtx),
-		channels:        make(map[string]map[string]chan interface{})}
+		channelGroups:   make(map[string]*channelGroup)}
 
+	if nil != expvar.Get("sampling_broker."+name) {
+		expvar.Publish("sampling_broker."+name+"."+time.Now().String()+".queue", expvar.Func(func() interface{} {
+			return len(db.exchange_c)
+		}))
+	} else {
+		expvar.Publish("sampling_broker."+name+".queue", expvar.Func(func() interface{} {
+			return len(db.exchange_c)
+		}))
+	}
 	go db.run()
 	db.wait.Add(1)
 	return db, nil

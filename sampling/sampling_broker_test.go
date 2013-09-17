@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -353,5 +354,97 @@ func TestBrokerWithInvoke(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBrokerWithMergeRequest(t *testing.T) {
+	called := int32(0)
+
+	hsrv := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		if nil == req.Body {
+			resp.WriteHeader(http.StatusNoContent)
+			return
+		}
+		var er []*ExchangeRequest
+		if e := json.NewDecoder(req.Body).Decode(&er); nil != e {
+			resp.WriteHeader(http.StatusInternalServerError)
+			resp.Write([]byte(e.Error()))
+			return
+		}
+		if nil == er {
+			resp.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		atomic.AddInt32(&called, int32(len(er)))
+
+		resp.WriteHeader(http.StatusNoContent)
+	}))
+
+	defer hsrv.Close()
+
+	broker, e := NewBroker("test", hsrv.URL)
+	if nil != e {
+		t.Error("create broker failed,", e.Error())
+		return
+	}
+	defer broker.Close()
+	c := make(chan interface{}, 10)
+	cl, e := broker.SubscribeClient("aa", c, "GET", "cpu", "managed_object", "12", "", nil, nil)
+	if nil != e {
+		t.Error("create client failed", e.Error())
+		return
+	}
+	defer cl.Close()
+
+	for i := 0; i < 10; i++ {
+		cl.Send()
+	}
+	time.Sleep(1000 * time.Millisecond)
+	if 1 != atomic.LoadInt32(&called) {
+		t.Error("not merge - ", atomic.LoadInt32(&called))
+	}
+}
+
+func TestBrokerWithRemoveChannel(t *testing.T) {
+	result := []*ExchangeResponse{&ExchangeResponse{Evalue: map[string]interface{}{"name": "this is a name", "a": "b"}}}
+	called := int32(0)
+
+	hsrv := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		atomic.AddInt32(&called, 1)
+		resp.WriteHeader(http.StatusAccepted)
+		result[0].ChannelName = "aa"
+		if e := json.NewEncoder(resp).Encode(result); nil != e {
+			resp.WriteHeader(http.StatusInternalServerError)
+			resp.Write([]byte(e.Error()))
+		}
+	}))
+
+	defer hsrv.Close()
+
+	broker, e := NewBroker("test", hsrv.URL)
+	if nil != e {
+		t.Error("create broker failed,", e.Error())
+		return
+	}
+	defer broker.Close()
+
+	for i := 0; i < 10; i++ {
+		c := make(chan interface{}, 10)
+		cl, e := broker.SubscribeClient("aa", c, "GET", "cpu", "managed_object", "12", "", nil, nil)
+		if nil != e {
+			t.Error("create client failed", e.Error())
+			return
+		}
+		close(c)
+		if i == 9 {
+			cl.Send()
+		}
+	}
+
+	time.Sleep(1000 * time.Millisecond)
+
+	if 0 != len(broker.channelGroups) {
+		t.Error("not remove client", len(broker.channelGroups))
 	}
 }

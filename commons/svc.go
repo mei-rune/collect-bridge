@@ -128,6 +128,10 @@ type Svc struct {
 	onStart, onStop, onIdle func()
 }
 
+func (svc *Svc) Len() int {
+	return len(svc.ch)
+}
+
 func (svc *Svc) SetTimeout(timeout time.Duration) {
 	svc.timeout = timeout
 }

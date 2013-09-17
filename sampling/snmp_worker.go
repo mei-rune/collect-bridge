@@ -161,6 +161,7 @@ func (self *snmpWorker) scan(c int) {
 	for address, byAddress := range self.buckets {
 
 		if 0 == c && nil != byAddress.pendings {
+			log.Println("[snmp_test] clear pendings(", len(byAddress.pendings), ") for '"+address+"'.")
 			if cap(byAddress.pendings)-len(byAddress.pendings) > 20 {
 				byAddress.pendings = nil
 			} else {
@@ -225,7 +226,7 @@ func (self *snmpWorker) Push(res *snmpclient.PingResult) {
 
 	bucket, ok := byAddress.snmpBuffers[testing.key]
 	if !ok {
-		log.Println(address, " and ", testing.key, " is not.")
+		log.Println(address, " and ", testing.key, " is not pending.")
 		return
 	}
 
@@ -270,7 +271,7 @@ func (self *snmpWorker) GetOrCreate(address string, version snmpclient.SnmpVersi
 
 	w.snmpBuffer.init(make([]SnmpTestResult, *snmp_test_buffer_size))
 	byAddress.snmpBuffers[id] = w
-	log.Println("[snmp_test] add '", id, "' to scan list.")
+	log.Println("[snmp_test] add '" + address + "' and " + id + "' to scan list.")
 	return w, true
 }
 

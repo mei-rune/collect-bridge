@@ -454,6 +454,7 @@ func TestBrokerWithMergeRequestInServer(t *testing.T) {
 
 	called := int32(0)
 	var handler MockHandler = func() commons.Result {
+		time.Sleep(100 * time.Millisecond)
 		return commons.Return(atomic.AddInt32(&called, 1))
 	}
 	Methods["test_handler"] = newRouteSpec("get", "TestBrokerWithMergeRequestInRequest", "the mem of cisco", Match().Build(),

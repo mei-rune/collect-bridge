@@ -116,7 +116,7 @@ func (self *snmpWorker) run() {
 
 func (self *snmpWorker) send(key string, bucket *snmpBucket) {
 	bucket.byAddress.next_id++
-	if e := self.v4.SendPdu(bucket.byAddress.next_id, bucket.address, bucket.byAddress.ra, bucket.version, bucket.community); nil != e {
+	if e := self.v4.SendPdu(bucket.byAddress.next_id, bucket.byAddress.ra, bucket.version, bucket.community); nil != e {
 		log.Println("[snmp_test] send pdu to", bucket.address, "with version is", bucket.version,
 			"and community is", bucket.community, "failed, ", e)
 	} else {

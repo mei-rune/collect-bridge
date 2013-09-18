@@ -541,7 +541,11 @@ func (self *SamplingBroker) reply(c chan<- interface{}, response *ExchangeRespon
 			e = errors.New(buffer.String())
 		}
 	}()
-	c <- response
+
+	select {
+	case c <- response:
+	default:
+	}
 	return nil
 }
 

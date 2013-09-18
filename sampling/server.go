@@ -117,11 +117,14 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 
 	srv.workers.workers = simpled.workers
 	wrpped.backend = srv.workers
-	perf, e := NewPerfServer(*redisAddress)
-	if nil != e {
-		return nil, e
+
+	if *dump_request {
+		perf, e := NewPerfServer(*redisAddress)
+		if nil != e {
+			return nil, e
+		}
+		srv.perf = perf
 	}
-	srv.perf = perf
 	srv_exporter.Var = srv
 	return srv, nil
 }

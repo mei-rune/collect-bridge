@@ -28,6 +28,8 @@ var (
 	snmp_test_timeout       = flag.Int64("snmp_test_timeout", 5, "the timeout (second) of snmp")
 	snmp_test_expired       = flag.Int64("snmp_test_expired", 60*5, "remove it from scan list while address is expired")
 
+	dump_request = flag.Bool("dump_request", false, "dump request info to redis for perf")
+
 	is_test              = false
 	srv_instance *server = nil
 )

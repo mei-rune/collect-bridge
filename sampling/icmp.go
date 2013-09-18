@@ -3,7 +3,9 @@ package sampling
 import (
 	"commons"
 	"commons/netutils"
+	"fmt"
 	"log"
+	"net"
 	"sync"
 	"time"
 )
@@ -11,7 +13,8 @@ import (
 var is_icmp_test = true
 
 type icmpBucket struct {
-	l sync.Mutex
+	l  sync.Mutex
+	ra *net.IPAddr
 	icmpBuffer
 	updated_at int64
 	created_at int64
@@ -149,7 +152,7 @@ func (self *icmpWorker) scan(c int) {
 			log.Println("[icmp] '" + k + "' with updated_at waw '" + time.Unix(bucket.updated_at, 0).String() + "' is expired.")
 		} else {
 			if 0 == c || bucket.IsTimeout(now) {
-				self.v4.Send(k, nil)
+				self.v4.SendWithIPAddr(bucket.ra, nil)
 			}
 		}
 	}
@@ -191,8 +194,14 @@ func (self *icmpWorker) GetOrCreate(id string) (*icmpBucket, bool) {
 		return buffer, false
 	}
 
+	ra, err := net.ResolveIPAddr("ip4:icmp", id)
+	if err != nil {
+		panic(fmt.Sprintf("ResolveIPAddr(ip4:icmp, %q) failed: %v", id, err))
+	}
+
 	now := time.Now().Unix()
-	w := &icmpBucket{created_at: now,
+	w := &icmpBucket{ra: ra,
+		created_at: now,
 		updated_at: now}
 	w.icmpBuffer.init(make([]IcmpResult, *icmp_buffer_size))
 	self.icmpBuffers[id] = w

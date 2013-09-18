@@ -37,15 +37,16 @@ type PingResult struct {
 }
 
 type Pinger struct {
-	family     int
-	network    string
-	seqnum     int
-	id         int
-	echo       []byte
-	conn       net.PacketConn
-	wait       sync.WaitGroup
-	ch         chan *PingResult
-	newRequest func(id, seqnum, msglen int, filler []byte) []byte
+	family       int
+	network      string
+	seqnum       int
+	id           int
+	echo         []byte
+	conn         net.PacketConn
+	wait         sync.WaitGroup
+	ch           chan *PingResult
+	cached_bytes []byte
+	newRequest   func(id, seqnum, msglen int, filler, cached []byte) []byte
 }
 
 func newPinger(family int, network, laddr string, echo []byte, capacity int) (*Pinger, error) {
@@ -64,13 +65,14 @@ func newPinger(family int, network, laddr string, echo []byte, capacity int) (*P
 	}
 
 	icmp := &Pinger{family: family,
-		network:    network,
-		seqnum:     61455,
-		id:         os.Getpid() & 0xffff,
-		echo:       echo,
-		conn:       c,
-		ch:         make(chan *PingResult, capacity),
-		newRequest: newRequest}
+		network:      network,
+		seqnum:       61455,
+		id:           os.Getpid() & 0xffff,
+		echo:         echo,
+		conn:         c,
+		ch:           make(chan *PingResult, capacity),
+		cached_bytes: make([]byte, 1024),
+		newRequest:   newRequest}
 	//icmp.Send("127.0.0.1", nil)
 	go icmp.serve()
 	icmp.wait.Add(1)
@@ -98,6 +100,14 @@ func (self *Pinger) GetChannel() <-chan *PingResult {
 }
 
 func (self *Pinger) Send(raddr string, echo []byte) error {
+	ra, err := net.ResolveIPAddr(self.network, raddr)
+	if err != nil {
+		return fmt.Errorf("ResolveIPAddr(%q, %q) failed: %v", self.network, raddr, err)
+	}
+	return self.SendWithIPAddr(ra, echo)
+}
+
+func (self *Pinger) SendWithIPAddr(ra *net.IPAddr, echo []byte) error {
 	self.seqnum++
 	filler := echo
 	if nil == filler {
@@ -109,14 +119,8 @@ func (self *Pinger) Send(raddr string, echo []byte) error {
 		msglen = 2039
 	}
 
-	bytes := self.newRequest(self.id, self.seqnum, msglen, filler)
-
-	ra, err := net.ResolveIPAddr(self.network, raddr)
-	if err != nil {
-		return fmt.Errorf("ResolveIPAddr(%q, %q) failed: %v", self.network, raddr, err)
-	}
-
-	_, err = self.conn.WriteTo(bytes, ra)
+	bytes := self.newRequest(self.id, self.seqnum, msglen, filler, self.cached_bytes)
+	_, err := self.conn.WriteTo(bytes, ra)
 	if err != nil {
 		return fmt.Errorf("WriteTo failed: %v", err)
 	}
@@ -159,15 +163,15 @@ func (self *Pinger) serve() {
 	}
 }
 
-func newICMPEchoRequest(family, id, seqnum, msglen int, filler []byte) []byte {
+func newICMPEchoRequest(family, id, seqnum, msglen int, filler, cached []byte) []byte {
 	if family == syscall.AF_INET6 {
-		return newICMPv6EchoRequest(id, seqnum, msglen, filler)
+		return newICMPv6EchoRequest(id, seqnum, msglen, filler, cached)
 	}
-	return newICMPv4EchoRequest(id, seqnum, msglen, filler)
+	return newICMPv4EchoRequest(id, seqnum, msglen, filler, cached)
 }
 
-func newICMPv4EchoRequest(id, seqnum, msglen int, filler []byte) []byte {
-	b := newICMPInfoMessage(id, seqnum, msglen, filler)
+func newICMPv4EchoRequest(id, seqnum, msglen int, filler, cached []byte) []byte {
+	b := newICMPInfoMessage(id, seqnum, msglen, filler, cached)
 	b[0] = ICMP4_ECHO_REQUEST
 
 	// calculate Pinger checksum
@@ -189,14 +193,14 @@ func newICMPv4EchoRequest(id, seqnum, msglen int, filler []byte) []byte {
 	return b
 }
 
-func newICMPv6EchoRequest(id, seqnum, msglen int, filler []byte) []byte {
-	b := newICMPInfoMessage(id, seqnum, msglen, filler)
+func newICMPv6EchoRequest(id, seqnum, msglen int, filler, cached []byte) []byte {
+	b := newICMPInfoMessage(id, seqnum, msglen, filler, cached)
 	b[0] = ICMP6_ECHO_REQUEST
 	return b
 }
 
-func newICMPInfoMessage(id, seqnum, msglen int, filler []byte) []byte {
-	b := make([]byte, msglen)
+func newICMPInfoMessage(id, seqnum, msglen int, filler, cached []byte) []byte {
+	b := cached[0:msglen]
 	copy(b[8:], bytes.Repeat(filler, (msglen-8)/len(filler)+1))
 	b[0] = 0                    // type
 	b[1] = 0                    // code

@@ -107,7 +107,7 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 	}
 
 	cname := sampling.MakeChannelName(metric, "managed_object", parentId, "", nil)
-	client, e := broker.SubscribeClient(cname, job.Trigger.GetChannel(), "GET", metric, "managed_object", parentId, "", nil, nil)
+	client, e := broker.SubscribeClient(cname, job.Trigger.GetChannel(), "GET", metric, "managed_object", parentId, "", nil, nil, 8*time.Second)
 	if nil != e {
 		job.Close(CLOSE_REASON_NORMAL)
 		return nil, e

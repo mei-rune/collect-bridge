@@ -2,6 +2,7 @@ package sampling
 
 import (
 	"bytes"
+	"commons"
 	"commons/types"
 	ds "data_store"
 	"encoding/json"
@@ -130,7 +131,7 @@ func TestBrokerWithSubscribe(t *testing.T) {
 			c_list := []chan interface{}{make(chan interface{}, 10), make(chan interface{}, 10)}
 			cl_list := []ChannelClient{nil, nil}
 			for i := 0; i < 2; i++ {
-				cl, e := broker.SubscribeClient("aa", c_list[i], "GET", test.metric_name, "managed_object", id, "", nil, nil)
+				cl, e := broker.SubscribeClient("aa", c_list[i], "GET", test.metric_name, "managed_object", id, "", nil, nil, 0)
 				if nil != e {
 					t.Error("test[", test_idx, "] "+e.Error())
 					return
@@ -246,7 +247,7 @@ func TestBrokerWithSubscribeAndError(t *testing.T) {
 		c_list := []chan interface{}{make(chan interface{}, 10), make(chan interface{}, 10)}
 		cl_list := []ChannelClient{nil, nil}
 		for i := 0; i < 2; i++ {
-			cl, e := broker.SubscribeClient("aa", c_list[i], "GET", "cpu", "managed_object", id, "", nil, nil)
+			cl, e := broker.SubscribeClient("aa", c_list[i], "GET", "cpu", "managed_object", id, "", nil, nil, 0)
 			if nil != e {
 				t.Error("test[", test_idx, "] "+e.Error())
 				return
@@ -325,7 +326,7 @@ func TestBrokerWithInvoke(t *testing.T) {
 			}
 			defer broker.Close()
 
-			cl, e := broker.CreateClient("", "GET", test.metric_name, "managed_object", id, "", nil, nil)
+			cl, e := broker.CreateClient("GET", test.metric_name, "managed_object", id, "", nil, nil)
 			if nil != e {
 				t.Error(e)
 				return
@@ -357,7 +358,50 @@ func TestBrokerWithInvoke(t *testing.T) {
 	}
 }
 
-func TestBrokerWithMergeRequest(t *testing.T) {
+func TestBrokerWithRemoveChannel(t *testing.T) {
+	result := []*ExchangeResponse{&ExchangeResponse{Evalue: map[string]interface{}{"name": "this is a name", "a": "b"}}}
+	called := int32(0)
+
+	hsrv := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		atomic.AddInt32(&called, 1)
+		resp.WriteHeader(http.StatusAccepted)
+		result[0].ChannelName = "aa"
+		if e := json.NewEncoder(resp).Encode(result); nil != e {
+			resp.WriteHeader(http.StatusInternalServerError)
+			resp.Write([]byte(e.Error()))
+		}
+	}))
+
+	defer hsrv.Close()
+
+	broker, e := NewBroker("test", hsrv.URL)
+	if nil != e {
+		t.Error("create broker failed,", e.Error())
+		return
+	}
+	defer broker.Close()
+
+	for i := 0; i < 10; i++ {
+		c := make(chan interface{}, 10)
+		cl, e := broker.SubscribeClient("aa", c, "GET", "cpu", "managed_object", "12", "", nil, nil, 0)
+		if nil != e {
+			t.Error("create client failed", e.Error())
+			return
+		}
+		close(c)
+		if i == 9 {
+			cl.Send()
+		}
+	}
+
+	time.Sleep(1000 * time.Millisecond)
+
+	if 0 != len(broker.channelGroups) {
+		t.Error("not remove client", len(broker.channelGroups))
+	}
+}
+
+func TestBrokerWithMergeRequestInClient(t *testing.T) {
 	called := int32(0)
 
 	hsrv := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
@@ -390,7 +434,7 @@ func TestBrokerWithMergeRequest(t *testing.T) {
 	}
 	defer broker.Close()
 	c := make(chan interface{}, 10)
-	cl, e := broker.SubscribeClient("aa", c, "GET", "cpu", "managed_object", "12", "", nil, nil)
+	cl, e := broker.SubscribeClient("aa", c, "GET", "cpu", "managed_object", "12", "", nil, nil, 5*time.Second)
 	if nil != e {
 		t.Error("create client failed", e.Error())
 		return
@@ -406,45 +450,44 @@ func TestBrokerWithMergeRequest(t *testing.T) {
 	}
 }
 
-func TestBrokerWithRemoveChannel(t *testing.T) {
-	result := []*ExchangeResponse{&ExchangeResponse{Evalue: map[string]interface{}{"name": "this is a name", "a": "b"}}}
+func TestBrokerWithMergeRequestInServer(t *testing.T) {
+
 	called := int32(0)
-
-	hsrv := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		atomic.AddInt32(&called, 1)
-		resp.WriteHeader(http.StatusAccepted)
-		result[0].ChannelName = "aa"
-		if e := json.NewEncoder(resp).Encode(result); nil != e {
-			resp.WriteHeader(http.StatusInternalServerError)
-			resp.Write([]byte(e.Error()))
-		}
-	}))
-
-	defer hsrv.Close()
-
-	broker, e := NewBroker("test", hsrv.URL)
-	if nil != e {
-		t.Error("create broker failed,", e.Error())
-		return
+	var handler MockHandler = func() commons.Result {
+		return commons.Return(atomic.AddInt32(&called, 1))
 	}
-	defer broker.Close()
+	Methods["test_handler"] = newRouteSpec("get", "TestBrokerWithMergeRequestInRequest", "the mem of cisco", Match().Build(),
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			return handler, nil
+		})
 
-	for i := 0; i < 10; i++ {
-		c := make(chan interface{}, 10)
-		cl, e := broker.SubscribeClient("aa", c, "GET", "cpu", "managed_object", "12", "", nil, nil)
-		if nil != e {
-			t.Error("create client failed", e.Error())
+	SrvTest(t, "../data_store/etc/tpt_models.xml", func(client *ds.Client, sampling_url string, definitions *types.TableDefinitions) {
+		_, err := client.DeleteBy("network_device", emptyParams)
+		if nil != err {
+			t.Error(err)
 			return
 		}
-		close(c)
-		if i == 9 {
-			cl.Send()
+
+		id := ds.CreateItForTest(t, client, "network_device", mo)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "wbem_param", wbem_params)
+		ds.CreateItByParentForTest(t, client, "network_device", id, "snmp_param", snmp_params)
+
+		request := &ExchangeRequest{ChannelName: "aa",
+			Address: "127.0.0.1",
+			Action:  "GET",
+			Name:    "TestBrokerWithMergeRequestInRequest",
+			Params:  map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"}}
+
+		_, e := batchGet(t, sampling_url+"/batch", []*ExchangeRequest{request, request, request, request, request, request, request, request})
+		if nil != e {
+			t.Error(e)
+			return
 		}
-	}
 
-	time.Sleep(1000 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 
-	if 0 != len(broker.channelGroups) {
-		t.Error("not remove client", len(broker.channelGroups))
-	}
+		if 1 != atomic.LoadInt32(&called) {
+			t.Error("called count is error, ", atomic.LoadInt32(&called))
+		}
+	})
 }

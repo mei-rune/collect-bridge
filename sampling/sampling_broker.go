@@ -155,10 +155,11 @@ func (self *ExchangeResponse) Value() commons.Any {
 }
 
 type RequestCtx struct {
-	CreatedAt time.Time
-	C         chan interface{}
-	Request   *ExchangeRequest
-	grp       *channelGroup
+	CreatedAt      time.Time
+	cached_timeout time.Duration
+	C              chan interface{}
+	Request        *ExchangeRequest
+	grp            *channelGroup
 }
 
 type SamplingBroker struct {
@@ -184,7 +185,8 @@ type channelGroup struct {
 }
 
 func (self *SamplingBroker) createClient(channelName string, c chan interface{},
-	method, metric_name, managedType, managedId, pathStr string, params map[string]string, body interface{}) (*clientImpl, error) {
+	method, metric_name, managedType, managedId, pathStr string, params map[string]string,
+	body interface{}, cached_timeout time.Duration) (*clientImpl, error) {
 	pathStr = strings.Trim(pathStr, "/")
 	var paths []P
 	if 0 != len(pathStr) {
@@ -209,6 +211,8 @@ func (self *SamplingBroker) createClient(channelName string, c chan interface{},
 			Paths:       paths,
 			Params:      params,
 			Body:        body}}
+
+	cl.ctx.cached_timeout = cached_timeout
 	cl.ctx.Request = &cl.request
 
 	if nil != c {
@@ -222,17 +226,18 @@ func (self *SamplingBroker) createClient(channelName string, c chan interface{},
 	return cl, nil
 }
 
-func (self *SamplingBroker) CreateClient(channelName, method, metric_name, managedType, managedId, pathStr string,
+func (self *SamplingBroker) CreateClient(method, metric_name, managedType, managedId, pathStr string,
 	params map[string]string, body interface{}) (Client, error) {
-	cl, e := self.createClient(channelName, nil, method, metric_name, managedType, managedId, pathStr, params, body)
+	cl, e := self.createClient("", nil, method, metric_name, managedType, managedId, pathStr, params, body, 0)
 	if nil != e {
 		return nil, e
 	}
 	return cl, nil
 }
 func (self *SamplingBroker) SubscribeClient(channelName string, c chan interface{},
-	method, metric_name, managedType, managedId, pathStr string, params map[string]string, body interface{}) (ChannelClient, error) {
-	cl, e := self.createClient(channelName, c, method, metric_name, managedType, managedId, pathStr, params, body)
+	method, metric_name, managedType, managedId, pathStr string, params map[string]string,
+	body interface{}, cached_timeout time.Duration) (ChannelClient, error) {
+	cl, e := self.createClient(channelName, c, method, metric_name, managedType, managedId, pathStr, params, body, cached_timeout)
 	if nil != e {
 		return nil, e
 	}
@@ -345,7 +350,7 @@ func (self *SamplingBroker) run() {
 		self.wait.Done()
 	}()
 
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
 	cached_objects := make([]*RequestCtx, 0, 1000)
@@ -356,8 +361,16 @@ func (self *SamplingBroker) run() {
 	for is_running {
 		select {
 		case <-ticker.C:
-			if 0 == count%10 {
+			count += 1
+			if 0 == count%20 {
 				self.onIdle()
+			}
+
+			if 0 == len(self.exchange_c) {
+				select {
+				case self.exchange_c <- nil:
+				default:
+				}
 			}
 		case chanD, ok := <-self.chan_c:
 			if !ok {
@@ -430,21 +443,26 @@ func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests 
 		now := time.Now()
 		for idx, obj := range objects {
 			if nil != obj.grp {
-				if now.Sub(obj.grp.last_begin_at).Seconds() < 15 {
+				if now.Sub(obj.grp.last_begin_at) < obj.cached_timeout {
 					continue
 				}
 
-				if now.Sub(obj.grp.last_end_at).Seconds() < 15 {
+				if now.Sub(obj.grp.last_end_at) < obj.cached_timeout {
 					continue
 				}
 
 				obj.grp.last_begin_at = now
 			}
-			self.request_id += 1
-			id_list[idx] = self.request_id
+			if nil == obj.C {
+				id_list[idx] = 0
+			} else {
+				self.request_id += 1
+				id_list[idx] = self.request_id
+			}
 			cached_requests = append(cached_requests, obj.Request)
 		}
 	}
+
 	resposes, e := self.exchange(id_list, cached_requests)
 	if nil != e {
 		//fmt.Println("----", e, len(objects))
@@ -472,6 +490,7 @@ func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests 
 	grp_failed := make([]string, 0, 10)
 	failed := make([]string, 0, 10)
 	for _, res := range resposes {
+		//fmt.Println(res.Id, res.ErrorMessage(), res.InterfaceValue())
 		if pending, ok := self.pendingRequests[res.Id]; ok {
 			delete(self.pendingRequests, res.Id)
 			self.reply(pending.C, res)

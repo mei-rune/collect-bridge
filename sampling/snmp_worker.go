@@ -2,8 +2,10 @@ package sampling
 
 import (
 	"commons"
+	"fmt"
 	"github.com/runner-mei/snmpclient"
 	"log"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +20,7 @@ type snmpBucket struct {
 	address   string
 	version   snmpclient.SnmpVersion
 	community string
+	elapsed   time.Duration
 }
 
 func (self *snmpBucket) IsExpired(now int64) bool {
@@ -39,10 +42,13 @@ type testingRequst struct {
 }
 
 type bucketByAddress struct {
+	ra          *net.UDPAddr
 	l           sync.Mutex
 	snmpBuffers map[string]*snmpBucket
-	pendings    []*testingRequst
+	pendings    []testingRequst
 	next_id     int
+
+	elapsed time.Duration
 }
 
 type snmpWorker struct {
@@ -110,11 +116,11 @@ func (self *snmpWorker) run() {
 
 func (self *snmpWorker) send(key string, bucket *snmpBucket) {
 	bucket.byAddress.next_id++
-	if e := self.v4.Send(bucket.byAddress.next_id, bucket.address, bucket.version, bucket.community); nil != e {
+	if e := self.v4.SendPdu(bucket.byAddress.next_id, bucket.address, bucket.byAddress.ra, bucket.version, bucket.community); nil != e {
 		log.Println("[snmp_test] send pdu to", bucket.address, "with version is", bucket.version,
 			"and community is", bucket.community, "failed, ", e)
 	} else {
-		bucket.byAddress.pendings = append(bucket.byAddress.pendings, &testingRequst{id: bucket.byAddress.next_id, key: key})
+		bucket.byAddress.pendings = append(bucket.byAddress.pendings, testingRequst{id: bucket.byAddress.next_id, key: key})
 	}
 }
 
@@ -156,11 +162,12 @@ func (self *snmpWorker) scan(c int) {
 
 	self.l.Lock()
 	defer self.l.Unlock()
-	now := time.Now().Unix()
+	start_at := time.Now()
+	now := start_at.Unix()
 
 	deleted := make([]string, 0, 10)
 	for address, byAddress := range self.buckets {
-
+		start_a_at := time.Now()
 		if 0 == c && nil != byAddress.pendings {
 			//log.Println("[snmp_test] clear pendings(", len(byAddress.pendings), ") for '"+address+"'.")
 			if cap(byAddress.pendings)-len(byAddress.pendings) > 20 {
@@ -168,7 +175,6 @@ func (self *snmpWorker) scan(c int) {
 			} else {
 				byAddress.pendings = byAddress.pendings[0:0]
 			}
-			log.Println("[snmp_test] clear pendings for '" + address + "'.")
 		}
 
 		expired := make([]string, 0, 10)
@@ -177,7 +183,9 @@ func (self *snmpWorker) scan(c int) {
 				expired = append(expired, k)
 			} else {
 				if 0 == c || bucket.IsTimeout(now) {
+					start_s_at := time.Now()
 					self.send(k, bucket)
+					bucket.elapsed = time.Now().Sub(start_s_at)
 				}
 			}
 		}
@@ -190,11 +198,24 @@ func (self *snmpWorker) scan(c int) {
 		if 0 == len(byAddress.snmpBuffers) {
 			deleted = append(deleted, address)
 		}
+		byAddress.elapsed = time.Now().Sub(start_a_at)
 	}
 
 	for _, address := range deleted {
 		delete(self.buckets, address)
 		log.Println("[snmp_test] '" + address + "' is expired.")
+	}
+
+	if 0 == c {
+		log.Println("[snmp_test] scan all address - ", time.Now().Sub(start_at).String())
+		if 1 < time.Now().Sub(start_at).Seconds() {
+			for address, byAddress := range self.buckets {
+				log.Println("[snmp_test] elapsed for ", address, " = ", byAddress.elapsed)
+				for k, bucket := range byAddress.snmpBuffers {
+					log.Println("[snmp_test] elapsed for "+k+" = ", bucket.elapsed)
+				}
+			}
+		}
 	}
 }
 
@@ -217,7 +238,7 @@ func (self *snmpWorker) Push(res *snmpclient.PingResult) {
 	var testing *testingRequst
 	for _, pending := range byAddress.pendings {
 		if pending.id == res.Id {
-			testing = pending
+			testing = &pending
 		}
 	}
 
@@ -256,7 +277,12 @@ func (self *snmpWorker) GetOrCreate(address string, version snmpclient.SnmpVersi
 
 	byAddress, ok := self.buckets[address]
 	if !ok {
-		byAddress = &bucketByAddress{snmpBuffers: make(map[string]*snmpBucket)}
+		ra, err := net.ResolveUDPAddr("udp4", address)
+		if err != nil {
+			panic(fmt.Sprintf("ResolveIPAddr(udp4, %q) failed: %v", address, err))
+		}
+
+		byAddress = &bucketByAddress{snmpBuffers: make(map[string]*snmpBucket), ra: ra}
 		self.buckets[address] = byAddress
 	}
 

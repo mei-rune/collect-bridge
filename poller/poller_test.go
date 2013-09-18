@@ -515,6 +515,8 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 				switch nm {
 				case "close":
 					server_test.Close()
+					// TODO: 请在重构trigger 后删除它
+					time.Sleep(1 * time.Second)
 					entities, e := carrier.SelectAlertCookies(db)
 					if nil != e {
 						t.Error(e)
@@ -533,6 +535,8 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 						ds.UpdateItForTest(t, client, "metric_trigger", mt_id, map[string]interface{}{}) // touch updated_at of trigger
 					}
 					server_test.onIdle()
+					// TODO: 请在重构trigger 后删除它
+					time.Sleep(1 * time.Second)
 					entities, e := carrier.SelectAlertCookies(db)
 					if nil != e {
 						t.Error(e)

@@ -31,7 +31,7 @@ type clientImpl struct {
 
 func (self *clientImpl) Invoke(timeout time.Duration) (interface{}, error) {
 	c := make(chan interface{}, 1)
-	self.c <- &RequestCtx{CreatedAt: time.Now(), C: c,
+	self.c <- &RequestCtx{CreatedAt: time.Now(), cached_timeout: timeout / 2, C: c,
 		Request: &self.request}
 
 	select {

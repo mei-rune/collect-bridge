@@ -65,6 +65,7 @@ type server struct {
 	route_for_create map[string]*Route
 	route_for_delete map[string]*Route
 
+	running_requests runningRequests
 	completions_lock sync.Mutex
 	completions      []*ExchangeResponse
 
@@ -91,7 +92,8 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 		route_for_get:     make(map[string]*Route),
 		route_for_put:     make(map[string]*Route),
 		route_for_create:  make(map[string]*Route),
-		route_for_delete:  make(map[string]*Route)}
+		route_for_delete:  make(map[string]*Route),
+		running_requests:  runningRequests{requests: map[string]int64{}}}
 
 	if nil == params {
 		params = map[string]interface{}{}
@@ -400,7 +402,6 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (self *server) batchExchange(w http.ResponseWriter, r *http.Request) {
-
 	begin_at := time.Now()
 	defer func() {
 		self.last_used_duration = time.Now().Sub(begin_at)
@@ -418,8 +419,18 @@ func (self *server) batchExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now().Unix()
 	if nil != requests && 0 != len(requests) {
 		for _, req := range requests {
+			if 0 == req.Id {
+				old := self.running_requests.get(req.ChannelName)
+				if (now - old) < 10*60 {
+					continue
+				}
+
+				self.running_requests.put(req.ChannelName, now)
+			}
+
 			go self.doRequest(req)
 			atomic.AddInt64(&self.pending_requests, 1)
 		}
@@ -473,11 +484,14 @@ func (self *server) doRequest(r *ExchangeRequest) {
 
 	begin_at := time.Now()
 	defer func() {
-		end_at := time.Now()
-		self.perf.C <- []string{"LPUSH", "perf-" + r.ChannelName, `{"begin_at":"` + begin_at.Format(time.RFC3339Nano) + `","end_at":"` + end_at.Format(time.RFC3339Nano) + `","elapsed":"` + end_at.Sub(begin_at).String() + `","elapsed(ns)":` + strconv.FormatInt(int64(end_at.Sub(begin_at)), 10) + `, "error":"` + resp.ErrorMessage() + `"}`}
-		self.perf.C <- []string{"LTRIM", "perf-" + r.ChannelName, "0", "100"}
+		if *dump_request {
+			end_at := time.Now()
+			self.perf.C <- []string{"LPUSH", "perf-" + r.ChannelName, `{"begin_at":"` + begin_at.Format(time.RFC3339Nano) + `","end_at":"` + end_at.Format(time.RFC3339Nano) + `","elapsed":"` + end_at.Sub(begin_at).String() + `","elapsed(ns)":` + strconv.FormatInt(int64(end_at.Sub(begin_at)), 10) + `, "error":"` + resp.ErrorMessage() + `"}`}
+			self.perf.C <- []string{"LTRIM", "perf-" + r.ChannelName, "0", "100"}
+			atomic.AddInt64(&self.pending_requests, -1)
+		}
 
-		atomic.AddInt64(&self.pending_requests, -1)
+		self.running_requests.remove(r.ChannelName)
 	}()
 
 	route, err := self.route(r.Action, r.Name)

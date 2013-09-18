@@ -46,6 +46,12 @@ var (
 		"type":     "wbem_param"}
 )
 
+type MockHandler func() commons.Result
+
+func (self MockHandler) Call(params MContext) commons.Result {
+	return self()
+}
+
 func copyFrom(from, addition map[string]interface{}) map[string]interface{} {
 	res := map[string]interface{}{}
 	for k, v := range from {
@@ -326,7 +332,7 @@ func TestBatchGetTableBasic(t *testing.T) {
 			return
 		}
 
-		res, e := batchGet(t, sampling_url+"/batch", []*ExchangeRequest{&ExchangeRequest{Address: "127.0.0.1", Action: "GET", Name: "sys", Params: map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"}}})
+		res, e := batchGet(t, sampling_url+"/batch", []*ExchangeRequest{&ExchangeRequest{Id: 4, Address: "127.0.0.1", Action: "GET", Name: "sys", Params: map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"}}})
 		if nil != e {
 			t.Error(e)
 			return
@@ -373,8 +379,8 @@ func TestBatchGetTableTwo(t *testing.T) {
 			return
 		}
 
-		res, e := batchGet(t, sampling_url+"/batch", []*ExchangeRequest{&ExchangeRequest{Address: "127.0.0.1", Action: "GET", Name: "sys", Params: map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"}},
-			&ExchangeRequest{Address: "127.0.0.1", Action: "GET", Name: "sys.name", Params: map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"}}})
+		res, e := batchGet(t, sampling_url+"/batch", []*ExchangeRequest{&ExchangeRequest{Id: 2, Address: "127.0.0.1", Action: "GET", Name: "sys", Params: map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"}},
+			&ExchangeRequest{Id: 3, Address: "127.0.0.1", Action: "GET", Name: "sys.name", Params: map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"}}})
 		if nil != e {
 			t.Error(e)
 			return
@@ -415,6 +421,7 @@ func TestBatchGetTableTwo(t *testing.T) {
 		}
 		if nil != res && 0 != len(res) {
 			t.Error("repeated result")
+			t.Error(res)
 		}
 	})
 }

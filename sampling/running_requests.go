@@ -15,6 +15,12 @@ func (self *runningRequests) get(nm string) int64 {
 	return self.requests[nm]
 }
 
+func (self *runningRequests) len() int {
+	self.l.Lock()
+	defer self.l.Unlock()
+	return len(self.requests)
+}
+
 func (self *runningRequests) put(nm string, t int64) {
 	self.l.Lock()
 	defer self.l.Unlock()

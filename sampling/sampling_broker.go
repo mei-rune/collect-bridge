@@ -154,11 +154,12 @@ func (self *ExchangeResponse) Value() commons.Any {
 	return &self.value
 }
 
-type RequestCtx struct {
-	CreatedAt      time.Time
+type requestCtx struct {
+	created_at     time.Time
 	cached_timeout time.Duration
-	C              chan interface{}
-	Request        *ExchangeRequest
+	is_subscribed  bool
+	c              chan interface{}
+	request        *ExchangeRequest
 	grp            *channelGroup
 }
 
@@ -166,7 +167,7 @@ type SamplingBroker struct {
 	name       string
 	action     string
 	url        string
-	exchange_c chan *RequestCtx
+	exchange_c chan *requestCtx
 	chan_c     chan *channelRequest
 
 	closed     int32
@@ -174,7 +175,7 @@ type SamplingBroker struct {
 	last_error *expvar.String
 
 	request_id      uint64
-	pendingRequests map[uint64]*RequestCtx
+	pendingRequests map[uint64]*requestCtx
 	channelGroups   map[string]*channelGroup
 }
 
@@ -212,16 +213,18 @@ func (self *SamplingBroker) createClient(channelName string, c chan interface{},
 			Params:      params,
 			Body:        body}}
 
+	cl.ctx.created_at = time.Now()
 	cl.ctx.cached_timeout = cached_timeout
-	cl.ctx.Request = &cl.request
+	cl.ctx.request = &cl.request
 
 	if nil != c {
 		grp, e := self.Subscribe(channelName, cl.id, c)
 		if nil != e {
 			return nil, e
 		}
+		cl.ctx.is_subscribed = true
 		cl.ctx.grp = grp
-		cl.ctx.C = c
+		cl.ctx.c = c
 	}
 	return cl, nil
 }
@@ -353,7 +356,7 @@ func (self *SamplingBroker) run() {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	cached_objects := make([]*RequestCtx, 0, 1000)
+	cached_objects := make([]*requestCtx, 0, 1000)
 	cached_requests := make([]*ExchangeRequest, 0, 1000)
 
 	count := 0
@@ -392,7 +395,7 @@ func (self *SamplingBroker) run() {
 	}
 }
 
-func (self *SamplingBroker) recvObjects(objects []*RequestCtx, max_size int) []*RequestCtx {
+func (self *SamplingBroker) recvObjects(objects []*requestCtx, max_size int) []*requestCtx {
 	for {
 		select {
 		case req, ok := <-self.exchange_c:
@@ -420,9 +423,9 @@ func (self *SamplingBroker) onIdle() {
 	now := time.Now()
 	expired := make([]uint64, 0, 30)
 	for k, ctx := range self.pendingRequests {
-		interval := now.Sub(ctx.CreatedAt)
+		interval := now.Sub(ctx.created_at)
 		if interval > *snmp_timeout {
-			self.replyError(ctx.C, timeoutError)
+			self.replyError(ctx.c, timeoutError)
 			expired = append(expired, k)
 		}
 	}
@@ -434,7 +437,7 @@ func (self *SamplingBroker) onIdle() {
 
 var empty_id_list = []uint64{}
 
-func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests []*ExchangeRequest, max_size int) {
+func (self *SamplingBroker) runOnce(cached_array []*requestCtx, cached_requests []*ExchangeRequest, max_size int) {
 	objects := self.recvObjects(cached_array, max_size)
 
 	id_list := empty_id_list
@@ -453,13 +456,13 @@ func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests 
 
 				obj.grp.last_begin_at = now
 			}
-			if nil == obj.C {
+			if obj.is_subscribed {
 				id_list[idx] = 0
 			} else {
 				self.request_id += 1
 				id_list[idx] = self.request_id
 			}
-			cached_requests = append(cached_requests, obj.Request)
+			cached_requests = append(cached_requests, obj.request)
 		}
 	}
 
@@ -467,11 +470,11 @@ func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests 
 	if nil != e {
 		//fmt.Println("----", e, len(objects))
 		for _, obj := range objects {
-			if nil == obj.C {
+			if nil == obj.c {
 				//fmt.Println("skip")
 				continue
 			}
-			self.replyError(obj.C, e)
+			self.replyError(obj.c, e)
 		}
 		return
 	}
@@ -479,11 +482,11 @@ func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests 
 
 	now := time.Now()
 	for idx, obj := range objects {
-		if nil == obj.C {
+		if nil == obj.c {
 			continue
 		}
 
-		obj.CreatedAt = now
+		obj.created_at = now
 		self.pendingRequests[id_list[idx]] = obj
 	}
 
@@ -493,7 +496,7 @@ func (self *SamplingBroker) runOnce(cached_array []*RequestCtx, cached_requests 
 		//fmt.Println(res.Id, res.ErrorMessage(), res.InterfaceValue())
 		if pending, ok := self.pendingRequests[res.Id]; ok {
 			delete(self.pendingRequests, res.Id)
-			self.reply(pending.C, res)
+			self.reply(pending.c, res)
 		}
 
 		if grp, ok := self.channelGroups[res.ChannelName]; ok {
@@ -542,6 +545,7 @@ func (self *SamplingBroker) reply(c chan<- interface{}, response *ExchangeRespon
 		}
 	}()
 
+	// TODO: 因为和trigger产生死锁，暂时在这里解决一下，请尽快重构 trigger.
 	select {
 	case c <- response:
 	default:
@@ -643,12 +647,12 @@ func NewBroker(name, url string) (*SamplingBroker, error) {
 	db := &SamplingBroker{name: name,
 		action:          "POST",
 		url:             url,
-		exchange_c:      make(chan *RequestCtx, 1000),
+		exchange_c:      make(chan *requestCtx, 1000),
 		chan_c:          make(chan *channelRequest),
 		closed:          0,
 		last_error:      varString,
 		request_id:      0,
-		pendingRequests: make(map[uint64]*RequestCtx),
+		pendingRequests: make(map[uint64]*requestCtx),
 		channelGroups:   make(map[string]*channelGroup)}
 
 	if nil != expvar.Get("sampling_broker."+name) {

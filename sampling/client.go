@@ -9,7 +9,7 @@ import (
 )
 
 func MakeChannelName(metric, managedType, managedId, pathStr string, params map[string]string) string {
-	return metric + "/" + managedType + "/" + managedId + "/" + pathStr
+	return metric + "/" + managedId + "/" + pathStr
 }
 
 type ChannelClient interface {
@@ -24,15 +24,15 @@ type Client interface {
 type clientImpl struct {
 	id      string
 	broker  *SamplingBroker
-	c       chan *RequestCtx
+	c       chan *requestCtx
 	request ExchangeRequest
-	ctx     RequestCtx
+	ctx     requestCtx
 }
 
 func (self *clientImpl) Invoke(timeout time.Duration) (interface{}, error) {
 	c := make(chan interface{}, 1)
-	self.c <- &RequestCtx{CreatedAt: time.Now(), cached_timeout: timeout / 2, C: c,
-		Request: &self.request}
+	self.c <- &requestCtx{created_at: time.Now(), cached_timeout: timeout / 2, c: c,
+		request: &self.request}
 
 	select {
 	case res := <-c:

@@ -20,7 +20,7 @@ type snmpBucket struct {
 	address   string
 	version   snmpclient.SnmpVersion
 	community string
-	elapsed   time.Duration
+	//elapsed   time.Duration
 }
 
 func (self *snmpBucket) IsExpired(now int64) bool {
@@ -48,7 +48,7 @@ type bucketByAddress struct {
 	pendings    []testingRequst
 	next_id     int
 
-	elapsed time.Duration
+	//elapsed time.Duration
 }
 
 type snmpWorker struct {
@@ -167,7 +167,7 @@ func (self *snmpWorker) scan(c int) {
 
 	deleted := make([]string, 0, 10)
 	for address, byAddress := range self.buckets {
-		start_a_at := time.Now()
+		//start_a_at := time.Now()
 		if 0 == c && nil != byAddress.pendings {
 			//log.Println("[snmp_test] clear pendings(", len(byAddress.pendings), ") for '"+address+"'.")
 			if cap(byAddress.pendings)-len(byAddress.pendings) > 20 {
@@ -183,9 +183,9 @@ func (self *snmpWorker) scan(c int) {
 				expired = append(expired, k)
 			} else {
 				if 0 == c || bucket.IsTimeout(now) {
-					start_s_at := time.Now()
+					//start_s_at := time.Now()
 					self.send(k, bucket)
-					bucket.elapsed = time.Now().Sub(start_s_at)
+					//bucket.elapsed = time.Now().Sub(start_s_at)
 				}
 			}
 		}
@@ -198,7 +198,7 @@ func (self *snmpWorker) scan(c int) {
 		if 0 == len(byAddress.snmpBuffers) {
 			deleted = append(deleted, address)
 		}
-		byAddress.elapsed = time.Now().Sub(start_a_at)
+		//byAddress.elapsed = time.Now().Sub(start_a_at)
 	}
 
 	for _, address := range deleted {
@@ -206,17 +206,17 @@ func (self *snmpWorker) scan(c int) {
 		log.Println("[snmp_test] '" + address + "' is expired.")
 	}
 
-	if 0 == c {
-		log.Println("[snmp_test] scan all address - ", time.Now().Sub(start_at).String())
-		if 1 < time.Now().Sub(start_at).Seconds() {
-			for address, byAddress := range self.buckets {
-				log.Println("[snmp_test] elapsed for ", address, " = ", byAddress.elapsed)
-				for k, bucket := range byAddress.snmpBuffers {
-					log.Println("[snmp_test] elapsed for "+k+" = ", bucket.elapsed)
-				}
-			}
-		}
-	}
+	// if 0 == c {
+	// 	log.Println("[snmp_test] scan all address - ", time.Now().Sub(start_at).String())
+	// 	if 1 < time.Now().Sub(start_at).Seconds() {
+	// 		for address, byAddress := range self.buckets {
+	// 			log.Println("[snmp_test] elapsed for ", address, " = ", byAddress.elapsed)
+	// 			for k, bucket := range byAddress.snmpBuffers {
+	// 				log.Println("[snmp_test] elapsed for "+k+" = ", bucket.elapsed)
+	// 			}
+	// 		}
+	// 	}
+	// }
 }
 
 func (self *snmpWorker) Push(res *snmpclient.PingResult) {

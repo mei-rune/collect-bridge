@@ -72,6 +72,7 @@ type server struct {
 	pending_requests   int64
 	last_request_size  int
 	max_request_size   int
+	skiped_count       int64
 	last_used_duration time.Duration
 	max_used_duration  time.Duration
 }
@@ -128,6 +129,8 @@ func newServer(ds_url string, refresh time.Duration, params map[string]interface
 func (self *server) stats() interface{} {
 	return map[string]interface{}{"pending—responses": self.completion_size(),
 		"pending_requests":   atomic.LoadInt64(&self.pending_requests),
+		"skiped_count":       atomic.LoadInt64(&self.skiped_count),
+		"running_requests":   self.running_requests.len(),
 		"last_request_size":  self.last_request_size,
 		"max_request_size":   self.max_request_size,
 		"last_used_duration": self.last_used_duration.String(),
@@ -425,10 +428,13 @@ func (self *server) batchExchange(w http.ResponseWriter, r *http.Request) {
 			if 0 == req.Id {
 				old := self.running_requests.get(req.ChannelName)
 				if (now - old) < 10*60 {
+					atomic.AddInt64(&self.skiped_count, 1)
 					continue
 				}
 
 				self.running_requests.put(req.ChannelName, now)
+			} else {
+				fmt.Println(req.Id, req.Action, req.Name, req.ManagedId, req.ChannelName)
 			}
 
 			go self.doRequest(req)
@@ -488,9 +494,9 @@ func (self *server) doRequest(r *ExchangeRequest) {
 			end_at := time.Now()
 			self.perf.C <- []string{"LPUSH", "perf-" + r.ChannelName, `{"begin_at":"` + begin_at.Format(time.RFC3339Nano) + `","end_at":"` + end_at.Format(time.RFC3339Nano) + `","elapsed":"` + end_at.Sub(begin_at).String() + `","elapsed(ns)":` + strconv.FormatInt(int64(end_at.Sub(begin_at)), 10) + `, "error":"` + resp.ErrorMessage() + `"}`}
 			self.perf.C <- []string{"LTRIM", "perf-" + r.ChannelName, "0", "100"}
-			atomic.AddInt64(&self.pending_requests, -1)
 		}
 
+		atomic.AddInt64(&self.pending_requests, -1)
 		self.running_requests.remove(r.ChannelName)
 	}()
 

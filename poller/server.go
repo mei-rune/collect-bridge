@@ -148,18 +148,18 @@ end:
 	s.jobs[job.Id()] = job
 }
 
-func (s *server) loadJob(id string) {
-	attributes, e := s.client.FindByIdWithIncludes("trigger", id, "action")
-	if nil != e {
-		msg := "load trigger '" + id + "' from db failed," + e.Error()
-		job := &errorJob{id: id, e: msg}
-		s.jobs[job.Id()] = job
-		log.Print(msg)
-		return
-	}
+// func (s *server) loadJob(attributes map[string]interface{}) {
+// 	attributes, e := s.client.FindByIdWithIncludes("trigger", id, "action")
+// 	if nil != e {
+// 		msg := "load trigger '" + id + "' from db failed," + e.Error()
+// 		job := &errorJob{id: id, e: msg}
+// 		s.jobs[job.Id()] = job
+// 		log.Print(msg)
+// 		return
+// 	}
 
-	s.startJob(attributes)
-}
+// 	s.startJob(attributes)
+// }
 
 func (s *server) interuptJob(id string) {
 	job, ok := s.jobs[id]
@@ -301,19 +301,29 @@ func (s *server) onIdle() {
 
 	// 2. start all newed triggers
 	if nil != newed {
-		for _, id := range newed {
-			s.loadJob(id)
+		e := s.client.EachByMultIdWithIncludes("trigger", newed, "action", func(res map[string]interface{}) {
+			s.startJob(res)
+		})
+		if nil != e {
+			log.Println("[srv] new triggers with count is", len(newed), "start failed,", e)
+		} else {
+			log.Println("[srv] new triggers with count is", len(newed), "is started.")
 		}
-		log.Println("[srv] new triggers with count is", len(newed), "is started.")
 	}
 
 	// 3. restart all updated triggers
 	if nil != updated {
 		for _, id := range updated {
 			s.stopJob(id, CLOSE_REASON_NORMAL)
-			s.loadJob(id)
 		}
-		log.Println("[srv] updated triggers with count is", len(updated), "is started.")
+		e := s.client.EachByMultIdWithIncludes("trigger", updated, "action", func(res map[string]interface{}) {
+			s.startJob(res)
+		})
+		if nil != e {
+			log.Println("[srv] updated triggers with count is", len(newed), "start failed,", e)
+		} else {
+			log.Println("[srv] updated triggers with count is", len(updated), "is started.")
+		}
 	}
 
 	// 3. stop deleted triggers

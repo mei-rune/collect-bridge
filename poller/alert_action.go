@@ -153,7 +153,7 @@ func (self *alertAction) Run(t time.Time, value interface{}) error {
 		return err
 	}
 
-	err = self.send(evt)
+	err = self.send(evt, false)
 	if nil == err {
 		self.previous_status = current
 		self.sequence_id++
@@ -218,7 +218,7 @@ func (self *alertAction) Reset(reason int) error {
 		return err
 	}
 
-	err = self.send(evt)
+	err = self.send(evt, true)
 	if nil == err {
 		self.last_status = 0
 		self.previous_status = 0
@@ -325,7 +325,7 @@ func (self *alertAction) gen_message(current, previous, reason int, evt map[stri
 	}
 }
 
-func (self *alertAction) send(evt map[string]interface{}) error {
+func (self *alertAction) send(evt map[string]interface{}, nonresponse bool) error {
 	bs, e := json.Marshal(evt)
 	if nil != e {
 		return errors.New("marshal alert_event failed, " + e.Error())
@@ -336,16 +336,26 @@ func (self *alertAction) send(evt map[string]interface{}) error {
 	atomic.StoreInt64(&self.responsed_at, 0)
 	atomic.StoreInt64(&self.end_send_at, 0)
 
-	self.cached_data.attributes = evt
-	atomic.StoreInt64(&self.begin_send_at, time.Now().Unix())
-	self.channel <- self.cached_data
-	atomic.StoreInt64(&self.wait_response_at, time.Now().Unix())
-	e = <-self.cached_data.c
-	atomic.StoreInt64(&self.responsed_at, time.Now().Unix())
-	if nil == e {
+	if nonresponse {
+		atomic.StoreInt64(&self.begin_send_at, time.Now().Unix())
+		self.channel <- &data_object{c: make(chan error, 2), attributes: evt}
+		at := time.Now().Unix()
+		atomic.StoreInt64(&self.wait_response_at, at)
+		atomic.StoreInt64(&self.responsed_at, at)
 		self.publish <- []string{"PUBLISH", "tpt_alert_events", string(bs)}
+		atomic.StoreInt64(&self.end_send_at, at)
+	} else {
+		self.cached_data.attributes = evt
+		atomic.StoreInt64(&self.begin_send_at, time.Now().Unix())
+		self.channel <- self.cached_data
+		atomic.StoreInt64(&self.wait_response_at, time.Now().Unix())
+		e = <-self.cached_data.c
+		atomic.StoreInt64(&self.responsed_at, time.Now().Unix())
+		if nil == e {
+			self.publish <- []string{"PUBLISH", "tpt_alert_events", string(bs)}
+		}
+		atomic.StoreInt64(&self.end_send_at, time.Now().Unix())
 	}
-	atomic.StoreInt64(&self.end_send_at, time.Now().Unix())
 	return e
 }
 

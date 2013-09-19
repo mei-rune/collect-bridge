@@ -266,7 +266,9 @@ func TestAlertReset(t *testing.T) {
 	go func() {
 		for v := range c1 {
 			c <- v
-			v.c <- nil
+			if nil != v.c {
+				v.c <- nil
+			}
 		}
 	}()
 
@@ -352,6 +354,7 @@ func TestAlertReset(t *testing.T) {
 				t.Error(e)
 				return
 			}
+			time.Sleep(10 * time.Millisecond)
 
 			select {
 			case <-c:
@@ -366,6 +369,7 @@ func TestAlertReset(t *testing.T) {
 				t.Error(e)
 				return
 			}
+			time.Sleep(10 * time.Millisecond)
 
 			select {
 			case v := <-c:
@@ -994,7 +998,9 @@ func TestAlertMessage(t *testing.T) {
 	go func() {
 		for v := range c1 {
 			c <- v
-			v.c <- nil
+			if nil != v.c {
+				v.c <- nil
+			}
 		}
 	}()
 
@@ -1097,7 +1103,6 @@ func TestAlertMessage(t *testing.T) {
 			deleted_message:  "test_catalog_deleted this is a test alert 0"}}
 
 	for _, test := range all_tests {
-
 		action, e := newAlertAction(test.rule,
 			map[string]interface{}{"managed_id": "1213"},
 			test.ctx)
@@ -1137,6 +1142,7 @@ func TestAlertMessage(t *testing.T) {
 				t.Error(e)
 				return
 			}
+			time.Sleep(10 * time.Millisecond)
 
 			select {
 			case v := <-c:

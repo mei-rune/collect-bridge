@@ -183,7 +183,7 @@ func newTrigger(attributes, options, ctx map[string]interface{}, callback trigge
 		}
 		if !enabled {
 			// TODO:  请尽快重构它。
-			go reset(action, CLOSE_REASON_DISABLED)
+			reset(action, CLOSE_REASON_DISABLED)
 		}
 		actions = append(actions, &actionWrapper{id: action_id, name: action_name, enabled: enabled, action: action})
 	}

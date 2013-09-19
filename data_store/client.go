@@ -4,6 +4,7 @@ import (
 	"commons"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -260,6 +261,47 @@ func (self *Client) FindByWithIncludes(target string, params map[string]string, 
 	url := self.CreateUrl().
 		Concat(target).
 		WithQueries(params, "@")
+	if 0 != len(includes) {
+		url.WithQuery("includes", includes)
+	}
+	res := self.InvokeWithBytes("GET", url.ToUrl(), nil, 200)
+	if res.HasError() {
+		return nil, res.Error()
+	}
+	result, err := res.Value().AsObjects()
+	if nil != err {
+		return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
+	}
+	return result, nil
+}
+
+func (self *Client) EachByMultIdWithIncludes(target string, id_list []string, includes string, cb func(map[string]interface{})) error {
+	offset := 0
+	for ; (offset + 100) < len(id_list); offset += 100 {
+		results, e := self.FindByMultIdWithIncludes(target, id_list[offset:offset+100], includes)
+		if nil != e {
+			return e
+		}
+		for _, res := range results {
+			cb(res)
+		}
+	}
+
+	results, e := self.FindByMultIdWithIncludes(target, id_list[offset:], includes)
+	if nil != e {
+		return e
+	}
+	for _, res := range results {
+		cb(res)
+	}
+	return nil
+}
+
+func (self *Client) FindByMultIdWithIncludes(target string, id_list []string, includes string) (
+	[]map[string]interface{}, commons.RuntimeError) {
+	url := self.CreateUrl().
+		Concat(target).
+		WithQuery("@id", "[in]"+strings.Join(id_list, ","))
 	if 0 != len(includes) {
 		url.WithQuery("includes", includes)
 	}

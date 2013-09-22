@@ -334,7 +334,7 @@ func (s *server) onIdle() {
 		log.Println("[srv] deleted triggers with count is", len(deleted), "is started.")
 	}
 
-	log.Println("[srv] poll is ok.")
+	log.Println("[srv] poll is ok and", time.Now().Sub(s.firedAt), "is elapsed")
 }
 
 func (s *server) String() string {

@@ -187,9 +187,11 @@ func TestBrokerWithSubscribe(t *testing.T) {
 							break
 						}
 						if nil != test.e {
-							if nil == resp.Error() && "icmp" != test.metric_name {
-								t.Error("test[", test_idx, "] error message is not excepted, it is nil.")
-								t.Error(resp)
+							if nil == resp.Error() {
+								if nil == resp.Error() && "icmp" != test.metric_name {
+									t.Error("test[", test_idx, "] error message is not excepted, it is nil.")
+									t.Error(resp)
+								}
 							} else if test.e.Error() != resp.Error().Error() {
 								t.Error("test[", test_idx, "]error message is not excepted")
 								t.Error("test[", test_idx, "]excepted is", test.e)

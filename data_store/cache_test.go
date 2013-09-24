@@ -246,7 +246,7 @@ func TestCacheRefresh(t *testing.T) {
 			t.Error("device1 create failed")
 			return
 		}
-		snapshot, e := client.Snapshot("network_device", nil)
+		snapshot, e := client.Snapshot("network_device", nil, nil)
 		if nil != e {
 			t.Error(e)
 		}

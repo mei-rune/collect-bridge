@@ -94,12 +94,8 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		return nil, errors.New("'sampling_broker' is not a SamplingBroker in the ctx.")
 	}
 
-	//client_url := commons.NewUrlBuilder(url).Concat("managed_object", parentId, metric).ToUrl()
-
 	job := &metricJob{metric: metric,
 		params: map[string]string{"managed_type": "managed_object", "managed_id": parentId, "metric": metric, "trigger_id": id}}
-
-	//	client: commons.HttpClient{Url: client_url}}
 
 	job.Trigger, e = newTrigger(attributes,
 		map[string]interface{}{"managed_type": "managed_object", "managed_id": parentId_int64, "metric": metric, "trigger_id": id},
@@ -110,44 +106,14 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 	}
 
 	cname := sampling.MakeChannelName(metric, "managed_object", parentId, "", nil)
-	//job.debug_c = make(chan interface{})
 	client, e := broker.SubscribeClient(cname, job.Trigger.GetChannel(), "GET", metric, "managed_object", parentId, "", nil, nil, 8*time.Second)
 	if nil != e {
 		job.Close(CLOSE_REASON_NORMAL)
 		return nil, e
 	}
-	//go check(job.debug_c, job.Trigger.GetChannel(), client, cname, metric)
 	job.client = client
 	return job, nil
 }
-
-// func check(c1, c2 chan interface{}, client sampling.ChannelClient, cname, name string) {
-// 	for o := range c1 {
-// 		if res, ok := o.(*sampling.ExchangeResponse); ok {
-// 			if res.ChannelName != cname {
-// 				fmt.Println("[debug-channel] client_id=", client.Id(), ", channel=", res.ChannelName, ", old=", cname, uintptr(unsafe.Pointer(res)), "c=", c1)
-// 			}
-// 			//fmt.Println("[debug]", client.Id(), uintptr(unsafe.Pointer(res)), ",chan=", c1)
-// 		}
-
-// 		c2 <- o
-// 	}
-// }
-
-// func createRequest(nm string, attributes, ctx map[string]interface{}) (string, bytes.Buffer, error) {
-// 	url, e := commons.GetString(ctx, "metric_url")
-// 	if nil != e {
-// 		return nil, errors.New("'metric_url' is required, " + e.Error())
-// 	}
-// 	params := attributes["$parent"]
-
-// 	var urlBuffer bytes.Buffer
-// 	urlBuffer.WriteString(url)
-// 	urlBuffer.WriteString("/")
-// 	urlBuffer.WriteString(nm)
-// 	urlBuffer.WriteString("/")
-// 	urlBuffer.WriteString(nm)
-// }
 
 type errorJob struct {
 	clazz, id, name, e string

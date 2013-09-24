@@ -435,7 +435,7 @@ func (self *portAll) Call(params MContext) commons.Result {
 	new_row["ifStatus__descr"] = statusString(ifAdminStatus, ifOpStatus)
 
 	new_row["ifOpStatus"] = GetInt32(params, res, "1.3.6.1.2.1.2.2.1.8."+ifIndex, -1)
-	new_row["ifLastChange"] = GetInt32(params, res, "1.3.6.1.2.1.2.2.1.9."+ifIndex, -1)
+	new_row["ifLastChange"] = GetUint32(params, res, "1.3.6.1.2.1.2.2.1.9."+ifIndex, -1)
 	new_row["ifInOctets"] = GetUint64(params, res, "1.3.6.1.2.1.2.2.1.10."+ifIndex, 0)
 	new_row["ifInUcastPkts"] = GetUint64(params, res, "1.3.6.1.2.1.2.2.1.11."+ifIndex, 0)
 	new_row["ifInNUcastPkts"] = GetUint64(params, res, "1.3.6.1.2.1.2.2.1.12."+ifIndex, 0)

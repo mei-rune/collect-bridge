@@ -12,163 +12,19 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"text/template"
 	"time"
 )
 
-type ExchangeRequest struct {
-	ChannelName string            `json:"channel"`
-	Id          uint64            `json:"request_id"`
-	Action      string            `json:"action"`
-	Name        string            `json:"metric-name"`
-	ManagedType string            `json:"managed_type,omitempty"`
-	ManagedId   string            `json:"managed_id,omitempty"`
-	Address     string            `json:"address,omitempty"`
-	Paths       []P               `json:"paths,omitempty"`
-	Params      map[string]string `json:"params,omitempty"`
-	Body        interface{}       `json:"body,omitempty"`
-}
-
-func (self *ExchangeRequest) ToJson(w *bytes.Buffer, id uint64) error {
-	old := w.Len()
-
-	w.WriteString(`{"channel":"`)
-	template.JSEscape(w, []byte(self.ChannelName))
-	w.WriteString(`","request_id":`)
-	w.WriteString(strconv.FormatUint(id, 10))
-	w.WriteString(`,"action":"`)
-	w.WriteString(self.Action)
-	w.WriteString(`","metric-name":"`)
-	w.WriteString(self.Name)
-	if 0 != len(self.ManagedId) {
-		w.WriteString(`","managed_type":"`)
-		w.WriteString(self.ManagedType)
-		w.WriteString(`","managed_id":"`)
-		w.WriteString(self.ManagedId)
-	} else {
-		w.WriteString(`","address":"`)
-		w.WriteString(self.Address)
-	}
-	w.WriteString(`",`)
-
-	if nil != self.Paths && 0 != len(self.Paths) {
-		w.WriteString(`paths":[`)
-		for _, p := range self.Paths {
-			w.WriteByte('"')
-			w.WriteString(p[0])
-			w.WriteString(`","`)
-			w.WriteString(p[1])
-			w.WriteString(`",`)
-		}
-		w.Truncate(w.Len() - 1)
-		w.WriteString(`],`)
-	}
-	if nil != self.Params && 0 != len(self.Params) {
-		w.WriteString(`params":{`)
-		for k, v := range self.Params {
-			w.WriteString(`"`)
-			w.WriteString(k)
-			w.WriteString(`":"`)
-			template.JSEscape(w, []byte(v))
-			w.WriteString(`",`)
-		}
-		w.Truncate(w.Len() - 1)
-		w.WriteString(`},`)
-	}
-
-	if nil != self.Body {
-		w.WriteString(`"body":`)
-		if e := json.NewEncoder(w).Encode(self.Body); nil != e {
-			w.Truncate(old)
-			return e
-		}
-	} else {
-		w.Truncate(w.Len() - 1)
-	}
-
-	w.WriteByte('}')
-	return nil
-}
-
-type ExchangeResponse struct {
-	ChannelName string                    `json:"channel"`
-	Id          uint64                    `json:"request_id"`
-	EcreatedAt  time.Time                 `json:"created_at"`
-	Eerror      *commons.ApplicationError `json:"error,omitempty"`
-	Evalue      interface{}               `json:"value,omitempty"`
-
-	value commons.AnyData
-}
-
-func (self *ExchangeResponse) ToMap() map[string]interface{} {
-	res := map[string]interface{}{}
-	res["created_at"] = self.EcreatedAt
-	if nil != self.Eerror {
-		res["error"] = map[string]interface{}{"code": self.Eerror.Ecode, "message": self.Eerror.Emessage}
-	}
-	if nil != self.Evalue {
-		res["value"] = self.Evalue
-	}
-	return res
-}
-
-func (self *ExchangeResponse) ErrorCode() int {
-	if nil != self.Eerror {
-		return self.Eerror.Ecode
-	}
-	return -1
-}
-
-func (self *ExchangeResponse) ErrorMessage() string {
-	if nil != self.Eerror {
-		return self.Eerror.Emessage
-	}
-	return ""
-}
-
-func (self *ExchangeResponse) Error() commons.RuntimeError {
-	if nil == self.Eerror {
-		return nil
-	}
-	return self.Eerror
-}
-
-func (self *ExchangeResponse) HasError() bool {
-	return nil != self.Eerror && (0 != self.Eerror.Ecode || 0 != len(self.Eerror.Emessage))
-}
-
-func (self *ExchangeResponse) CreatedAt() time.Time {
-	return self.EcreatedAt
-}
-
-func (self *ExchangeResponse) InterfaceValue() interface{} {
-	return self.Evalue
-}
-
-func (self *ExchangeResponse) Value() commons.Any {
-	self.value.Value = self.Evalue
-	return &self.value
-}
-
-type requestCtx struct {
-	created_at     time.Time
-	cached_timeout time.Duration
-	is_subscribed  bool
-	c              chan interface{}
-	request        *ExchangeRequest
-	grp            *channelGroup
-}
-
 type SamplingBroker struct {
-	name       string
-	action     string
-	url        string
-	exchange_c chan *requestCtx
-	chan_c     chan *channelRequest
+	name          string
+	action        string
+	url           string
+	exchange_c    chan *requestCtx
+	chan_c        chan *channelRequest
+	cached_buffer bytes.Buffer
 
 	closed     int32
 	wait       sync.WaitGroup
@@ -180,6 +36,7 @@ type SamplingBroker struct {
 }
 
 type channelGroup struct {
+	name          string
 	last_begin_at time.Time
 	last_end_at   time.Time
 	channels      map[string]chan interface{}
@@ -201,9 +58,8 @@ func (self *SamplingBroker) createClient(channelName string, c chan interface{},
 		}
 	}
 
-	cl := &clientImpl{id: commons.GenerateId(),
+	cl := &clientImpl{id: channelName + "/" + commons.GenerateId(),
 		broker: self,
-		c:      self.exchange_c,
 		request: ExchangeRequest{ChannelName: channelName,
 			Action:      method,
 			Name:        metric_name,
@@ -216,16 +72,6 @@ func (self *SamplingBroker) createClient(channelName string, c chan interface{},
 	cl.ctx.created_at = time.Now()
 	cl.ctx.cached_timeout = cached_timeout
 	cl.ctx.request = &cl.request
-
-	if nil != c {
-		grp, e := self.Subscribe(channelName, cl.id, c)
-		if nil != e {
-			return nil, e
-		}
-		cl.ctx.is_subscribed = true
-		cl.ctx.grp = grp
-		cl.ctx.c = c
-	}
 	return cl, nil
 }
 
@@ -240,10 +86,22 @@ func (self *SamplingBroker) CreateClient(method, metric_name, managedType, manag
 func (self *SamplingBroker) SubscribeClient(channelName string, c chan interface{},
 	method, metric_name, managedType, managedId, pathStr string, params map[string]string,
 	body interface{}, cached_timeout time.Duration) (ChannelClient, error) {
+	if nil == c {
+		return nil, errors.New("chan is nil.")
+	}
 	cl, e := self.createClient(channelName, c, method, metric_name, managedType, managedId, pathStr, params, body, cached_timeout)
 	if nil != e {
 		return nil, e
 	}
+
+	grp, e := self.Subscribe(channelName, cl.id, c)
+	if nil != e {
+		return nil, e
+	}
+	cl.ctx.is_subscribed = true
+	cl.ctx.grp = grp
+	cl.ctx.c = c
+
 	return cl, nil
 }
 
@@ -289,7 +147,7 @@ func (self *SamplingBroker) doChannelRequest(chanD *channelRequest) {
 			goto end
 		}
 
-		grp = &channelGroup{channels: make(map[string]chan interface{})}
+		grp = &channelGroup{name: chanD.channelName, channels: make(map[string]chan interface{})}
 		self.channelGroups[chanD.channelName] = grp
 	}
 
@@ -348,7 +206,6 @@ func (self *SamplingBroker) run() {
 		}
 
 		log.Println("SamplingBroker is exit.")
-
 		atomic.StoreInt32(&self.closed, 1)
 		self.wait.Done()
 	}()
@@ -468,17 +325,14 @@ func (self *SamplingBroker) runOnce(cached_array []*requestCtx, cached_requests 
 
 	resposes, e := self.exchange(id_list, cached_requests)
 	if nil != e {
-		//fmt.Println("----", e, len(objects))
 		for _, obj := range objects {
 			if nil == obj.c {
-				//fmt.Println("skip")
 				continue
 			}
 			self.replyError(obj.c, e)
 		}
 		return
 	}
-	//fmt.Println(len(resposes))
 
 	now := time.Now()
 	for idx, obj := range objects {
@@ -486,14 +340,15 @@ func (self *SamplingBroker) runOnce(cached_array []*requestCtx, cached_requests 
 			continue
 		}
 
-		obj.created_at = now
-		self.pendingRequests[id_list[idx]] = obj
+		if !obj.is_subscribed {
+			obj.created_at = now
+			self.pendingRequests[id_list[idx]] = obj
+		}
 	}
 
 	grp_failed := make([]string, 0, 10)
 	failed := make([]string, 0, 10)
 	for _, res := range resposes {
-		//fmt.Println(res.Id, res.ErrorMessage(), res.InterfaceValue())
 		if pending, ok := self.pendingRequests[res.Id]; ok {
 			delete(self.pendingRequests, res.Id)
 			self.reply(pending.c, res)
@@ -544,17 +399,18 @@ func (self *SamplingBroker) reply(c chan<- interface{}, response *ExchangeRespon
 			e = errors.New(buffer.String())
 		}
 	}()
+	c <- response
 
 	// TODO: 因为和trigger产生死锁，暂时在这里解决一下，请尽快重构 trigger.
-	select {
-	case c <- response:
-	default:
-	}
+	// select {
+	// case c <- response:
+	// default:
+	// }
 	return nil
 }
 
-func exchangeTo(method, url string, id_list []uint64, requests []*ExchangeRequest) ([]*ExchangeResponse, commons.RuntimeError) {
-	buffer := bytes.NewBuffer(make([]byte, 0, 1000))
+func exchangeTo(method, url string, id_list []uint64, requests []*ExchangeRequest, buffer *bytes.Buffer) ([]*ExchangeResponse, commons.RuntimeError) {
+	buffer.Reset()
 	buffer.WriteByte('[')
 	if nil != requests && 0 != len(requests) {
 		for idx, r := range requests {
@@ -627,8 +483,7 @@ func (self *SamplingBroker) exchange(id_list []uint64, requests []*ExchangeReque
 			e = commons.NewApplicationError(http.StatusInternalServerError, msg)
 		}
 	}()
-
-	return exchangeTo(self.action, self.url, id_list, requests)
+	return exchangeTo(self.action, self.url, id_list, requests, &self.cached_buffer)
 }
 
 func NewBroker(name, url string) (*SamplingBroker, error) {

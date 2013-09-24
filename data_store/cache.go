@@ -39,11 +39,12 @@ type Cache struct {
 	objects map[string]map[string]interface{}
 	ch      chan *cache_request
 
-	is_refreshing bool
-	ticker        *time.Ticker
-	client        *Client
-	target        string
-	includes      string
+	is_refreshing    bool
+	ticker           *time.Ticker
+	client           *Client
+	target           string
+	includes         string
+	cached_snapshots []*RecordVersion
 }
 
 func NewCache(refresh time.Duration, client *Client, target string) *Cache {
@@ -56,12 +57,13 @@ func NewCacheWithIncludes(refresh time.Duration, client *Client, target, include
 	}
 
 	cache := &Cache{
-		objects:  make(map[string]map[string]interface{}),
-		ch:       make(chan *cache_request, 5),
-		ticker:   time.NewTicker(refresh),
-		client:   client,
-		target:   target,
-		includes: includes}
+		objects:          make(map[string]map[string]interface{}),
+		ch:               make(chan *cache_request, 5),
+		ticker:           time.NewTicker(refresh),
+		client:           client,
+		target:           target,
+		includes:         includes,
+		cached_snapshots: make([]*RecordVersion, 1000)}
 	go cache.serve()
 	return cache
 }
@@ -86,7 +88,7 @@ func (c *Cache) LoadAll() ([]map[string]interface{}, error) {
 }
 
 func (c *Cache) Refresh() error {
-	snapshots, e := c.client.Snapshot(c.target, emptyParams)
+	snapshots, e := c.client.Snapshot(c.target, emptyParams, c.cached_snapshots)
 	if nil != e {
 		return e
 	}

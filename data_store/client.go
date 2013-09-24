@@ -156,8 +156,9 @@ func (self *Client) FindById(target, id string) (map[string]interface{},
 }
 
 type RecordVersion struct {
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Id        int       `json:"id,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
 func GetRecordVersionFrom(values map[string]interface{}) (*RecordVersion, error) {
@@ -187,7 +188,6 @@ func Diff(new_snapshots, old_snapshots map[string]*RecordVersion) (newed, update
 		old_version, ok := old_snapshots[id]
 		if !ok {
 			//fmt.Println("not found, skip", id)
-
 			newed = append(newed, id)
 			continue
 		}
@@ -221,34 +221,83 @@ func Diff(new_snapshots, old_snapshots map[string]*RecordVersion) (newed, update
 	return
 }
 
-func (self *Client) Snapshot(target string, params map[string]string) (map[string]*RecordVersion,
+type SnapshotResult struct {
+	Eid             interface{}               `json:"request_id,omitempty"`
+	Eerror          *commons.ApplicationError `json:"error,omitempty"`
+	Ewarnings       interface{}               `json:"warnings,omitempty"`
+	Evalue          []*RecordVersion          `json:"value,omitempty"`
+	Eeffected       int64                     `json:"effected,omitempty"`
+	ElastInsertId   interface{}               `json:"lastInsertId,omitempty"`
+	Eoptions        map[string]interface{}    `json:"options,omitempty"`
+	Ecreated_at     time.Time                 `json:"created_at,omitempty"`
+	Erepresentation string                    `json:"representation,omitempty"`
+}
+
+var SnapshotResultIsNil = commons.NewApplicationError(commons.InternalErrorCode, "snapshot result is nil")
+
+func Snapshot(url string, params map[string]string, cached_snapshots []*RecordVersion) (map[string]*RecordVersion,
+	commons.RuntimeError) {
+
+	var raw_results SnapshotResult
+	raw_results.Evalue = cached_snapshots
+	e := commons.InvokeWeb("GET", url, nil, 200, &raw_results)
+	if nil != e {
+		return nil, e
+	}
+	if nil != raw_results.Eerror && (0 != raw_results.Eerror.Ecode || 0 != len(raw_results.Eerror.Emessage)) {
+		return nil, raw_results.Eerror
+	}
+
+	if nil == raw_results.Evalue {
+		return nil, SnapshotResultIsNil
+	}
+
+	snapshots := make(map[string]*RecordVersion)
+	for _, res := range raw_results.Evalue {
+		snapshots[fmt.Sprint(res.Id)] = res
+		// id := res["id"]
+		// if nil == id {
+		// 	return nil, commons.NewApplicationError(commons.InternalErrorCode, fmt.Sprintf("'id' is nil in the results[%v]", i))
+		// }
+		// snapshot, err := GetRecordVersionFrom(res)
+		// if nil != err {
+		// 	return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
+		// }
+		// snapshots[fmt.Sprint(id)] = snapshot
+	}
+	return snapshots, nil
+}
+
+func (self *Client) Snapshot(target string, params map[string]string, cached_snapshots []*RecordVersion) (map[string]*RecordVersion,
 	commons.RuntimeError) {
 	url := self.CreateUrl().
 		Concat(target, "@snapshot").
 		WithQueries(params, "@").ToUrl()
-	raw_results := self.InvokeWithBytes("GET", url, nil, 200)
-	if raw_results.HasError() {
-		return nil, raw_results.Error()
-	}
+	return Snapshot(url, params, cached_snapshots)
 
-	results, err := raw_results.Value().AsObjects()
-	if nil != err {
-		return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
-	}
+	// raw_results := self.InvokeWithBytes("GET", url, nil, 200)
+	// if raw_results.HasError() {
+	// 	return nil, raw_results.Error()
+	// }
 
-	snapshots := make(map[string]*RecordVersion)
-	for i, res := range results {
-		id := res["id"]
-		if nil == id {
-			return nil, commons.NewApplicationError(commons.InternalErrorCode, fmt.Sprintf("'id' is nil in the results[%v]", i))
-		}
-		snapshot, err := GetRecordVersionFrom(res)
-		if nil != err {
-			return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
-		}
-		snapshots[fmt.Sprint(id)] = snapshot
-	}
-	return snapshots, nil
+	// results, err := raw_results.Value().AsObjects()
+	// if nil != err {
+	// 	return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
+	// }
+
+	// snapshots := make(map[string]*RecordVersion)
+	// for i, res := range results {
+	// 	id := res["id"]
+	// 	if nil == id {
+	// 		return nil, commons.NewApplicationError(commons.InternalErrorCode, fmt.Sprintf("'id' is nil in the results[%v]", i))
+	// 	}
+	// 	snapshot, err := GetRecordVersionFrom(res)
+	// 	if nil != err {
+	// 		return nil, commons.NewApplicationError(commons.InternalErrorCode, err.Error())
+	// 	}
+	// 	snapshots[fmt.Sprint(id)] = snapshot
+	// }
+	// return snapshots, nil
 }
 
 func (self *Client) FindBy(target string, params map[string]string) ([]map[string]interface{},

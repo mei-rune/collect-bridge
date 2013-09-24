@@ -503,6 +503,31 @@ func (self *server) doRequest(r *ExchangeRequest) {
 		self.running_requests.remove(r.ChannelName)
 	}()
 
+	if r.ChannelName != MakeChannelName(r.Name, r.ManagedType, r.ManagedId, "", r.Params) {
+		fmt.Println("[debug-channel] channel=", r.ChannelName, ", name=", r.Name, ", managedType=", r.ManagedType, ", managedId=", r.ManagedId)
+	}
+
+	defer func() {
+		if e := recover(); nil != e {
+			var buffer bytes.Buffer
+			buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+			for i := 1; ; i += 1 {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+			}
+
+			self.completions_lock.Lock()
+			defer self.completions_lock.Unlock()
+			resp = &ExchangeResponse{Id: r.Id, EcreatedAt: time.Now(), ChannelName: r.ChannelName,
+				Eerror: &commons.ApplicationError{Ecode: http.StatusInternalServerError, Emessage: buffer.String()}}
+
+			self.completions = append(self.completions, resp)
+		}
+	}()
+
 	route, err := self.route(r.Action, r.Name)
 	if nil != err {
 		resp = &ExchangeResponse{Id: r.Id, EcreatedAt: time.Now(), ChannelName: r.ChannelName,
@@ -540,6 +565,26 @@ func (self *server) doRequest(r *ExchangeRequest) {
 	} else {
 		resp = &ExchangeResponse{Id: r.Id, EcreatedAt: res.CreatedAt(), ChannelName: r.ChannelName,
 			Evalue: res.InterfaceValue()}
+
+		if "link_flux" == r.Name {
+			if m, ok := res.InterfaceValue().(map[string]interface{}); ok && nil != m {
+				if _, ok = m["ifIndex"]; !ok {
+					fmt.Println("[debug-flux] channel=", r.ChannelName, ", name=", r.Name, ", managedType=", r.ManagedType, ", managedId=", r.ManagedId)
+				}
+			}
+		} else if "cpu" == r.Name {
+			if m, ok := res.InterfaceValue().(map[string]interface{}); ok && nil != m {
+				if _, ok = m["cpu"]; !ok {
+					fmt.Println("[debug-cpu] channel=", r.ChannelName, ", name=", r.Name, ", managedType=", r.ManagedType, ", managedId=", r.ManagedId)
+				}
+			}
+		} else if "mem" == r.Name {
+			if m, ok := res.InterfaceValue().(map[string]interface{}); ok && nil != m {
+				if _, ok = m["total"]; !ok {
+					fmt.Println("[debug-mem] channel=", r.ChannelName, ", name=", r.Name, ", managedType=", r.ManagedType, ", managedId=", r.ManagedId)
+				}
+			}
+		}
 	}
 
 failed:

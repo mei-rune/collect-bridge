@@ -43,6 +43,9 @@ type metricJob struct {
 	client sampling.ChannelClient
 }
 
+func (self *metricJob) Close(reason int) {
+	self.Trigger.Close(reason)
+}
 func (self *metricJob) Stats() map[string]interface{} {
 	res := self.Trigger.Stats()
 	if nil != self.params {
@@ -107,14 +110,29 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 	}
 
 	cname := sampling.MakeChannelName(metric, "managed_object", parentId, "", nil)
+	//job.debug_c = make(chan interface{})
 	client, e := broker.SubscribeClient(cname, job.Trigger.GetChannel(), "GET", metric, "managed_object", parentId, "", nil, nil, 8*time.Second)
 	if nil != e {
 		job.Close(CLOSE_REASON_NORMAL)
 		return nil, e
 	}
+	//go check(job.debug_c, job.Trigger.GetChannel(), client, cname, metric)
 	job.client = client
 	return job, nil
 }
+
+// func check(c1, c2 chan interface{}, client sampling.ChannelClient, cname, name string) {
+// 	for o := range c1 {
+// 		if res, ok := o.(*sampling.ExchangeResponse); ok {
+// 			if res.ChannelName != cname {
+// 				fmt.Println("[debug-channel] client_id=", client.Id(), ", channel=", res.ChannelName, ", old=", cname, uintptr(unsafe.Pointer(res)), "c=", c1)
+// 			}
+// 			//fmt.Println("[debug]", client.Id(), uintptr(unsafe.Pointer(res)), ",chan=", c1)
+// 		}
+
+// 		c2 <- o
+// 	}
+// }
 
 // func createRequest(nm string, attributes, ctx map[string]interface{}) (string, bytes.Buffer, error) {
 // 	url, e := commons.GetString(ctx, "metric_url")

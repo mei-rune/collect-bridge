@@ -246,6 +246,18 @@ func TestCacheRefresh(t *testing.T) {
 			t.Error("device1 create failed")
 			return
 		}
+		snapshot, e := client.Snapshot("network_device", nil)
+		if nil != e {
+			t.Error(e)
+		}
+
+		if 0 == len(snapshot) {
+			t.Error("snapshot is 0")
+		}
+
+		for i, s := range snapshot {
+			t.Log(i, s.Id, s.CreatedAt, s.UpdatedAt)
+		}
 
 		cache := NewCache(100*time.Minute, client, "network_device")
 		defer cache.Close()

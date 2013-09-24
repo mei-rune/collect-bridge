@@ -69,20 +69,17 @@ func (self *HttpClient) InvokeWithBytes(action, url string, msg []byte, excepted
 	}
 }
 
-func (self *HttpClient) InvokeWith(action, url string, body io.Reader, exceptedCode int) Result {
-	self.Warnings = nil
-
-	//fmt.Println(action, url)
+func InvokeWeb(action, url string, body io.Reader, exceptedCode int, result interface{}) RuntimeError {
 	req, err := http.NewRequest(action, url, body)
 	if err != nil {
-		return ReturnError(BadRequestCode, err.Error())
+		return NewApplicationError(BadRequestCode, err.Error())
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Connection", "Keep-Alive")
 	resp, e := http.DefaultClient.Do(req)
 	if nil != e {
-		return networkError(e.Error())
+		return NewApplicationError(NetworkErrorCode, e.Error())
 	}
 
 	// Install closing the request body (if any)
@@ -95,27 +92,40 @@ func (self *HttpClient) InvokeWith(action, url string, body io.Reader, exceptedC
 	if resp.StatusCode != exceptedCode {
 		resp_body := readAllBytes(resp.Body)
 		if nil == resp_body || 0 == len(resp_body) {
-			return httpError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
+			return NewApplicationError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
 		}
 
-		return httpError(resp.StatusCode, string(resp_body))
+		return NewApplicationError(resp.StatusCode, string(resp_body))
 		//return httpError(resp.StatusCode, fmt.Sprintf("[%v]%v", resp.StatusCode, string(resp_body)))
 	}
 
 	// resp_body := readAllBytes(resp.Body)
 	// if nil == resp_body || 0 == len(resp_body) {
-	// 	return httpError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
+	// 	return NewApplicationError(resp.StatusCode, fmt.Sprintf("%v: error", resp.StatusCode))
 	// }
 
-	//decoder := json.NewDecoder(bytes.NewBuffer(resp_body))
+	// if strings.Contains(url, "snapshot") {
+	// 	fmt.Println(string(resp_body))
+	// }
+
+	// decoder := json.NewDecoder(bytes.NewBuffer(resp_body))
 	decoder := json.NewDecoder(resp.Body)
 	decoder.UseNumber()
 
-	var result SimpleResult
-	e = decoder.Decode(&result)
+	e = decoder.Decode(result)
 	if nil != e {
 		//fmt.Println(string(resp_body))
-		return unmarshalError(e)
+		return NewApplicationError(InternalErrorCode, e.Error())
+	}
+	return nil
+}
+
+func (self *HttpClient) InvokeWith(action, url string, body io.Reader, exceptedCode int) Result {
+	self.Warnings = nil
+	var result SimpleResult
+	err := InvokeWeb(action, url, body, exceptedCode, &result)
+	if nil != err {
+		result.SetError(err.Code(), err.Error())
 	}
 	return &result
 }

@@ -21,26 +21,28 @@ import (
 var loadThreshold = 20
 
 type server struct {
-	closed     int32
-	interval   time.Duration
-	C          chan func()
-	wait       sync.WaitGroup
-	jobs       map[string]Job
-	client     *ds.Client
-	ctx        map[string]interface{}
-	firedAt    time.Time
-	last_error error
-	close_list []commons.Closeable
+	closed           int32
+	interval         time.Duration
+	C                chan func()
+	wait             sync.WaitGroup
+	jobs             map[string]Job
+	client           *ds.Client
+	ctx              map[string]interface{}
+	firedAt          time.Time
+	last_error       error
+	close_list       []commons.Closeable
+	cached_snapshots []*ds.RecordVersion
 }
 
 func newServer(refresh time.Duration, client *ds.Client, ctx map[string]interface{}, close_list []commons.Closeable) (*server, error) {
 	srv := &server{closed: 0,
-		interval:   refresh,
-		C:          make(chan func()),
-		jobs:       make(map[string]Job),
-		client:     client,
-		ctx:        ctx,
-		close_list: close_list}
+		interval:         refresh,
+		C:                make(chan func()),
+		jobs:             make(map[string]Job),
+		client:           client,
+		ctx:              ctx,
+		close_list:       close_list,
+		cached_snapshots: make([]*ds.RecordVersion, 1000)}
 
 	if e := srv.onStart(); nil != e {
 		return nil, e
@@ -241,7 +243,7 @@ func (s *server) onStop() {
 
 func (s *server) onIdle() {
 	s.firedAt = time.Now()
-	new_snapshots, e := s.client.Snapshot("trigger", map[string]string{})
+	new_snapshots, e := s.client.Snapshot("trigger", map[string]string{}, s.cached_snapshots)
 	if nil != e {
 		s.last_error = e
 		log.Println("[srv] poll failed,", e)

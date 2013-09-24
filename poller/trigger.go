@@ -332,6 +332,7 @@ func (self *intervalTrigger) run() {
 				self.set_last_error(fmt.Errorf("sampling failed, unsupported type - %T", o))
 				break
 			}
+
 			now := time.Now().Unix()
 			atomic.StoreInt64(&self.end_fired_at, now)
 			used_duration := now - atomic.LoadInt64(&self.begin_fired_at)

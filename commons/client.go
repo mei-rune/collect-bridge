@@ -85,6 +85,7 @@ func InvokeWeb(action, url string, body io.Reader, exceptedCode int, result inte
 	// Install closing the request body (if any)
 	defer func() {
 		if nil != resp.Body {
+			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
 		}
 	}()

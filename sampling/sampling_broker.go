@@ -7,6 +7,7 @@ import (
 	"errors"
 	"expvar"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -436,6 +437,7 @@ func exchangeTo(method, url string, id_list []uint64, requests []*ExchangeReques
 
 	defer func() {
 		if nil != resp.Body {
+			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
 		}
 	}()

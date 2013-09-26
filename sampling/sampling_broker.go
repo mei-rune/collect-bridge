@@ -400,13 +400,15 @@ func (self *SamplingBroker) reply(c chan<- interface{}, response *ExchangeRespon
 			e = errors.New(buffer.String())
 		}
 	}()
-	c <- response
+
+	//fmt.Println("[send]", response.ChannelName, response.Value(), response.ErrorMessage(), time.Now())
+	//c <- response
 
 	// TODO: 因为和trigger产生死锁，暂时在这里解决一下，请尽快重构 trigger.
-	// select {
-	// case c <- response:
-	// default:
-	// }
+	select {
+	case c <- response:
+	default:
+	}
 	return nil
 }
 

@@ -183,6 +183,7 @@ func (s *server) stopJob(id string, reason int) {
 }
 
 func (s *server) onStart() error {
+	s.firedAt = time.Now()
 	results, err := s.client.FindByWithIncludes("trigger", map[string]string{}, "action")
 	if nil != err {
 		return errors.New("load triggers from db failed," + err.Error())
@@ -229,6 +230,7 @@ func (s *server) onStart() error {
 		}
 	}
 
+	log.Println("[srv] start is ok and", time.Now().Sub(s.firedAt), "is elapsed")
 	return nil
 }
 

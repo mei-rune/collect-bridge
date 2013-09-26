@@ -293,7 +293,6 @@ func (self *alertAction) gen_message(current, previous, reason int, evt map[stri
 			if nil == e {
 				return buffer.String()
 			}
-			fmt.Println("execute template failed, " + e.Error())
 			self.informations.Push("execute template failed, " + e.Error())
 		}
 		switch reason {

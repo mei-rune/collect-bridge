@@ -212,10 +212,10 @@ func TestIntegratedAlert(t *testing.T) {
 			t.Error(ej.e)
 			return
 		}
-		tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+		tr_instance := server_test.jobs[mt_id].(*metricJob)
 
 		for i := 0; i < 100; i++ {
-			if nil != tr_instance.last_error {
+			if "" != tr_instance.last_error {
 				t.Error(tr_instance.last_error)
 				return
 			}
@@ -286,10 +286,10 @@ func TestIntegratedAlert2(t *testing.T) {
 			t.Error(ej.e)
 			return
 		}
-		tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+		tr_instance := server_test.jobs[mt_id].(*metricJob)
 
 		for i := 0; i < 100; i++ {
-			if nil != tr_instance.last_error {
+			if "" != tr_instance.last_error {
 				t.Error(tr_instance.last_error)
 				return
 			}
@@ -382,10 +382,10 @@ func TestIntegratedHistory(t *testing.T) {
 			t.Error(ej.e)
 			return
 		}
-		tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+		tr_instance := server_test.jobs[mt_id].(*metricJob)
 
 		for i := 0; i < 100; i++ {
-			if nil != tr_instance.last_error {
+			if "" != tr_instance.last_error {
 				t.Error(tr_instance.last_error)
 				return
 			}
@@ -453,11 +453,11 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 					t.Error(ej.e)
 					return
 				}
-				tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+				tr_instance := server_test.jobs[mt_id].(*metricJob)
 
 				is_ok := false
 				for i := 0; i < 100; i++ {
-					if nil != tr_instance.last_error {
+					if "" != tr_instance.last_error {
 						t.Error(tr_instance.last_error)
 						return
 					}
@@ -611,10 +611,10 @@ func TestIntegratedHistoryWithCarrier(t *testing.T) {
 				t.Error(ej.e)
 				return
 			}
-			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+			tr_instance := server_test.jobs[mt_id].(*metricJob)
 
 			for i := 0; i < 100; i++ {
-				if nil != tr_instance.last_error {
+				if "" != tr_instance.last_error {
 					t.Error(tr_instance.last_error)
 					return
 				}

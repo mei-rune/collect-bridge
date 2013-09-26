@@ -741,7 +741,6 @@ func TestAlertLoadLastStatus(t *testing.T) {
 
 			select {
 			case v := <-c:
-				fmt.Println(v)
 				if status != v.attributes["status"] {
 					t.Errorf("status != %v, actual is %v", status, v.attributes["status"])
 				}

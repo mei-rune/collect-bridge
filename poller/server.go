@@ -64,7 +64,6 @@ func (s *server) Close() {
 
 func (s *server) serve() {
 	defer func() {
-		fmt.Println("close srv2")
 		atomic.StoreInt32(&s.closed, 1)
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer

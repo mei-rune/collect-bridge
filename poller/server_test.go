@@ -63,7 +63,7 @@ func TestLoadCookiesWhileStartServer(t *testing.T) {
 				t.Error(ej.e)
 				return
 			}
-			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+			tr_instance := server_test.jobs[mt_id].(*metricJob)
 			tr_instance.callAfter()
 			//server_test.jobs[mt_id].(*metricJob).callAfter()
 			stats := server_test.jobs[mt_id].Stats()
@@ -142,7 +142,7 @@ func TestLoadCookiesWhileOnTick(t *testing.T) {
 					t.Error(ej.e)
 					return
 				}
-				tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+				tr_instance := server_test.jobs[mt_id].(*metricJob)
 				tr_instance.callAfter()
 				//server_test.jobs[mt_id].(*metricJob).callAfter()
 				stats := server_test.jobs[mt_id].Stats()
@@ -201,7 +201,7 @@ func TestLoadCookiesWhileOnTickWithNotfound(t *testing.T) {
 				t.Error(ej.e)
 				return
 			}
-			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+			tr_instance := server_test.jobs[mt_id].(*metricJob)
 			tr_instance.callAfter()
 			stats := server_test.jobs[mt_id].Stats()
 			bs, e := json.MarshalIndent(stats, "", "  ")
@@ -380,7 +380,7 @@ func TestCookiesLoadStatus(t *testing.T) {
 				t.Error(ej.e)
 				return
 			}
-			tr_instance := server_test.jobs[mt_id].(*metricJob).Trigger.(*intervalTrigger)
+			tr_instance := server_test.jobs[mt_id].(*metricJob)
 			//tr_instance.callAfter()
 			action := tr_instance.actions[0]
 			action.RunAfter()

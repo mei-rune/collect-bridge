@@ -1,31 +1,18 @@
 package poller
 
 import (
+	"bytes"
 	"commons"
 	"errors"
 	"fmt"
+	"log"
+	"runtime"
 	"sampling"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 )
-
-const (
-	CLOSE_REASON_NORMAL   = -1
-	CLOSE_REASON_UNKNOW   = 0
-	CLOSE_REASON_DISABLED = 1
-	CLOSE_REASON_DELETED  = 2
-	CLOSE_REASON_MAX      = 2
-)
-
-type Job interface {
-	Interupt()
-	Close(reason int)
-
-	Id() string
-	Name() string
-	Stats() map[string]interface{}
-	Version() time.Time
-}
 
 func newJob(attributes, ctx map[string]interface{}) (Job, error) {
 	t := attributes["type"]
@@ -37,37 +24,165 @@ func newJob(attributes, ctx map[string]interface{}) (Job, error) {
 }
 
 type metricJob struct {
-	Trigger
-	metric string
-	params map[string]string
-	client sampling.ChannelClient
+	*baseJob
+	c              chan interface{}
+	client         sampling.ChannelClient
+	triggerBuilder TriggerBuilder
+	wait           sync.WaitGroup
+	closed         int32
+
+	metric            string
+	max_used_duration int64
+	begin_fired_at    int64
+	end_fired_at      int64
+}
+
+func (self *metricJob) Interupt() {
+	if 1 == atomic.LoadInt32(&self.closed) {
+		return
+	}
+
+	self.c <- 0
 }
 
 func (self *metricJob) Close(reason int) {
-	self.Trigger.Close(reason)
-}
-func (self *metricJob) Stats() map[string]interface{} {
-	res := self.Trigger.Stats()
-	if nil != self.params {
-		for k, v := range self.params {
-			res[k] = v
-		}
+	if 1 == atomic.LoadInt32(&self.closed) {
+		return
 	}
-	return res
+	if nil != self.client {
+		self.client.Close()
+	}
+	close(self.c)
+	self.wait.Wait()
+	self.reset(reason)
 }
 
-func (self *metricJob) run(t time.Time) error {
-	self.client.Send()
+func (self *metricJob) Stats() map[string]interface{} {
+	m := self.baseJob.Stats()
+	m["max_used_duration"] = strconv.FormatInt(atomic.LoadInt64(&self.max_used_duration), 10) + "s"
+	m["begin_fired_at"] = time.Unix(atomic.LoadInt64(&self.begin_fired_at), 0)
+	m["end_fired_at"] = time.Unix(atomic.LoadInt64(&self.end_fired_at), 0)
+	return m
+}
+
+func (self *metricJob) init(delay time.Duration) error {
+	if 1 == atomic.LoadInt32(&self.closed) {
+		return nil
+	}
+
+	sinit := func() {
+		go self.run()
+		self.wait.Add(1)
+	}
+
+	if 0 == delay {
+		sinit()
+	} else {
+		time.AfterFunc(delay, sinit)
+	}
+
 	return nil
 }
 
-func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
-	id, e := commons.GetString(attributes, "id")
+func (self *metricJob) run() {
+	defer func() {
+		if e := recover(); nil != e {
+			var buffer bytes.Buffer
+			buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+			for i := 1; ; i += 1 {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+			}
+			msg := buffer.String()
+			log.Println(msg)
+			self.set_last_error(msg)
+		}
+
+		atomic.StoreInt32(&self.closed, 1)
+		self.wait.Done()
+	}()
+
+	trigger, e := self.triggerBuilder.New()
 	if nil != e {
-		return nil, errors.New("'id' is required, " + e.Error())
+		self.set_last_error(e.Error())
+		return
 	}
-	if 0 == len(id) {
-		return nil, errors.New("'id' is empty")
+	defer trigger.Close()
+
+	is_running := true
+	for is_running {
+		select {
+		case o, ok := <-self.c:
+			if !ok || 0 == o {
+				is_running = false
+				break
+			}
+
+			res, ok := o.(ValueResult)
+			if !ok {
+				self.set_last_error(fmt.Sprintf("sampling failed, unsupported type - %T", o))
+				break
+			}
+
+			now := time.Now().Unix()
+			atomic.StoreInt64(&self.end_fired_at, now)
+			used_duration := now - atomic.LoadInt64(&self.begin_fired_at)
+			if self.max_used_duration < used_duration {
+				atomic.StoreInt64(&self.max_used_duration, used_duration)
+			}
+
+			if res.HasError() {
+				self.set_last_error("sampling failed, " + res.ErrorMessage())
+			} else {
+				self.set_last_error("")
+			}
+			self.callActions(res.CreatedAt(), res)
+		case <-trigger.GetChannel():
+			self.timeout(time.Now())
+		}
+	}
+}
+
+func (self *metricJob) timeout(t time.Time) {
+	startedAt := t.Unix()
+	if 60 > startedAt-atomic.LoadInt64(&self.begin_fired_at) {
+		return
+	}
+
+	defer func() {
+		if e := recover(); nil != e {
+			var buffer bytes.Buffer
+			buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+			for i := 1; ; i += 1 {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+			}
+			msg := buffer.String()
+			self.set_last_error(msg)
+			log.Println(msg)
+
+			now := time.Now().Unix()
+			atomic.StoreInt64(&self.end_fired_at, now)
+			if self.max_used_duration < now-startedAt {
+				atomic.StoreInt64(&self.max_used_duration, now-startedAt)
+			}
+		}
+	}()
+
+	atomic.StoreInt64(&self.begin_fired_at, startedAt)
+	self.client.Send()
+}
+
+func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
+	id := commons.GetStringWithDefault(attributes, "id", "")
+	if "" == id {
+		return nil, IdIsRequired
 	}
 
 	metric, e := commons.GetString(attributes, "metric")
@@ -94,24 +209,32 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		return nil, errors.New("'sampling_broker' is not a SamplingBroker in the ctx.")
 	}
 
-	job := &metricJob{metric: metric,
-		params: map[string]string{"managed_type": "managed_object", "managed_id": parentId, "metric": metric, "trigger_id": id}}
-
-	job.Trigger, e = newTrigger(attributes,
-		map[string]interface{}{"managed_type": "managed_object", "managed_id": parentId_int64, "metric": metric, "trigger_id": id},
-		ctx,
-		job.run)
+	options := map[string]interface{}{"managed_type": "managed_object",
+		"managed_id": parentId_int64, "metric": metric, "trigger_id": id}
+	base, e := newBase(attributes, options, ctx)
 	if nil != e {
 		return nil, e
 	}
 
+	triggerBuilder, e := newTrigger(attributes, ctx)
+	if nil != e {
+		return nil, e
+	}
+
+	c := make(chan interface{}, 10)
 	cname := sampling.MakeChannelName(metric, "managed_object", parentId, "", nil)
-	client, e := broker.SubscribeClient(cname, job.Trigger.GetChannel(), "GET", metric, "managed_object", parentId, "", nil, nil, 8*time.Second)
+	client, e := broker.SubscribeClient(cname, c, "GET", metric, "managed_object", parentId, "", nil, nil, 8*time.Second)
+	if nil != e {
+		return nil, e
+	}
+
+	job := &metricJob{baseJob: base, c: c, client: client, closed: 0, metric: metric, triggerBuilder: triggerBuilder}
+	e = job.init(delay_interval())
 	if nil != e {
 		job.Close(CLOSE_REASON_NORMAL)
 		return nil, e
 	}
-	job.client = client
+
 	return job, nil
 }
 

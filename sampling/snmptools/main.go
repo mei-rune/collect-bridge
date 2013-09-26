@@ -403,6 +403,7 @@ func metric_invoke() error {
 	default:
 		return errors.New("unsupported action - " + *action)
 	}
+	defer resp.Body.Close()
 
 	bs, err := ioutil.ReadAll(resp.Body)
 	if nil != err {

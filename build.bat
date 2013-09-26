@@ -153,7 +153,7 @@ go get github.com/tgulacsi/goracle/godrv
 :build_3td_library
 @if not defined is_compile goto build_3td_library_ok
 for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
-  copy "%%a\bin\goose.exe"  "%PUBLISH_PATH%\bin\tpt_goose.exe"
+  copy "%%a\bin\goose.exe"  "%PUBLISH_PATH%\bin\goose.exe"
   @if errorlevel 1 goto failed
 
   cd "%%a\src\github.com\runner-mei\daemontools\daemontools"
@@ -282,7 +282,7 @@ copy "%ENGINE_PATH%\src\sampling\sampling\sampling.exe"  "%PUBLISH_PATH%\bin\tpt
 @if errorlevel 1 goto failed
 copy "%ENGINE_PATH%\src\sampling\sampling\oid2type.dat" "%PUBLISH_PATH%\lib\oid2type.dat"
 @if errorlevel 1 goto failed
-copy "%ENGINE_PATH%\src\sampling\snmptools\snmptools.exe"  %PUBLISH_PATH%\tools\tpt_snmptools.exe
+copy "%ENGINE_PATH%\src\sampling\snmptools\snmptools.exe"  %PUBLISH_PATH%\tools\snmptools.exe
 @if errorlevel 1 goto failed
 copy "%ENGINE_PATH%\src\lua_binding\lib\lua52_amd64.dll" "%PUBLISH_PATH%\bin\lua52_amd64.dll"
 @if errorlevel 1 goto failed

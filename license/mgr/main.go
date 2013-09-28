@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	cmd                 = flag.String("cmd", "", "create, import")
+	cmd                 = flag.String("cmd", "", "open, sign")
 	file                = flag.String("file", "", "数据文件")
 	licensePath         = flag.String("lic", "", "License文件")
 	TsnPrivateKeyString = `-----BEGIN RSA PRIVATE KEY-----
@@ -70,7 +70,7 @@ func init() {
 func main() {
 	flag.Parse()
 	args := flag.Args()
-	if nil != args {
+	if nil != args && 0 != len(args) {
 		switch len(args) {
 		case 1:
 			flag.Set("cmd", args[0])
@@ -137,9 +137,11 @@ func gen_cmd() {
 		log.Fatal("创建加密对象失败 -", e)
 		return
 	}
-	data_length := (len(json_data)/block.BlockSize() + 1) * block.BlockSize()
-	for i := len(json_data); i < data_length; i++ {
-		json_data = append(json_data, ' ')
+	if 0 != len(json_data)%block.BlockSize() {
+		data_length := (len(json_data)/block.BlockSize() + 1) * block.BlockSize()
+		for i := len(json_data); i < data_length; i++ {
+			json_data = append(json_data, ' ')
+		}
 	}
 	dst := make([]byte, len(json_data))
 	for i := 0; ; i += block.BlockSize() {

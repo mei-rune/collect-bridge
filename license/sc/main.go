@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"license"
 	"os"
+	"path/filepath"
 )
 
 var (
@@ -20,10 +21,29 @@ var (
 	node    = flag.Int("node", 0, "the node count")
 )
 
+func abs(pa string) string {
+	s, e := filepath.Abs(pa)
+	if nil != e {
+		panic(e.Error())
+	}
+	return s
+}
+
+func searchDir() (string, bool) {
+	files := []string{abs(filepath.Join("lib")),
+		abs(filepath.Join("..", "lib"))}
+	for _, file := range files {
+		if st, e := os.Stat(file); nil == e && nil != st && st.IsDir() {
+			return filepath.Base(file), true
+		}
+	}
+	return abs("."), false
+}
+
 func main() {
 	flag.Parse()
 	args := flag.Args()
-	if nil != args {
+	if nil != args && 0 != len(args) {
 		switch len(args) {
 		case 1:
 			flag.Set("cmd", args[0])
@@ -118,11 +138,42 @@ func import_cmd() {
 		return
 	}
 
-	_, e = license.DecryptoLicense(data)
+	lic_txt, e := license.DecryptoLicense(data)
 	if nil != e {
-		fmt.Println("解密对象失败(第一步) -", e)
+		fmt.Println(e)
+		os.Exit(-1)
+		return
+	}
+	var attributes map[string]interface{}
+	decoder := json.NewDecoder(bytes.NewBuffer(lic_txt))
+	decoder.UseNumber()
+	if e = decoder.Decode(&attributes); nil != e {
+		fmt.Println("解析数据失败(第二步) -" + e.Error())
 		os.Exit(-1)
 		return
 	}
 
+	for _, s := range []string{"company", "phone", "contact", "node"} {
+		v, ok := attributes[s]
+		if !ok || nil == v {
+			fmt.Println("'" + s + "' 不存在 -" + e.Error())
+			os.Exit(-1)
+			return
+		}
+		sv := fmt.Sprint(v)
+		if "" == sv {
+			fmt.Println("'" + s + "' 不存在 -" + e.Error())
+			os.Exit(-1)
+			return
+		}
+		fmt.Println(s+":", sv)
+	}
+
+	pa, _ := searchDir()
+	nm := filepath.Join(pa, "tpt.lic")
+	if e = ioutil.WriteFile(nm, data, 0); nil != e {
+		fmt.Println("写文件 '"+nm+"'失败 -", e)
+		os.Exit(-1)
+		return
+	}
 }

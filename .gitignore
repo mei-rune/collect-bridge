@@ -12,6 +12,11 @@ out/
 *.a
 *.db
 *.zip
+*.pem
+*.lic
+*.tsn
+*.bin
+*.csr
 
 snmpget
 

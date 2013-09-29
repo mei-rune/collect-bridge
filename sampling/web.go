@@ -1,6 +1,7 @@
 package sampling
 
 import (
+	"commons"
 	"flag"
 	"fmt"
 	"log"
@@ -10,9 +11,9 @@ import (
 )
 
 var (
-	redisAddress       = flag.String("redis.address", "127.0.0.1:6379", "the address of redis")
-	address            = flag.String("sampling.listen", ":7072", "the address of http")
-	ds_url             = flag.String("ds.url", "http://127.0.0.1:7071", "the address of http")
+	redisAddress       = flag.String("redis.address", "127.0.0.1:36379", "the address of redis")
+	address            = flag.String("sampling.listen", ":37072", "the address of http")
+	ds_url             = flag.String("ds.url", "http://127.0.0.1:37071", "the address of http")
 	refresh            = flag.Duration("ds.refresh", 60*time.Second, "the duration of refresh")
 	snmp_timeout       = flag.Duration("snmp.timeout", 30*time.Second, "the timeout duration of snmp")
 	period_interval    = flag.Duration("period", 1*time.Second, "the tick interval of backgroundWorker")
@@ -36,9 +37,13 @@ var (
 
 func Main() {
 	flag.Parse()
-
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
+		return
+	}
+	if e := commons.LoadDefaultProperties("", "", "", "redis.address", map[string]string{"redis.host": "127.0.0.1",
+		"redis.port": "36379"}); nil != e {
+		fmt.Println(e)
 		return
 	}
 

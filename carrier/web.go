@@ -2,6 +2,7 @@ package carrier
 
 import (
 	"bytes"
+	"commons"
 	"commons/types"
 	ds "data_store"
 	"database/sql"
@@ -26,7 +27,7 @@ import (
 )
 
 var (
-	listenAddress          = flag.String("carrier.listen", ":7074", "the address of http")
+	listenAddress          = flag.String("carrier.listen", ":37074", "the address of http")
 	db_url                 = flag.String("data_db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
 	db_drv                 = flag.String("data_db.driver", "postgres", "the db driver")
 	goroutines             = flag.Int("data_db.connections", 10, "the db connection number")
@@ -948,6 +949,16 @@ func Main(is_test bool) error {
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
 		return nil
+	}
+	if e := commons.LoadDefaultProperties("data.", "data_db.driver", "data_db.url", "", map[string]string{"redis.host": "127.0.0.1",
+		"redis.port":  "36379",
+		"db.type":     "postgresql",
+		"db.address":  "127.0.0.1",
+		"db.port":     "5432",
+		"db.schema":   "tpt_data",
+		"db.username": "tpt",
+		"db.password": "extreme"}); nil != e {
+		return e
 	}
 
 	drv := *db_drv

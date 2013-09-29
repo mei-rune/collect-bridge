@@ -16,13 +16,13 @@ import (
 )
 
 var (
-	redisAddress  = flag.String("redis_address", "127.0.0.1:6379", "the address of redis")
-	listenAddress = flag.String("poller.listen", ":7073", "the address of http")
-	dsUrl         = flag.String("ds", "http://127.0.0.1:7071", "the address of ds")
-	sampling_url  = flag.String("sampling", "http://127.0.0.1:7072/batch", "the address of bridge")
+	redisAddress  = flag.String("redis_address", "127.0.0.1:36379", "the address of redis")
+	listenAddress = flag.String("poller.listen", ":37073", "the address of http")
+	dsUrl         = flag.String("ds", "http://127.0.0.1:37071", "the address of ds")
+	sampling_url  = flag.String("sampling", "http://127.0.0.1:37072/batch", "the address of bridge")
 	timeout       = flag.Duration("timeout", 1*time.Minute, "the timeout of http")
 	refresh       = flag.Duration("refresh", 5*time.Second, "the refresh interval of cache")
-	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:7074", "the url of foreign db")
+	foreignUrl    = flag.String("foreign.url", "http://127.0.0.1:37074", "the url of foreign db")
 	load_cookies  = flag.Bool("load_cookies", true, "load cookies is enabled while value is true")
 	not_limit     = flag.Bool("not_limit", false, "not limit")
 
@@ -85,7 +85,7 @@ func forward2(c chan<- *data_object) chan<- *data_object {
 	return c
 }
 
-func Runforever() {
+func Main() {
 	if tran, ok := http.DefaultTransport.(*http.Transport); ok {
 		tran.MaxIdleConnsPerHost = 100
 	}
@@ -93,6 +93,12 @@ func Runforever() {
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
+		return
+	}
+
+	if e := commons.LoadDefaultProperties("", "", "", "redis_address", map[string]string{"redis.host": "127.0.0.1",
+		"redis.port": "36379"}); nil != e {
+		fmt.Println(e)
 		return
 	}
 

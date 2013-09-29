@@ -44,7 +44,7 @@ func TestLoadCookiesWhileStartServer(t *testing.T) {
 
 			is_test = true
 			*load_cookies = true
-			Runforever()
+			Main()
 			if nil == server_test {
 				t.Error("load trigger failed.")
 				return
@@ -88,7 +88,7 @@ func TestLoadCookiesWhileOnTick(t *testing.T) {
 				*foreignUrl = url
 				is_test = true
 				*load_cookies = true
-				Runforever()
+				Main()
 				if nil == server_test {
 					t.Error("load trigger failed.")
 					return
@@ -166,7 +166,7 @@ func TestLoadCookiesWhileOnTickWithNotfound(t *testing.T) {
 			*foreignUrl = url
 			is_test = true
 			*load_cookies = true
-			Runforever()
+			Main()
 			if nil == server_test {
 				t.Error("load trigger failed.")
 				return
@@ -235,7 +235,7 @@ func TestCookiesIsClear(t *testing.T) {
 			}
 
 			is_test = true
-			Runforever()
+			Main()
 			if nil == server_test {
 				t.Error("load trigger failed.")
 				return
@@ -289,7 +289,7 @@ func TestCookiesNotClear(t *testing.T) {
 			}
 
 			is_test = true
-			Runforever()
+			Main()
 			if nil == server_test {
 				t.Error("load trigger failed.")
 				return
@@ -348,7 +348,7 @@ func TestCookiesLoadStatus(t *testing.T) {
 			}
 
 			is_test = true
-			Runforever()
+			Main()
 			if nil == server_test {
 				t.Error("load trigger failed.")
 				return

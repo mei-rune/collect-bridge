@@ -136,6 +136,7 @@ func (self *systemType) Init(params map[string]interface{}) error {
 		if nil != e {
 			log.Println("[warn] load oid2type config from '"+file+"' failed,", e)
 		} else {
+			defer f.Close()
 			log.Println("[warn] load oid2type config from '" + file + "'.")
 			self.device2id = map[string]int{}
 			scanner := bufio.NewScanner(f)

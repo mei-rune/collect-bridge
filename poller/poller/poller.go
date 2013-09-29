@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	poller.Runforever()
+	poller.Main()
 }

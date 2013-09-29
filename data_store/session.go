@@ -4,16 +4,11 @@ import (
 	"commons/types"
 	"database/sql"
 	"errors"
-	"flag"
 	"fmt"
 	_ "github.com/lib/pq"
 	//_ "github.com/mattn/go-sqlite3"
 	"strconv"
 	"strings"
-)
-
-var (
-	IsPostgresqlInherit = flag.Bool("postgresql.inherit", true, "support table inherit of postgresql")
 )
 
 type session struct {
@@ -22,8 +17,8 @@ type session struct {
 }
 
 func newSession(drvName string, conn *sql.DB, tables *types.TableDefinitions) *session {
-	simple := simpleDriver(drvName, conn, !*IsPostgresqlInherit, tables)
-	if POSTGRESQL == simple.dbType && *IsPostgresqlInherit {
+	simple := simpleDriver(drvName, conn, !*isPostgresqlInherit, tables)
+	if POSTGRESQL == simple.dbType && *isPostgresqlInherit {
 		return &session{simple: simple, drv: ctiSupportWithPostgreSQLInherit(simple)}
 	}
 	return &session{simple: simple, drv: ctiSupport(simple)}

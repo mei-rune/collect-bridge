@@ -1,7 +1,10 @@
 package commons
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -190,6 +193,139 @@ func SearchFile(pattern string) string {
 		}
 	}
 	return ""
+}
+
+// func EscapeString(s string, escapeChar, endChar rune, charset string) (string, string) {
+// 	var buffer bytes.Buffer
+// 	is_escape := false
+// 	for i, c := range s {
+// 		if is_escape {
+// 			if !strings.IndexRune(charset, c) {
+// 				buffer.WriteRune('\\')
+// 				if endChar == c {
+// 					return buffer.String(), s[i+1:]
+// 				}
+// 			}
+// 			buffer.WriteRune(rn)
+// 			is_escape = false
+// 		} else if endChar == c {
+// 			return buffer.String(), s[i+1:]
+// 		} else if escapeChar == c {
+// 			is_escape = true
+// 		} else {
+// 			buffer.WriteRune(rn)
+// 		}
+// 	}
+// 	return buffer.String(), ""
+// }
+
+func ReadProperties(nm string) (map[string]string, error) {
+	f, e := os.Open(nm)
+	if nil != e {
+		return nil, e
+	}
+	defer f.Close()
+
+	cfg := map[string]string{}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		ss := strings.SplitN(scanner.Text(), "#", 2)
+		ss = strings.SplitN(ss[0], "//", 2)
+		s := strings.TrimSpace(ss[0])
+		if 0 == len(s) {
+			continue
+		}
+		ss = strings.SplitN(s, "=", 2)
+		key := strings.TrimLeft(strings.TrimSpace(ss[0]), ".")
+		value := strings.TrimSpace(ss[1])
+		if 0 == len(key) {
+			continue
+		}
+		if 0 == len(value) {
+			continue
+		}
+		cfg[key] = os.ExpandEnv(value)
+	}
+	return cfg, nil
+}
+
+func LoadDefaultProperties(db_prefix, drv_name, url_name, redis_name string, defaults map[string]string) error {
+	files := []string{"conf/app.properties",
+		"etc/app.properties",
+		"../conf/app.properties",
+		"../etc/app.properties"}
+	found := false
+	app_file := ""
+	for _, file := range files {
+		if FileExists(file) {
+			app_file = file
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		var buffer bytes.Buffer
+		buffer.WriteString("[warn] properties file is not exists, search path is:\r\n")
+		for _, file := range files {
+			buffer.WriteString("    ")
+			buffer.WriteString(file)
+			buffer.WriteString("\r\n")
+		}
+		fmt.Println(buffer.String())
+		return nil
+	}
+	cfg, e := ReadProperties(app_file)
+	if nil != e {
+		return errors.New("read properties '" + app_file + "' failed," + e.Error())
+	}
+
+	if "" != url_name && !IsSetFlagVar(url_name) {
+		if drv, url, e := createDBUrl(db_prefix, cfg, defaults); nil != e {
+			flag.Set(url_name, url)
+			flag.Set(drv_name, drv)
+		}
+	}
+
+	if "" != redis_name && !IsSetFlagVar(redis_name) {
+		redis_address := stringWith(cfg, "redis.host", defaults["redis.host"])
+		redis_port := stringWith(cfg, "redis.port", defaults["redis.port"])
+		flag.Set(redis_name, redis_address+":"+redis_port)
+	}
+	SetFlags(cfg, nil, false)
+	return nil
+}
+
+func IsSetFlagVar(name string) (ret bool) {
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			ret = true
+		}
+	})
+	return ret
+}
+
+func stringWith(props map[string]string, nm, defaultValue string) string {
+	if v, ok := props[nm]; ok && 0 != len(v) {
+		return v
+	}
+	return defaultValue
+}
+
+func createDBUrl(prefix string, props, defaultValues map[string]string) (string, string, error) {
+	db_type := stringWith(props, prefix+"db.type", defaultValues["db.type"])
+	db_address := stringWith(props, prefix+"db.address", defaultValues["db.address"])
+	db_port := stringWith(props, prefix+"db.port", defaultValues["db.port"])
+	db_schema := stringWith(props, prefix+"db.schema", defaultValues["db.schema"])
+	db_username := stringWith(props, prefix+"db.username", defaultValues["db.username"])
+	db_password := stringWith(props, prefix+"db.password", defaultValues["db.password"])
+	switch db_type {
+	case "postgresql":
+		return "postgres", fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
+			db_address, db_port, db_schema, db_username, db_password), nil
+	default:
+		return "", "", errors.New("unknown db type - " + db_type)
+	}
 }
 
 //const time_format = "time format error with valuw is '%s', excepted format is 'xxx[unit]', xxx is a number, unit must is in (ms, s, m)."

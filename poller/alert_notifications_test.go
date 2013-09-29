@@ -272,7 +272,7 @@ func TestNotificationsForRedis(t *testing.T) {
 				delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
 					is_test = true
 					*foreignUrl = url
-					Runforever()
+					Main()
 					if nil == server_test {
 						t.Error("load trigger failed.")
 						return
@@ -435,7 +435,7 @@ func TestNotificationsForDb(t *testing.T) {
 				dbTest(t, default_db_drv, default_db_url, func(db_drv, db_url string, db *sql.DB) {
 					is_test = true
 					*foreignUrl = url
-					Runforever()
+					Main()
 					if nil == server_test {
 						t.Error("load trigger failed.")
 						return
@@ -515,7 +515,7 @@ func TestNotificationsForExec(t *testing.T) {
 
 				is_test = true
 				*foreignUrl = url
-				Runforever()
+				Main()
 				if nil == server_test {
 					t.Error("load trigger failed.")
 					return
@@ -620,7 +620,7 @@ func TestNotificationsForSyslog(t *testing.T) {
 				delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
 					is_test = true
 					*foreignUrl = url
-					Runforever()
+					Main()
 					if nil == server_test {
 						t.Error("load trigger failed.")
 						return
@@ -712,7 +712,7 @@ func TestNotificationsForMail(t *testing.T) {
 			delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
 				is_test = true
 				*foreignUrl = url
-				Runforever()
+				Main()
 				if nil == server_test {
 					t.Error("load trigger failed.")
 					return

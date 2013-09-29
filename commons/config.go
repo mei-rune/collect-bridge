@@ -89,3 +89,45 @@ func combineName(prefix, nm string) string {
 	}
 	return prefix + "." + nm
 }
+
+func SetFlags(cfg map[string]string, flagSet *flag.FlagSet, isOverride bool) {
+	actual := map[string]string{}
+	flags := make([]*flag.Flag, 0, 10)
+	if nil == flagSet {
+		if !isOverride {
+			flag.Visit(func(g *flag.Flag) {
+				actual[g.Name] = g.Name
+			})
+		}
+		flag.VisitAll(func(g *flag.Flag) {
+			if isOverride {
+				flags = append(flags, g)
+			} else if _, ok := actual[g.Name]; !ok {
+				flags = append(flags, g)
+			}
+		})
+		for _, g := range flags {
+			if v, ok := cfg[g.Name]; ok {
+				flag.Set(g.Name, v)
+			}
+		}
+	} else {
+		if !isOverride {
+			flagSet.Visit(func(g *flag.Flag) {
+				actual[g.Name] = g.Name
+			})
+		}
+		flagSet.VisitAll(func(g *flag.Flag) {
+			if isOverride {
+				flags = append(flags, g)
+			} else if _, ok := actual[g.Name]; !ok {
+				flags = append(flags, g)
+			}
+		})
+		for _, g := range flags {
+			if v, ok := cfg[g.Name]; ok {
+				flagSet.Set(g.Name, v)
+			}
+		}
+	}
+}

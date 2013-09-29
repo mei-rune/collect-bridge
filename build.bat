@@ -175,7 +175,14 @@ for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
 )
 
 :build_3td_library_ok
+cd %ENGINE_PATH%\src\license\sc
+del "*.exe"
+go build
+@if errorlevel 1 goto failed
+copy "%ENGINE_PATH%\src\license\sc\sc.exe"  "%PUBLISH_PATH%\tools\tpt_sc.exe"
 
+
+:build_lua
 @if not defined is_clean goto build_lua_and_cjson
 del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lib\*.dll"
 del /S /Q /F "%ENGINE_PATH%\src\lua_binding\lib\*.exe"

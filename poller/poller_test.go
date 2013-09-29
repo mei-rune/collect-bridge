@@ -120,7 +120,7 @@ func TestIntegratedPoller(t *testing.T) {
 		*load_cookies = false
 		defer func() { *load_cookies = true }()
 		is_test = true
-		Runforever()
+		Main()
 		if nil == server_test {
 			t.Error("load trigger failed.")
 			return
@@ -189,7 +189,7 @@ func TestIntegratedAlert(t *testing.T) {
 		*foreignUrl = ts.URL
 		*load_cookies = false
 		defer func() { *load_cookies = true }()
-		Runforever()
+		Main()
 		if nil == server_test {
 			t.Error("load trigger failed.")
 			return
@@ -267,7 +267,7 @@ func TestIntegratedAlert2(t *testing.T) {
 		*foreignUrl = ts.URL
 		*load_cookies = false
 		defer func() { *load_cookies = true }()
-		Runforever()
+		Main()
 		if nil == server_test {
 			t.Error("load trigger failed.")
 			return
@@ -363,7 +363,7 @@ func TestIntegratedHistory(t *testing.T) {
 		*foreignUrl = ts.URL
 		*load_cookies = false
 		defer func() { *load_cookies = true }()
-		Runforever()
+		Main()
 		if nil == server_test {
 			t.Error("load trigger failed.")
 			return
@@ -435,7 +435,7 @@ func TestIntegratedAlertWithCarrier(t *testing.T) {
 			carrier.SrvTest(t, func(db *sql.DB, url string) {
 				is_test = true
 				*foreignUrl = url
-				Runforever()
+				Main()
 				if nil == server_test {
 					t.Error("test[", nm, "]", "load trigger failed.")
 					return
@@ -592,7 +592,7 @@ func TestIntegratedHistoryWithCarrier(t *testing.T) {
 		carrier.SrvTest(t, func(db *sql.DB, url string) {
 			is_test = true
 			*foreignUrl = url
-			Runforever()
+			Main()
 			if nil == server_test {
 				t.Error("load trigger failed.")
 				return

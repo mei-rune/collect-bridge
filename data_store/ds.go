@@ -21,11 +21,12 @@ import (
 )
 
 var (
-	models_file = flag.String("ds.models", "etc/tpt_models.xml", "the name of models file")
-	db_url      = flag.String("db.url", "host=127.0.0.1 dbname=tpt user=tpt password=extreme sslmode=disable", "the db url")
-	db_drv      = flag.String("db.driver", "postgres", "the db driver")
-	goroutines  = flag.Int("db.connections", 10, "the db connection number")
-	address     = flag.String("ds.listen", ":7071", "the address of http")
+	models_file         = flag.String("ds.models", "etc/tpt_models.xml", "the name of models file")
+	db_url              = flag.String("db.url", "host=127.0.0.1 dbname=tpt user=tpt password=extreme sslmode=disable", "the db url")
+	db_drv              = flag.String("db.driver", "postgres", "the db driver")
+	goroutines          = flag.Int("db.connections", 10, "the db connection number")
+	address             = flag.String("ds.listen", ":37071", "the address of http")
+	isPostgresqlInherit = flag.Bool("postgresql.inherit", true, "support table inherit of postgresql")
 
 	Container    *restful.Container = restful.DefaultContainer
 	is_test      int32              = 0
@@ -63,22 +64,34 @@ func mainHandle(req *restful.Request, resp *restful.Response) {
 
 func Main() {
 	flag.Parse()
-
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
+		return
+	}
+	if e := commons.LoadDefaultProperties("models.", "db.driver", "db.url", "", map[string]string{"redis.host": "127.0.0.1",
+		"redis.port":  "36379",
+		"db.type":     "postgresql",
+		"db.address":  "127.0.0.1",
+		"db.port":     "5432",
+		"db.schema":   "tpt",
+		"db.username": "tpt",
+		"db.password": "extreme"}); nil != e {
+		fmt.Println(e)
 		return
 	}
 
 	files := []string{*models_file,
 		filepath.Join("..", *models_file),
 		"conf/tpt_models.xml",
+		"etc/tpt_models.xml",
 		"../conf/tpt_models.xml",
+		"../etc/tpt_models.xml",
 		"lib/models/tpt_models.xml",
 		"../lib/models/tpt_models.xml"}
 	found := false
 	for _, file := range files {
 		if commons.FileExists(file) {
-			*models_file = file
+			flag.Set("ds.models", file)
 			found = true
 			break
 		}
@@ -249,7 +262,7 @@ func testBase(t *testing.T, file string, init_cb func(drv string, conn *sql.DB),
 	conn.Close()
 	conn = nil
 
-	*models_file = file
+	flag.Set("ds.models", file)
 	atomic.StoreInt32(&is_test, 1)
 
 	Container = restful.NewContainer()
@@ -494,13 +507,13 @@ CREATE TABLE tpt_zip_files (id  INTEGER PRIMARY KEY AUTOINCREMENT, body text, do
 `
 
 		sql_file := drv + "_test.sql"
-		if "postgres" == drv && *IsPostgresqlInherit {
+		if "postgres" == drv && *isPostgresqlInherit {
 			sql_file = drv + "_inherit_test.sql"
 		}
 
 		if !commons.FileExists(sql_file) {
 			file := "../data_store/" + drv + "_test.sql"
-			if "postgres" == drv && *IsPostgresqlInherit {
+			if "postgres" == drv && *isPostgresqlInherit {
 				file = "../data_store/" + drv + "_inherit_test.sql"
 			}
 

@@ -281,10 +281,12 @@ func LoadDefaultProperties(db_prefix, drv_name, url_name, redis_name string, def
 	}
 
 	if "" != url_name && !IsSetFlagVar(url_name) {
-		if drv, url, e := createDBUrl(db_prefix, cfg, defaults); nil != e {
-			flag.Set(url_name, url)
-			flag.Set(drv_name, drv)
+		drv, url, e := CreateDBUrl(db_prefix, cfg, defaults)
+		if nil != e {
+			return e
 		}
+		flag.Set(url_name, url)
+		flag.Set(drv_name, drv)
 	}
 
 	if "" != redis_name && !IsSetFlagVar(redis_name) {
@@ -312,7 +314,7 @@ func stringWith(props map[string]string, nm, defaultValue string) string {
 	return defaultValue
 }
 
-func createDBUrl(prefix string, props, defaultValues map[string]string) (string, string, error) {
+func CreateDBUrl(prefix string, props, defaultValues map[string]string) (string, string, error) {
 	db_type := stringWith(props, prefix+"db.type", defaultValues["db.type"])
 	db_address := stringWith(props, prefix+"db.address", defaultValues["db.address"])
 	db_port := stringWith(props, prefix+"db.port", defaultValues["db.port"])

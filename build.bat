@@ -153,34 +153,34 @@ go get github.com/tgulacsi/goracle/godrv
 :build_3td_library
 @if not defined is_compile goto build_3td_library_ok
 for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
-  copy "%%a\bin\goose.exe"  "%PUBLISH_PATH%\tools\goose.exe"
-  @if errorlevel 1 goto failed
-
   cd "%%a\src\github.com\runner-mei\daemontools\daemontools"
   del "*.exe"
   go build
   @if errorlevel 1 goto failed
-  @if not defined is_install goto build_delayed_job
-  copy daemontools.exe  "%PUBLISH_PATH%\tpt_service_daemon.exe"
-  @if errorlevel 1 goto failed
-
-  :build_delayed_job
-  cd "..\..\delayed_job\delayed_job"
-  del "*.exe"
-  go build
-  @if errorlevel 1 goto failed
   @if not defined is_install goto build_3td_library_ok
-  copy delayed_job.exe  "%PUBLISH_PATH%\bin\tpt_delayed_job.exe"
+  copy daemontools.exe  "%PUBLISH_PATH%\tpt_service_daemon.exe"
   @if errorlevel 1 goto failed
 )
 
 :build_3td_library_ok
+cd %ENGINE_PATH%\src\goose
+del "*.exe"
+go build
+@if errorlevel 1 goto failed
+copy "%ENGINE_PATH%\src\goose\goose.exe"  "%PUBLISH_PATH%\tools\goose.exe"
+
 cd %ENGINE_PATH%\src\license\sc
 del "*.exe"
 go build
 @if errorlevel 1 goto failed
 copy "%ENGINE_PATH%\src\license\sc\sc.exe"  "%PUBLISH_PATH%\tools\tpt_sc.exe"
 
+cd %ENGINE_PATH%\src\delayed_job
+del "*.exe"
+go build
+@if errorlevel 1 goto failed
+copy delayed_job.exe  "%PUBLISH_PATH%\bin\tpt_delayed_job.exe"
+@if errorlevel 1 goto failed
 
 :build_lua
 @if not defined is_clean goto build_lua_and_cjson

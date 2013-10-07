@@ -1,4 +1,4 @@
-package license
+package data_store
 
 import (
 	"fmt"

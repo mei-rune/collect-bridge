@@ -1,6 +1,7 @@
 package license
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/aes"
 	"crypto/rand"
@@ -11,6 +12,10 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 var (
@@ -26,6 +31,8 @@ uQIDAQAB
 -----END PUBLIC KEY-----`
 
 	TsnPublicKey *rsa.PublicKey
+
+	Title = ""
 )
 
 func init() {
@@ -67,7 +74,15 @@ func Encrypt(origData []byte) (string, error) {
 // 	return rsa.DecryptPKCS1v15(rand.Reader, priv, data)
 // }
 
-func DecryptoLicense(data []byte) ([]byte, error) {
+func DecryptoFile(file string) (map[string]interface{}, error) {
+	data, e := ioutil.ReadFile(file)
+	if nil != e {
+		return nil, errors.New("读 license 文件失败 -" + e.Error())
+	}
+	return DecryptoLicense(data)
+}
+
+func DecryptoLicense(data []byte) (map[string]interface{}, error) {
 	encrypted_data, e := hex.DecodeString(string(data))
 	if nil != e {
 		return nil, errors.New("解密对象失败(第一步) -" + e.Error())
@@ -108,7 +123,15 @@ func DecryptoLicense(data []byte) ([]byte, error) {
 	if nil != e {
 		return nil, errors.New("解密对象失败(第一步) -" + e.Error())
 	}
-	return json_data, nil
+	var properties map[string]interface{}
+	decoder := json.NewDecoder(bytes.NewBuffer(json_data))
+	decoder.UseNumber()
+	e = decoder.Decode(&properties)
+	if nil != e {
+		return nil, errors.New("解析数据失败(第二步) -" + e.Error())
+	}
+
+	return properties, nil
 }
 
 func Verify(data []byte, sign_string string) error {
@@ -125,4 +148,24 @@ func Verify(data []byte, sign_string string) error {
 		return errors.New("sign is verify failed, " + err.Error())
 	}
 	return nil
+}
+
+func abs(pa string) string {
+	s, e := filepath.Abs(pa)
+	if nil != e {
+		panic(e.Error())
+	}
+	return s
+}
+
+func SearchLicenseFile(nm string) (string, error) {
+	files := []string{abs(nm),
+		abs(filepath.Join("lib", "tpt.lic")),
+		abs(filepath.Join("..", "lib", "tpt.lic"))}
+	for _, file := range files {
+		if st, e := os.Stat(file); nil == e && nil != st && !st.IsDir() {
+			return file, nil
+		}
+	}
+	return "", errors.New("license file is not exists, search path is:\r\n    " + strings.Join(files, "\r\n    "))
 }

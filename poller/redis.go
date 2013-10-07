@@ -16,14 +16,22 @@ import (
 var redis_error = expvar.NewString("redis_gateway")
 
 type redis_gateway struct {
-	Address string
-	c       chan []string
-	status  int32
-	wait    sync.WaitGroup
+	Address   string
+	c         chan []string
+	is_closed int32
+	wait      sync.WaitGroup
 }
 
 func (self *redis_gateway) isRunning() bool {
-	return 1 == atomic.LoadInt32(&self.status)
+	return 0 == atomic.LoadInt32(&self.is_closed)
+}
+
+func (self *redis_gateway) Close() {
+	if atomic.CompareAndSwapInt32(&self.is_closed, 0, 1) {
+		return
+	}
+	close(self.c)
+	self.wait.Wait()
 }
 
 func (self *redis_gateway) run() {
@@ -64,7 +72,10 @@ func (self *redis_gateway) recvCommands(max_size int) [][]string {
 	commands := make([][]string, 0, max_size)
 
 	for self.isRunning() {
-		cmd := <-self.c
+		cmd, ok := <-self.c
+		if !ok {
+			return commands
+		}
 		if nil == cmd || 0 == len(cmd) {
 			if 0 != len(commands) {
 				return commands
@@ -138,13 +149,8 @@ func (self *redis_gateway) runOnce() {
 	}
 }
 
-func (self *redis_gateway) Close() {
-	atomic.StoreInt32(&self.status, 0)
-	self.wait.Wait()
-}
-
 func newRedis(address string) (*redis_gateway, error) {
-	client := &redis_gateway{Address: address, c: make(chan []string, 3000), status: 1}
+	client := &redis_gateway{Address: address, c: make(chan []string, 3000)}
 	go client.run()
 	client.wait.Add(1)
 	return client, nil

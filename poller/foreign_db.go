@@ -26,17 +26,20 @@ type foreignDb struct {
 	action     string
 	url        string
 	c          chan *data_object
-	status     int32
+	is_closed  int32
 	wait       sync.WaitGroup
 	last_error *expvar.String
 }
 
 func (self *foreignDb) isRunning() bool {
-	return 1 == atomic.LoadInt32(&self.status)
+	return 0 == atomic.LoadInt32(&self.is_closed)
 }
 
 func (self *foreignDb) Close() {
-	atomic.StoreInt32(&self.status, 0)
+	if atomic.CompareAndSwapInt32(&self.is_closed, 0, 1) {
+		return
+	}
+	close(self.c)
 	self.wait.Wait()
 }
 
@@ -157,16 +160,16 @@ func (self *foreignDb) reply(c chan<- error, e error) {
 }
 
 func (self *foreignDb) recvObjects(objects []*data_object, max_size int) []*data_object {
-	cmd := <-self.c
-	if nil == cmd {
+	cmd, ok := <-self.c
+	if nil == cmd || !ok {
 		return objects
 	}
 
 	objects = append(objects, cmd)
 	for self.isRunning() {
 		select {
-		case cmd := <-self.c:
-			if nil == cmd {
+		case cmd, ok := <-self.c:
+			if nil == cmd || !ok {
 				continue
 			}
 
@@ -257,7 +260,6 @@ func newForeignDb(name, url string) (*foreignDb, error) {
 		action:     "PUT",
 		url:        url,
 		c:          make(chan *data_object, 3000),
-		status:     1,
 		last_error: varString}
 	go db.run()
 	db.wait.Add(1)

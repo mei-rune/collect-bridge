@@ -268,6 +268,7 @@ var notifications = []map[string]interface{}{redis_test_attributes,
 func TestNotificationsForRedis(t *testing.T) {
 	redisTest(t, func(redis_channel chan []string, c redis.Conn) {
 		srvTest(t, func(client *ds.Client, definitions *types.TableDefinitions) {
+			flag.Set("redis", *redisAddress)
 			carrier.SrvTest(t, func(db *sql.DB, url string) {
 				delayed_job.WorkTest(t, func(worker *delayed_job.TestWorker) {
 					is_test = true

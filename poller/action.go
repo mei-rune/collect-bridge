@@ -21,9 +21,15 @@ func newAction(attributes, options, ctx map[string]interface{}) (ExecuteAction, 
 	case "redis_command":
 		return newRedisAction(attributes, options, ctx)
 	case "alert":
-		return newAlertAction(attributes, options, ctx)
+		if alert_enabled {
+			return newAlertAction(attributes, options, ctx)
+		}
+		return nil, fmt.Errorf("alert is not enabled")
 	case "history":
-		return newHistoryAction(attributes, options, ctx)
+		if history_enabled {
+			return newHistoryAction(attributes, options, ctx)
+		}
+		return nil, fmt.Errorf("history is not enabled")
 	case "test":
 		return newTestAction(attributes, options, ctx)
 	}

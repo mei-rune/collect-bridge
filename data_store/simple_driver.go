@@ -6,9 +6,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
+)
+
+var (
+	nodeError = errors.New("node count is greater excepted count in the license.")
 )
 
 type driver interface {
@@ -140,6 +146,9 @@ type simple_driver struct {
 	isNumericParams bool
 	hasOnly         bool
 	from            string
+
+	is_unauth     bool
+	invoked_count uint32
 }
 
 func simpleDriver(drvName string, db *sql.DB, hasOnly bool, tables *types.TableDefinitions) *simple_driver {
@@ -179,6 +188,21 @@ func (self *simple_driver) newWhere(idx int,
 	default:
 		builder.limit_and_offset = (*whereBuilder).limit_and_offset_generic
 	}
+	if 19 == atomic.LoadUint32(&self.invoked_count)%2000 {
+		time.AfterFunc(1*time.Second, func() {
+			dt := self.tables.FindByUnderscoreName("network_device")
+			if nil == dt {
+				panic("network_device is not exists.")
+			}
+			count, e := self.count(dt, map[string]string{})
+			if nil == e {
+				self.is_unauth, e = IsMatchNode("device", count)
+				if nil != e {
+					log.Println(e)
+				}
+			}
+		})
+	}
 
 	return builder
 }
@@ -211,12 +235,14 @@ func scanOne(row resultScan, columns []*types.ColumnDefinition) ([]interface{}, 
 
 func (self *simple_driver) selectOne(sql string, args []interface{},
 	columns []*types.ColumnDefinition) ([]interface{}, error) {
+	atomic.AddUint32(&self.invoked_count, 1)
 	row := self.db.QueryRow(sql, args...)
 	return scanOne(row, columns)
 }
 
 func (self *simple_driver) selectAll(sql string, args []interface{},
 	columns []*types.ColumnDefinition) ([][]interface{}, error) {
+	atomic.AddUint32(&self.invoked_count, 1)
 	rs, e := self.db.Prepare(sql)
 	if e != nil {
 		return nil, e
@@ -245,6 +271,7 @@ func (self *simple_driver) selectAll(sql string, args []interface{},
 
 func (self *simple_driver) count(table *types.TableDefinition,
 	params map[string]string) (int64, error) {
+	atomic.AddUint32(&self.invoked_count, 1)
 	var buffer bytes.Buffer
 	buffer.WriteString("SELECT count(*) ")
 	buffer.WriteString(self.from)
@@ -267,11 +294,22 @@ func (self *simple_driver) count(table *types.TableDefinition,
 	if nil != e {
 		return 0, e
 	}
+
+	if "network_device" == table.UnderscoreName {
+		go func() {
+			var e error
+			self.is_unauth, e = IsMatchNode("device", count)
+			if nil != e {
+				log.Println(e)
+			}
+		}()
+	}
 	return count, nil
 }
 
 func (self *simple_driver) snapshot(table *types.TableDefinition,
 	params map[string]string) ([]map[string]interface{}, error) {
+	atomic.AddUint32(&self.invoked_count, 1)
 	var buffer bytes.Buffer
 	buffer.WriteString("SELECT ")
 	writeColumns(snapshot_columns, &buffer)
@@ -439,6 +477,11 @@ func typeFrom(table *types.TableDefinition, attributes map[string]interface{}) (
 
 func (self *simple_driver) insert(table *types.TableDefinition,
 	attributes map[string]interface{}) (int64, error) {
+
+	if self.is_unauth {
+		return 0, nodeError
+	}
+
 	var e error
 	table, e = typeFrom(table, attributes)
 	if nil != e {
@@ -540,6 +583,11 @@ func (self *simple_driver) insert(table *types.TableDefinition,
 
 func (self *simple_driver) update(table *types.TableDefinition, params map[string]string,
 	updated_attributes map[string]interface{}) (int64, error) {
+
+	if self.is_unauth {
+		return 0, nodeError
+	}
+
 	var buffer bytes.Buffer
 	builder := updateBuilder{drv: self,
 		table:  table,
@@ -570,6 +618,11 @@ func (self *simple_driver) update(table *types.TableDefinition, params map[strin
 func (self *simple_driver) updateBySQL(table *types.TableDefinition,
 	updated_attributes map[string]interface{},
 	queryString string, args ...interface{}) (int64, error) {
+
+	if self.is_unauth {
+		return 0, nodeError
+	}
+
 	var buffer bytes.Buffer
 	builder := updateBuilder{drv: self,
 		table:  table,
@@ -596,6 +649,11 @@ func (self *simple_driver) updateBySQL(table *types.TableDefinition,
 
 func (self *simple_driver) updateById(table *types.TableDefinition, id interface{},
 	updated_attributes map[string]interface{}) error {
+
+	if self.is_unauth {
+		return nodeError
+	}
+
 	var buffer bytes.Buffer
 	builder := updateBuilder{drv: self,
 		table:  table,

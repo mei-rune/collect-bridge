@@ -30,6 +30,9 @@ var (
 	Container        *restful.Container = restful.DefaultContainer
 	is_test                             = false
 	server_test      *server            = nil
+
+	alert_enabled   = true
+	history_enabled = true
 )
 
 func init() {
@@ -96,9 +99,35 @@ func Main() {
 		return
 	}
 
+	if !is_test {
+		var e error
+		alert_enabled, e = IsEnabledModule("alert")
+		if nil != e {
+			log.Println("license server is running? -", e)
+			return
+		}
+
+		if alert_enabled {
+			log.Println("alert is enabled.")
+		} else {
+			log.Println("alert is disabled.")
+		}
+
+		history_enabled, e = IsEnabledModule("history")
+		if nil != e {
+			log.Println("license server is running? -", e)
+			return
+		}
+		if history_enabled {
+			log.Println("history is enabled.")
+		} else {
+			log.Println("history is disabled.")
+		}
+	}
+
 	if e := commons.LoadDefaultProperties("", "", "", "redis_address", map[string]string{"redis.host": "127.0.0.1",
 		"redis.port": "36379"}); nil != e {
-		fmt.Println(e)
+		log.Println(e)
 		return
 	}
 
@@ -106,28 +135,28 @@ func Main() {
 
 	alert_foreign, err := newForeignDb("alerts", commons.NewUrlBuilder(*foreignUrl).Concat("alerts").ToUrl())
 	if nil != err {
-		fmt.Println("connect to foreign db failed,", err)
+		log.Println("connect to foreign db failed,", err)
 		return
 	}
 	close_list = append(close_list, alert_foreign)
 
 	histories_foreign, err := newForeignDb("histories", commons.NewUrlBuilder(*foreignUrl).Concat("histories").ToUrl())
 	if nil != err {
-		fmt.Println("connect to foreign db failed,", err)
+		log.Println("connect to foreign db failed,", err)
 		return
 	}
 	close_list = append(close_list, histories_foreign)
 
 	redis_client, err := newRedis(*redisAddress)
 	if nil != err {
-		fmt.Println("connect to redis failed,", err)
+		log.Println("connect to redis failed,", err)
 		return
 	}
 	close_list = append(close_list, redis_client)
 
 	broker, err := sampling.NewBroker("sampling_broker", *sampling_url)
 	if nil != err {
-		fmt.Println("connect to broker failed,", err)
+		log.Println("connect to broker failed,", err)
 		return
 	}
 	close_list = append(close_list, broker)
@@ -143,7 +172,7 @@ func Main() {
 
 	srv, err := newServer(*refresh, ds_client, ctx, close_list)
 	if nil != err {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 	defer func() {

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync/atomic"
 )
 
 type Query interface {
@@ -217,6 +218,7 @@ func (q *QueryImpl) byColumns(rows *sql.Rows) ([]map[string]interface{}, error) 
 }
 
 func (q *QueryImpl) One() (map[string]interface{}, error) {
+	atomic.AddUint32(&q.drv.invoked_count, 1)
 	row := q.drv.db.QueryRow(q.sql, q.parameters...)
 	if q.isSingleTableInheritance {
 		return q.rowbySingleTableInheritance(row)
@@ -226,6 +228,7 @@ func (q *QueryImpl) One() (map[string]interface{}, error) {
 }
 
 func (q *QueryImpl) All() ([]map[string]interface{}, error) {
+	atomic.AddUint32(&q.drv.invoked_count, 1)
 	rs, e := q.drv.db.Prepare(q.sql)
 	if e != nil {
 		return nil, e

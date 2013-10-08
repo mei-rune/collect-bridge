@@ -138,21 +138,12 @@ func import_cmd() {
 		return
 	}
 
-	lic_txt, e := license.DecryptoLicense(data)
+	attributes, e := license.DecryptoLicense(data)
 	if nil != e {
 		fmt.Println(e)
 		os.Exit(-1)
 		return
 	}
-	var attributes map[string]interface{}
-	decoder := json.NewDecoder(bytes.NewBuffer(lic_txt))
-	decoder.UseNumber()
-	if e = decoder.Decode(&attributes); nil != e {
-		fmt.Println("解析数据失败(第二步) -" + e.Error())
-		os.Exit(-1)
-		return
-	}
-
 	for _, s := range []string{"company", "phone", "contact", "node"} {
 		v, ok := attributes[s]
 		if !ok || nil == v {

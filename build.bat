@@ -175,6 +175,12 @@ go build
 @if errorlevel 1 goto failed
 copy "%ENGINE_PATH%\src\license\sc\sc.exe"  "%PUBLISH_PATH%\tools\tpt_sc.exe"
 
+cd %ENGINE_PATH%\src\license\license
+del "*.exe"
+go build
+@if errorlevel 1 goto failed
+copy "%ENGINE_PATH%\src\license\license\license.exe"  "%PUBLISH_PATH%\bin\tpt_license.exe"
+
 cd %ENGINE_PATH%\src\delayed_job
 del "*.exe"
 go build

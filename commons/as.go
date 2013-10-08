@@ -19,6 +19,9 @@ func AsObject(value interface{}) (map[string]interface{}, error) {
 	if m, ok := value.(map[string]interface{}); ok {
 		return m, nil
 	}
+	if nil == value {
+		return nil, ValueIsNil
+	}
 	return nil, IsNotMap
 }
 
@@ -42,6 +45,9 @@ func AsObjects(v interface{}) ([]map[string]interface{}, error) {
 			results = append(results, r)
 		}
 	default:
+		if nil == value {
+			return nil, ValueIsNil
+		}
 		return nil, IsNotMapOrArray
 	}
 	return results, nil
@@ -67,6 +73,9 @@ func AsBool(value interface{}) (bool, error) {
 		case "FALSE", "False", "false", "NO", "No", "no":
 			return false, nil
 		}
+	}
+	if nil == value {
+		return false, ValueIsNil
 	}
 	return false, IsNotBool
 }
@@ -139,6 +148,9 @@ func AsInt64(value interface{}) (int64, error) {
 		if nil == err {
 			return i64, nil
 		}
+	}
+	if nil == value {
+		return 0, ValueIsNil
 	}
 	return 0, IsNotInt64
 }
@@ -231,6 +243,9 @@ func AsUint64(value interface{}) (uint64, error) {
 			return uint64(v), nil
 		}
 	}
+	if nil == value {
+		return 0, ValueIsNil
+	}
 	return 0, IsNotUint64
 }
 
@@ -303,6 +318,9 @@ func AsFloat64(value interface{}) (float64, error) {
 	case int64:
 		return float64(v), nil
 	}
+	if nil == value {
+		return 0, ValueIsNil
+	}
 	return 0, IsNotFloat64
 }
 
@@ -351,6 +369,9 @@ func AsString(value interface{}) (string, error) {
 		} else {
 			return "false", nil
 		}
+	}
+	if nil == value {
+		return "", ValueIsNil
 	}
 	return "", IsNotString
 }

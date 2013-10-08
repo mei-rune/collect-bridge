@@ -10,6 +10,13 @@ var (
 	LicenseUrl *string
 )
 
+func init() {
+	s := "http://127.0.0.1:37076/"
+	if nil == LicenseUrl {
+		LicenseUrl = &s
+	}
+}
+
 func SetInvalidLicense() error {
 	_, _, e := Get(*LicenseUrl + "rth56w3")
 	if nil != e {

@@ -13,7 +13,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/pprof"
+	"os"
 	"runtime"
+	pp "runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
@@ -282,6 +284,8 @@ func (self *server) route(action, metric_name string) (routeObject, commons.Runt
 		"'"+metric_name+"' is not acceptable.")
 }
 
+var pprof_file *os.File
+
 func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if nil != r.Body {
@@ -318,6 +322,43 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pprof.Profile(w, r)
 		case "/debug/pprof/symbol", "/debug/pprof/symbol/":
 			pprof.Symbol(w, r)
+		case "/debug/start_pprof":
+			if nil != pprof_file {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				io.WriteString(w, "pprof is running")
+				return
+			}
+			nm := r.URL.Query().Get("file")
+			if 0 == len(nm) {
+				w.WriteHeader(http.StatusBadRequest)
+				io.WriteString(w, "file is not exists in the query string")
+				return
+			}
+			var e error
+			pprof_file, e = os.OpenFile(nm, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0)
+			if nil != e {
+				w.WriteHeader(http.StatusInternalServerError)
+				io.WriteString(w, e.Error())
+				return
+			}
+
+			if e = pp.StartCPUProfile(pprof_file); nil != e {
+				w.WriteHeader(http.StatusInternalServerError)
+				io.WriteString(w, e.Error())
+				return
+			}
+			io.WriteString(w, "OK")
+
+		case "/debug/stop_pprof":
+			if nil == pprof_file {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				io.WriteString(w, "pprof is NOT running")
+				return
+			}
+			pp.StopCPUProfile()
+			pprof_file.Close()
+			pprof_file = nil
+			io.WriteString(w, "OK")
 		default:
 			if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 				pprof.Index(w, r)

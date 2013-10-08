@@ -14,6 +14,7 @@ func TestInterfaceNative(t *testing.T) {
 			t.Error(e)
 			return
 		}
+
 		res := nativeGet(t, sampling_url, "127.0.0.1", "port/1/interface", map[string]string{"snmp.version": "v2c", "snmp.read_community": "public"})
 		if res.HasError() {
 			t.Error(res.Error())

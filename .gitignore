@@ -17,6 +17,7 @@ out/
 *.tsn
 *.bin
 *.csr
+*.prof
 
 snmpget
 
@@ -54,3 +55,4 @@ initialize
 carrier/db/dbconf-postgresql.yml
 carrier/db/dbconf-mssql.yml
 carrier/db/dbconf-mysql.yml
+sampling/sampling/prof.bat

@@ -44,7 +44,6 @@ func (self *foreignDb) Close() {
 }
 
 func (self *foreignDb) run() {
-	is_running := int32(1)
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -66,41 +65,55 @@ func (self *foreignDb) run() {
 		}
 
 		log.Println("foreignDb is exit.")
-		close(self.c)
-		atomic.StoreInt32(&is_running, 0)
+		atomic.StoreInt32(&self.is_closed, 1)
 		self.wait.Done()
 	}()
 
-	ticker := time.NewTicker(1 * time.Second)
-
-	go func() {
-		defer func() {
-			if o := recover(); nil != o {
-				log.Println("[panic]", o)
-			}
-			ticker.Stop()
-			self.wait.Done()
-		}()
-
-		<-ticker.C
-		for 1 == atomic.LoadInt32(&is_running) {
-			self.c <- nil
-			<-ticker.C
+	cached_objects := make([]*data_object, 0, 50)
+	is_running := true
+	for is_running {
+		cmd, ok := <-self.c
+		if !ok {
+			is_running = false
+			break
 		}
-	}()
 
-	self.wait.Add(1)
+		if nil == cmd {
+			break
+		}
 
-	objects := make([]*data_object, 0, 10)
-	for self.isRunning() {
-		self.runOne(objects[0:0], 10)
+		objects := append(cached_objects[0:0], cmd)
+		one_running := true
+		for one_running {
+			select {
+			case cmd, ok := <-self.c:
+				if !ok {
+					one_running = false
+					is_running = false
+					break
+				}
+
+				if nil == cmd {
+					break
+				}
+
+				objects = append(objects, cmd)
+				if 50 < len(objects) {
+					self.execute(objects)
+					objects = cached_objects[0:0]
+				}
+			default:
+				one_running = false
+			}
+		}
+		if 0 != len(objects) {
+			self.execute(objects)
+		}
 	}
 }
 
-func (self *foreignDb) runOne(cached_array []*data_object, max_size int) {
-	objects := self.recvObjects(cached_array, max_size)
+func (self *foreignDb) execute(objects []*data_object) {
 	if 0 == len(objects) {
-		// idle
 		return
 	}
 
@@ -157,31 +170,6 @@ func (self *foreignDb) reply(c chan<- error, e error) {
 		}
 	}()
 	c <- e
-}
-
-func (self *foreignDb) recvObjects(objects []*data_object, max_size int) []*data_object {
-	cmd, ok := <-self.c
-	if nil == cmd || !ok {
-		return objects
-	}
-
-	objects = append(objects, cmd)
-	for self.isRunning() {
-		select {
-		case cmd, ok := <-self.c:
-			if nil == cmd || !ok {
-				continue
-			}
-
-			objects = append(objects, cmd)
-			if max_size < len(objects) {
-				return objects
-			}
-		default:
-			return objects
-		}
-	}
-	return objects
 }
 
 func (self *foreignDb) save(objects *bytes.Buffer) (e error) {

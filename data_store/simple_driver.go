@@ -188,7 +188,7 @@ func (self *simple_driver) newWhere(idx int,
 	default:
 		builder.limit_and_offset = (*whereBuilder).limit_and_offset_generic
 	}
-	if 19 == atomic.LoadUint32(&self.invoked_count)%2000 {
+	if !is_test && 19 == atomic.LoadUint32(&self.invoked_count)%2000 {
 		time.AfterFunc(1*time.Second, func() {
 			dt := self.tables.FindByUnderscoreName("network_device")
 			if nil == dt {
@@ -295,7 +295,7 @@ func (self *simple_driver) count(table *types.TableDefinition,
 		return 0, e
 	}
 
-	if "network_device" == table.UnderscoreName {
+	if !is_test && "network_device" == table.UnderscoreName {
 		go func() {
 			var e error
 			self.is_unauth, e = IsMatchNode("device", count)

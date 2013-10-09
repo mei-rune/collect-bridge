@@ -95,7 +95,16 @@ func (self *integerType) CreateLengthValidator(minLength,
 func (self *integerType) ToInternal(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
 	case json.Number:
-		return v.Int64()
+		if i64, e := v.Int64(); nil != e {
+			return i64, nil
+		}
+		if f64, e := v.Float64(); nil != e {
+			if 9223372036854775807 >= f64 {
+				return int64(f64), nil
+			}
+			return int64(0), errors.New("it is float64, value is overflow.")
+		}
+		return int64(0), errors.New("json.Number is not int64 and float64?")
 	case string:
 		i64, err := strconv.ParseInt(v, 10, 64)
 		if nil == err {
@@ -111,7 +120,7 @@ func (self *integerType) ToInternal(value interface{}) (interface{}, error) {
 		if 9223372036854775807 >= int64(v) {
 			return int64(v), nil
 		}
-		return int64(0), errors.New("it is uint32, value is overflow.")
+		return int64(0), errors.New("it is uint, value is overflow.")
 	case uint32:
 		return int64(v), nil
 	case uint64:

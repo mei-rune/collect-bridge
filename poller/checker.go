@@ -149,7 +149,12 @@ func get_int64(value interface{}, name string) (int64, error) {
 	if nil != e {
 		return 0, fmt.Errorf("value is not a map, actual is %T", value)
 	}
-	return m.GetInt64(name)
+	i64, e := m.GetInt64(name)
+	if nil != e {
+		v, _ := m.Get(name)
+		return 0, fmt.Errorf("value(%T, %#v) of field '%s' is invalid, %v", v, v, name, e)
+	}
+	return i64, nil
 }
 
 func int_gt(attribute string, operand int64) jsonFunc {

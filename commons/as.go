@@ -148,6 +148,10 @@ func AsInt64(value interface{}) (int64, error) {
 		if nil == err {
 			return i64, nil
 		}
+		f64, err := v.Float64()
+		if nil == err {
+			return int64(f64), nil
+		}
 	}
 	if nil == value {
 		return 0, ValueIsNil
@@ -203,7 +207,11 @@ func AsUint64(value interface{}) (uint64, error) {
 		if nil == err {
 			return i64, nil
 		}
-		return i64, TypeError(err.Error())
+		f64, err := v.Float64()
+		if nil == err {
+			return uint64(f64), nil
+		}
+		return 0, TypeError(err.Error())
 	case uint:
 		return uint64(v), nil
 	case uint8:

@@ -508,6 +508,12 @@ func ReturnWithIsRequired(name string) Result {
 	return ReturnError(BadRequestCode, "'"+name+"' is required.")
 }
 
+func ReturnWithNotFoundWithMessage(id, msg string) Result {
+	if 0 == len(id) {
+		return ReturnError(NotFoundCode, msg)
+	}
+	return ReturnError(NotFoundCode, "'"+id+"' is not found - "+msg)
+}
 func ReturnWithNotFound(id string) Result {
 	return ReturnError(NotFoundCode, "'"+id+"' is not found.")
 }

@@ -405,7 +405,7 @@ func (self *baseH3C) smartRead(name string, params MContext, new_style, compatib
 		return commons.ReturnWithNotAcceptable("not support device.")
 	}
 
-	h3c_style := params.GetIntWithDefault("@h2c_style", 0)
+	h3c_style := params.GetIntWithDefault("@h3c_style", 0)
 	old_h3c_style := h3c_style
 
 	var res map[string]interface{}
@@ -444,7 +444,7 @@ restart_read:
 	}
 
 	if h3c_style != old_h3c_style {
-		params.Set("@h2c_style", h3c_style)
+		params.Set("@h3c_style", h3c_style)
 	}
 
 	return commons.Return(res)

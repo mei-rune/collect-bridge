@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	bs, code, e := license.Get("https://127.0.0.1:10443")
+	bs, code, e := license.Get("https://127.0.0.1:37076")
 	if nil != e {
 		fmt.Println(e)
 		return

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type result_type int
@@ -150,10 +151,10 @@ func (self *snmpBase) Read(params MContext, action, oid string) (map[string]inte
 			snmp_params["snmp.non_repeaters"] = num
 		}
 	}
-
+	startedAt := time.Now()
 	res := self.drv.Get(snmp_params)
 	if res.HasError() {
-		return nil, res.Error()
+		return nil, errors.New(res.ErrorMessage() + " - " + time.Now().Sub(startedAt).String())
 	}
 
 	rv := res.InterfaceValue()

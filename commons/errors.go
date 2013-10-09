@@ -209,7 +209,7 @@ func RecordNotFound(id string) error {
 
 func RecordNotFoundWithType(t, id string) error {
 	if 0 == len(t) {
-		return NewApplicationError(NotFoundCode, "'"+id+"' is not found.")
+		return RecordNotFound(id)
 	}
 	return NewApplicationError(NotFoundCode, t+" with id was '"+id+"' is not found.")
 }

@@ -36,7 +36,7 @@ func delay_interval() time.Duration {
 
 	// delay start trigger after the specific interval
 	delay := delay_start % (5 * 60 * 1000)
-	delay_start += 11
+	delay_start += 113
 	return time.Duration(delay) * time.Millisecond
 }
 

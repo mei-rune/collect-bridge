@@ -91,9 +91,9 @@ func internalErrorResult(msg string, err error) commons.Result {
 			snmpclient.SNMP_CODE_SYNTAX_ENDOFMIBVIEW,   /* exception */
 			snmpclient.SNMP_CODE_ERR_NOSUCHNAME:
 			if 0 == len(msg) {
-				return commons.ReturnWithNotFound(err.Error())
+				return commons.ReturnWithNotFoundWithMessage("", err.Error())
 			}
-			return commons.ReturnWithNotFound(msg + ", " + err.Error())
+			return commons.ReturnWithNotFoundWithMessage("", msg+", "+err.Error())
 		}
 	}
 
@@ -369,11 +369,11 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpc
 
 	timeout := getTimeout(params, self.timeout)
 	next_oids := make([]snmpclient.SnmpOid, 0, len(columns))
-	next_oids_s := make([]string, 0, len(columns))
+	next_oids_prefix := make([]string, 0, len(columns))
 	for _, i := range columns {
 		o := start_oid.Concat(i)
 		next_oids = append(next_oids, o)
-		next_oids_s = append(next_oids_s, o.GetString()+".")
+		next_oids_prefix = append(next_oids_prefix, o.GetString()+".")
 	}
 
 	results := make(map[string]interface{})
@@ -412,19 +412,17 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpc
 		offset := 0
 		for i, vb := range resp.GetVariableBindings().All() {
 			//fmt.Println(i, ",", vb.Oid, ",", vb.Value.String())
-
-			if !strings.HasPrefix(vb.Oid.GetString(), next_oids_s[i]) {
+			vb_oid_str := vb.Oid.GetString()
+			if !strings.HasPrefix(vb_oid_str, next_oids_prefix[i]) {
 				continue
 			}
 
-			sub := vb.Oid.GetUint32s()[len(start_oid)+1:]
-			if 1 > len(sub) {
+			keys := vb_oid_str[len(next_oids_prefix[i]):]
+			if 0 == len(keys) {
 				return commons.ReturnError(commons.InternalErrorCode,
 					fmt.Sprintf("read '%s' return '%s', it is incorrect - value is %s",
 						start_oid.GetString(), vb.Oid.GetString(), vb.Value.String()))
 			}
-
-			keys := snmpclient.NewOid(sub).GetString()
 
 			row, _ := results[keys].(map[string]interface{})
 			if nil == row {
@@ -436,7 +434,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpc
 
 			next_oids[offset] = vb.Oid
 			if offset != i {
-				next_oids_s[offset] = next_oids_s[i]
+				next_oids_prefix[offset] = next_oids_prefix[i]
 				columns[offset] = columns[i]
 			}
 
@@ -445,7 +443,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpc
 		if 0 == offset {
 			break
 		}
-		next_oids_s = next_oids_s[0:offset]
+		next_oids_prefix = next_oids_prefix[0:offset]
 		columns = columns[0:offset]
 		next_oids = next_oids[0:offset]
 	}

@@ -66,11 +66,11 @@ func (self *metricJob) Stats() map[string]interface{} {
 }
 
 func (self *metricJob) init(delay time.Duration) error {
-	if 1 == atomic.LoadInt32(&self.closed) {
-		return nil
-	}
-
 	sinit := func() {
+		if 1 == atomic.LoadInt32(&self.closed) {
+			return
+		}
+
 		go self.run()
 		self.wait.Add(1)
 	}
@@ -127,6 +127,13 @@ func (self *metricJob) run() {
 				break
 			}
 
+			self.callActions(res.CreatedAt(), res)
+			if res.HasError() {
+				self.set_last_error("sampling failed, " + res.ErrorMessage())
+			} else {
+				self.set_last_error("")
+			}
+
 			now := time.Now().Unix()
 			atomic.StoreInt64(&self.end_fired_at, now)
 			used_duration := now - atomic.LoadInt64(&self.begin_fired_at)
@@ -134,12 +141,6 @@ func (self *metricJob) run() {
 				atomic.StoreInt64(&self.max_used_duration, used_duration)
 			}
 
-			if res.HasError() {
-				self.set_last_error("sampling failed, " + res.ErrorMessage())
-			} else {
-				self.set_last_error("")
-			}
-			self.callActions(res.CreatedAt(), res)
 		case <-trigger.GetChannel():
 			self.timeout(time.Now())
 		}

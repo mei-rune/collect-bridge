@@ -388,8 +388,8 @@ func main() {
 	lic := &License{origin: data, meta: attributes}
 	log.Printf("[license] listen at %v", *listen_port)
 	func() { lic.init() }()
-	err = http.ListenAndServe(*listen_port, lic)
-	//err = http.ListenAndServeTLS(*listen_port, "cacert.pem", "key.pem", lic)
+	//err = http.ListenAndServe(*listen_port, lic)
+	err = http.ListenAndServeTLS(*listen_port, "cacert.pem", "key.pem", lic)
 	if err != nil {
 		log.Fatal(err)
 	}

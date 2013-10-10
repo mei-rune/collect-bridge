@@ -1,7 +1,7 @@
 package license
 
 import (
-	"crypto/tls"
+	//"crypto/tls"
 	//"crypto/x509"
 	"fmt"
 	"io/ioutil"

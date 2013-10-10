@@ -202,9 +202,18 @@ func IsRequired(name string) error {
 func NotFound(msg string) error {
 	return NewApplicationError(NotFoundCode, msg)
 }
+func NotFoundWithIdAndMessage(id, msg string) error {
+	if 0 == len(id) {
+		return NotFound(msg)
+	}
+	return NewApplicationError(NotFoundCode, "'"+id+"' is not found - "+msg)
+}
 
-func RecordNotFound(id string) error {
+func RecordNotFoundWithId(id string) error {
 	return NewApplicationError(NotFoundCode, "'"+id+"' is not found.")
+}
+func RecordNotFound(id string) error {
+	return RecordNotFoundWithId(id)
 }
 
 func RecordNotFoundWithType(t, id string) error {

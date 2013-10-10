@@ -95,10 +95,10 @@ func (self *integerType) CreateLengthValidator(minLength,
 func (self *integerType) ToInternal(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
 	case json.Number:
-		if i64, e := v.Int64(); nil != e {
+		if i64, e := v.Int64(); nil == e {
 			return i64, nil
 		}
-		if f64, e := v.Float64(); nil != e {
+		if f64, e := v.Float64(); nil == e {
 			if 9223372036854775807 >= f64 {
 				return int64(f64), nil
 			}

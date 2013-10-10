@@ -154,7 +154,8 @@ func (self *snmpBase) Read(params MContext, action, oid string) (map[string]inte
 	startedAt := time.Now()
 	res := self.drv.Get(snmp_params)
 	if res.HasError() {
-		return nil, errors.New(res.ErrorMessage() + " - " + time.Now().Sub(startedAt).String())
+
+		return nil, commons.NewApplicationError(res.ErrorCode(), res.ErrorMessage()+" - "+time.Now().Sub(startedAt).String())
 	}
 
 	rv := res.InterfaceValue()

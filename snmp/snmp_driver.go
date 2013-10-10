@@ -80,7 +80,7 @@ func internalError(msg string, err error) error {
 	return errors.New(msg + ", " + err.Error())
 }
 
-func internalErrorResult(msg string, err error) commons.Result {
+func internalErrorResult(oid, msg string, err error) commons.Result {
 	if nil == err {
 		return commons.ReturnWithInternalError(msg)
 	}
@@ -91,9 +91,9 @@ func internalErrorResult(msg string, err error) commons.Result {
 			snmpclient.SNMP_CODE_SYNTAX_ENDOFMIBVIEW,   /* exception */
 			snmpclient.SNMP_CODE_ERR_NOSUCHNAME:
 			if 0 == len(msg) {
-				return commons.ReturnWithNotFoundWithMessage("", err.Error())
+				return commons.ReturnWithNotFoundWithMessage(oid, err.Error())
 			}
-			return commons.ReturnWithNotFoundWithMessage("", msg+", "+err.Error())
+			return commons.ReturnWithNotFoundWithMessage(oid, msg+", "+err.Error())
 		}
 	}
 
@@ -139,7 +139,7 @@ func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]str
 
 	client, err := self.GetClient(host)
 	if nil != err {
-		return internalErrorResult("create client failed", err)
+		return internalErrorResult("", "create client failed", err)
 	}
 
 	if snmpclient.SNMP_PDU_TABLE == action {
@@ -158,12 +158,12 @@ func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]str
 
 	req, err := client.CreatePDU(action, version)
 	if nil != err {
-		return internalErrorResult("create pdu failed", err)
+		return internalErrorResult("", "create pdu failed", err)
 	}
 
 	err = req.Init(params)
 	if nil != err {
-		return internalErrorResult("init pdu failed", err)
+		return internalErrorResult("", "init pdu failed", err)
 	}
 
 	switch action {
@@ -202,11 +202,11 @@ func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]str
 
 	resp, err := client.SendAndRecv(req, getTimeout(params, self.timeout))
 	if nil != err {
-		return internalErrorResult("", err)
+		return internalErrorResult(oid, "", err)
 	}
 
 	if 0 == resp.GetVariableBindings().Len() {
-		return internalErrorResult("snmp result is empty", nil)
+		return internalErrorResult("", "snmp result is empty", nil)
 	}
 
 	results := make(map[string]interface{})
@@ -233,7 +233,7 @@ func (self *SnmpDriver) invoke(action snmpclient.SnmpType, params map[string]str
 func (self *SnmpDriver) Get(params map[string]string) commons.Result {
 	action, err := getAction(params)
 	if nil != err {
-		return internalErrorResult("get action failed", err)
+		return internalErrorResult("", "get action failed", err)
 	}
 	return self.invoke(action, params, nil)
 }
@@ -302,7 +302,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client snmpclient.Cli
 
 	start_oid, err := snmpclient.ParseOidFromString(oid)
 	if nil != err {
-		return internalErrorResult("param 'oid' is error", err)
+		return internalErrorResult("", "param 'oid' is error", err)
 	}
 	oid_s := start_oid.GetString()
 	version, e := getVersion(params)
@@ -344,7 +344,7 @@ func (self *SnmpDriver) tableGet(params map[string]string, client snmpclient.Cli
 		next_oid = vb.Oid
 	}
 	if 0 == len(results) {
-		return internalErrorResult("snmp result is empty", nil)
+		return internalErrorResult("", "snmp result is empty", nil)
 	}
 
 	return commons.Return(results)
@@ -355,11 +355,11 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpc
 
 	start_oid, err := snmpclient.ParseOidFromString(oid)
 	if nil != err {
-		return internalErrorResult("param 'oid' is error", err)
+		return internalErrorResult("", "param 'oid' is error", err)
 	}
 	columns, err := commons.ConvertToIntList(columns_str, ",")
 	if nil != err {
-		return internalErrorResult("param 'columns' is error", err)
+		return internalErrorResult("", "param 'columns' is error", err)
 	}
 
 	version, e := getVersion(params)
@@ -381,12 +381,12 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpc
 		var req snmpclient.PDU
 		req, err = client.CreatePDU(snmpclient.SNMP_PDU_GETNEXT, version)
 		if nil != err {
-			return internalErrorResult("create pdu failed", err)
+			return internalErrorResult("", "create pdu failed", err)
 		}
 
 		err = req.Init(params)
 		if nil != err {
-			return internalErrorResult("init pdu failed", err)
+			return internalErrorResult("", "init pdu failed", err)
 		}
 
 		//fmt.Println("===============get==================")
@@ -394,17 +394,17 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpc
 			//fmt.Println(next_oid, ",")
 			err = req.GetVariableBindings().AppendWith(next_oid, snmpclient.NewSnmpNil())
 			if nil != err {
-				return internalErrorResult("append vb failed", err)
+				return internalErrorResult("", "append vb failed", err)
 			}
 		}
 
 		resp, err := client.SendAndRecv(req, timeout)
 		if nil != err {
-			return internalErrorResult("snmp failed", err)
+			return internalErrorResult(oid, "snmp failed", err)
 		}
 
 		if len(next_oids) != resp.GetVariableBindings().Len() {
-			return internalErrorResult(fmt.Sprintf("number of result is mismatch, excepted is %d, actual is %d",
+			return internalErrorResult("", fmt.Sprintf("number of result is mismatch, excepted is %d, actual is %d",
 				len(next_oids), resp.GetVariableBindings().Len()), nil)
 		}
 
@@ -448,7 +448,7 @@ func (self *SnmpDriver) tableGetByColumns(params map[string]string, client snmpc
 		next_oids = next_oids[0:offset]
 	}
 	if 0 == len(results) {
-		return internalErrorResult("snmp result is empty", nil)
+		return internalErrorResult("", "snmp result is empty", nil)
 	}
 	return commons.Return(results)
 }

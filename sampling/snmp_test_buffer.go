@@ -1,8 +1,10 @@
 package sampling
 
 type SnmpTestResult struct {
-	Result    bool  `json:"result"`
-	SampledAt int64 `json:"sampled_at"`
+	Result  bool  `json:"result"`
+	SendAt  int64 `json:"send_at"`
+	RecvAt  int64 `json:"recv_at"`
+	Elapsed int64 `json:"elapsed"` // us
 }
 
 /* Circular buffer object */
@@ -32,18 +34,12 @@ func (self *snmpTestResultBuffer) IsEmpty() bool {
 
 /* Write an element, overwriting oldest element if buffer is full. App can
    choose to avoid the overwrite by checking isFull(). */
-func (self *snmpTestResultBuffer) BeginPush() *SnmpTestResult {
+func (self *snmpTestResultBuffer) Push(elem SnmpTestResult) {
 	end := (self.start + self.count) % len(self.elements)
-	elem := &self.elements[end]
+	self.elements[end] = elem
 	if self.count == len(self.elements) {
 		self.start = (self.start + 1) % len(self.elements) /* full, overwrite */
-		self.count--
-	}
-	return elem
-}
-
-func (self *snmpTestResultBuffer) CommitPush() {
-	if self.count != len(self.elements) {
+	} else {
 		self.count++
 	}
 }

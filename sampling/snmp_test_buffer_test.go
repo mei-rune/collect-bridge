@@ -28,35 +28,35 @@ func TestSnmpTestResultBuffer(t *testing.T) {
 			}
 
 			for i := 0; i < len(all); i++ {
-				if all[i].SampledAt != int64(i) {
-					t.Error("all[", i, "] is error, excepted is ", all[i].SampledAt, ", actual is", i)
+				if all[i].SendAt != int64(i) {
+					t.Error("all[", i, "] is error, excepted is ", all[i].SendAt, ", actual is", i)
 				}
 			}
 
 			for i := 0; i < len(all); i++ {
-				if all[i].SampledAt != cb.Get(i).SampledAt {
-					t.Error("all[", i, "] != cb.Get(", i, "), excepted is ", all[i].SampledAt, ", actual is", cb.Get(i).SampledAt)
+				if all[i].SendAt != cb.Get(i).SendAt {
+					t.Error("all[", i, "] != cb.Get(", i, "), excepted is ", all[i].SendAt, ", actual is", cb.Get(i).SendAt)
 				}
 			}
 
 			if 0 != len(all) {
 
 				if isNoCommit {
-					if c-1 != cb.Last().SampledAt {
-						t.Error("excepted last is", c-1, ", actual is", cb.Last().SampledAt)
+					if c-1 != cb.Last().SendAt {
+						t.Error("excepted last is", c-1, ", actual is", cb.Last().SendAt)
 					}
 				} else {
-					if c != cb.Last().SampledAt {
-						t.Error("excepted last is", c, ", actual is", cb.Last().SampledAt)
+					if c != cb.Last().SendAt {
+						t.Error("excepted last is", c, ", actual is", cb.Last().SendAt)
 					}
 				}
 
-				if all[0].SampledAt != cb.First().SampledAt {
-					t.Error("excepted first is", all[0].SampledAt, ", actual is", cb.First().SampledAt)
+				if all[0].SendAt != cb.First().SendAt {
+					t.Error("excepted first is", all[0].SendAt, ", actual is", cb.First().SendAt)
 				}
 
-				if all[len(all)-1].SampledAt != cb.Last().SampledAt {
-					t.Error("excepted first is", all[len(all)-1].SampledAt, ", actual is", cb.Last().SampledAt)
+				if all[len(all)-1].SendAt != cb.Last().SendAt {
+					t.Error("excepted first is", all[len(all)-1].SendAt, ", actual is", cb.Last().SendAt)
 				}
 			}
 		} else {
@@ -79,48 +79,44 @@ func TestSnmpTestResultBuffer(t *testing.T) {
 			}
 
 			for i := 0; i < len(all); i++ {
-				if all[i].SampledAt != c-9+int64(i) {
-					t.Error("all[", i, "] is error, excepted is", all[i].SampledAt, ", actual is", c-9+int64(i))
+				if all[i].SendAt != c-9+int64(i) {
+					t.Error("all[", i, "] is error, excepted is", all[i].SendAt, ", actual is", c-9+int64(i))
 				}
 			}
 
 			for i := 0; i < len(all); i++ {
-				if all[i].SampledAt != cb.Get(i).SampledAt {
-					t.Error("all[", i, "] != cb.Get(", i, "), excepted is ", all[i].SampledAt, ", actual is", cb.Get(i).SampledAt)
+				if all[i].SendAt != cb.Get(i).SendAt {
+					t.Error("all[", i, "] != cb.Get(", i, "), excepted is ", all[i].SendAt, ", actual is", cb.Get(i).SendAt)
 				}
 			}
 
 			if isNoCommit {
-				if c-1 != cb.Last().SampledAt {
-					t.Error("excepted last is", c-1, ", actual is", cb.Last().SampledAt)
+				if c-1 != cb.Last().SendAt {
+					t.Error("excepted last is", c-1, ", actual is", cb.Last().SendAt)
 				}
 			} else {
-				if c != cb.Last().SampledAt {
-					t.Error("excepted last is", c, ", actual is", cb.Last().SampledAt)
+				if c != cb.Last().SendAt {
+					t.Error("excepted last is", c, ", actual is", cb.Last().SendAt)
 				}
 			}
 
-			if c-9 != cb.First().SampledAt {
-				t.Error("excepted first is", c-9, ", actual is", cb.First().SampledAt)
+			if c-9 != cb.First().SendAt {
+				t.Error("excepted first is", c-9, ", actual is", cb.First().SendAt)
 			}
 
-			if all[0].SampledAt != cb.First().SampledAt {
-				t.Error("excepted first is", all[0].SampledAt, ", actual is", cb.First().SampledAt)
+			if all[0].SendAt != cb.First().SendAt {
+				t.Error("excepted first is", all[0].SendAt, ", actual is", cb.First().SendAt)
 			}
 
-			if all[len(all)-1].SampledAt != cb.Last().SampledAt {
-				t.Error("excepted first is", all[len(all)-1].SampledAt, ", actual is", cb.Last().SampledAt)
+			if all[len(all)-1].SendAt != cb.Last().SendAt {
+				t.Error("excepted first is", all[len(all)-1].SendAt, ", actual is", cb.Last().SendAt)
 			}
 		}
 	}
 
 	for i := 0; i < 100; i++ {
-		cb.BeginPush()
+		cb.Push(SnmpTestResult{SendAt: int64(i)})
 
-		check(cb, int64(i), true)
-		flux := cb.BeginPush()
-		flux.SampledAt = int64(i)
-		cb.CommitPush()
 		check(cb, int64(i), false)
 	}
 }

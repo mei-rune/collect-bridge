@@ -147,7 +147,7 @@ var (
 	AlreadyStartedError = errors.New("already started.")
 	ContinueError       = errors.New("continue")
 	NotImplemented      = NewApplicationError(NotImplementedCode, "not implemented")
-	TimeoutErr          = errors.New(timeout_message)
+	TimeoutErr          = NewApplicationError(GatewayTimeoutCode, timeout_message)
 	DieError            = errors.New("die.")
 	NotExists           = NewApplicationError(NotFoundCode, "not found.")
 	IdNotExists         = IsRequired("id")

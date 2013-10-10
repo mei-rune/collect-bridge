@@ -1,40 +1,40 @@
-package commons
+package sampling
 
 /* Circular buffer object */
-type Uint64Buffer struct {
-	start    int      /* index of oldest element              */
-	count    int      /* the count of elements                */
-	elements []uint64 /* vector of elements                   */
+type snmpPendingBuffer struct {
+	start    int             /* index of oldest element              */
+	count    int             /* the count of elements                */
+	elements []testingRequst /* vector of elements                   */
 }
 
-func NewUint64Buffer(elements []uint64) *Uint64Buffer {
-	return &Uint64Buffer{elements: elements}
+func newPendingBuffer(elements []testingRequst) *snmpPendingBuffer {
+	return &snmpPendingBuffer{elements: elements}
 }
 
-func (self *Uint64Buffer) Init(elements []uint64) {
+func (self *snmpPendingBuffer) Init(elements []testingRequst) {
 	self.elements = elements
 	self.start = 0
 	self.count = 0
 }
 
 /* clear all elements.*/
-func (self *Uint64Buffer) Clear() {
+func (self *snmpPendingBuffer) Clear() {
 	self.start = 0
 	self.count = 0
 }
 
-func (self *Uint64Buffer) IsFull() bool {
+func (self *snmpPendingBuffer) IsFull() bool {
 	return self.count == len(self.elements)
 }
 
 /* return true while size is 0, otherwise return false */
-func (self *Uint64Buffer) IsEmpty() bool {
+func (self *snmpPendingBuffer) IsEmpty() bool {
 	return 0 == self.count
 }
 
 /* Write an element, overwriting oldest element if buffer is full. App can
    choose to avoid the overwrite by checking isFull(). */
-func (self *Uint64Buffer) Push(elem uint64) {
+func (self *snmpPendingBuffer) Push(elem testingRequst) {
 	end := (self.start + self.count) % len(self.elements)
 	self.elements[end] = elem
 	if self.count == len(self.elements) {
@@ -44,9 +44,9 @@ func (self *Uint64Buffer) Push(elem uint64) {
 	}
 }
 
-func (self *Uint64Buffer) Get(idx int) uint64 {
+func (self *snmpPendingBuffer) Get(idx int) testingRequst {
 	if self.IsEmpty() {
-		return 0
+		return testingRequst{}
 	}
 
 	current := (self.start + idx) % len(self.elements)
@@ -54,9 +54,9 @@ func (self *Uint64Buffer) Get(idx int) uint64 {
 }
 
 /* Read oldest element. App must ensure !isEmpty() first. */
-func (self *Uint64Buffer) Pop() uint64 {
+func (self *snmpPendingBuffer) Pop() testingRequst {
 	if self.IsEmpty() {
-		return 0
+		return testingRequst{}
 	}
 
 	elem := self.elements[self.start]
@@ -65,17 +65,28 @@ func (self *Uint64Buffer) Pop() uint64 {
 	return elem
 }
 
-func (self *Uint64Buffer) First() uint64 {
+func (self *snmpPendingBuffer) RemoveFirst(c int) {
+	if self.count <= c {
+		self.start = 0
+		self.count = 0
+		return
+	}
+
+	self.count -= c
+	self.start = (self.start + c) % len(self.elements)
+}
+
+func (self *snmpPendingBuffer) First() testingRequst {
 	if self.IsEmpty() {
-		return 0
+		return testingRequst{}
 	}
 
 	return self.elements[self.start]
 }
 
-func (self *Uint64Buffer) Last() uint64 {
+func (self *snmpPendingBuffer) Last() testingRequst {
 	if self.IsEmpty() {
-		return 0
+		return testingRequst{}
 	}
 
 	end := (self.start + self.count - 1) % len(self.elements)
@@ -83,17 +94,17 @@ func (self *Uint64Buffer) Last() uint64 {
 }
 
 /* Read all elements.*/
-func (self *Uint64Buffer) Size() int {
+func (self *snmpPendingBuffer) Size() int {
 	return self.count
 }
 
 /* Read all elements.*/
-func (self *Uint64Buffer) All() []uint64 {
+func (self *snmpPendingBuffer) All() []testingRequst {
 	if 0 == self.count {
-		return []uint64{}
+		return []testingRequst{}
 	}
 
-	res := make([]uint64, 0, self.count)
+	res := make([]testingRequst, 0, self.count)
 	if self.count <= (len(self.elements) - self.start) {
 		for i := self.start; i < (self.start + self.count); i++ {
 			res = append(res, self.elements[i])

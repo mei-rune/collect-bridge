@@ -53,7 +53,7 @@ func getAction(params map[string]string) (snmpclient.SnmpType, error) {
 	return snmpclient.ParseSnmpAction(v)
 }
 
-func internalError(msg string, err error) error {
+func internalError(oid, msg string, err error) error {
 	if nil == err {
 		return errors.New(msg)
 	}
@@ -65,9 +65,11 @@ func internalError(msg string, err error) error {
 			snmpclient.SNMP_CODE_SYNTAX_ENDOFMIBVIEW,   /* exception */
 			snmpclient.SNMP_CODE_ERR_NOSUCHNAME:
 			if 0 == len(msg) {
-				return commons.NotFound(err.Error())
+				return commons.NotFoundWithIdAndMessage(oid, err.Error())
 			}
-			return commons.NotFound(msg + ", " + err.Error())
+			return commons.NotFoundWithIdAndMessage(oid, msg+", "+err.Error())
+		case snmpclient.SNMP_CODE_TIMEOUT:
+			return commons.TimeoutErr
 		}
 	}
 
@@ -94,10 +96,15 @@ func internalErrorResult(oid, msg string, err error) commons.Result {
 				return commons.ReturnWithNotFoundWithMessage(oid, err.Error())
 			}
 			return commons.ReturnWithNotFoundWithMessage(oid, msg+", "+err.Error())
+		case snmpclient.SNMP_CODE_TIMEOUT:
+			return commons.ReturnError(commons.TimeoutErr.Code(), commons.TimeoutErr.Error())
 		}
 	}
 
 	if 0 == len(msg) {
+		if e, ok := err.(commons.RuntimeError); ok {
+			return commons.ReturnError(e.Code(), msg+", "+err.Error())
+		}
 		return commons.ReturnWithInternalError(err.Error())
 	}
 	if e, ok := err.(commons.RuntimeError); ok {
@@ -272,26 +279,26 @@ func (self *SnmpDriver) getNext(params map[string]string, client snmpclient.Clie
 
 	req, err := client.CreatePDU(snmpclient.SNMP_PDU_GETNEXT, version)
 	if nil != err {
-		return NilVariableBinding, internalError("create pdu failed", err)
+		return NilVariableBinding, internalError("", "create pdu failed", err)
 	}
 
 	err = req.Init(params)
 	if nil != err {
-		return NilVariableBinding, internalError("init pdu failed", err)
+		return NilVariableBinding, internalError("", "init pdu failed", err)
 	}
 
 	err = req.GetVariableBindings().AppendWith(next_oid, snmpclient.NewSnmpNil())
 	if nil != err {
-		return NilVariableBinding, internalError("append vb failed", err)
+		return NilVariableBinding, internalError("", "append vb failed", err)
 	}
 
 	resp, err := client.SendAndRecv(req, timeout)
 	if nil != err {
-		return NilVariableBinding, internalError("snmp failed", err)
+		return NilVariableBinding, internalError(next_oid.GetString(), "snmp failed", err)
 	}
 
 	if 0 == resp.GetVariableBindings().Len() {
-		return NilVariableBinding, internalError("snmp result is empty", nil)
+		return NilVariableBinding, internalError("", "snmp result is empty", nil)
 	}
 
 	return resp.GetVariableBindings().Get(0), nil

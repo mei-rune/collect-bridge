@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+var only_thread_safe = true
+
 func newJob(attributes, ctx map[string]interface{}) (Job, error) {
 	t := attributes["type"]
 	switch t {
@@ -35,6 +37,9 @@ type metricJob struct {
 	max_used_duration int64
 	begin_fired_at    int64
 	end_fired_at      int64
+
+	timeout_histories commons.Int64Buffer
+	recv_histories    samplingBuffer
 }
 
 func (self *metricJob) Interupt() {
@@ -57,11 +62,41 @@ func (self *metricJob) Close(reason int) {
 	self.reset(reason)
 }
 
+func toTimes(ts []int64) []time.Time {
+	if nil == ts {
+		return nil
+	}
+
+	ret := make([]time.Time, len(ts))
+	for i := 0; i < len(ret); i++ {
+		ret[i] = time.Unix(ts[i], 0)
+	}
+	return ret
+}
+
+func toTimesWithResult(ts []samplingResult) []interface{} {
+	if nil == ts {
+		return nil
+	}
+
+	ret := make([]interface{}, len(ts))
+	for i := 0; i < len(ret); i++ {
+		ret[i] = []interface{}{time.Unix(ts[i].sampled_at, 0), ts[i].is_ok}
+	}
+	return ret
+}
+
 func (self *metricJob) Stats() map[string]interface{} {
 	m := self.baseJob.Stats()
 	m["max_used_duration"] = strconv.FormatInt(atomic.LoadInt64(&self.max_used_duration), 10) + "s"
 	m["begin_fired_at"] = time.Unix(atomic.LoadInt64(&self.begin_fired_at), 0)
 	m["end_fired_at"] = time.Unix(atomic.LoadInt64(&self.end_fired_at), 0)
+	// NOTE: it is not thread safely
+	if !only_thread_safe {
+		m["timeout_histories"] = toTimes(self.timeout_histories.All())
+		m["recv_histories"] = toTimesWithResult(self.recv_histories.All())
+	}
+
 	return m
 }
 
@@ -140,7 +175,7 @@ func (self *metricJob) run() {
 			if self.max_used_duration < used_duration {
 				atomic.StoreInt64(&self.max_used_duration, used_duration)
 			}
-
+			self.recv_histories.Push(samplingResult{sampled_at: now, is_ok: !res.HasError()})
 		case <-trigger.GetChannel():
 			self.timeout(time.Now())
 		}
@@ -148,8 +183,8 @@ func (self *metricJob) run() {
 }
 
 func (self *metricJob) timeout(t time.Time) {
-	startedAt := t.Unix()
-	if 60 > startedAt-atomic.LoadInt64(&self.begin_fired_at) {
+	startAt := t.Unix()
+	if 60 > startAt-atomic.LoadInt64(&self.begin_fired_at) {
 		return
 	}
 
@@ -168,15 +203,16 @@ func (self *metricJob) timeout(t time.Time) {
 			self.set_last_error(msg)
 			log.Println(msg)
 
-			now := time.Now().Unix()
-			atomic.StoreInt64(&self.end_fired_at, now)
-			if self.max_used_duration < now-startedAt {
-				atomic.StoreInt64(&self.max_used_duration, now-startedAt)
+			endAt := time.Now().Unix()
+			atomic.StoreInt64(&self.end_fired_at, endAt)
+			if self.max_used_duration < endAt-startAt {
+				atomic.StoreInt64(&self.max_used_duration, endAt-startAt)
 			}
 		}
 	}()
 
-	atomic.StoreInt64(&self.begin_fired_at, startedAt)
+	self.timeout_histories.Push(startAt)
+	atomic.StoreInt64(&self.begin_fired_at, startAt)
 	self.client.Send()
 }
 
@@ -229,7 +265,16 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		return nil, e
 	}
 
-	job := &metricJob{baseJob: base, c: c, client: client, closed: 0, metric: metric, triggerBuilder: triggerBuilder}
+	job := &metricJob{baseJob: base,
+		c:              c,
+		client:         client,
+		closed:         0,
+		metric:         metric,
+		triggerBuilder: triggerBuilder}
+
+	job.timeout_histories.Init(make([]int64, 10))
+	job.recv_histories.Init(make([]samplingResult, 10))
+
 	e = job.init(delay_interval())
 	if nil != e {
 		job.Close(CLOSE_REASON_NORMAL)

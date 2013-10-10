@@ -90,7 +90,7 @@ func (self *StringBuffer) Size() int {
 /* Read all elements.*/
 func (self *StringBuffer) All() []string {
 	if 0 == self.count {
-		return nil
+		return []string{}
 	}
 
 	res := make([]string, 0, self.count)

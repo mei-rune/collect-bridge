@@ -197,6 +197,14 @@ func Main() {
 	ws.Consumes(restful.MIME_XML, restful.MIME_JSON).
 		Produces(restful.MIME_JSON) // you can specify this per route as well
 
+	ws.Route(ws.GET("/only_thread_safe/disable").To(func(req *restful.Request, resp *restful.Response) {
+		only_thread_safe = false
+	}).Doc("disable only_thread_safe flag")) // on the response
+
+	ws.Route(ws.GET("/only_thread_safe/enable").To(func(req *restful.Request, resp *restful.Response) {
+		only_thread_safe = true
+	}).Doc("enable only_thread_safe flag")) // on the response
+
 	ws.Route(ws.GET("/sync").To(srv.Sync).
 		Doc("sync all trigger with db")) // on the response
 

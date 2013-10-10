@@ -90,7 +90,7 @@ func (self *CircularBuffer) Size() int {
 /* Read all elements.*/
 func (self *CircularBuffer) All() []interface{} {
 	if 0 == self.count {
-		return nil
+		return []interface{}{}
 	}
 
 	res := make([]interface{}, 0, self.count)

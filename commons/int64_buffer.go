@@ -90,7 +90,7 @@ func (self *Int64Buffer) Size() int {
 /* Read all elements.*/
 func (self *Int64Buffer) All() []int64 {
 	if 0 == self.count {
-		return nil
+		return []int64{}
 	}
 
 	res := make([]int64, 0, self.count)

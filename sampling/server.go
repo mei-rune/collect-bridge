@@ -322,6 +322,27 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pprof.Profile(w, r)
 		case "/debug/pprof/symbol", "/debug/pprof/symbol/":
 			pprof.Symbol(w, r)
+		case "/debug/mem_pprof":
+			nm := r.URL.Query().Get("file")
+			if 0 == len(nm) {
+				w.WriteHeader(http.StatusBadRequest)
+				io.WriteString(w, "file is not exists in the query string")
+				return
+			}
+			mpprof_file, e := os.OpenFile(nm, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0)
+			if nil != e {
+				w.WriteHeader(http.StatusInternalServerError)
+				io.WriteString(w, e.Error())
+				return
+			}
+			defer mpprof_file.Close()
+
+			if e = pp.WriteHeapProfile(mpprof_file); nil != e {
+				w.WriteHeader(http.StatusInternalServerError)
+				io.WriteString(w, e.Error())
+				return
+			}
+			io.WriteString(w, "OK")
 		case "/debug/start_pprof":
 			if nil != pprof_file {
 				w.WriteHeader(http.StatusMethodNotAllowed)

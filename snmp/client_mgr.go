@@ -1,12 +1,14 @@
 package snmp
 
 import (
-	"commons"
-	"errors"
+	"bytes"
 	"expvar"
 	"fmt"
 	"github.com/runner-mei/snmpclient"
+	"log"
+	"runtime"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -16,36 +18,149 @@ var (
 	id_seq                      int32 = 0
 )
 
+type mgrRequest struct {
+	c      chan *mgrRequest
+	host   string
+	client snmpclient.Client
+	err    error
+}
+
+var (
+	requests_mutex sync.Mutex
+	requests_cache = newRequestBuffer(make([]*mgrRequest, 200))
+)
+
+func init() {
+	expvar.Publish("mgr_request_cache", expvar.Func(func() interface{} {
+		requests_mutex.Lock()
+		size := requests_cache.Size()
+		requests_mutex.Unlock()
+		return size
+	}))
+}
+
+func newRequest() *mgrRequest {
+	requests_mutex.Lock()
+	cached := requests_cache.Pop()
+	requests_mutex.Unlock()
+	if nil != cached {
+		return cached
+	}
+	return &mgrRequest{c: make(chan *mgrRequest, 1)}
+}
+
+func releaseRequest(will_cache *mgrRequest) {
+	will_cache.host = ""
+	will_cache.client = nil
+	will_cache.err = nil
+
+	requests_mutex.Lock()
+	requests_cache.Push(will_cache)
+	requests_mutex.Unlock()
+}
+
 type ClientManager struct {
-	commons.Svc
-	clients map[string]snmpclient.Client
+	is_closed     int32
+	wait          sync.WaitGroup
+	c             chan *mgrRequest
+	remove_c      chan string
+	clients       map[string]snmpclient.Client
+	poll_interval time.Duration
+
+	last_error string
 }
 
-func (svc *ClientManager) Init() {
-	svc.Name = "client_manager" + strconv.Itoa(int(atomic.AddInt32(&id_seq, 1)))
-	svc.clients = make(map[string]snmpclient.Client)
-	svc.Set(func() {
-		expvar.Publish(svc.Name+"_clients", expvar.Func(func() interface{} {
-			return fmt.Sprint(len(svc.clients))
-		}))
+func (mgr *ClientManager) init() error {
+	mgr.c = make(chan *mgrRequest, 10)
+	mgr.remove_c = make(chan string, 10)
+	mgr.clients = make(map[string]snmpclient.Client)
+	if 1*time.Second > mgr.poll_interval {
+		mgr.poll_interval = 1 * time.Second
+	}
 
-		expvar.Publish(svc.Name+"_requests", expvar.Func(func() interface{} {
-			results := map[string]interface{}{"queue_size": svc.Len()}
-			for id, client := range svc.clients {
-				results[id] = client.Stats()
+	name := "client_manager" + strconv.Itoa(int(atomic.AddInt32(&id_seq, 1)))
+	expvar.Publish(name+"_clients", expvar.Func(func() interface{} {
+		return fmt.Sprint(len(mgr.clients))
+	}))
+
+	expvar.Publish(name+"_requests", expvar.Func(func() interface{} {
+		results := map[string]interface{}{"queue_size": len(mgr.c)}
+		for id, client := range mgr.clients {
+			results[id] = client.Stats()
+		}
+		return results
+	}))
+
+	expvar.Publish(name+"_last_error", expvar.Func(func() interface{} {
+		return mgr.last_error
+	}))
+
+	go mgr.serve()
+	mgr.wait.Add(1)
+	return nil
+}
+
+func (mgr *ClientManager) Close() {
+	if !atomic.CompareAndSwapInt32(&mgr.is_closed, 0, 1) {
+		return
+	}
+
+	close(mgr.c)
+	mgr.wait.Wait()
+}
+
+func (mgr *ClientManager) serve() {
+	defer func() {
+		if e := recover(); nil != e {
+			var buffer bytes.Buffer
+			buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+			for i := 1; ; i += 1 {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
 			}
-			return results
-		}))
+			mgr.last_error = buffer.String()
+		}
+		atomic.StoreInt32(&mgr.is_closed, 1)
+		mgr.wait.Done()
+	}()
 
-		go svc.heartbeat()
-	}, nil, func() {
-		svc.Test()
-	})
+	count := 0
+	ticker := time.NewTicker(mgr.poll_interval)
+	defer ticker.Stop()
+
+	is_running := true
+	for is_running {
+		select {
+		case request, ok := <-mgr.c:
+			if !ok {
+				is_running = false
+				break
+			}
+			request.client, request.err = mgr.createClient(request.host)
+			request.c <- request
+		case nm := <-mgr.remove_c:
+			if 0 == len(nm) {
+				mgr.deleteAllClients()
+			} else {
+				mgr.deleteClient(nm)
+			}
+		case <-ticker.C:
+			count += 1
+			mgr.fireTrick(count)
+		}
+	}
 }
 
-func (svc *ClientManager) Test() error {
+func (mgr *ClientManager) fireTrick(count int) {
+	if 0 != count%10 {
+		return
+	}
+
 	clients := make(map[string]snmpclient.Client)
-	for host, cl := range svc.clients {
+	for host, cl := range mgr.clients {
 		clients[host] = cl
 	}
 
@@ -54,79 +169,49 @@ func (svc *ClientManager) Test() error {
 		// becase Test() may is expensively while request is too much.
 		deleted := make([]string, 0, 10)
 		for host, cl := range clients {
-			if t, ok := cl.(commons.Testable); ok {
-				if e := t.Test(); nil != e && !commons.IsTimeout(e) {
-					deleted = append(deleted, host)
-				}
+			if cl.IsExpired() {
+				deleted = append(deleted, host)
 			}
 		}
 
 		for _, host := range deleted {
-			svc.RemoveClient(host)
+			mgr.RemoveClient(host)
 		}
 	}()
-
-	return nil
 }
 
-func (svc *ClientManager) heartbeat() {
-	count := 0
-	for svc.IsRunning() {
-		time.Sleep(1 * time.Second)
-		count++
-		if count%(5*60) == 0 {
-			svc.SafelyCall(5*time.Minute, func() {
-				svc.Test()
-			})
-		}
-	}
-}
-
-func (mgr *ClientManager) GetClient(host string) (client snmpclient.Client, err error) {
-	values := mgr.SafelyCall(5*time.Minute, func() (snmpclient.Client, error) { return mgr.createClient(host) })
-	if 2 <= len(values) {
-		if nil != values[0] {
-			client = values[0].(snmpclient.Client)
-		}
-		if nil != values[1] {
-			err = values[1].(error)
-		}
-	} else if 1 == len(values) {
-		if nil != values[0] {
-			err = values[0].(error)
-		}
-	} else {
-		err = errors.New("return none values")
-	}
-	return
+func (mgr *ClientManager) GetClient(host string) (snmpclient.Client, error) {
+	request := &mgrRequest{
+		c:    make(chan *mgrRequest, 1),
+		host: host}
+	mgr.c <- request
+	request = <-request.c
+	return request.client, request.err
 }
 
 func (mgr *ClientManager) RemoveAllClients() {
-	mgr.Send(func() { mgr.deleteAllClients() })
+	mgr.remove_c <- ""
 }
 
 func (mgr *ClientManager) RemoveClient(host string) {
-	mgr.Send(func() { mgr.deleteClient(host) })
+	mgr.remove_c <- host
 }
 
 func (mgr *ClientManager) deleteAllClients() {
 	for _, cl := range mgr.clients {
-		if start, ok := cl.(commons.Startable); ok {
-			start.Stop()
-		}
+		cl.Close()
 	}
 
 	mgr.clients = make(map[string]snmpclient.Client)
+	log.Printf("delete all client from manager.")
 }
 
 func (mgr *ClientManager) deleteClient(addr string) {
 	host := snmpclient.NormalizeAddress(addr)
 	if cl, ok := mgr.clients[host]; ok {
-		if start, ok := cl.(commons.Startable); ok {
-			start.Stop()
-		}
+		cl.Close()
 		delete(mgr.clients, host)
-		mgr.INFO.Printf("host '" + host + "' is inactive, delete it from manager.")
+		log.Printf("host '" + host + "' is inactive, delete it from manager.")
 	}
 }
 
@@ -140,43 +225,32 @@ func (mgr *ClientManager) createClient(addr string) (client snmpclient.Client, e
 		if is_unit_test_for_client_mgr {
 			client, err = &TestClient{}, nil
 		} else {
-			client, err = snmpclient.NewSnmpClient(host)
+			client, err = snmpclient.NewSnmpClientWith(host, mgr.poll_interval,
+				&snmpclient.NullWriter{}, &snmpclient.LogWriter{})
 		}
 		if nil != err {
 			return
 		}
 
-		start, ok := client.(commons.Startable)
-		if ok {
-			err = start.Start()
-			if nil != err {
-				return
-			}
-		}
 		mgr.clients[host] = client
 	}
 	return
 }
 
 type TestClient struct {
-	start, stop, test bool
+	stop, test bool
 }
 
-func (self *TestClient) Start() error {
-	self.start = true
-	return nil
-}
-
-func (self *TestClient) Stop() {
+func (self *TestClient) Close() {
 	self.stop = true
 }
 
 func (self *TestClient) Stats() interface{} {
 	return "test"
 }
-func (self *TestClient) Test() error {
+func (self *TestClient) IsExpired() bool {
 	self.test = true
-	return errors.New("it is expired.")
+	return true
 }
 
 func (self *TestClient) CreatePDU(op snmpclient.SnmpType, version snmpclient.SnmpVersion) (snmpclient.PDU, snmpclient.SnmpError) {

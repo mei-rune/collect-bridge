@@ -11,15 +11,15 @@ func TestClientMgrTimeout(t *testing.T) {
 	defer func() {
 		is_unit_test_for_client_mgr = false
 		if nil != mgr {
-			mgr.Stop()
+			mgr.Close()
 		}
 	}()
 
 	mgr = &ClientManager{}
-	mgr.Init()
-	err := mgr.Start()
+
+	err := mgr.init()
 	if nil != err {
-		t.Error("start failed")
+		t.Error("start failed, ", err)
 		return
 	}
 
@@ -37,10 +37,6 @@ func TestClientMgrTimeout(t *testing.T) {
 	}
 
 	for i := 0; i < 19 && 0 != len(mgr.clients); i++ {
-		mgr.SafelyCall(5*time.Minute, func() {
-			mgr.Test()
-		})
-
 		time.Sleep(time.Second)
 	}
 
@@ -49,13 +45,13 @@ func TestClientMgrTimeout(t *testing.T) {
 		return
 	}
 
-	if true != c1.start || true != c1.stop || true != c1.test {
-		t.Errorf("func invoke failed, start = %v, stop = %v, test=%v", c1.start, c1.stop, c1.test)
+	if true != c1.stop || true != c1.test {
+		t.Errorf("func invoke failed,  stop = %v, test=%v", c1.stop, c1.test)
 		return
 	}
 
-	if true != c2.start || true != c2.stop || true != c2.test {
-		t.Errorf("func invoke failed, start = %v, stop = %v, test=%v", c2.start, c2.stop, c2.test)
+	if true != c2.stop || true != c2.test {
+		t.Errorf("func invoke failed, stop = %v, test=%v", c2.stop, c2.test)
 		return
 	}
 }

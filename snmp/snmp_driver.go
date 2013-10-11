@@ -16,10 +16,9 @@ type SnmpDriver struct {
 	timeout time.Duration
 }
 
-func NewSnmpDriver(timeout time.Duration, drvMgr *commons.DriverManager) *SnmpDriver {
+func NewSnmpDriver(timeout time.Duration, drvMgr *commons.DriverManager) (*SnmpDriver, error) {
 	drv := &SnmpDriver{drvMgr: drvMgr, timeout: timeout}
-	drv.ClientManager.Init()
-	return drv
+	return drv, drv.ClientManager.init()
 }
 
 func getTimeout(params map[string]string, timeout time.Duration) time.Duration {

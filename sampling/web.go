@@ -47,8 +47,7 @@ func Main() {
 		return
 	}
 
-	snmp := snmp.NewSnmpDriver(*snmp_timeout, nil)
-	e := snmp.Start()
+	snmp, e := snmp.NewSnmpDriver(*snmp_timeout, nil)
 	if nil != e {
 		fmt.Println("start snmp failed,", e)
 		return

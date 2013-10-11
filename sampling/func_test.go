@@ -30,13 +30,12 @@ func (self MockContext) BodyString() (string, error) {
 }
 
 func TestSysOid(t *testing.T) {
-	snmp := snmp.NewSnmpDriver(10*time.Second, nil)
-	e := snmp.Start()
+	snmp, e := snmp.NewSnmpDriver(10*time.Second, nil)
 	if nil != e {
 		t.Error(e)
 		return
 	}
-	defer snmp.Stop()
+	defer snmp.Close()
 
 	var sys systemOid
 	e = sys.Init(map[string]interface{}{"snmp": snmp})
@@ -64,13 +63,12 @@ func TestSysOid(t *testing.T) {
 }
 
 func TestSysOidFailed(t *testing.T) {
-	snmp := snmp.NewSnmpDriver(10*time.Second, nil)
-	e := snmp.Start()
+	snmp, e := snmp.NewSnmpDriver(10*time.Second, nil)
 	if nil != e {
 		t.Error(e)
 		return
 	}
-	defer snmp.Stop()
+	defer snmp.Close()
 
 	var sys systemOid
 	e = sys.Init(map[string]interface{}{"snmp": snmp})

@@ -10,7 +10,11 @@ import (
 
 func TestSystemTypeInit(t *testing.T) {
 	tp := &systemType{}
-	snmp := snmp.NewSnmpDriver(1000, nil)
+	snmp, e := snmp.NewSnmpDriver(1000, nil)
+	if nil != e {
+		t.Error(e)
+		return
+	}
 	tp.Init(map[string]interface{}{"snmp": snmp, "oid2type": "tests/oid2type.conf"})
 
 	if nil == tp.device2id {

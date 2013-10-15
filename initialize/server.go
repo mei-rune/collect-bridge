@@ -16,6 +16,7 @@ var (
 	listenAddress = flag.String("listen", ":80", "the address of http")
 	run_mode      = flag.String("mode", "all", "init_db, init_postgresql, console, backend, all")
 
+	postgresql_data_dir = flag.String("postgresql.data_dir", "", "the postgresql data dir")
 	postgresql_host     = flag.String("postgresql.host", "127.0.0.1", "the postgresql host")
 	postgresql_port     = flag.Int("postgresql.port", 35432, "the postgresql port")
 	postgresql_password = flag.String("postgresql.password", "", "the postgresql password")
@@ -50,10 +51,27 @@ func main() {
 		return
 	}
 
+	if "" == *postgresql_password {
+		flag.Set("postgresql.password", os.Getenv("PGPASSWORD"))
+	}
+
 	switch *run_mode {
 	case "init_postgresql":
 		e := init_postgresql(fmt.Sprintf("host=%s port=%d dbname=postgres user=postgres password=%s sslmode=disable",
 			*postgresql_host, *postgresql_port, *postgresql_password))
+		if nil != e {
+			log.Print(e)
+			os.Exit(1)
+		}
+		return
+	case "install_postgresql":
+		if "" == *postgresql_data_dir {
+			log.Print("directory is empty.")
+			os.Exit(1)
+			return
+		}
+
+		e := install_postgresql(*postgresql_data_dir, *postgresql_password)
 		if nil != e {
 			log.Print(e)
 			os.Exit(1)

@@ -50,10 +50,18 @@ func install_postgresql(dir, pwd, address, port string) error {
 		return e
 	} else {
 		if is_empty, _ := dirEmpty(dir); !is_empty {
-			os.RemoveAll(dir)
-			fmt.Println("directory '" + dir + "' is removed.")
-			os.MkdirAll(dir, 0)
-			fmt.Println("directory '" + dir + "' is created.")
+			e = os.RemoveAll(dir)
+			if nil != e {
+				fmt.Println("remove directory '"+dir+"' failed -", e)
+			} else {
+				fmt.Println("directory '" + dir + "' is removed.")
+			}
+			e = os.MkdirAll(dir, 0)
+			if nil != e {
+				fmt.Println("create directory '"+dir+"' failed -", e)
+			} else {
+				fmt.Println("directory '" + dir + "' is created.")
+			}
 		}
 	}
 

@@ -27,19 +27,19 @@ func init_postgresql(url string) error {
 		}
 	}
 
-	err = create_database(conn, "tpt")
+	err = create_database(conn, "tpt", "tpt")
 	if err != nil {
 		return err
 	}
 
-	err = create_database(conn, "tpt_data")
+	err = create_database(conn, "tpt_data", "tpt")
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func create_database(conn *sql.DB, name string) error {
+func create_database(conn *sql.DB, name, role string) error {
 	count := 0
 	err := conn.QueryRow("SELECT count(*) FROM pg_catalog.pg_database WHERE datname=$1", name).Scan(&count)
 	if err != nil {
@@ -48,7 +48,7 @@ func create_database(conn *sql.DB, name string) error {
 
 	if 0 == count {
 		_, err = conn.Exec(`CREATE DATABASE ` + name + `
-      WITH OWNER = ` + name + `
+      WITH OWNER = ` + role + `
          ENCODING = 'UTF8'
          TABLESPACE = pg_default
          CONNECTION LIMIT = -1`)

@@ -21,7 +21,7 @@ var (
 	port_match    = regexp.MustCompile(`^([ \t]*)#*([ \t]*port[ \t]*=[ \t]*)[0-9]*(.*)`)
 )
 
-func install_postgresql(dir, pwd string) error {
+func install_postgresql(dir, pwd, address, port string) error {
 	var cmd *exec.Cmd
 	pwfile := filepath.Join(os.TempDir(), fmt.Sprintf("aa-%v", time.Now().Nanosecond()))
 
@@ -93,7 +93,7 @@ func install_postgresql(dir, pwd string) error {
 		return errors.New("init data directory failed - " + e.Error())
 	}
 	os.Remove(pwfile)
-	e = replaceFile(filepath.Join(dir, "postgresql.conf"), "*", fmt.Sprint(*postgresql_port))
+	e = replaceFile(filepath.Join(dir, "postgresql.conf"), address, port)
 	if nil != e {
 		os.Remove(filepath.Join(dir, "postgresql.conf"))
 		return errors.New("change listen address and port failed - " + e.Error())
@@ -175,11 +175,11 @@ func replaceAddressAndPort(line, host, port string) string {
 		}
 
 		ss := address_match.FindStringSubmatch(line)
-		return ss[1] + ss[2] + "*" + ss[3]
+		return ss[1] + ss[2] + host + ss[3]
 	}
 
 	ss := port_match.FindStringSubmatch(line)
-	return ss[1] + ss[2] + "80" + ss[3]
+	return ss[1] + ss[2] + port + ss[3]
 }
 
 func dirEmpty(nm string) (bool, error) {

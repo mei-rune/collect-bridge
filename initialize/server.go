@@ -71,7 +71,7 @@ func main() {
 			return
 		}
 
-		e := install_postgresql(*postgresql_data_dir, *postgresql_password)
+		e := install_postgresql(*postgresql_data_dir, *postgresql_password, "*", fmt.Sprint(*postgresql_port))
 		if nil != e {
 			log.Print(e)
 			os.Exit(1)

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	_ "github.com/lib/pq"
 	"reflect"
 	"testing"
 	"time"

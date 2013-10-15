@@ -50,7 +50,6 @@ daemon.old
 interop.old
 tools.old
 run_test.bat
-initialize
 
 carrier/db/dbconf-postgresql.yml
 carrier/db/dbconf-mssql.yml

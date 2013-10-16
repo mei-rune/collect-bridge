@@ -70,16 +70,16 @@ type systemInfo struct {
 func (self *systemInfo) Call(params MContext) commons.Result {
 	return self.GetOneResult(params, "1.3.6.1.2.1.1", "",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
-			oid := GetOid(params, old_row, "2")
-			services := GetUint32(params, old_row, "7", 0)
+			oid := GetOidWithDefault(params, old_row, "2")
+			services := GetUint32WithDefault(params, old_row, "7", 0)
 
 			new_row := map[string]interface{}{}
-			new_row["descr"] = GetString(params, old_row, "1")
+			new_row["descr"] = GetStringWithDefault(params, old_row, "1")
 			new_row["oid"] = oid
-			new_row["upTime"] = GetUint32(params, old_row, "3", 0) / 100
-			new_row["contact"] = GetString(params, old_row, "4")
-			new_row["name"] = GetString(params, old_row, "5")
-			new_row["location"] = GetString(params, old_row, "6")
+			new_row["upTime"] = GetUint32WithDefault(params, old_row, "3", 0) / 100
+			new_row["contact"] = GetStringWithDefault(params, old_row, "4")
+			new_row["name"] = GetStringWithDefault(params, old_row, "5")
+			new_row["location"] = GetStringWithDefault(params, old_row, "6")
 			new_row["services"] = services
 
 			params.Set("$sys.oid", oid)

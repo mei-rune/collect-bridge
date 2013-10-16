@@ -59,7 +59,7 @@ func (self *cpuCiscoSCE) Call(params MContext) commons.Result {
 	e := self.OneInTable(params, "1.3.6.1.4.1.5655.4.1.9.1.1", "35",
 		func(key string, old_row map[string]interface{}) error {
 
-			if i, _ := TryGetInt32(params, old_row, "35", -1); -1 != i {
+			if i, _ := GetInt32(params, old_row, "35", -1); -1 != i {
 				cpu = i
 				return nil
 			}
@@ -74,47 +74,95 @@ func (self *cpuCiscoSCE) Call(params MContext) commons.Result {
 	return commons.Return(map[string]interface{}{"cpu": cpu})
 }
 
-type cpuCisco struct {
+type cpuCiscoCpm struct {
+	baseCisco
+}
+
+func (self *cpuCiscoCpm) Call(params MContext) commons.Result {
+	return self.readCpuWithCpmSytle(params)
+}
+
+type cpuCiscoOldStyle struct {
+	baseCisco
+}
+
+func (self *cpuCiscoOldStyle) Call(params MContext) commons.Result {
+	return self.readCpuWithOldSytle(params)
+}
+
+type cpuCiscoSystemExt struct {
+	baseCisco
+}
+
+func (self *cpuCiscoSystemExt) Call(params MContext) commons.Result {
+	return self.readCpuWithSystemExt(params)
+}
+
+type cpuHostResources struct {
 	snmpBase
 }
 
-func (self *cpuCisco) Call(params MContext) commons.Result {
-	i, e := self.GetInt32(params, "1.3.6.1.4.1.9.2.1.57.0")
-	if nil == e {
-		return commons.Return(map[string]interface{}{"cpu": i})
-	}
+func (self *cpuHostResources) Call(params MContext) commons.Result {
+	// http://www.ietf.org/rfc/rfc1514.txt
+	// hrProcessorTable OBJECT-TYPE
+	//     SYNTAX SEQUENCE OF HrProcessorEntry
+	//     ACCESS not-accessible
+	//     STATUS mandatory
+	//     DESCRIPTION
+	//            "The (conceptual) table of processors contained by
+	//            the host.
+	//
+	//            Note that this table is potentially sparse: a
+	//            (conceptual) entry exists only if the correspondent
+	//            value of the hrDeviceType object is
+	//            `hrDeviceProcessor'."
+	//     ::= { hrDevice 3 }
+	//
+	// hrProcessorEntry OBJECT-TYPE
+	//     SYNTAX HrProcessorEntry
+	//     ACCESS not-accessible
+	//     STATUS mandatory
+	//     DESCRIPTION
+	//            "A (conceptual) entry for one processor contained
+	//            by the host.  The hrDeviceIndex in the index
+	//            represents the entry in the hrDeviceTable that
+	//            corresponds to the hrProcessorEntry.
+	//
+	//            As an example of how objects in this table are
+	//            named, an instance of the hrProcessorFrwID object
+	//            might be named hrProcessorFrwID.3"
+	//     INDEX { hrDeviceIndex }
+	//     ::= { hrProcessorTable 1 }
+	//
+	// HrProcessorEntry ::= SEQUENCE {
+	//         hrProcessorFrwID            ProductID,
+	//         hrProcessorLoad             INTEGER
+	//     }
+	//
+	// hrProcessorFrwID OBJECT-TYPE
+	//     SYNTAX ProductID
+	//     ACCESS read-only
+	//     STATUS mandatory
+	//     DESCRIPTION
+	//            "The product ID of the firmware associated with the
+	//            processor."
+	//     ::= { hrProcessorEntry 1 }
+	//
+	// hrProcessorLoad OBJECT-TYPE
+	//     SYNTAX INTEGER (0..100)
+	//     ACCESS read-only
+	//     STATUS mandatory
+	//     DESCRIPTION
+	//            "The average, over the last minute, of the
+	//            percentage of time that this processor was not
+	//            idle."
+	//     ::= { hrProcessorEntry 2 }
 
-	cpu := int32(-1)
-	e = self.OneInTable(params, "1.3.6.1.4.1.9.9.109.1.1.1.1", "4,7",
-		func(key string, old_row map[string]interface{}) error {
-			if i, _ := TryGetInt32(params, old_row, "4", -1); -1 != i {
-				cpu = i
-				return nil
-			} else if i, _ := TryGetInt32(params, old_row, "7", -1); -1 != i {
-				cpu = i
-				return nil
-			}
-
-			return commons.ContinueError
-		})
-
-	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
-	}
-
-	return commons.Return(map[string]interface{}{"cpu": cpu})
-}
-
-type cpuWindows struct {
-	snmpBase
-}
-
-func (self *cpuWindows) Call(params MContext) commons.Result {
 	cpus := make([]int, 0, 4)
 
 	e := self.EachInTable(params, "1.3.6.1.2.1.25.3.3.1", "",
 		func(key string, old_row map[string]interface{}) error {
-			cpus = append(cpus, int(GetInt32(params, old_row, "2", 0)))
+			cpus = append(cpus, int(GetInt32WithDefault(params, old_row, "2", 0)))
 			return nil
 		})
 
@@ -139,19 +187,31 @@ func (self *cpuWindows) Call(params MContext) commons.Result {
 func init() {
 	Methods["default_cpu"] = newRouteSpec("get", "cpu", "default cpu", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
-			drv := &cpuWindows{}
+			drv := &cpuHostResources{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["cisco_cpu"] = newRouteSpec("get", "cpu", "cisco cpu", Match().Oid("1.3.6.1.4.1.9").Build(),
+	Methods["cisco_cpu_cpm_style"] = newRouteSpec("get", "cpu", "cisco cpu by cpm style", Match().Oid("1.3.6.1.4.1.9").Build(),
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
-			drv := &cpuCisco{}
+			drv := &cpuCiscoCpm{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["cisco_cpu_old_style"] = newRouteSpec("get", "cpu", "cisco cpu by old style", Match().Oid("1.3.6.1.4.1.9").Build(),
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &cpuCiscoOldStyle{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["cisco_cpu_system_ext_style"] = newRouteSpec("get", "cpu", "cisco cpu by system ext style", Match().Oid("1.3.6.1.4.1.9").Build(),
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &cpuCiscoSystemExt{}
 			return drv, drv.Init(params)
 		})
 
 	Methods["cisco_host_cpu"] = newRouteSpec("get", "cpu", "cisco host cpu", Match().Oid("1.3.6.1.4.1.9.1.746").Build(),
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
-			drv := &cpuWindows{}
+			drv := &cpuHostResources{}
 			return drv, drv.Init(params)
 		})
 
@@ -185,9 +245,15 @@ func init() {
 			return drv, drv.Init(params)
 		})
 
-	Methods["h3c_cpu"] = newRouteSpec("get", "cpu", "the generic cpu of h3c", Match().Oid("1.3.6.1.4.1.25506").Build(),
+	Methods["h3c_cpu"] = newRouteSpec("get", "cpu", "the cpu of h3c", Match().Oid("1.3.6.1.4.1.25506").Build(),
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &cpuH3C{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["foundry_cpu"] = newRouteSpec("get", "cpu", "the cpu of foundry", Match().Oid("1.3.6.1.4.1.1991").Build(),
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &cpuFoundry{}
 			return drv, drv.Init(params)
 		})
 }
@@ -198,4 +264,12 @@ type cpuH3C struct {
 
 func (self *cpuH3C) Call(params MContext) commons.Result {
 	return self.smartRead("memory", params, self.readCpuWithNewStyle, self.readCpuWithCompatibleStyle)
+}
+
+type cpuFoundry struct {
+	baseFoundry
+}
+
+func (self *cpuFoundry) Call(params MContext) commons.Result {
+	return self.readCpu(params)
 }

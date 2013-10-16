@@ -185,37 +185,37 @@ func (self *snmpBase) ReadResult(params MContext, action, oid string, rt result_
 
 	switch rt {
 	case RES_STRING:
-		s, e := TryGetString(params, values, oid)
+		s, e := GetString(params, values, oid)
 		if nil != e {
 			return returnResult(e)
 		}
 		return commons.Return(s)
 	case RES_OID:
-		s, e := TryGetOid(params, values, oid)
+		s, e := GetOid(params, values, oid)
 		if nil != e {
 			return returnResult(e)
 		}
 		return commons.Return(s)
 	case RES_INT32:
-		i32, e := TryGetInt32(params, values, oid, 0)
+		i32, e := GetInt32(params, values, oid, 0)
 		if nil != e {
 			return returnResult(e)
 		}
 		return commons.Return(i32)
 	case RES_INT64:
-		i64, e := TryGetInt64(params, values, oid, 0)
+		i64, e := GetInt64(params, values, oid, 0)
 		if nil != e {
 			return returnResult(e)
 		}
 		return commons.Return(i64)
 	case RES_UINT32:
-		u32, e := TryGetUint32(params, values, oid, 0)
+		u32, e := GetUint32(params, values, oid, 0)
 		if nil != e {
 			return returnResult(e)
 		}
 		return commons.Return(u32)
 	case RES_UINT64:
-		u64, e := TryGetInt64(params, values, oid, 0)
+		u64, e := GetInt64(params, values, oid, 0)
 		if nil != e {
 			return returnResult(e)
 		}
@@ -225,12 +225,19 @@ func (self *snmpBase) ReadResult(params MContext, action, oid string, rt result_
 	}
 }
 
+func (self *snmpBase) ErrorResult(e error) commons.Result {
+	if err, ok := e.(commons.RuntimeError); ok {
+		return commons.ReturnError(err.Code(), err.Error())
+	}
+	return commons.ReturnWithInternalError(e.Error())
+}
+
 func (self *snmpBase) GetString(params MContext, oid string) (string, error) {
 	values, e := self.Get(params, oid)
 	if nil != e {
 		return "", e
 	}
-	return TryGetString(params, values, oid)
+	return GetString(params, values, oid)
 }
 
 func (self *snmpBase) GetOid(params MContext, oid string) (string, error) {
@@ -238,7 +245,7 @@ func (self *snmpBase) GetOid(params MContext, oid string) (string, error) {
 	if nil != e {
 		return "", e
 	}
-	return TryGetOid(params, values, oid)
+	return GetOid(params, values, oid)
 }
 
 func (self *snmpBase) GetInt32(params MContext, oid string) (int32, error) {
@@ -246,7 +253,7 @@ func (self *snmpBase) GetInt32(params MContext, oid string) (int32, error) {
 	if nil != e {
 		return 0, e
 	}
-	return TryGetInt32(params, values, oid, 0)
+	return GetInt32(params, values, oid, 0)
 }
 
 func (self *snmpBase) GetInt64(params MContext, oid string) (int64, error) {
@@ -254,7 +261,7 @@ func (self *snmpBase) GetInt64(params MContext, oid string) (int64, error) {
 	if nil != e {
 		return 0, e
 	}
-	return TryGetInt64(params, values, oid, 0)
+	return GetInt64(params, values, oid, 0)
 }
 
 func (self *snmpBase) GetUint32(params MContext, oid string) (uint32, error) {
@@ -262,7 +269,7 @@ func (self *snmpBase) GetUint32(params MContext, oid string) (uint32, error) {
 	if nil != e {
 		return 0, e
 	}
-	return TryGetUint32(params, values, oid, 0)
+	return GetUint32(params, values, oid, 0)
 }
 
 func (self *snmpBase) GetUint64(params MContext, oid string) (uint64, error) {
@@ -270,7 +277,7 @@ func (self *snmpBase) GetUint64(params MContext, oid string) (uint64, error) {
 	if nil != e {
 		return 0, e
 	}
-	return TryGetUint64(params, values, oid, 0)
+	return GetUint64(params, values, oid, 0)
 }
 
 func (self *snmpBase) GetTable(params MContext, oid, columns string,
@@ -408,12 +415,12 @@ func (self *tcpConnection) Call(params MContext) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.2.1.6.13.1", "1,2,3,4,5",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
-			new_row["tcpConnState"] = GetInt32(params, old_row, "1", -1)
-			new_row["tcpConnStateString"] = tcpConnectionStateString(GetInt32(params, old_row, "1", -1))
-			new_row["tcpConnLocalAddress"] = GetIPAddress(params, old_row, "2")
-			new_row["tcpConnLocalPort"] = GetInt32(params, old_row, "3", 0)
-			new_row["tcpConnRemAddress"] = GetIPAddress(params, old_row, "4")
-			new_row["tcpConnRemPort"] = GetInt32(params, old_row, "5", 0)
+			new_row["tcpConnState"] = GetInt32WithDefault(params, old_row, "1", -1)
+			new_row["tcpConnStateString"] = tcpConnectionStateString(GetInt32WithDefault(params, old_row, "1", -1))
+			new_row["tcpConnLocalAddress"] = GetIPAddressWithDefault(params, old_row, "2")
+			new_row["tcpConnLocalPort"] = GetInt32WithDefault(params, old_row, "3", 0)
+			new_row["tcpConnRemAddress"] = GetIPAddressWithDefault(params, old_row, "4")
+			new_row["tcpConnRemPort"] = GetInt32WithDefault(params, old_row, "5", 0)
 			return new_row, nil
 		})
 }
@@ -426,8 +433,8 @@ func (self *udpListen) Call(params MContext) commons.Result {
 	return self.GetAllResult(params, "1.3.6.1.2.1.7.5.1", "1,2",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
-			new_row["udpLocalAddress"] = GetIPAddress(params, old_row, "1")
-			new_row["udpLocalPort"] = GetInt32(params, old_row, "2", 0)
+			new_row["udpLocalAddress"] = GetIPAddressWithDefault(params, old_row, "1")
+			new_row["udpLocalPort"] = GetInt32WithDefault(params, old_row, "2", 0)
 			return new_row, nil
 		})
 }

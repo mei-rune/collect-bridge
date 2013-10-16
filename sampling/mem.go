@@ -4,130 +4,67 @@ import (
 	"commons"
 )
 
-type memCisco struct {
+type memCiscoCpmStyle struct {
+	baseCisco
+}
+
+func (self *memCiscoCpmStyle) Call(params MContext) commons.Result {
+	return self.readMemWithCpmSytle(params)
+}
+
+type memCiscoOldStyle struct {
+	baseCisco
+}
+
+func (self *memCiscoOldStyle) Call(params MContext) commons.Result {
+	return self.readMemWithOldSytle(params)
+}
+
+type memCiscoMempool struct {
+	baseCisco
+}
+
+func (self *memCiscoMempool) Call(params MContext) commons.Result {
+	return self.readMemWithPoolStyle(params)
+}
+
+type memHostResources struct {
 	snmpBase
 }
 
-func (self *memCisco) Call(params MContext) commons.Result {
-	res := self.CallA(params)
-	if !res.HasError() {
-		return res
-	}
-	res = self.CallB(params)
-	if !res.HasError() {
-		return res
-	}
-	return self.CallHost(params)
-}
-
-func (self *memCisco) CallHost(params MContext) commons.Result {
-	var windows memWindows
-	windows.CopyFrom(&self.snmpBase)
-	return windows.Call(params)
-}
-
-func (self *memCisco) CallA(params MContext) commons.Result {
-	total, e := self.GetInt64(params, "1.3.6.1.4.1.9.3.6.6.0")
-	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
-	}
-
-	free, e := self.GetInt64(params, "1.3.6.1.4.1.9.2.1.8.0")
-	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
-	}
-
-	return commons.Return(map[string]interface{}{"total": total,
-		"used_per": (float64(total-free) / float64(total)) * 100,
-		"used":     total - free,
-		"free":     free})
-}
-
-func (self *memCisco) CallB(params MContext) commons.Result {
-	// ftp://ftp.cisco.com/pub/mibs/oid/CISCO-PROCESS-MIB.oid
-	// "cpmCPUMemoryUsed"		"1.3.6.1.4.1.9.9.109.1.1.1.1.12"
-	// "cpmCPUMemoryFree"		"1.3.6.1.4.1.9.9.109.1.1.1.1.13"
-	// "cpmCPUMemoryKernelReserved"		"1.3.6.1.4.1.9.9.109.1.1.1.1.14"
-	// "cpmCPUMemoryLowest"		"1.3.6.1.4.1.9.9.109.1.1.1.1.15"
-	used, e := self.GetInt64(params, "1.3.6.1.4.1.9.9.109.1.1.1.1.12.1")
-	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
-	}
-
-	free, e := self.GetInt64(params, "1.3.6.1.4.1.9.9.109.1.1.1.1.13.1")
-	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
-	}
-
-	return commons.Return(map[string]interface{}{"total": used + free,
-		"used_per": (float64(used) / float64(used+free)) * 100,
-		"used":     used,
-		"free":     free})
-}
-
-type memPoolCisco struct {
-	snmpBase
-}
-
-func (self *memPoolCisco) Call(params MContext) commons.Result {
-	// http://tools.cisco.com/Support/SNMP/do/BrowseMIB.do?local=en&step=2&mibName=CISCO-MEMORY-POOL-MIB
-	// . iso (1) . org (3) . dod (6) . internet (1) . private (4) . enterprises (1) . cisco (9) . ciscoMgmt (9) . ciscoMemoryPoolMIB (48)
-	//    |
-	//     - -- ciscoMemoryPoolObjects (1)
-	//       |
-	//        - -- ciscoMemoryPoolTable (1)
-	//       |      |
-	//       |       - -- ciscoMemoryPoolEntry (1) object Details
-	//       |         |
-	//       |         | --   ciscoMemoryPoolType (1)
-	//       |         |
-	//       |         | --   ciscoMemoryPoolName (2)
-	//       |         |
-	//       |         | --   ciscoMemoryPoolAlternate (3)
-	//       |         |
-	//       |         | --   ciscoMemoryPoolValid (4)
-	//       |         |
-	//       |         | --   ciscoMemoryPoolUsed (5)
-	//       |         |
-	//       |         | --   ciscoMemoryPoolFree (6)
-	//       |         |
-	//       |         | --   ciscoMemoryPoolLargestFree (7)
-	//       |
-	//        + -- ciscoMemoryPoolUtilizationTable (2)
-
-	// ciscoMemoryPoolGroup OBJECT-GROUP
-	//     OBJECTS {
-	//         ciscoMemoryPoolName,
-	//         ciscoMemoryPoolAlternate,
-	//         ciscoMemoryPoolValid,
-	//         ciscoMemoryPoolUsed,
-	//         ciscoMemoryPoolFree,
-	//         ciscoMemoryPoolLargestFree
+func (self *memHostResources) Call(params MContext) commons.Result {
+	// http://www.ietf.org/rfc/rfc1514.txt
+	// HOST-RESOURCES-MIB:hrStorageTable  = ".1.3.6.1.2.1.25.2.3.1.";
+	// HOST-RESOURCES-MIB:hrMemorySize  = ".1.3.6.1.2.1.25.2.2.0";
+	// Physical Memory type = "1.3.6.1.2.1.25.2.1.2";
+	// HrStorageEntry ::= SEQUENCE {
+	//         hrStorageIndex               INTEGER,
+	//         hrStorageType                OBJECT IDENTIFIER,
+	//         hrStorageDescr               DisplayString,
+	//         hrStorageAllocationUnits     INTEGER,
+	//         hrStorageSize                INTEGER,
+	//         hrStorageUsed                INTEGER,
+	//         hrStorageAllocationFailures  Counter
 	//     }
-	//     STATUS        current
-	//     DESCRIPTION        "A collection of objects providing memory pool monitoring.
-	// "
-	//     ::= { ciscoMemoryPoolGroups 1 }
-	return commons.ReturnWithNotImplemented()
-}
-
-type memWindows struct {
-	snmpBase
-}
-
-func (self *memWindows) Call(params MContext) commons.Result {
-	//HOST-RESOURCES-MIB:hrStorageTable  = ".1.3.6.1.2.1.25.2.3.1.";
-	//HOST-RESOURCES-MIB:hrMemorySize  = ".1.3.6.1.2.1.25.2.2.0";
-	//Physical Memory type = "1.3.6.1.2.1.25.2.1.2";
+	// -- Registration for some storage types, for use with hrStorageType
+	//  hrStorageTypes          OBJECT IDENTIFIER ::= { hrStorage 1 }
+	//  hrStorageOther          OBJECT IDENTIFIER ::= { hrStorageTypes 1 }
+	//  hrStorageRam            OBJECT IDENTIFIER ::= { hrStorageTypes 2 }
+	//  -- hrStorageVirtualMemory is temporary storage of swapped
+	//  -- or paged memory
+	//  hrStorageVirtualMemory  OBJECT IDENTIFIER ::= { hrStorageTypes 3 }
+	//  hrStorageFixedDisk      OBJECT IDENTIFIER ::= { hrStorageTypes 4 }
+	//  hrStorageRemovableDisk  OBJECT IDENTIFIER ::= { hrStorageTypes 5 }
+	//  hrStorageFloppyDisk     OBJECT IDENTIFIER ::= { hrStorageTypes 6 }
 
 	used_per := 0.0
 	e := self.OneInTable(params, "1.3.6.1.2.1.25.2.3.1", "2,5,6",
 		func(key string, old_row map[string]interface{}) error {
-			if "1.3.6.1.2.1.25.2.1.2" != GetOid(params, old_row, "2") {
+			if "1.3.6.1.2.1.25.2.1.2" != GetOidWithDefault(params, old_row, "2") {
 				return commons.ContinueError
 			}
-			x := GetInt32(params, old_row, "6", 0)
-			y := GetInt32(params, old_row, "5", 0)
+			x := GetInt32WithDefault(params, old_row, "6", 0)
+			y := GetInt32WithDefault(params, old_row, "5", 0)
 			used_per = float64(x) / float64(y)
 			return nil
 		})
@@ -150,18 +87,36 @@ func (self *memWindows) Call(params MContext) commons.Result {
 func init() {
 	Methods["default_mem"] = newRouteSpec("get", "mem", "default mem", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
-			drv := &memWindows{}
-			return drv, drv.Init(params)
-		})
-	Methods["cisco_mem"] = newRouteSpec("get", "mem", "the mem of cisco", Match().Oid("1.3.6.1.4.1.9").Build(),
-		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
-			drv := &memCisco{}
+			drv := &memHostResources{}
 			return drv, drv.Init(params)
 		})
 
-	Methods["h3c_mem"] = newRouteSpec("get", "mem", "the generic mem of h3c", Match().Oid("1.3.6.1.4.1.25506").Build(),
+	Methods["cisco_mem_cpm_style"] = newRouteSpec("get", "cpu", "cisco cpu by cpm style", Match().Oid("1.3.6.1.4.1.9").Build(),
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &memCiscoCpmStyle{}
+			return drv, drv.Init(params)
+		})
+
+	Methods["cisco_mem_old_style"] = newRouteSpec("get", "cpu", "cisco cpu by old style", Match().Oid("1.3.6.1.4.1.9").Build(),
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &memCiscoOldStyle{}
+			return drv, drv.Init(params)
+		})
+
+	// Methods["cisco_mem_pool_style"] = newRouteSpec("get", "cpu", "cisco cpu by mem pool style", Match().Oid("1.3.6.1.4.1.9").Build(),
+	// 	func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+	// 		drv := &memCiscoMempool{}
+	// 		return drv, drv.Init(params)
+	// 	})
+
+	Methods["h3c_mem"] = newRouteSpec("get", "mem", "the mem of h3c", Match().Oid("1.3.6.1.4.1.25506").Build(),
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &memH3C{}
+			return drv, drv.Init(params)
+		})
+	Methods["foundry_mem"] = newRouteSpec("get", "mem", "the mem of foundry", Match().Oid("1.3.6.1.4.1.1991").Build(),
+		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
+			drv := &cpuFoundry{}
 			return drv, drv.Init(params)
 		})
 }
@@ -172,4 +127,12 @@ type memH3C struct {
 
 func (self *memH3C) Call(params MContext) commons.Result {
 	return self.smartRead("memory", params, self.readMemoryWithNewStyle, self.readMemoryWithCompatibleStyle)
+}
+
+type memFoundry struct {
+	baseFoundry
+}
+
+func (self *memFoundry) Call(params MContext) commons.Result {
+	return self.readMem(params)
 }

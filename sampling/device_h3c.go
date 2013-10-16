@@ -377,7 +377,7 @@ func (self *baseH3C) smartRead(name string, params MContext, new_style, compatib
 	e := self.EachInTable(params, "1.3.6.1.2.1.47.1.1.1.1", "2,5,7,13",
 		func(key string, old_row map[string]interface{}) error {
 			//fmt.Println("oid=", key)
-			clazz := GetInt32(params, old_row, "5", 0)
+			clazz := GetInt32WithDefault(params, old_row, "5", 0)
 			if 1 != clazz && 5 != clazz && 9 != clazz {
 				return nil
 			}
@@ -389,10 +389,10 @@ func (self *baseH3C) smartRead(name string, params MContext, new_style, compatib
 			}
 
 			id_list[slot] = map[string]interface{}{
-				"entPhysicalDescr":     GetString(params, old_row, "2"),
-				"entPhysicalClass":     GetInt32(params, old_row, "5", 0),
-				"entPhysicalName":      GetString(params, old_row, "7"),
-				"entPhysicalModelName": GetString(params, old_row, "13"),
+				"entPhysicalDescr":     GetStringWithDefault(params, old_row, "2"),
+				"entPhysicalClass":     GetInt32WithDefault(params, old_row, "5", 0),
+				"entPhysicalName":      GetStringWithDefault(params, old_row, "7"),
+				"entPhysicalModelName": GetStringWithDefault(params, old_row, "13"),
 			}
 			return nil
 		})

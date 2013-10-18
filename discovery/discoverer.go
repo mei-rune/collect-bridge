@@ -5,8 +5,8 @@ import (
 	"commons/netutils"
 	"errors"
 	"fmt"
+	"github.com/runner-mei/snmpclient"
 	"net"
-	"snmp"
 	"strings"
 	"sync"
 	"time"
@@ -36,7 +36,7 @@ type Discoverer struct {
 	params *DiscoveryParams
 
 	//icmp_pinger *netutils.Pingers
-	snmp_pinger *snmp.Pingers
+	snmp_pinger *snmpclient.Pingers
 	snmp_drv    commons.Driver
 	metrics_drv commons.Driver
 
@@ -77,7 +77,7 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 	//	return nil, errors.New("icmp failed, " + err.Error())
 	// }
 
-	snmp_pinger := snmp.NewPingers(10000)
+	snmp_pinger := snmpclient.NewPingers(10000)
 
 	defer func() {
 		if nil != snmp_pinger {
@@ -86,7 +86,7 @@ func NewDiscoverer(params *DiscoveryParams, drvMgr *commons.DriverManager) (*Dis
 	}()
 
 	for _, community := range params.Communities {
-		err := snmp_pinger.Listen("udp4", "0.0.0.0:0", snmp.SNMP_V2C, community)
+		err := snmp_pinger.Listen("udp4", "0.0.0.0:0", snmpclient.SNMP_V2C, community)
 		if nil != err {
 			return nil, errors.New("snmp failed, " + err.Error())
 		}

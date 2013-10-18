@@ -2,12 +2,12 @@ package main
 
 import (
 	"commons"
+	"discovery"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/runner-mei/snmpclient"
 	"lua_binding"
-	discovery "network_discovery"
-	"snmp"
 	"strings"
 	"time"
 )
@@ -51,7 +51,7 @@ func main() {
 	}
 
 	drvMgr := commons.NewDriverManager()
-	snmp_drv := snmp.NewSnmpDriver(time.Duration(*timeout)*time.Second, drvMgr)
+	snmp_drv := snmpclient.NewSnmpDriver(time.Duration(*timeout)*time.Second, drvMgr)
 	if err = snmp_drv.Start(); nil != err {
 		fmt.Println(err)
 		return
@@ -79,7 +79,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	id, e := as.AsString(res["value"])
+	id, e := commons.AsString(res["value"])
 	if nil != e {
 		fmt.Println(e)
 		return

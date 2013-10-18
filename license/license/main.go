@@ -47,24 +47,26 @@ type License struct {
 func (self *License) init() {
 	self.IsExpired()
 	if self.is_expired {
+		// fmt.Println("license is expired.")
 		return
 	}
 
 	if self.invalid_license {
+		// fmt.Println("license is invalid.")
 		return
 	}
 
 	hd_list := license.GetAllHD()
 	if nil == hd_list || 0 == len(hd_list) {
 		self.invalid_license = true
-		//fmt.Println("read hd failed.")
+		// fmt.Println("read hd failed.")
 		return
 	}
 
 	interface_list := license.GetAllInterfaces()
 	if nil == interface_list || 0 == len(interface_list) {
 		self.invalid_license = true
-		//fmt.Println("read interfaces failed.")
+		// fmt.Println("read interfaces failed.")
 		return
 	}
 
@@ -93,16 +95,16 @@ func (self *License) init() {
 		// if old, ok := self.origin["hd"]; ok {
 		// 	if old_hd, ok := old.([]interface{}); ok {
 		// 		for old_k, old_v := range old_hd {
-		// 			fmt.Println(old_k, old_v)
+		// 			// fmt.Println(old_k, old_v)
 		// 		}
 		// 		for k, v := range hd_list {
-		// 			fmt.Println(k, v[0], v[1])
+		// 			// fmt.Println(k, v[0], v[1])
 		// 		}
 		// 	} else {
 		// 		fmt.Printf("hd is not found - %T.\r\n", old)
 		// 	}
 		// } else {
-		// 	fmt.Println("hd is not found.")
+		// 	// fmt.Println("hd is not found.")
 		// }
 		return
 	}
@@ -122,7 +124,7 @@ func (self *License) init() {
 
 	if 0 >= hits {
 		self.invalid_license = true
-		//fmt.Println("interfaces is not found.")
+		// fmt.Println("interfaces is not found.")
 		return
 	}
 }
@@ -258,10 +260,15 @@ func (self *License) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.HasPrefix(r.URL.Path, "/o8356/") {
+	if r.URL.Path == "/o83e56" {
 		if self.invalid_license {
 			w.WriteHeader(http.StatusUnauthorized)
 			io.WriteString(w, "UNREGISTERED")
+			return
+		}
+		if self.is_expired {
+			w.WriteHeader(http.StatusUnauthorized)
+			io.WriteString(w, "EXPIRED")
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -304,7 +311,7 @@ func (self *License) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get the title
-	if strings.HasPrefix(r.URL.Path, "/a629433") {
+	if r.URL.Path == "/a629433" {
 		title := ""
 		if v := self.meta["title"]; nil != v {
 			title = fmt.Sprint(v)
@@ -358,7 +365,23 @@ func (self *License) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.HasPrefix(r.URL.Path, "/rth56w3") {
+	if r.URL.Path == "/hle834t" {
+		if self.invalid_license {
+			w.WriteHeader(http.StatusUnauthorized)
+			io.WriteString(w, "UNREGISTERED")
+			return
+		}
+		if self.is_expired {
+			w.WriteHeader(http.StatusUnauthorized)
+			io.WriteString(w, "EXPIRED")
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, "OK")
+		return
+	}
+
+	if r.URL.Path == "/rth56w3" {
 		self.invalid_license = true
 		w.WriteHeader(http.StatusOK)
 		io.WriteString(w, "OK")

@@ -2,7 +2,6 @@ package sampling
 
 import (
 	"bytes"
-	"commons"
 	"strconv"
 )
 
@@ -377,10 +376,10 @@ type portAll struct {
 	snmpBase
 }
 
-func (self *portAll) Call(params MContext) commons.Result {
+func (self *portAll) Call(params MContext) (interface{}, error) {
 	ifIndex, e := params.GetString("@ifIndex")
 	if nil != e || 0 == len(ifIndex) {
-		return commons.ReturnWithIsRequired("ifIndex")
+		return nil, IsRequired("ifIndex")
 	}
 
 	oidBuffer := bytes.NewBuffer(make([]byte, 0, 900))
@@ -412,7 +411,7 @@ func (self *portAll) Call(params MContext) commons.Result {
 	oidBuffer.Truncate(oidBuffer.Len() - 1)
 	res, e := self.Get(params, oidBuffer.String())
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
 	new_row := map[string]interface{}{}
@@ -450,17 +449,17 @@ func (self *portAll) Call(params MContext) commons.Result {
 	new_row["ifOutQLen"] = GetUint64WithDefault(params, res, "1.3.6.1.2.1.2.2.1.21."+ifIndex, 0)
 	new_row["ifSpecific"] = GetOidWithDefault(params, res, "1.3.6.1.2.1.2.2.1.22."+ifIndex)
 
-	return commons.Return(new_row)
+	return new_row, nil
 }
 
 type portStatus struct {
 	snmpBase
 }
 
-func (self *portStatus) Call(params MContext) commons.Result {
+func (self *portStatus) Call(params MContext) (interface{}, error) {
 	ifIndex, e := params.GetString("@ifIndex")
 	if nil != e || 0 == len(ifIndex) {
-		return commons.ReturnWithIsRequired("ifIndex")
+		return nil, IsRequired("ifIndex")
 	}
 
 	oidBuffer := bytes.NewBuffer(make([]byte, 0, 200))
@@ -475,7 +474,7 @@ func (self *portStatus) Call(params MContext) commons.Result {
 
 	res, e := self.Get(params, oidBuffer.String())
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
 	new_row := map[string]interface{}{}
@@ -489,22 +488,22 @@ func (self *portStatus) Call(params MContext) commons.Result {
 	new_row["ifStatus"] = calcStatus(ifAdminStatus, ifOpStatus)
 	new_row["ifStatus__descr"] = statusString(ifAdminStatus, ifOpStatus)
 
-	return commons.Return(new_row)
+	return new_row, nil
 }
 
 type portScalar struct {
 	snmpBase
 }
 
-func (self *portScalar) Call(params MContext) commons.Result {
+func (self *portScalar) Call(params MContext) (interface{}, error) {
 	ifIndex, e := params.GetString("@ifIndex")
 	if nil != e || 0 == len(ifIndex) {
-		return commons.ReturnWithIsRequired("ifIndex")
+		return nil, IsRequired("ifIndex")
 	}
 	return self.CallWithIfIndex(params, ifIndex)
 }
 
-func (self *portScalar) CallWithIfIndex(params MContext, ifIndex string) commons.Result {
+func (self *portScalar) CallWithIfIndex(params MContext, ifIndex string) (interface{}, error) {
 
 	oidBuffer := bytes.NewBuffer(make([]byte, 0, 900))
 	for _, s := range []string{"1.3.6.1.2.1.2.2.1.7.",
@@ -528,7 +527,7 @@ func (self *portScalar) CallWithIfIndex(params MContext, ifIndex string) commons
 
 	old_row, e := self.Get(params, oidBuffer.String())
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
 	new_row := map[string]interface{}{}
@@ -555,18 +554,18 @@ func (self *portScalar) CallWithIfIndex(params MContext, ifIndex string) commons
 	new_row["ifOutNUcastPkts"] = GetUint64WithDefault(params, old_row, "18", 0)
 	new_row["ifOutDiscards"] = GetUint64WithDefault(params, old_row, "19", 0)
 	new_row["ifOutErrors"] = GetUint64WithDefault(params, old_row, "20", 0)
-	return commons.Return(new_row)
+	return new_row, nil
 }
 
 type portDescr struct {
 	snmpBase
 }
 
-func (self *portDescr) Call(params MContext) commons.Result {
+func (self *portDescr) Call(params MContext) (interface{}, error) {
 
 	ifIndex, e := params.GetString("@ifIndex")
 	if nil != e || 0 == len(ifIndex) {
-		return commons.ReturnWithIsRequired("ifIndex")
+		return nil, IsRequired("ifIndex")
 	}
 
 	oidBuffer := bytes.NewBuffer(make([]byte, 0, 900))
@@ -584,7 +583,7 @@ func (self *portDescr) Call(params MContext) commons.Result {
 
 	old_row, e := self.Get(params, oidBuffer.String())
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
 	new_row := map[string]interface{}{}
@@ -595,14 +594,14 @@ func (self *portDescr) Call(params MContext) commons.Result {
 	new_row["ifSpeed"] = GetUint64WithDefault(params, old_row, "5", 0)
 	new_row["ifPhysAddress"] = GetHardwareAddressWithDefault(params, old_row, "6")
 	new_row["ifSpecific"] = GetOidWithDefault(params, old_row, "22")
-	return commons.Return(new_row)
+	return new_row, nil
 }
 
 type interfaceAll struct {
 	snmpBase
 }
 
-func (self *interfaceAll) Call(params MContext) commons.Result {
+func (self *interfaceAll) Call(params MContext) (interface{}, error) {
 	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := readInterface(params, old_row)
@@ -615,7 +614,7 @@ type interfaceStatus struct {
 	snmpBase
 }
 
-func (self *interfaceStatus) Call(params MContext) commons.Result {
+func (self *interfaceStatus) Call(params MContext) (interface{}, error) {
 	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,7,8",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
@@ -638,7 +637,7 @@ type interfaceScalar struct {
 	snmpBase
 }
 
-func (self *interfaceScalar) Call(params MContext) commons.Result {
+func (self *interfaceScalar) Call(params MContext) (interface{}, error) {
 	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,7,8,10,11,12,13,14,15,16,17,18,19,20",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
@@ -673,7 +672,7 @@ type interfaceDescr struct {
 	snmpBase
 }
 
-func (self *interfaceDescr) Call(params MContext) commons.Result {
+func (self *interfaceDescr) Call(params MContext) (interface{}, error) {
 	return self.GetAllResult(params, "1.3.6.1.2.1.2.2.1", "1,2,3,4,5,6,22",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}

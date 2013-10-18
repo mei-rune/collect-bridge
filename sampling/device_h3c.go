@@ -372,7 +372,7 @@ func (self *baseH3C) readCpuWithNewStyle(params MContext,
 
 type readWithStyle func(params MContext, id_list map[string]map[string]interface{}) (map[string]interface{}, error)
 
-func (self *baseH3C) smartRead(name string, params MContext, new_style, compatible_style readWithStyle) commons.Result {
+func (self *baseH3C) smartRead(name string, params MContext, new_style, compatible_style readWithStyle) (interface{}, error) {
 	id_list := make(map[string]map[string]interface{}, 10)
 	e := self.EachInTable(params, "1.3.6.1.2.1.47.1.1.1.1", "2,5,7,13",
 		func(key string, old_row map[string]interface{}) error {
@@ -398,11 +398,11 @@ func (self *baseH3C) smartRead(name string, params MContext, new_style, compatib
 		})
 
 	if nil != e {
-		return commons.ReturnWithInternalError("read slots of " + name + " failed, " + e.Error())
+		return nil, NewRuntimeError("read slots of "+name+" failed, ", e)
 	}
 
 	if 0 == len(id_list) {
-		return commons.ReturnWithNotAcceptable("not support device.")
+		return nil, errors.New("not support device.")
 	}
 
 	h3c_style := params.GetIntWithDefault("@h3c_style", 0)
@@ -423,14 +423,14 @@ restart_read:
 		if nil != e {
 			err, ok := e.(commons.RuntimeError)
 			if !ok || commons.NotFoundCode != err.Code() {
-				return commons.ReturnWithInternalError("read " + name + " with compatible style failed, " + e.Error())
+				return nil, NewRuntimeError("read "+name+" with compatible style failed, ", e)
 			}
 		}
 		fallthrough
 	case 25506:
 		res, e = new_style(params, id_list)
 		if nil != e {
-			return commons.ReturnWithInternalError("read " + name + " with new style failed, " + e.Error())
+			return nil, NewRuntimeError("read "+name+" with new style failed, ", e)
 		}
 
 		h3c_style = 25506
@@ -440,12 +440,12 @@ restart_read:
 	}
 
 	if nil == res {
-		return commons.ReturnWithInternalError("the results of " + name + " is empty.")
+		return nil, errors.New("the results of " + name + " is empty.")
 	}
 
 	if h3c_style != old_h3c_style {
 		params.Set("@h3c_style", h3c_style)
 	}
 
-	return commons.Return(res)
+	return res, nil
 }

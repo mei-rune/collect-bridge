@@ -15,7 +15,7 @@ type systemOid struct {
 	snmpBase
 }
 
-func (self *systemOid) Call(params MContext) commons.Result {
+func (self *systemOid) Call(params MContext) (interface{}, error) {
 	return self.GetResult(params, "1.3.6.1.2.1.1.2.0", RES_OID)
 }
 
@@ -23,7 +23,7 @@ type systemDescr struct {
 	snmpBase
 }
 
-func (self *systemDescr) Call(params MContext) commons.Result {
+func (self *systemDescr) Call(params MContext) (interface{}, error) {
 	return self.GetResult(params, "1.3.6.1.2.1.1.1.0", RES_STRING)
 }
 
@@ -31,7 +31,7 @@ type systemName struct {
 	snmpBase
 }
 
-func (self *systemName) Call(params MContext) commons.Result {
+func (self *systemName) Call(params MContext) (interface{}, error) {
 	return self.GetResult(params, "1.3.6.1.2.1.1.5.0", RES_STRING)
 }
 
@@ -39,19 +39,19 @@ type systemUpTime struct {
 	snmpBase
 }
 
-func (self *systemUpTime) Call(params MContext) commons.Result {
+func (self *systemUpTime) Call(params MContext) (interface{}, error) {
 	t, e := self.GetUint64(params, "1.3.6.1.2.1.1.3.0")
 	if nil != e {
-		return commons.Return(0).SetError(commons.InternalErrorCode, e.Error())
+		return nil, e
 	}
-	return commons.Return(t / 100)
+	return (t / 100), nil
 }
 
 type systemLocation struct {
 	snmpBase
 }
 
-func (self *systemLocation) Call(params MContext) commons.Result {
+func (self *systemLocation) Call(params MContext) (interface{}, error) {
 	return self.GetResult(params, "1.3.6.1.2.1.1.6.0", RES_STRING)
 }
 
@@ -59,7 +59,7 @@ type systemServices struct {
 	snmpBase
 }
 
-func (self *systemServices) Call(params MContext) commons.Result {
+func (self *systemServices) Call(params MContext) (interface{}, error) {
 	return self.GetResult(params, "1.3.6.1.2.1.1.7.0", RES_INT64)
 }
 
@@ -67,7 +67,7 @@ type systemInfo struct {
 	snmpBase
 }
 
-func (self *systemInfo) Call(params MContext) commons.Result {
+func (self *systemInfo) Call(params MContext) (interface{}, error) {
 	return self.GetOneResult(params, "1.3.6.1.2.1.1", "",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			oid := GetOidWithDefault(params, old_row, "2")
@@ -174,12 +174,12 @@ func (self *systemType) Init(params map[string]interface{}) error {
 	return self.snmpBase.Init(params)
 }
 
-func (self *systemType) Call(params MContext) commons.Result {
+func (self *systemType) Call(params MContext) (interface{}, error) {
 	if nil != self.device2id && 0 != len(self.device2id) {
 		oid := params.GetStringWithDefault("$sys.oid", "")
 		if 0 != len(oid) {
 			if dt, ok := self.device2id[strings.TrimPrefix(oid, ".")]; ok {
-				return commons.Return(dt)
+				return dt, nil
 			}
 		}
 	}
@@ -202,14 +202,14 @@ func (self *systemType) Call(params MContext) commons.Result {
 	}
 
 	if 0 != t {
-		return commons.Return(t >> 1)
+		return (t >> 1), nil
 	}
 SERVICES:
 	services, e := params.GetUint32("$sys.services")
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
-	return commons.Return((services & 0x7) >> 1)
+	return ((services & 0x7) >> 1), nil
 }
 
 func abs(pa string) string {
@@ -221,7 +221,6 @@ func abs(pa string) string {
 }
 
 func init() {
-
 	Methods["sys_oid"] = newRouteSpec("get", "sys.oid", "the oid of system", nil,
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {
 			drv := &systemOid{}

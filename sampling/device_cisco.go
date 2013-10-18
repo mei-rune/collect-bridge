@@ -1,14 +1,10 @@
 package sampling
 
-import (
-	"commons"
-)
-
 type baseCisco struct {
 	snmpBase
 }
 
-func (self *baseCisco) readSystemUpTime(params MContext) commons.Result {
+func (self *baseCisco) readSystemUpTime(params MContext) (interface{}, error) {
 	// CISCO-SYSTEM-EXT-MIB
 	//
 	// cseSysUpTime OBJECT-TYPE
@@ -30,15 +26,15 @@ func (self *baseCisco) readSystemUpTime(params MContext) commons.Result {
 	return self.GetResult(params, "1.3.6.1.4.1.9.9.305.1.1.10.0", RES_UINT64)
 }
 
-func (self *baseCisco) readCpuWithOldSytle(params MContext) commons.Result {
+func (self *baseCisco) readCpuWithOldSytle(params MContext) (interface{}, error) {
 	cpu, e := self.GetInt32(params, "1.3.6.1.4.1.9.2.1.57.0")
 	if nil == e {
-		return commons.Return(map[string]interface{}{"cpu": cpu})
+		return map[string]interface{}{"cpu": cpu}, nil
 	}
-	return self.ErrorResult(e)
+	return nil, e
 }
 
-func (self *baseCisco) readCpuWithSystemExt(params MContext) commons.Result {
+func (self *baseCisco) readCpuWithSystemExt(params MContext) (interface{}, error) {
 	// CISCO-SYSTEM-EXT-MIB
 	//
 	// cseSysCPUUtilization OBJECT-TYPE
@@ -52,9 +48,9 @@ func (self *baseCisco) readCpuWithSystemExt(params MContext) commons.Result {
 	//   ::= { ciscoSysInfoGroup 1 }
 	cpu, e := self.GetUint32(params, "1.3.6.1.4.1.9.9.305.1.1.1.0")
 	if nil == e {
-		return commons.Return(map[string]interface{}{"cpu": cpu})
+		return map[string]interface{}{"cpu": cpu}, nil
 	}
-	return self.ErrorResult(e)
+	return nil, e
 }
 
 func GetUint32WithKeys(params MContext, values map[string]interface{}, idx1, idx2 string, defaultValue uint32) uint32 {
@@ -73,7 +69,7 @@ func GetUint64WithKeys(params MContext, values map[string]interface{}, idx1, idx
 	return percent
 }
 
-func (self *baseCisco) readCpuWithCpmSytle(params MContext) commons.Result {
+func (self *baseCisco) readCpuWithCpmSytle(params MContext) (interface{}, error) {
 	// CISCO-PROCESS-MIB.my: MIB for CPU and process statistics
 	//
 	// cpmCPUTotalTable OBJECT-TYPE
@@ -150,35 +146,35 @@ func (self *baseCisco) readCpuWithCpmSytle(params MContext) commons.Result {
 		})
 
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
 	if 1 == len(cpu_list) {
 		cpu_list[0]["cpu"] = total
-		return commons.Return(cpu_list[0])
+		return cpu_list[0], nil
 	}
 
-	return commons.Return(map[string]interface{}{"cpu": total / uint32(len(cpu_list)), "cpu_list": cpu_list})
+	return map[string]interface{}{"cpu": total / uint32(len(cpu_list)), "cpu_list": cpu_list}, nil
 }
 
-func (self *baseCisco) readMemWithOldSytle(params MContext) commons.Result {
+func (self *baseCisco) readMemWithOldSytle(params MContext) (interface{}, error) {
 	total, e := self.GetInt64(params, "1.3.6.1.4.1.9.3.6.6.0")
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
 	free, e := self.GetInt64(params, "1.3.6.1.4.1.9.2.1.8.0")
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
-	return commons.Return(map[string]interface{}{"total": total,
+	return map[string]interface{}{"total": total,
 		"used_per": (float64(total-free) / float64(total)) * 100,
 		"used":     total - free,
-		"free":     free})
+		"free":     free}, nil
 }
 
-func (self *baseCisco) readMemWithCpmSytle(params MContext) commons.Result {
+func (self *baseCisco) readMemWithCpmSytle(params MContext) (interface{}, error) {
 	// see readCpuWithCpmSytle
 	// "cpmCPUMemoryUsed"	             	"1.3.6.1.4.1.9.9.109.1.1.1.1.12"
 	// "cpmCPUMemoryFree"		            "1.3.6.1.4.1.9.9.109.1.1.1.1.13"
@@ -213,22 +209,22 @@ func (self *baseCisco) readMemWithCpmSytle(params MContext) commons.Result {
 		})
 
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
 	if 1 == len(mem_pool) {
-		return commons.Return(mem_pool[0])
+		return mem_pool[0], nil
 	}
 
-	return commons.Return(map[string]interface{}{"total": total_reserved + total_used + total_free,
+	return map[string]interface{}{"total": total_reserved + total_used + total_free,
 		"used_per": (float64(total_used) / (float64(total_used) + float64(total_free) + float64(total_reserved))) * 100,
 		"used":     total_used + total_reserved,
 		"free":     total_free,
 		"reserved": total_reserved,
-		"mem_list": mem_pool})
+		"mem_list": mem_pool}, nil
 }
 
-func (self *baseCisco) readMem(params MContext) commons.Result {
+func (self *baseCisco) readMem(params MContext) (interface{}, error) {
 	// CISCO-SYSTEM-EXT-MIB
 	//
 	// cseSysMemoryUtilization OBJECT-TYPE
@@ -243,7 +239,7 @@ func (self *baseCisco) readMem(params MContext) commons.Result {
 	return self.GetResult(params, "1.3.6.1.4.1.9.9.305.1.1.2", RES_UINT32)
 }
 
-func (self *baseCisco) readMemWithPoolStyle(params MContext) commons.Result {
+func (self *baseCisco) readMemWithPoolStyle(params MContext) (interface{}, error) {
 	// http://tools.cisco.com/Support/SNMP/do/BrowseMIB.do?local=en&step=2&mibName=CISCO-MEMORY-POOL-MIB
 	// . iso (1) . org (3) . dod (6) . internet (1) . private (4) . enterprises (1) . cisco (9) . ciscoMgmt (9) . ciscoMemoryPoolMIB (48)
 	//    |
@@ -282,5 +278,5 @@ func (self *baseCisco) readMemWithPoolStyle(params MContext) commons.Result {
 	//     DESCRIPTION        "A collection of objects providing memory pool monitoring.
 	// "
 	//     ::= { ciscoMemoryPoolGroups 1 }
-	return commons.ReturnWithNotImplemented()
+	return nil, NotImplemented
 }

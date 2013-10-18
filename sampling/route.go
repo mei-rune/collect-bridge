@@ -47,7 +47,7 @@ func (self *Route) Match(skipped int, paths []P, params MContext) (bool, error) 
 	return self.matchers.Match(skipped, path_params, params, false)
 }
 
-func (self *Route) Invoke(paths []P, params MContext) commons.Result {
+func (self *Route) Invoke(paths []P, params MContext) (interface{}, error) {
 	if nil != self.definition.Paths && 0 != len(self.definition.Paths) {
 		for i, ss := range self.definition.Paths {
 			if 0 == len(ss[1]) {
@@ -192,18 +192,18 @@ func (self *RouterGroup) clear() {
 	self.default_routes = nil
 }
 
-func (self *RouterGroup) Invoke(paths []P, params MContext) commons.Result {
+func (self *RouterGroup) Invoke(paths []P, params MContext) (interface{}, error) {
 	if nil != self.byOid {
 		oid, e := params.GetString("$sys.oid")
 		if nil != e {
-			return commons.ReturnWithBadRequest("read 'sys.oid' failed, " + e.Error())
+			return nil, BadRequest("read 'sys.oid' failed, " + e.Error())
 		}
 		if 0 == len(oid) {
-			return commons.ReturnWithIsRequired("sys.oid")
+			return nil, IsRequired("sys.oid")
 		}
 		route, e := self.byOid.find(oid, paths, params)
 		if nil != e {
-			return commons.ReturnWithInternalError(e.Error())
+			return nil, e
 		}
 
 		if nil != route {
@@ -215,7 +215,7 @@ func (self *RouterGroup) Invoke(paths []P, params MContext) commons.Result {
 		for _, rs := range self.routes {
 			matched, e := rs.Match(0, paths, params)
 			if nil != e {
-				return commons.ReturnWithInternalError(e.Error())
+				return nil, e
 			}
 
 			if matched {
@@ -225,23 +225,24 @@ func (self *RouterGroup) Invoke(paths []P, params MContext) commons.Result {
 	}
 
 	if nil != self.default_routes {
-		var res commons.Result
+		var e error
+		var res interface{}
 		for _, rs := range self.default_routes {
 			if matched, _ := rs.Match(0, paths, params); !matched {
 				continue
 			}
 
-			res = rs.Invoke(paths, params)
-			if res.HasError() {
+			res, e = rs.Invoke(paths, params)
+			if nil != e {
 				continue
 			}
-			return res
+			return res, nil
 		}
-		if nil != res {
-			return res
+		if nil != e {
+			return nil, e
 		}
 	}
-	return commons.ReturnWithNotAcceptable("not match")
+	return nil, commons.NewApplicationError(commons.NotAcceptableCode, "not match")
 }
 
 type RouteSetByOid map[string][]*Route

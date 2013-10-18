@@ -308,19 +308,19 @@ func (self *linkWorker) Stats() map[string]interface{} {
 	return map[string]interface{}{"name": "linkWorker", "links": stats}
 }
 
-func (self *linkWorker) Call(ctx MContext) commons.Result {
+func (self *linkWorker) Call(ctx MContext) (interface{}, error) {
 	id, e := ctx.GetInt("id")
 	if nil != e {
-		return commons.ReturnWithIsRequired("id")
+		return nil, IsRequired("id")
 	}
 
 	forward, e := ctx.GetBool("@forward")
 	if nil != e {
-		return commons.ReturnWithIsRequired("forward")
+		return nil, IsRequired("forward")
 	}
 	from_based, e := ctx.GetBool("@from_based")
 	if nil != e {
-		return commons.ReturnWithIsRequired("from_based")
+		return nil, IsRequired("from_based")
 	}
 	var ifIndex string
 	var device string
@@ -328,20 +328,20 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 	if from_based {
 		device, e = ctx.GetString("@from_device")
 		if nil != e {
-			return commons.ReturnWithIsRequired("from_device")
+			return nil, IsRequired("from_device")
 		}
 		ifIndex, e = ctx.GetString("@from_if_index")
 		if nil != e {
-			return commons.ReturnWithIsRequired("from_if_index")
+			return nil, IsRequired("from_if_index")
 		}
 	} else {
 		device, e = ctx.GetString("@to_device")
 		if nil != e {
-			return commons.ReturnWithIsRequired("to_device")
+			return nil, IsRequired("to_device")
 		}
 		ifIndex, e = ctx.GetString("@to_if_index")
 		if nil != e {
-			return commons.ReturnWithIsRequired("to_if_index")
+			return nil, IsRequired("to_if_index")
 		}
 	}
 
@@ -360,11 +360,11 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 
 	ctx2, e := ctx.CreateCtx("interface", "managed_object", device)
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 	attributes, e := ctx.Read().GetObject("interface", []P{P{"port", ifIndex}}, ctx2)
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 	flux := bucket.BeginPush()
 	readFluxFormMap(flux, attributes)
@@ -373,7 +373,7 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 
 	var current Flux
 	if e := calcFlux(&current, &bucket.fluxBuffer, max_interval, last_at); nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 	current.SampledAt = sampled_at
 
@@ -394,7 +394,7 @@ func (self *linkWorker) Call(ctx MContext) commons.Result {
 		current.IfOutOctetsPercent = current.IfOutOctets / custom_speed_down
 	}
 
-	return commons.Return(&current)
+	return &current, nil
 }
 
 type interfaceBucket struct {
@@ -460,20 +460,20 @@ func (self *interfaceWorker) Stats() map[string]interface{} {
 	return map[string]interface{}{"name": "interfaceWorker", "ports": stats}
 }
 
-func (self *interfaceWorker) Call(ctx MContext) commons.Result {
+func (self *interfaceWorker) Call(ctx MContext) (interface{}, error) {
 	ifIndex, e := ctx.GetString("@ifIndex")
 	if nil != e || 0 == len(ifIndex) {
-		return commons.ReturnWithIsRequired("ifIndex")
+		return nil, IsRequired("ifIndex")
 	}
 
 	ifIndex_int, e := strconv.ParseInt(ifIndex, 10, 0)
 	if nil != e {
-		return commons.ReturnWithBadRequest("'ifIndex' is not a int.")
+		return nil, BadRequest("'ifIndex' is not a int.")
 	}
 
 	uid, e := ctx.GetString("uid")
 	if nil != e || 0 == len(ifIndex) {
-		return commons.ReturnWithIsRequired("uid")
+		return nil, IsRequired("uid")
 	}
 
 	max_interval := ctx.GetUint64WithDefault("max_interval", 0)
@@ -491,7 +491,7 @@ func (self *interfaceWorker) Call(ctx MContext) commons.Result {
 
 	attributes, e := ctx.Read().GetObject("interface", []P{P{"port", ifIndex}}, ctx)
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 	flux := bucket.BeginPush()
 	readFluxFormMap(flux, attributes)
@@ -501,11 +501,11 @@ func (self *interfaceWorker) Call(ctx MContext) commons.Result {
 
 	var current Flux
 	if e := calcFlux(&current, &bucket.fluxBuffer, max_interval, last_at); nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 	current.SampledAt = sampled_at
 
-	return commons.Return(&current)
+	return &current, nil
 }
 
 func init() {

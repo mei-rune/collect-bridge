@@ -218,19 +218,23 @@ func (self *server) clear() {
 	self.route_for_delete = make(map[string]*Route)
 }
 
-func notAcceptable(metric_name string) commons.Result {
-	return commons.ReturnWithNotAcceptable("'" + metric_name + "' is not acceptable.")
+func notAcceptable(metric_name string) (interface{}, error) {
+	return nil, commons.NewApplicationError(commons.NotAcceptableCode, "'"+metric_name+"' is not acceptable.")
 }
 
-func (self *server) returnResult(resp http.ResponseWriter, res commons.Result) {
-	if res.HasError() {
-		resp.WriteHeader(res.ErrorCode())
-		io.WriteString(resp, res.ErrorMessage())
-	} else {
-		if -1 != res.LastInsertId() {
-			resp.WriteHeader(commons.CreatedCode)
+func (self *server) returnResult(resp http.ResponseWriter, res interface{}, e error) {
+	if nil != e {
+		if re, ok := e.(commons.RuntimeError); ok {
+			resp.WriteHeader(re.Code())
+		} else {
+			resp.WriteHeader(http.StatusInternalServerError)
 		}
-		e := json.NewEncoder(resp).Encode(res)
+		io.WriteString(resp, e.Error())
+	} else {
+		// if -1 != res.LastInsertId() {
+		// 	resp.WriteHeader(commons.CreatedCode)
+		// }
+		e := json.NewEncoder(resp).Encode(commons.Return(res))
 		if nil != e {
 			resp.WriteHeader(http.StatusInternalServerError)
 			io.WriteString(resp, e.Error())
@@ -247,7 +251,7 @@ func to2DArray(ss []string) []P {
 }
 
 type routeObject interface {
-	Invoke(paths []P, params MContext) commons.Result
+	Invoke(paths []P, params MContext) (interface{}, error)
 }
 
 func (self *server) route(action, metric_name string) (routeObject, commons.RuntimeError) {
@@ -466,7 +470,8 @@ func (self *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	self.returnResult(w, route.Invoke(ctx.query_paths, ctx))
+	res, err := route.Invoke(ctx.query_paths, ctx)
+	self.returnResult(w, res, err)
 }
 
 func (self *server) batchExchange(w http.ResponseWriter, r *http.Request) {
@@ -550,7 +555,8 @@ func (self *server) sendCompletion(w http.ResponseWriter) {
 
 func (self *server) doRequest(r *ExchangeRequest) {
 	var resp *ExchangeResponse
-	var res commons.Result
+	var res interface{}
+	var e error
 	var ctx *context
 
 	begin_at := time.Now()
@@ -609,7 +615,7 @@ func (self *server) doRequest(r *ExchangeRequest) {
 		body_unmarshaled: true,
 		body_instance:    r.Body}
 
-	if e := ctx.init(); nil != e {
+	if e = ctx.init(); nil != e {
 		if err := e.(commons.RuntimeError); nil != err {
 			resp = &ExchangeResponse{Id: r.Id, EcreatedAt: time.Now(), ChannelName: r.ChannelName,
 				Eerror: &commons.ApplicationError{Ecode: err.Code(), Emessage: err.Error()}}
@@ -620,33 +626,38 @@ func (self *server) doRequest(r *ExchangeRequest) {
 		goto failed
 	}
 
-	res = route.Invoke(ctx.query_paths, ctx)
-	if res.HasError() {
-		resp = &ExchangeResponse{Id: r.Id, EcreatedAt: res.CreatedAt(), ChannelName: r.ChannelName,
-			Eerror: &commons.ApplicationError{Ecode: res.ErrorCode(), Emessage: res.ErrorMessage()}}
-	} else {
-		resp = &ExchangeResponse{Id: r.Id, EcreatedAt: res.CreatedAt(), ChannelName: r.ChannelName,
-			Evalue: res.InterfaceValue()}
-
-		if "link_flux" == r.Name {
-			if m, ok := res.InterfaceValue().(map[string]interface{}); ok && nil != m {
-				if _, ok = m["ifIndex"]; !ok {
-					fmt.Println("[debug-flux] channel=", r.ChannelName, ", name=", r.Name, ", managedType=", r.ManagedType, ", managedId=", r.ManagedId)
-				}
-			}
-		} else if "cpu" == r.Name {
-			if m, ok := res.InterfaceValue().(map[string]interface{}); ok && nil != m {
-				if _, ok = m["cpu"]; !ok {
-					fmt.Println("[debug-cpu] channel=", r.ChannelName, ", name=", r.Name, ", managedType=", r.ManagedType, ", managedId=", r.ManagedId)
-				}
-			}
-		} else if "mem" == r.Name {
-			if m, ok := res.InterfaceValue().(map[string]interface{}); ok && nil != m {
-				if _, ok = m["total"]; !ok {
-					fmt.Println("[debug-mem] channel=", r.ChannelName, ", name=", r.Name, ", managedType=", r.ManagedType, ", managedId=", r.ManagedId)
-				}
-			}
+	res, e = route.Invoke(ctx.query_paths, ctx)
+	if nil != e {
+		if err, ok := e.(commons.RuntimeError); ok {
+			resp = &ExchangeResponse{Id: r.Id, ChannelName: r.ChannelName,
+				Eerror: &commons.ApplicationError{Ecode: err.Code(), Emessage: e.Error()}}
+		} else {
+			resp = &ExchangeResponse{Id: r.Id, ChannelName: r.ChannelName,
+				Eerror: &commons.ApplicationError{Ecode: http.StatusInternalServerError, Emessage: e.Error()}}
 		}
+	} else {
+		resp = &ExchangeResponse{Id: r.Id, EcreatedAt: time.Now(), ChannelName: r.ChannelName,
+			Evalue: res}
+
+		// if "link_flux" == r.Name {
+		// 	if m, ok := res.InterfaceValue().(map[string]interface{}); ok && nil != m {
+		// 		if _, ok = m["ifIndex"]; !ok {
+		// 			fmt.Println("[debug-flux] channel=", r.ChannelName, ", name=", r.Name, ", managedType=", r.ManagedType, ", managedId=", r.ManagedId)
+		// 		}
+		// 	}
+		// } else if "cpu" == r.Name {
+		// 	if m, ok := res.InterfaceValue().(map[string]interface{}); ok && nil != m {
+		// 		if _, ok = m["cpu"]; !ok {
+		// 			fmt.Println("[debug-cpu] channel=", r.ChannelName, ", name=", r.Name, ", managedType=", r.ManagedType, ", managedId=", r.ManagedId)
+		// 		}
+		// 	}
+		// } else if "mem" == r.Name {
+		// 	if m, ok := res.InterfaceValue().(map[string]interface{}); ok && nil != m {
+		// 		if _, ok = m["total"]; !ok {
+		// 			fmt.Println("[debug-mem] channel=", r.ChannelName, ", name=", r.Name, ", managedType=", r.ManagedType, ", managedId=", r.ManagedId)
+		// 		}
+		// 	}
+		// }
 	}
 
 failed:
@@ -661,7 +672,7 @@ failed:
 }
 
 func invoke(route_by_id map[string]*Route, routes_by_name map[string]*RouterGroup,
-	metric_name string, paths []P, params MContext) commons.Result {
+	metric_name string, paths []P, params MContext) (interface{}, error) {
 	route := route_by_id[metric_name]
 	if nil != route {
 		return route.Invoke(paths, params)
@@ -675,19 +686,19 @@ func invoke(route_by_id map[string]*Route, routes_by_name map[string]*RouterGrou
 	return routes.Invoke(paths, params)
 }
 
-func (self *server) InvokeGet(metric_name string, paths []P, params MContext) commons.Result {
+func (self *server) InvokeGet(metric_name string, paths []P, params MContext) (interface{}, error) {
 	return invoke(self.route_for_get, self.routes_for_get, metric_name, paths, params)
 }
 
-func (self *server) InvokePut(metric_name string, paths []P, params MContext) commons.Result {
+func (self *server) InvokePut(metric_name string, paths []P, params MContext) (interface{}, error) {
 	return invoke(self.route_for_put, self.routes_for_put, metric_name, paths, params)
 }
 
-func (self *server) InvokeCreate(metric_name string, paths []P, params MContext) commons.Result {
+func (self *server) InvokeCreate(metric_name string, paths []P, params MContext) (interface{}, error) {
 	return invoke(self.route_for_create, self.routes_for_create, metric_name, paths, params)
 }
 
-func (self *server) InvokeDelete(metric_name string, paths []P, params MContext) commons.Result {
+func (self *server) InvokeDelete(metric_name string, paths []P, params MContext) (interface{}, error) {
 	return invoke(self.route_for_delete, self.routes_for_delete, metric_name, paths, params)
 }
 func (self *server) GetMOCahce(id string) (map[string]interface{}, error) {
@@ -695,19 +706,15 @@ func (self *server) GetMOCahce(id string) (map[string]interface{}, error) {
 }
 
 func (self *server) Get(metric_name string, paths []P, params MContext) (interface{}, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return nil, res.Error()
-	}
-	return res.InterfaceValue(), nil
+	return self.InvokeGet(metric_name, paths, params)
 }
 
 func (self *server) GetBool(metric_name string, paths []P, params MContext) (bool, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return false, res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return false, e
 	}
-	b, e := res.Value().AsBool()
+	b, e := commons.AsBool(res)
 	if nil != e {
 		return false, type_error(e)
 	}
@@ -715,11 +722,11 @@ func (self *server) GetBool(metric_name string, paths []P, params MContext) (boo
 }
 
 func (self *server) GetInt(metric_name string, paths []P, params MContext) (int, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return 0, res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return 0, e
 	}
-	i, e := res.Value().AsInt()
+	i, e := commons.AsInt(res)
 	if nil != e {
 		return 0, type_error(e)
 	}
@@ -727,11 +734,11 @@ func (self *server) GetInt(metric_name string, paths []P, params MContext) (int,
 }
 
 func (self *server) GetInt32(metric_name string, paths []P, params MContext) (int32, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return 0, res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return 0, e
 	}
-	i32, e := res.Value().AsInt32()
+	i32, e := commons.AsInt32(res)
 	if nil != e {
 		return 0, type_error(e)
 	}
@@ -739,11 +746,11 @@ func (self *server) GetInt32(metric_name string, paths []P, params MContext) (in
 }
 
 func (self *server) GetInt64(metric_name string, paths []P, params MContext) (int64, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return 0, res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return 0, e
 	}
-	i64, e := res.Value().AsInt64()
+	i64, e := commons.AsInt64(res)
 	if nil != e {
 		return 0, type_error(e)
 	}
@@ -751,11 +758,11 @@ func (self *server) GetInt64(metric_name string, paths []P, params MContext) (in
 }
 
 func (self *server) GetUint(metric_name string, paths []P, params MContext) (uint, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return 0, res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return 0, e
 	}
-	u, e := res.Value().AsUint()
+	u, e := commons.AsUint(res)
 	if nil != e {
 		return 0, type_error(e)
 	}
@@ -763,11 +770,11 @@ func (self *server) GetUint(metric_name string, paths []P, params MContext) (uin
 }
 
 func (self *server) GetUint32(metric_name string, paths []P, params MContext) (uint32, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return 0, res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return 0, e
 	}
-	u32, e := res.Value().AsUint32()
+	u32, e := commons.AsUint32(res)
 	if nil != e {
 		return 0, type_error(e)
 	}
@@ -775,11 +782,11 @@ func (self *server) GetUint32(metric_name string, paths []P, params MContext) (u
 }
 
 func (self *server) GetUint64(metric_name string, paths []P, params MContext) (uint64, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return 0, res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return 0, e
 	}
-	u64, e := res.Value().AsUint64()
+	u64, e := commons.AsUint64(res)
 	if nil != e {
 		return 0, type_error(e)
 	}
@@ -787,12 +794,12 @@ func (self *server) GetUint64(metric_name string, paths []P, params MContext) (u
 }
 
 func (self *server) GetString(metric_name string, paths []P, params MContext) (string, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return "", res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return "", e
 	}
 
-	s, e := res.Value().AsString()
+	s, e := commons.AsString(res)
 	if nil != e {
 		return "", type_error(e)
 	}
@@ -800,12 +807,12 @@ func (self *server) GetString(metric_name string, paths []P, params MContext) (s
 }
 
 func (self *server) GetObject(metric_name string, paths []P, params MContext) (map[string]interface{}, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return nil, res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return nil, e
 	}
 
-	o, e := res.Value().AsObject()
+	o, e := commons.AsObject(res)
 	if nil != e {
 		return nil, type_error(e)
 	}
@@ -813,12 +820,12 @@ func (self *server) GetObject(metric_name string, paths []P, params MContext) (m
 }
 
 func (self *server) GetArray(metric_name string, paths []P, params MContext) ([]interface{}, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return nil, res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return nil, e
 	}
 
-	a, e := res.Value().AsArray()
+	a, e := commons.AsArray(res)
 	if nil != e {
 		return nil, type_error(e)
 	}
@@ -826,12 +833,12 @@ func (self *server) GetArray(metric_name string, paths []P, params MContext) ([]
 }
 
 func (self *server) GetObjects(metric_name string, paths []P, params MContext) ([]map[string]interface{}, error) {
-	res := self.InvokeGet(metric_name, paths, params)
-	if res.HasError() {
-		return nil, res.Error()
+	res, e := self.InvokeGet(metric_name, paths, params)
+	if nil != e {
+		return nil, e
 	}
 
-	o, e := res.Value().AsObjects()
+	o, e := commons.AsObjects(res)
 	if nil != e {
 		return nil, type_error(e)
 	}

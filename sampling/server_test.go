@@ -46,9 +46,9 @@ var (
 		"type":     "wbem_param"}
 )
 
-type MockHandler func() commons.Result
+type MockHandler func() (interface{}, error)
 
-func (self MockHandler) Call(params MContext) commons.Result {
+func (self MockHandler) Call(params MContext) (interface{}, error) {
 	return self()
 }
 

@@ -222,10 +222,10 @@ func (self *icmpWorker) Stats() map[string]interface{} {
 	return map[string]interface{}{"name": "icmpWorker", "ports": stats}
 }
 
-func (self *icmpWorker) Call(ctx MContext) commons.Result {
+func (self *icmpWorker) Call(ctx MContext) (interface{}, error) {
 	address, e := ctx.GetString("@address")
 	if nil != e {
-		return commons.ReturnWithIsRequired("address")
+		return nil, IsRequired("address")
 	}
 	bucket, ok := self.GetOrCreate(address)
 	if ok {
@@ -241,12 +241,12 @@ func (self *icmpWorker) Call(ctx MContext) commons.Result {
 	list := bucket.icmpBuffer.All()
 	if nil == list || 0 == len(list) {
 		if !bucket.IsTimeout(now) {
-			return commons.ReturnWithInternalError(pendingError.Error())
+			return nil, pendingError
 		}
-		return commons.Return(map[string]interface{}{"result": false, "list": list})
+		return map[string]interface{}{"result": false, "list": list}, nil
 	}
 
-	return commons.Return(map[string]interface{}{"result": !bucket.IsTimeout(now), "list": list})
+	return map[string]interface{}{"result": !bucket.IsTimeout(now), "list": list}, nil
 }
 
 func init() {

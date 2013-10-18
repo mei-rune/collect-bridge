@@ -1,9 +1,5 @@
 package sampling
 
-import (
-	"commons"
-)
-
 // snAgentSys                 1.3.6.1.4.1.1991.1.1.2
 // snAgentCpu                 1.3.6.1.4.1.1991.1.1.2.11
 // snAgentCpuUtilTable        1.3.6.1.4.1.1991.1.1.2.11.1
@@ -106,7 +102,7 @@ type baseFoundry struct {
 	snmpBase
 }
 
-func (self *baseFoundry) readCpu(params MContext) commons.Result {
+func (self *baseFoundry) readCpu(params MContext) (interface{}, error) {
 	cpu_list := make([]map[string]interface{}, 10)
 	total := uint32(0)
 	e := self.EachInTable(params, "1.3.6.1.4.1.1991.1.1.2.11.1.1", "1,2,3,4,5,6",
@@ -125,9 +121,9 @@ func (self *baseFoundry) readCpu(params MContext) commons.Result {
 		})
 
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
-	return commons.Return(map[string]interface{}{"cpu": total / uint32(len(cpu_list)), "cpu_list": cpu_list})
+	return map[string]interface{}{"cpu": total / uint32(len(cpu_list)), "cpu_list": cpu_list}, nil
 }
 
 // -- System DRAM info Group.
@@ -176,22 +172,22 @@ func (self *baseFoundry) readCpu(params MContext) commons.Result {
 //     "The free amount of system dynamic memory used by OSPF, in number of bytes."
 //   ::= { snAgSystemDRAM 5 }
 
-func (self *baseFoundry) readMem(params MContext) commons.Result {
+func (self *baseFoundry) readMem(params MContext) (interface{}, error) {
 	snAgSystemDRAMUtil, e := self.GetUint32(params, "1.3.6.1.4.1.1991.1.1.2.12.4.1.0")
 	if nil != e {
-		return self.ErrorResult(e)
+		return nil, e
 	}
 	snAgSystemDRAMTotal, e := self.GetUint32(params, "1.3.6.1.4.1.1991.1.1.2.12.4.2.0")
 	if nil != e {
-		return self.ErrorResult(e)
+		return nil, e
 	}
 	snAgSystemDRAMFree, e := self.GetUint32(params, "1.3.6.1.4.1.1991.1.1.2.12.4.3.0")
 	if nil != e {
-		return self.ErrorResult(e)
+		return nil, e
 	}
 
-	return commons.Return(map[string]interface{}{"total": snAgSystemDRAMTotal,
+	return map[string]interface{}{"total": snAgSystemDRAMTotal,
 		"used_per": snAgSystemDRAMUtil,
 		"used":     snAgSystemDRAMTotal - snAgSystemDRAMFree,
-		"free":     snAgSystemDRAMFree})
+		"free":     snAgSystemDRAMFree}, nil
 }

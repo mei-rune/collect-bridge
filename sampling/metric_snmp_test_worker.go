@@ -316,10 +316,10 @@ func (self *snmpWorker) Stats() map[string]interface{} {
 	return map[string]interface{}{"name": "snmpWorker", "ports": stats}
 }
 
-func (self *snmpWorker) Call(ctx MContext) commons.Result {
+func (self *snmpWorker) Call(ctx MContext) (interface{}, error) {
 	address, e := ctx.GetString("@address")
 	if nil != e {
-		return commons.ReturnWithIsRequired("address")
+		return nil, IsRequired("address")
 	}
 	port := ctx.GetStringWithDefault("snmp.port", "")
 	if 0 != len(port) {
@@ -333,16 +333,16 @@ func (self *snmpWorker) Call(ctx MContext) commons.Result {
 	}
 	version := ctx.GetStringWithDefault("snmp.version", "")
 	if 0 == len(version) {
-		return commons.ReturnWithBadRequest(snmpNotExistsError.Error())
+		return nil, BadRequest(snmpNotExistsError.Error())
 	}
 	community := ctx.GetStringWithDefault("snmp.read_community", "")
 	if 0 == len(community) {
-		return commons.ReturnWithIsRequired("snmp.read_community")
+		return nil, IsRequired("snmp.read_community")
 	}
 
 	version_int, e := snmpclient.ParseSnmpVersion(version)
 	if nil != e {
-		return commons.ReturnWithBadRequest(e.Error())
+		return nil, BadRequest(e.Error())
 	}
 
 	if version_int == snmpclient.SNMP_V3 {
@@ -353,7 +353,7 @@ func (self *snmpWorker) Call(ctx MContext) commons.Result {
 		// snmp_params["snmp.context_name"] = params.GetStringWithDefault("snmp.context_name", "")
 		// snmp_params["snmp.identifier"] = params.GetStringWithDefault("snmp.identifier", "")
 		// snmp_params["snmp.engine_id"] = params.GetStringWithDefault("snmp.engine_id", "")
-		return commons.ReturnWithBadRequest(snmpv3UnsupportedError.Error())
+		return nil, BadRequest(snmpv3UnsupportedError.Error())
 	}
 
 	bucket, ok := self.GetOrCreate(address, version_int, community)
@@ -370,12 +370,12 @@ func (self *snmpWorker) Call(ctx MContext) commons.Result {
 	list := bucket.snmpBuffer.All()
 	if nil == list || 0 == len(list) {
 		if !bucket.IsTimeout(now) {
-			return commons.ReturnWithInternalError(pendingError.Error())
+			return nil, pendingError
 		}
-		return commons.Return(map[string]interface{}{"result": false, "list": list})
+		return map[string]interface{}{"result": false, "list": list}, nil
 	}
 
-	return commons.Return(map[string]interface{}{"result": !bucket.IsTimeout(now), "list": list})
+	return map[string]interface{}{"result": !bucket.IsTimeout(now), "list": list}, nil
 }
 
 func init() {

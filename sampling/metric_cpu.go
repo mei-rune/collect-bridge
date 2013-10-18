@@ -1,7 +1,7 @@
 package sampling
 
 import (
-	"commons"
+	"errors"
 )
 
 // type cpu struct {
@@ -14,24 +14,24 @@ import (
 // 		return e
 // 	}
 
-// 	self.RegisterGetFunc([]string{"1.3.6.1.4.1.5655"}, func(params MContext) commons.Result {
+// 	self.RegisterGetFunc([]string{"1.3.6.1.4.1.5655"}, func(params MContext) (interface{}, error) {
 // 		return self.GetCiscoSCE(params)
 // 	})
-// 	self.RegisterGetFunc([]string{"1.3.6.1.4.1.9"}, func(params MContext) commons.Result {
+// 	self.RegisterGetFunc([]string{"1.3.6.1.4.1.9"}, func(params MContext) (interface{}, error) {
 // 		return self.GetCisco(params)
 // 	})
-// 	self.RegisterGetFunc([]string{"1.3.6.1.4.1.9.1.746"}, func(params MContext) commons.Result {
+// 	self.RegisterGetFunc([]string{"1.3.6.1.4.1.9.1.746"}, func(params MContext) (interface{}, error) {
 // 		return self.GetCiscoHost(params)
 // 	})
-// 	self.RegisterGetFunc([]string{"1.3.6.1.4.1.9.12.3.1.3"}, func(params MContext) commons.Result {
+// 	self.RegisterGetFunc([]string{"1.3.6.1.4.1.9.12.3.1.3"}, func(params MContext) (interface{}, error) {
 // 		return self.GetCiscoSAN(params)
 // 	})
 // 	self.RegisterGetFunc([]string{"1.3.6.1.4.1.9.1.965", "1.3.6.1.4.1.9.1.966", "1.3.6.1.4.1.9.1.967"},
-// 		func(params MContext) commons.Result {
+// 		func(params MContext) (interface{}, error) {
 // 			return self.GetCiscoSCE(params)
 // 		})
 
-// 	self.get = func(params MContext) commons.Result {
+// 	self.get = func(params MContext) (interface{}, error) {
 // 		return self.GetWindows(params)
 // 	}
 // 	return nil
@@ -41,44 +41,44 @@ type cpuCiscoSAN struct {
 	snmpBase
 }
 
-func (self *cpuCiscoSAN) Call(params MContext) commons.Result {
+func (self *cpuCiscoSAN) Call(params MContext) (interface{}, error) {
 	cpu, e := self.GetInt32(params, "1.3.6.1.4.1.9.9.305.1.1.2.0")
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
-	return commons.Return(map[string]interface{}{"cpu": cpu})
+	return map[string]interface{}{"cpu": cpu}, nil
 }
 
 type cpuCiscoSCE struct {
 	snmpBase
 }
 
-func (self *cpuCiscoSCE) Call(params MContext) commons.Result {
+func (self *cpuCiscoSCE) Call(params MContext) (interface{}, error) {
 	cpu := int32(-1)
 	e := self.OneInTable(params, "1.3.6.1.4.1.5655.4.1.9.1.1", "35",
-		func(key string, old_row map[string]interface{}) error {
+		func(key string, old_row map[string]interface{}) (bool, error) {
 
 			if i, _ := GetInt32(params, old_row, "35", -1); -1 != i {
 				cpu = i
-				return nil
+				return true, nil
 			}
 
-			return commons.ContinueError
+			return false, nil
 		})
 
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
-	return commons.Return(map[string]interface{}{"cpu": cpu})
+	return map[string]interface{}{"cpu": cpu}, nil
 }
 
 type cpuCiscoCpm struct {
 	baseCisco
 }
 
-func (self *cpuCiscoCpm) Call(params MContext) commons.Result {
+func (self *cpuCiscoCpm) Call(params MContext) (interface{}, error) {
 	return self.readCpuWithCpmSytle(params)
 }
 
@@ -86,7 +86,7 @@ type cpuCiscoOldStyle struct {
 	baseCisco
 }
 
-func (self *cpuCiscoOldStyle) Call(params MContext) commons.Result {
+func (self *cpuCiscoOldStyle) Call(params MContext) (interface{}, error) {
 	return self.readCpuWithOldSytle(params)
 }
 
@@ -94,7 +94,7 @@ type cpuCiscoSystemExt struct {
 	baseCisco
 }
 
-func (self *cpuCiscoSystemExt) Call(params MContext) commons.Result {
+func (self *cpuCiscoSystemExt) Call(params MContext) (interface{}, error) {
 	return self.readCpuWithSystemExt(params)
 }
 
@@ -102,7 +102,7 @@ type cpuHostResources struct {
 	snmpBase
 }
 
-func (self *cpuHostResources) Call(params MContext) commons.Result {
+func (self *cpuHostResources) Call(params MContext) (interface{}, error) {
 	// http://www.ietf.org/rfc/rfc1514.txt
 	// hrProcessorTable OBJECT-TYPE
 	//     SYNTAX SEQUENCE OF HrProcessorEntry
@@ -167,20 +167,20 @@ func (self *cpuHostResources) Call(params MContext) commons.Result {
 		})
 
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
 	switch len(cpus) {
 	case 0:
-		return commons.ReturnError(commons.InternalErrorCode, "cpu list is empty")
+		return nil, errors.New("cpu list is empty")
 	case 1:
-		return commons.Return(map[string]interface{}{"cpu": cpus[0], "cpu_list": cpus})
+		return map[string]interface{}{"cpu": cpus[0], "cpu_list": cpus}, nil
 	default:
 		total := 0
 		for _, v := range cpus {
 			total += v
 		}
-		return commons.Return(map[string]interface{}{"cpu": total / len(cpus), "cpu_list": cpus})
+		return map[string]interface{}{"cpu": total / len(cpus), "cpu_list": cpus}, nil
 	}
 }
 
@@ -262,7 +262,7 @@ type cpuH3C struct {
 	baseH3C
 }
 
-func (self *cpuH3C) Call(params MContext) commons.Result {
+func (self *cpuH3C) Call(params MContext) (interface{}, error) {
 	return self.smartRead("memory", params, self.readCpuWithNewStyle, self.readCpuWithCompatibleStyle)
 }
 
@@ -270,6 +270,6 @@ type cpuFoundry struct {
 	baseFoundry
 }
 
-func (self *cpuFoundry) Call(params MContext) commons.Result {
+func (self *cpuFoundry) Call(params MContext) (interface{}, error) {
 	return self.readCpu(params)
 }

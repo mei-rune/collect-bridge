@@ -1,14 +1,10 @@
 package sampling
 
-import (
-	"commons"
-)
-
 type memCiscoCpmStyle struct {
 	baseCisco
 }
 
-func (self *memCiscoCpmStyle) Call(params MContext) commons.Result {
+func (self *memCiscoCpmStyle) Call(params MContext) (interface{}, error) {
 	return self.readMemWithCpmSytle(params)
 }
 
@@ -16,7 +12,7 @@ type memCiscoOldStyle struct {
 	baseCisco
 }
 
-func (self *memCiscoOldStyle) Call(params MContext) commons.Result {
+func (self *memCiscoOldStyle) Call(params MContext) (interface{}, error) {
 	return self.readMemWithOldSytle(params)
 }
 
@@ -24,7 +20,7 @@ type memCiscoMempool struct {
 	baseCisco
 }
 
-func (self *memCiscoMempool) Call(params MContext) commons.Result {
+func (self *memCiscoMempool) Call(params MContext) (interface{}, error) {
 	return self.readMemWithPoolStyle(params)
 }
 
@@ -32,7 +28,7 @@ type memHostResources struct {
 	snmpBase
 }
 
-func (self *memHostResources) Call(params MContext) commons.Result {
+func (self *memHostResources) Call(params MContext) (interface{}, error) {
 	// http://www.ietf.org/rfc/rfc1514.txt
 	// HOST-RESOURCES-MIB:hrStorageTable  = ".1.3.6.1.2.1.25.2.3.1.";
 	// HOST-RESOURCES-MIB:hrMemorySize  = ".1.3.6.1.2.1.25.2.2.0";
@@ -59,29 +55,29 @@ func (self *memHostResources) Call(params MContext) commons.Result {
 
 	used_per := 0.0
 	e := self.OneInTable(params, "1.3.6.1.2.1.25.2.3.1", "2,5,6",
-		func(key string, old_row map[string]interface{}) error {
+		func(key string, old_row map[string]interface{}) (bool, error) {
 			if "1.3.6.1.2.1.25.2.1.2" != GetOidWithDefault(params, old_row, "2") {
-				return commons.ContinueError
+				return false, nil
 			}
 			x := GetInt32WithDefault(params, old_row, "6", 0)
 			y := GetInt32WithDefault(params, old_row, "5", 0)
 			used_per = float64(x) / float64(y)
-			return nil
+			return true, nil
 		})
 
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
 	//HOST-RESOURCES-MIB:hrMemorySize  = ".1.3.6.1.2.1.25.2.2.0";
 	total, e := self.GetUint64(params, "1.3.6.1.2.1.25.2.2.0")
 	if nil != e {
-		return commons.ReturnWithInternalError(e.Error())
+		return nil, e
 	}
 
 	used := uint64(float64(total) * used_per)
 	free := total - used
-	return commons.Return(map[string]interface{}{"total": total, "used_per": used_per * 100, "used": used, "free": free})
+	return map[string]interface{}{"total": total, "used_per": used_per * 100, "used": used, "free": free}, nil
 }
 
 func init() {
@@ -125,7 +121,7 @@ type memH3C struct {
 	baseH3C
 }
 
-func (self *memH3C) Call(params MContext) commons.Result {
+func (self *memH3C) Call(params MContext) (interface{}, error) {
 	return self.smartRead("memory", params, self.readMemoryWithNewStyle, self.readMemoryWithCompatibleStyle)
 }
 
@@ -133,6 +129,6 @@ type memFoundry struct {
 	baseFoundry
 }
 
-func (self *memFoundry) Call(params MContext) commons.Result {
+func (self *memFoundry) Call(params MContext) (interface{}, error) {
 	return self.readMem(params)
 }

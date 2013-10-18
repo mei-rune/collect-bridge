@@ -1,14 +1,10 @@
 package sampling
 
-import (
-	"commons"
-)
-
 type ipAddress struct {
 	snmpBase
 }
 
-func (self *ipAddress) Call(params MContext) commons.Result {
+func (self *ipAddress) Call(params MContext) (interface{}, error) {
 	return self.GetAllResult(params, "1.3.6.1.2.1.4.20.1", "1,2,3,4,5",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
@@ -41,7 +37,7 @@ type route struct {
 //     ipRouteMetric5  	1.3.6.1.2.1.4.21.1.12
 //     ipRouteInfo  	  1.3.6.1.2.1.4.21.1.13
 
-func (self *route) Call(params MContext) commons.Result {
+func (self *route) Call(params MContext) (interface{}, error) {
 	return self.GetAllResult(params, "1.3.6.1.2.1.4.21.1", "1,2,3,4,5,6,7,8,9,10,11,12,13",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}
@@ -66,7 +62,7 @@ type arp struct {
 	snmpBase
 }
 
-func (self *arp) Call(params MContext) commons.Result {
+func (self *arp) Call(params MContext) (interface{}, error) {
 	return self.GetAllResult(params, "1.3.6.1.2.1.4.22.1", "1,2,3,4",
 		func(key string, old_row map[string]interface{}) (map[string]interface{}, error) {
 			new_row := map[string]interface{}{}

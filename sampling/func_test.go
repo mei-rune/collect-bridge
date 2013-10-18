@@ -18,7 +18,7 @@ func (self MockContext) CreateCtx(metric_name string, managed_type, managed_id s
 func (self MockContext) SetBodyClass(value interface{}) {
 }
 
-func (self MockContext) Read() Sampling {
+func (self MockContext) Read() Reader {
 	return nil
 }
 func (self MockContext) Body() (interface{}, error) {
@@ -43,15 +43,15 @@ func TestSysOid(t *testing.T) {
 		t.Error(e)
 		return
 	}
-	res := sys.Call(MockContext{commons.StringMap(map[string]string{"snmp.version": "v2c",
+	res, e := sys.Call(MockContext{commons.StringMap(map[string]string{"snmp.version": "v2c",
 		"@address":            "127.0.0.1",
 		"snmp.port":           "161",
 		"snmp.read_community": "public"})})
-	if res.HasError() {
-		t.Error(res.Error())
+	if nil != e {
+		t.Error(e)
 		return
 	}
-	s, e := res.Value().AsString()
+	s, e := commons.AsString(res)
 	if nil != e {
 		t.Error(e)
 		return
@@ -76,13 +76,13 @@ func TestSysOidFailed(t *testing.T) {
 		t.Error(e)
 		return
 	}
-	res := sys.Call(MockContext{commons.StringMap(map[string]string{})})
-	if !res.HasError() {
+	_, e = sys.Call(MockContext{commons.StringMap(map[string]string{})})
+	if nil == e {
 		t.Error("excepted error is ''snmp' is required.', actual is nil")
 		return
 	}
-	if res.ErrorMessage() != "'snmp' is required." {
-		t.Error(res.Error())
+	if e.Error() != "'snmp' is required." {
+		t.Error(e)
 		return
 	}
 }

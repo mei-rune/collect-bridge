@@ -2,7 +2,6 @@ package sampling
 
 import (
 	"bytes"
-	"commons"
 	"commons/types"
 	ds "data_store"
 	"encoding/json"
@@ -455,9 +454,9 @@ func TestBrokerWithMergeRequestInClient(t *testing.T) {
 func TestBrokerWithMergeRequestInServer(t *testing.T) {
 
 	called := int32(0)
-	var handler MockHandler = func() commons.Result {
+	var handler MockHandler = func() (interface{}, error) {
 		time.Sleep(100 * time.Millisecond)
-		return commons.Return(atomic.AddInt32(&called, 1))
+		return atomic.AddInt32(&called, 1), nil
 	}
 	Methods["test_handler"] = newRouteSpec("get", "TestBrokerWithMergeRequestInRequest", "the mem of cisco", Match().Build(),
 		func(rs *RouteSpec, params map[string]interface{}) (Method, error) {

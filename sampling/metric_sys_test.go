@@ -38,24 +38,24 @@ func TestSystemTypeInit(t *testing.T) {
 		}
 
 		ctx := MockContext{commons.StringMap(map[string]string{"$sys.oid": k})}
-		res := tp.Call(ctx)
-		if res.HasError() {
-			t.Error(res.ErrorMessage())
+		res, e := tp.Call(ctx)
+		if nil != e {
+			t.Error(e)
 			continue
 		}
 
-		if vv, e := res.Value().AsInt(); nil != e || v != vv {
+		if vv, e := commons.AsInt(res); nil != e || v != vv {
 			t.Error("test['", k, "'] v(", v, ") != vv(", vv, ")", e)
 		}
 
 		ctx = MockContext{commons.StringMap(map[string]string{"$sys.oid": "." + k})}
-		res = tp.Call(ctx)
-		if res.HasError() {
-			t.Error(res.ErrorMessage())
+		res, e = tp.Call(ctx)
+		if nil != e {
+			t.Error(e)
 			continue
 		}
 
-		if vv, e := res.Value().AsInt(); nil != e || v != vv {
+		if vv, e := commons.AsInt(res); nil != e || v != vv {
 			t.Error("test['", k, "'] v(", v, ") != vv(", vv, ")", e)
 		}
 	}

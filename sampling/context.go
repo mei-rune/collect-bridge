@@ -109,7 +109,7 @@ func (self *context) Body() (interface{}, error) {
 	return self.body_instance, self.body_error
 }
 
-func (self *context) Read() Sampling {
+func (self *context) Read() Reader {
 	return self.srv
 }
 

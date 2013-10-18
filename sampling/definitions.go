@@ -2,11 +2,31 @@ package sampling
 
 import (
 	"commons"
+	"errors"
 )
 
 var TableNotExists = commons.NotFound("table is not exists.")
 var NotFound = commons.NotExists
 var TypeError = commons.TypeError("value isn't the specific type.")
+var NotImplemented = commons.NotImplemented
+
+func NewRuntimeError(msg string, e error) error {
+	if nil == e {
+		return errors.New(msg)
+	}
+	if re, ok := e.(commons.RuntimeError); ok {
+		return commons.NewApplicationError(re.Code(), msg+re.Error())
+	}
+	return errors.New(msg + e.Error())
+}
+
+func IsRequired(name string) error {
+	return commons.IsRequired(name)
+}
+
+func BadRequest(msg string) error {
+	return commons.NewApplicationError(400, msg)
+}
 
 type BackgroundWorker interface {
 	Stats() map[string]interface{}
@@ -40,7 +60,7 @@ type Filter struct {
 
 type P [2]string
 
-type Sampling interface {
+type Reader interface {
 	Get(metric_name string, paths []P, params MContext) (interface{}, error)
 	GetBool(metric_name string, paths []P, params MContext) (bool, error)
 	GetInt(metric_name string, paths []P, params MContext) (int, error)
@@ -86,12 +106,12 @@ type MContext interface {
 	GetObjectsWithDefault(key string, defaultValue []map[string]interface{}) []map[string]interface{}
 
 	CreateCtx(metric_name string, managed_type, managed_id string) (MContext, error)
-	Read() Sampling
+	Read() Reader
 	Body() (interface{}, error)
 }
 
 type Method interface {
-	Call(params MContext) commons.Result
+	Call(params MContext) (interface{}, error)
 }
 
 type RouteSpec struct {

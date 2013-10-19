@@ -21,6 +21,7 @@ type historyAction struct {
 	channel      chan<- *data_object
 	cached_data  *data_object
 	attribute    string
+	merger       aggregator
 
 	begin_send_at, wait_response_at, end_send_at int64
 }
@@ -53,6 +54,15 @@ func (self *historyAction) Run(t time.Time, value interface{}) error {
 	currentValue, e := commons.ToSimpleValue(value, self.attribute)
 	if nil != e {
 		return e
+	}
+
+	currentValue, ok, e := self.merger.aggregate(currentValue, created_at)
+	if nil != e {
+		return e
+	}
+
+	if !ok {
+		return nil
 	}
 
 	switch v := currentValue.(type) {
@@ -158,6 +168,7 @@ func newHistoryAction(attributes, options, ctx map[string]interface{}) (ExecuteA
 		channel:      channel,
 		cached_data:  &data_object{c: make(chan error, 2)},
 		attribute:    attribute,
+		merger:       &last_merger{interval: 4 * time.Minute},
 		metric:       metric,
 		managed_id:   managed_id,
 		managed_type: managed_type,

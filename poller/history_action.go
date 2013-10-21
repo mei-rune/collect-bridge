@@ -2,10 +2,7 @@ package poller
 
 import (
 	"commons"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"strconv"
 	"sync/atomic"
 	"time"
 )
@@ -55,66 +52,13 @@ func (self *historyAction) Run(t time.Time, value interface{}) error {
 	if nil != e {
 		return e
 	}
-
 	currentValue, ok, e := self.merger.aggregate(currentValue, created_at)
 	if nil != e {
 		return e
 	}
-
 	if !ok {
 		return nil
 	}
-
-	switch v := currentValue.(type) {
-	case json.Number:
-		currentValue, e = v.Float64()
-		if nil != e {
-			currentValue, e = v.Int64()
-			if nil != e {
-				return errors.New("crazy! it is not a number? - " + v.String())
-			}
-		}
-	case int64:
-		break
-	case int:
-		break
-	case float64:
-		break
-	case float32:
-		break
-	case string:
-		currentValue, e = strconv.ParseFloat(v, 10)
-		if nil != e {
-			return errors.New("crazy! it is not a number? - " + v)
-		}
-	case bool:
-		if v {
-			currentValue = 1
-		} else {
-			currentValue = 0
-		}
-	case int32:
-		break
-	case int8:
-		break
-	case int16:
-		break
-	case uint:
-		break
-	case uint8:
-		break
-	case uint16:
-		break
-	case uint32:
-		break
-	case uint64:
-		break
-	case uintptr:
-		break
-	default:
-		return fmt.Errorf("value is not a number- %T", v)
-	}
-
 	self.cached_data.attributes = map[string]interface{}{
 		"action_id":    self.id,
 		"sampled_at":   created_at,
@@ -160,6 +104,10 @@ func newHistoryAction(attributes, options, ctx map[string]interface{}) (ExecuteA
 	managed_type := options["managed_type"]
 	managed_id := options["managed_id"]
 	triggger_id := options["trigger_id"]
+	interval := 4 * time.Minute
+	if v, ok := options["interval"].(time.Duration); ok {
+		interval = mergeInterval(v)
+	}
 	metric := options["metric"]
 
 	return &historyAction{id: id,
@@ -168,9 +116,34 @@ func newHistoryAction(attributes, options, ctx map[string]interface{}) (ExecuteA
 		channel:      channel,
 		cached_data:  &data_object{c: make(chan error, 2)},
 		attribute:    attribute,
-		merger:       &last_merger{interval: 4 * time.Minute},
+		merger:       &last_merger{interval: interval},
 		metric:       metric,
 		managed_id:   managed_id,
 		managed_type: managed_type,
 		trigger_id:   triggger_id}, nil
+}
+
+func mergeInterval(v time.Duration) time.Duration {
+	if v <= 15*time.Second {
+		return v - 2*time.Second
+	}
+	if v <= 30*time.Second {
+		return v - 5*time.Second
+	}
+	if v <= 60*time.Second {
+		return v - 15*time.Second
+	}
+	if v <= 120*time.Second {
+		return v - 30*time.Second
+	}
+	if v <= 120*time.Second {
+		return v - 30*time.Second
+	}
+	if v <= 5*time.Minute {
+		return v - 1*time.Minute
+	}
+	if v <= 10*time.Minute {
+		return v - 3*time.Minute
+	}
+	return v - 5*time.Minute
 }

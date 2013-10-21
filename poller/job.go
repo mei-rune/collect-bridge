@@ -3,6 +3,7 @@ package poller
 import (
 	"bytes"
 	"commons"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -81,7 +82,11 @@ func toTimesWithResult(ts []samplingResult) []interface{} {
 
 	ret := make([]interface{}, len(ts))
 	for i := 0; i < len(ret); i++ {
-		ret[i] = []interface{}{time.Unix(ts[i].sampled_at, 0), ts[i].is_ok}
+		if ts[i].is_ok {
+			ret[i] = json.RawMessage("[\"" + time.Unix(ts[i].sampled_at, 0).Format(time.RFC3339) + "\", true]")
+		} else {
+			ret[i] = json.RawMessage("[\"" + time.Unix(ts[i].sampled_at, 0).Format(time.RFC3339) + "\", false]")
+		}
 	}
 	return ret
 }
@@ -176,7 +181,7 @@ func (self *metricJob) run() {
 				atomic.StoreInt64(&self.max_used_duration, used_duration)
 			}
 			self.recv_histories.Push(samplingResult{sampled_at: now, is_ok: !res.HasError()})
-		case <-trigger.GetChannel():
+		case <-trigger.Channel():
 			self.timeout(time.Now())
 		}
 	}
@@ -246,14 +251,14 @@ func createMetricJob(attributes, ctx map[string]interface{}) (Job, error) {
 		return nil, errors.New("'sampling_broker' is not a SamplingBroker in the ctx.")
 	}
 
-	options := map[string]interface{}{"managed_type": "managed_object",
-		"managed_id": parentId_int64, "metric": metric, "trigger_id": id}
-	base, e := newBase(attributes, options, ctx)
+	triggerBuilder, e := newTrigger(attributes, ctx)
 	if nil != e {
 		return nil, e
 	}
 
-	triggerBuilder, e := newTrigger(attributes, ctx)
+	options := map[string]interface{}{"managed_type": "managed_object",
+		"managed_id": parentId_int64, "metric": metric, "trigger_id": id, "interval": triggerBuilder.Interval()}
+	base, e := newBase(attributes, options, ctx)
 	if nil != e {
 		return nil, e
 	}

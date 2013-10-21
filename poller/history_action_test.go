@@ -23,6 +23,13 @@ var all_history_tests = []struct {
 	{attributes: map[string]interface{}{"a": float32(13)}, value: float32(13)},
 	{attributes: map[string]interface{}{"a": float64(13)}, value: float64(13)}}
 
+// func TestHistoryaaaaaSimple(t *testing.T) {
+// 	options := map[string]interface{}{}
+// 	if _, ok := options["interval"].(time.Duration); ok {
+// 		t.Error("aaa")
+// 	}
+// }
+
 func TestHistorySimple(t *testing.T) {
 	c1 := make(chan *data_object)
 	c := make(chan *data_object, 10)

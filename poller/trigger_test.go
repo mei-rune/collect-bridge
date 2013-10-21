@@ -34,7 +34,7 @@ func TestTrigger(t *testing.T) {
 	defer trgger.Close()
 
 	select {
-	case <-trgger.GetChannel():
+	case <-trgger.Channel():
 		t.Log("recv")
 		break
 	case <-time.After(1 * time.Second):

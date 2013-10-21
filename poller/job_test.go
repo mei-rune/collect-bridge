@@ -171,6 +171,7 @@ func TestJobFull(t *testing.T) {
 		}
 
 		m := result[0].ToMap()
+		m["interval"] = 1000000
 		m["managed_id"] = 12
 		m["managed_type"] = "managed_object"
 		m["metric"] = "cpu"

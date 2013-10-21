@@ -8,18 +8,28 @@ import (
 )
 
 type Trigger interface {
-	GetChannel() <-chan time.Time
+	Channel() <-chan time.Time
+	Interval() time.Duration
 	Close()
 }
 
 type TriggerBuilder interface {
+	Interval() time.Duration
 	New() (Trigger, error)
 }
 
-type TriggerBuilderFunc func() (Trigger, error)
+type triggerBuilder struct {
+	interval time.Duration
+}
 
-func (tb TriggerBuilderFunc) New() (Trigger, error) {
-	return tb()
+func (self *triggerBuilder) Interval() time.Duration {
+	return self.interval
+}
+
+func (self *triggerBuilder) New() (Trigger, error) {
+	return &intervalTrigger{
+		ticker:   time.NewTicker(self.interval),
+		interval: self.interval}, nil
 }
 
 var (
@@ -52,11 +62,7 @@ func newTrigger(attributes, ctx map[string]interface{}) (TriggerBuilder, error) 
 			return nil, errors.New(ExpressionSyntexError.Error() + ", " + err.Error())
 		}
 
-		return TriggerBuilderFunc(func() (Trigger, error) {
-			return &intervalTrigger{
-				ticker:   time.NewTicker(interval),
-				interval: interval}, nil
-		}), nil
+		return &triggerBuilder{interval: interval}, nil
 	}
 	return nil, ExpressionSyntexError
 }
@@ -66,8 +72,12 @@ type intervalTrigger struct {
 	interval time.Duration
 }
 
-func (self *intervalTrigger) GetChannel() <-chan time.Time {
+func (self *intervalTrigger) Channel() <-chan time.Time {
 	return self.ticker.C
+}
+
+func (self *intervalTrigger) Interval() time.Duration {
+	return self.interval
 }
 
 func (self *intervalTrigger) Close() {

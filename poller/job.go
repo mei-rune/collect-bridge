@@ -82,11 +82,13 @@ func toTimesWithResult(ts []samplingResult) []interface{} {
 
 	ret := make([]interface{}, len(ts))
 	for i := 0; i < len(ret); i++ {
+		var rm json.RawMessage
 		if ts[i].is_ok {
-			ret[i] = json.RawMessage("[\"" + time.Unix(ts[i].sampled_at, 0).Format(time.RFC3339) + "\", true]")
+			rm = json.RawMessage("[\"" + time.Unix(ts[i].sampled_at, 0).Format(time.RFC3339) + "\", true]")
 		} else {
-			ret[i] = json.RawMessage("[\"" + time.Unix(ts[i].sampled_at, 0).Format(time.RFC3339) + "\", false]")
+			rm = json.RawMessage("[\"" + time.Unix(ts[i].sampled_at, 0).Format(time.RFC3339) + "\", false]")
 		}
+		ret[i] = &rm
 	}
 	return ret
 }

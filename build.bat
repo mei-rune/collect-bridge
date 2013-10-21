@@ -136,6 +136,7 @@ go get github.com/mattn/go-adodb
 go get github.com/wendal/go-oci8
 go get github.com/tgulacsi/goracle/oracle
 go get github.com/tgulacsi/goracle/godrv
+go get github.com/runner-mei/cron
 go get github.com/runner-mei/scheduler
 
 

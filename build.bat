@@ -136,7 +136,7 @@ go get github.com/mattn/go-adodb
 go get github.com/wendal/go-oci8
 go get github.com/tgulacsi/goracle/oracle
 go get github.com/tgulacsi/goracle/godrv
-
+go get github.com/runner-mei/scheduler
 
 
 :build_install_directory
@@ -159,6 +159,16 @@ for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
   @if errorlevel 1 goto failed
   @if not defined is_install goto build_3td_library_ok
   copy daemontools.exe  "%PUBLISH_PATH%\tpt_service_daemon.exe"
+  @if errorlevel 1 goto failed
+
+
+
+  cd "..\..\scheduler"
+  del "*.exe"
+  go build
+  @if errorlevel 1 goto failed
+  @if not defined is_install goto build_3td_library_ok
+  copy scheduler.exe  "%PUBLISH_PATH%\bin\tpt_schd.exe"
   @if errorlevel 1 goto failed
 )
 

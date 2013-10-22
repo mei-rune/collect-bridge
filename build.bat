@@ -159,7 +159,7 @@ for /f "tokens=1 delims=;" %%a in ("%GOPATH%") do (
   go build
   @if errorlevel 1 goto failed
   @if not defined is_install goto build_3td_library_ok
-  copy daemontools.exe  "%PUBLISH_PATH%\tpt_service_daemon.exe"
+  copy daemontools.exe  "%PUBLISH_PATH%\tpt_daemon.exe"
   @if errorlevel 1 goto failed
 
 

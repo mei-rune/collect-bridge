@@ -104,7 +104,7 @@ type last_merger struct {
 
 func (self *last_merger) aggregate(value interface{}, timestamp time.Time) (interface{}, bool, error) {
 	if timestamp.After(self.sampled_at) && timestamp.Sub(self.sampled_at) < self.interval {
-		fmt.Println(self.sampled_at, timestamp, timestamp.Sub(self.sampled_at))
+		//fmt.Println(self.sampled_at, timestamp, timestamp.Sub(self.sampled_at))
 		return nil, false, nil
 	}
 

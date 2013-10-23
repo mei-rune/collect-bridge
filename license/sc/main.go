@@ -30,8 +30,8 @@ func abs(pa string) string {
 }
 
 func searchDir() (string, bool) {
-	files := []string{abs(filepath.Join("lib")),
-		abs(filepath.Join("..", "lib"))}
+	files := []string{abs(filepath.Join("data")),
+		abs(filepath.Join("..", "data"))}
 	for _, file := range files {
 		if st, e := os.Stat(file); nil == e && nil != st && st.IsDir() {
 			return filepath.Base(file), true

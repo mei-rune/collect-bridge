@@ -28,32 +28,34 @@ func TestRemoveTriggerWhileOnTick(t *testing.T) {
 				"operator":  ">=",
 				"value":     "0"}})
 
-		is_test = true
-		*load_cookies = true
-		Main()
-		if nil == server_test {
-			t.Error("load trigger failed.")
-			return
-		}
-		defer func() {
-			server_test.Close()
-			server_test = nil
-		}()
+		carrier.SrvTest(t, func(db *sql.DB, url string) {
+			*foreignUrl = url
+			is_test = true
+			*load_cookies = true
+			Main()
+			if nil == server_test {
+				t.Error("load trigger failed.")
+				return
+			}
+			defer func() {
+				server_test.Close()
+				server_test = nil
+			}()
 
-		if nil == server_test.jobs || 0 == len(server_test.jobs) {
-			t.Error("load trigger failed.")
-			return
-		}
+			if nil == server_test.jobs || 0 == len(server_test.jobs) {
+				t.Error("load trigger failed.")
+				return
+			}
 
-		ds.DeleteItForTest(t, client, "metric_trigger", mt_id)
+			ds.DeleteItForTest(t, client, "metric_trigger", mt_id)
 
-		server_test.onIdle()
+			server_test.onIdle()
 
-		if 0 != len(server_test.jobs) {
-			t.Error("REMOVE trigger failed.")
-			return
-		}
-
+			if 0 != len(server_test.jobs) {
+				t.Error("REMOVE trigger failed.")
+				return
+			}
+		})
 	})
 }
 

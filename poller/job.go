@@ -44,10 +44,9 @@ type metricJob struct {
 }
 
 func (self *metricJob) Interupt() {
-	if 1 == atomic.LoadInt32(&self.closed) {
-		return
-	}
-
+	// if 1 == atomic.LoadInt32(&self.closed) {
+	// 	return
+	// }
 	self.c <- 0
 }
 
@@ -55,6 +54,7 @@ func (self *metricJob) Close(reason int) {
 	if 1 == atomic.LoadInt32(&self.closed) {
 		return
 	}
+
 	if nil != self.client {
 		self.client.Close()
 	}
@@ -143,7 +143,7 @@ func (self *metricJob) run() {
 			self.set_last_error(msg)
 		}
 
-		atomic.StoreInt32(&self.closed, 1)
+		//atomic.StoreInt32(&self.closed, 1)
 		self.wait.Done()
 	}()
 

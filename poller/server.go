@@ -290,7 +290,7 @@ func (s *server) onIdle() {
 		delete(s.ctx, "cookies_loader")
 	}
 
-	// 1. interupt all triggers
+	// 1. interupt all updated and deleted triggers
 	if nil != updated {
 		for _, id := range updated {
 			s.interuptJob(id)
@@ -323,18 +323,18 @@ func (s *server) onIdle() {
 			s.startJob(res)
 		})
 		if nil != e {
-			log.Println("[srv] updated triggers with count is", len(newed), "start failed,", e)
+			log.Println("[srv] updated triggers with count is", len(newed), "restart failed,", e)
 		} else {
-			log.Println("[srv] updated triggers with count is", len(updated), "is started.")
+			log.Println("[srv] updated triggers with count is", len(updated), "is restarted.")
 		}
 	}
 
-	// 3. stop deleted triggers
+	// 4. stop deleted triggers
 	if nil != deleted {
 		for _, id := range deleted {
 			s.stopJob(id, CLOSE_REASON_DELETED)
 		}
-		log.Println("[srv] deleted triggers with count is", len(deleted), "is started.")
+		log.Println("[srv] deleted triggers with count is", len(deleted), "is stopped.")
 	}
 
 	log.Println("[srv] poll is ok and", time.Now().Sub(s.firedAt), "is elapsed")

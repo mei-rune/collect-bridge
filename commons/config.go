@@ -102,12 +102,19 @@ func LoadConfig(flagSet *flag.FlagSet) error {
 			if nil != e {
 				return e
 			}
+			url_name:= "db.url"
+			drv_name:= "db.driver"
+			if "db_url" == k {
+			url_name= "db_url"
+			drv_name= "db_driver"
+			}
+			
 			if nil == flagSet {
-				flag.Set("db.url", url)
-				flag.Set("db.driver", drv)
+				flag.Set(url_name, url)
+				flag.Set(drv_name, drv)
 			} else {
-				flagSet.Set("db.url", url)
-				flagSet.Set("db.driver", drv)
+				flagSet.Set(url_name, url)
+				flagSet.Set(drv_name, drv)
 			}
 		}
 

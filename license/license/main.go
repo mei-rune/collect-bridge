@@ -399,7 +399,13 @@ func main() {
 	}
 	data, err := license.DecryptoFile(file)
 	if err != nil {
-		log.Fatal(err)
+		err = http.ListenAndServe(*listen_port, http.Handler(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+			io.WriteString(w, "UNREGISTERED")
+		}))
+		if err != nil {
+			log.Fatal(err)
+		}
 		return
 	}
 	var attributes map[string]interface{}

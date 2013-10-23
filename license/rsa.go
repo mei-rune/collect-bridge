@@ -160,8 +160,8 @@ func abs(pa string) string {
 
 func SearchLicenseFile(nm string) (string, error) {
 	files := []string{abs(nm),
-		abs(filepath.Join("lib", "tpt.lic")),
-		abs(filepath.Join("..", "lib", "tpt.lic"))}
+		abs(filepath.Join("data", "tpt.lic")),
+		abs(filepath.Join("..", "data", "tpt.lic"))}
 	for _, file := range files {
 		if st, e := os.Stat(file); nil == e && nil != st && !st.IsDir() {
 			return file, nil

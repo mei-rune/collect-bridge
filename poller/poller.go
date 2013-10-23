@@ -125,10 +125,8 @@ func Main() {
 		}
 	}
 
-	if e := commons.LoadDefaultProperties("", "", "", "redis_address", map[string]string{"redis.host": "127.0.0.1",
-		"redis.port": "36379"}); nil != e {
-		log.Println(e)
-		return
+	if e := commons.LoadConfig(nil); nil != e {
+		return e
 	}
 
 	close_list := make([]commons.Closeable, 0, 10)

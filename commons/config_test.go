@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestLoadConfig(t *testing.T) {
+func TestLoadConfigFromJsonFile(t *testing.T) {
 	var flagSet flag.FlagSet
 	a := flagSet.Int("a", -1, "for test")
 	b := flagSet.Bool("b", true, "for test")
@@ -13,7 +13,7 @@ func TestLoadConfig(t *testing.T) {
 	da := flagSet.Int("d.a", -1, "for test")
 	dd := flagSet.Bool("d.d", false, "for test")
 	dc := flagSet.String("d.c", "-1", "for test")
-	e := LoadConfig("config_test.txt", &flagSet, false)
+	e := LoadConfigFromJsonFile("config_test.txt", &flagSet, false)
 	if nil != e {
 		t.Error(e)
 		return
@@ -39,14 +39,14 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
-func TestLoadConfigWithNotDefined(t *testing.T) {
+func TestLoadConfigFromJsonFileWithNotDefined(t *testing.T) {
 	var flagSet flag.FlagSet
 	a := flagSet.Int("a", -1, "for test")
 	b := flagSet.Bool("b", true, "for test")
 	c := flagSet.String("c", "-1", "for test")
 	da := flagSet.Int("d.a", -1, "for test")
 	dc := flagSet.String("d.c", "-1", "for test")
-	e := LoadConfig("config_test.txt", &flagSet, false)
+	e := LoadConfigFromJsonFile("config_test.txt", &flagSet, false)
 	if nil != e {
 		t.Error(e)
 		return
@@ -70,7 +70,7 @@ func TestLoadConfigWithNotDefined(t *testing.T) {
 	}
 }
 
-func TestLoadConfigWithNotOverride(t *testing.T) {
+func TestLoadConfigFromJsonFileWithNotOverride(t *testing.T) {
 	var flagSet flag.FlagSet
 	a := flagSet.Int("a", -1, "for test")
 	b := flagSet.Bool("b", true, "for test")
@@ -83,7 +83,7 @@ func TestLoadConfigWithNotOverride(t *testing.T) {
 	flagSet.Set("d.a", "2")
 	flagSet.Set("d.c", "set2")
 
-	e := LoadConfig("config_test.txt", &flagSet, false)
+	e := LoadConfigFromJsonFile("config_test.txt", &flagSet, false)
 	if nil != e {
 		t.Error(e)
 		return
@@ -107,7 +107,7 @@ func TestLoadConfigWithNotOverride(t *testing.T) {
 	}
 }
 
-func TestLoadConfigWithOverride(t *testing.T) {
+func TestLoadConfigFromJsonFileWithOverride(t *testing.T) {
 	var flagSet flag.FlagSet
 	a := flagSet.Int("a", -1, "for test")
 	b := flagSet.Bool("b", true, "for test")
@@ -121,7 +121,7 @@ func TestLoadConfigWithOverride(t *testing.T) {
 	flagSet.Set("d.a", "2")
 	flagSet.Set("d.c", "set2")
 
-	e := LoadConfig("config_test.txt", &flagSet, true)
+	e := LoadConfigFromJsonFile("config_test.txt", &flagSet, true)
 	if nil != e {
 		t.Error(e)
 		return

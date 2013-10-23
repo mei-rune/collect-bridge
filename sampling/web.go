@@ -41,10 +41,9 @@ func Main() {
 		flag.Usage()
 		return
 	}
-	if e := commons.LoadDefaultProperties("", "", "", "redis.address", map[string]string{"redis.host": "127.0.0.1",
-		"redis.port": "36379"}); nil != e {
-		fmt.Println(e)
-		return
+
+	if e := commons.LoadConfig(nil); nil != e {
+		return e
 	}
 
 	snmp, e := snmp.NewSnmpDriver(*snmp_timeout, nil)

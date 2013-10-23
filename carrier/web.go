@@ -950,14 +950,7 @@ func Main(is_test bool) error {
 		flag.Usage()
 		return nil
 	}
-	if e := commons.LoadDefaultProperties("data.", "data_db.driver", "data_db.url", "", map[string]string{"redis.host": "127.0.0.1",
-		"redis.port":  "36379",
-		"db.type":     "postgresql",
-		"db.address":  "127.0.0.1",
-		"db.port":     "35432",
-		"db.schema":   "tpt_data",
-		"db.username": "tpt",
-		"db.password": "extreme"}); nil != e {
+	if e := commons.LoadConfig(nil); nil != e {
 		return e
 	}
 

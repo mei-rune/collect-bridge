@@ -399,7 +399,7 @@ func main() {
 	}
 	data, err := license.DecryptoFile(file)
 	if err != nil {
-		err = http.ListenAndServe(*listen_port, http.Handler(func(w http.ResponseWriter, r *http.Request) {
+		err = http.ListenAndServe(*listen_port, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			io.WriteString(w, "UNREGISTERED")
 		}))

@@ -43,7 +43,8 @@ func Main() {
 	}
 
 	if e := commons.LoadConfig(nil); nil != e {
-		return e
+		fmt.Println(e)
+		return
 	}
 
 	snmp, e := snmp.NewSnmpDriver(*snmp_timeout, nil)

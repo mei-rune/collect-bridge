@@ -126,7 +126,8 @@ func Main() {
 	}
 
 	if e := commons.LoadConfig(nil); nil != e {
-		return e
+		log.Println(e)
+		return
 	}
 
 	close_list := make([]commons.Closeable, 0, 10)

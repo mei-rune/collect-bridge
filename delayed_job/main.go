@@ -14,7 +14,8 @@ func main() {
 		return
 	}
 	if e := commons.LoadConfig(nil); nil != e {
-		return e
+		fmt.Println(e)
+		return
 	}
 
 	e := delayed_job.Main()

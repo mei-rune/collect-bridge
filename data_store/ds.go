@@ -72,7 +72,7 @@ func Main() {
 		"redis.port":  "36379",
 		"db.type":     "postgresql",
 		"db.address":  "127.0.0.1",
-		"db.port":     "5432",
+		"db.port":     "35432",
 		"db.schema":   "tpt",
 		"db.username": "tpt",
 		"db.password": "extreme"}); nil != e {
